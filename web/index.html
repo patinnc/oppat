@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<!--
+ Copyright (c) 2018 Patrick Fay
+ License http://opensource.org/licenses/mit-license.php MIT License
+-->
+
+
+<html>
+    <head>
+        <title>OPPAT Open Power Performance Analysis Tool</title>
+        <meta charset="UTF-8">
+<!--
+        <meta name="viewport" content="width=device-width">
+-->
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/css/font-awesome.min.css">
+	<link rel="stylesheet" href="/css/BootSideMenu.css">
+
+    </head>
+<style>
+
+#myProgress {
+  width: 100%;
+  background-color: #ddd;
+  z-index: 2;
+}
+
+#myBar {
+  z-index: 2;
+  width: 10%;
+  height: 30px;
+  background-color: #4CAF50;
+  text-align: center;
+  line-height: 30px;
+  color: white;
+}
+
+.slidecontainer {
+    //width: 100%; 
+    float: right;
+    padding-right:0;
+}
+
+.legend_square {
+  height: 14px;
+  width: 15px;
+  background-color: #555;
+}
+
+.ul_none {
+    list-style-position: none;
+	list-style: none;
+    padding-left:0;
+	margin: 5px 10px;
+	margin-top: 0px;
+	margin-bottom: 0px;
+  font-weight:normal;
+}
+
+.il_none {
+  margin: 0 0 5px 0;
+  font-weight:normal;
+  line-height:100%;
+	margin-top: 0px;
+	margin-bottom: 0px;
+}
+.clrTxtButton{
+  display:block;
+}
+
+.slider {
+    -webkit-appearance: none; 
+    appearance: none;
+    height: 25px;
+    background: #d3d3d3;
+    outline: none;
+    opacity: 0.7;
+    -webkit-transition: .1s;
+    transition: opacity .1s;
+    //width: 100%; 
+}
+
+.slider:hover {
+    opacity: 1;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 15px;
+    height: 25px;
+    background: #4CAF50;
+    cursor: pointer;
+}
+
+.slider::-moz-range-thumb {
+    width: 15px;
+    height: 25px;
+    background: #4CAF50;
+    cursor: pointer;
+}
+.chart {
+}
+
+.main text {
+    font: 10px sans-serif;	
+}
+
+.axis line, .axis path {
+    shape-rendering: crispEdges;
+    stroke: black;
+    fill: none;
+}
+
+circle {
+    fill: steelblue;
+}
+.tooltip {
+    position: relative;
+    display: inline-block;
+    //border-bottom: 1px dotted black;
+  //position: absolute
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    background-color: #fff;
+    color: black;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 1;
+    border-width: 1px;
+    border-style: solid;
+    border-color: black;
+    opacity: 0;
+    transition: opacity 0.2s;
+    //border-radius: 6px;
+    //bottom: 125%;
+    //left: 50%;
+    //width: 120px;
+    //border-color: #fff;
+    //color: #fff;
+    //text-align: center;
+    //margin-left: -60px;
+}
+
+.center-outer-div
+{
+     //padding: 10px;
+     text-align: center;
+}
+.center-inner-div
+{
+     display: inline-block;
+     //padding: 10px;
+}
+
+
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+    //position: fixed;
+}
+</style>
+    <script src="/js/jquery-3.3.1.min.js" charset="utf-8"></script>
+    <script src="/js/bootstrap.min.js" charset="utf-8"></script>
+    <script src="/js/BootSideMenu.js" charset="utf-8"></script>
+	<script src="/js/sprintf.min.js"></script>
+	<script src="/js/tasktimer/tasktimer.js"></script>
+    <script src="/js/main.js"></script>
+<body>
+<!--
+<div id="myProgress">
+  <div id="myBar">0%</div>
+</div>
+-->
+<!-- lhs_menu -->
+<div id="lhs_menu" class='bootstrap-scope' visibility="hidden">
+<span id="lhs_menu_span">
+  <div class="list-group">
+	  Place holder for future.
+  </div>
+</span>
+</div>
+<!-- /lhs_menu -->
+<!-- rhs_menu2 
+<div id="rhs_menu" class='bootstrap-scope' visibility="hidden">
+	  Place holder for future per-chart options
+</div>
+ /rhs_menu -->
+<div>
+	<input type="text" id="messageinput"></input><span id="msg_span"></span>
+</div>
+<div>
+<button type="button" onclick="send();">Send</button>
+<br>
+</div>
+<div id="chart_anchor"></div>
+</body>
+</html>

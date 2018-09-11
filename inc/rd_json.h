@@ -1,0 +1,175 @@
+/* Copyright (c) 2018 Patrick Fay
+ *
+ * License http://opensource.org/licenses/mit-license.php MIT License
+ */
+
+enum {
+	FILE_MODE_FIRST = 0x01,
+	FILE_MODE_LAST  = 0x02,
+	FILE_MODE_ALL   = 0x04,
+	FILE_MODE_REPLACE_CUR_DIR_WITH_ROOT   = 0x08,
+};
+
+
+struct flnm_evt_str {
+	std::string filename_bin, filename_text, evt_str;
+	uint32_t prf_obj_idx, prf_evt_idx, evt_tbl_idx, evt_tbl_evt_idx, total;
+	flnm_evt_str(): prf_obj_idx(-1), prf_evt_idx(-1), evt_tbl_idx(-1), evt_tbl_evt_idx(-1), total(0) {}
+};
+
+struct action_str {
+	std::string oper;
+	double val, val1;
+};
+struct comm_tid_str {
+	std::string comm, tid;
+};
+
+struct fld_str {
+	std::string name, lkup, next_for_name, lkup_dlm_str;
+	std::string diff_ts_with_ts_of_prev_by_var_using_fld;
+	std::string lag_prev_by_var_using_fld;
+	comm_tid_str mk_proc_from_comm_tid_flds;
+	uint64_t flags;
+	uint32_t got_factor, lag_by_var;
+	int lst_ft_fmt_fld_idx, next_for_name_idx;
+	std::vector <action_str> actions;
+	std::vector <action_str> actions_stage2;
+	fld_str(): flags(0), lag_by_var(0), lst_ft_fmt_fld_idx(-2), next_for_name_idx(-1) { }
+};
+
+struct ts_str {
+	double ts, duration;
+	ts_str(): ts(0.0), duration(0.0) {}
+};
+	
+
+struct data_str {
+	std::vector <ts_str> ts;
+	std::vector <std::vector <double>> vals;
+	std::vector <std::vector <uint32_t>> cpt_idx;
+	std::vector <int> prf_sample_idx;
+	std::vector <int> comm_pid_tid_idx;
+};
+
+struct lag_str {
+	int fld_from, fld_to, by_var;
+	lag_str(): fld_from(-1), fld_to(-1), by_var(0) {}
+};
+struct chart_str {
+	std::string title, var_name, by_var, chart_tag, chart_category, chart_type,
+		y_fmt, by_val_ts, by_val_dura;
+	bool use_chart;
+	uint32_t var_idx, by_var_idx;
+	int32_t pixels_high;
+	std::unordered_map <double, uint32_t> by_var_hsh;
+	std::vector <double> by_var_vals, by_var_sub_tots;
+	std::vector <double> dura_prev_ts;
+	std::vector <double> next_ts;
+	std::vector <double> next_val;
+	std::vector <action_str> actions;
+	std::vector <lag_str> lag_cfg;
+	std::vector <std::vector <double>> lag_vec;
+	std::vector <std::string> by_var_strs;
+	chart_str(): use_chart(true), var_idx(-1), by_var_idx(-1) {};
+};
+
+struct chart_cat_str {
+	std::string name;
+	int priority;
+	chart_cat_str(): priority(0) {}
+};
+
+
+struct evt_str {
+	std::string event_name, event_type, event_name_w_area;
+	uint32_t prf_obj_idx, event_idx_in_file;
+	std::unordered_map <std::string, uint32_t> hsh_str;
+	std::vector <std::string> vec_str;
+	std::vector <fld_str> flds;
+	std::vector <chart_str> charts;
+	struct data_str data;
+	double ts_last, prf_ts_initial;
+	int file_tag_idx;
+	evt_str(): prf_obj_idx(-1), event_idx_in_file(-1), ts_last(-1.0), prf_ts_initial(-1.0), file_tag_idx(-1) {}
+};
+
+struct fld_typ_str {
+	uint32_t flag;
+	std::string str;
+};
+
+enum fld_typ_enums {
+	FLD_TYP_INT           = (1ULL << 0),
+	FLD_TYP_DBL           = (1ULL << 1),
+	FLD_TYP_STR           = (1ULL << 2),
+	FLD_TYP_SYS_CPU       = (1ULL << 3),
+	FLD_TYP_TM_CHG_BY_CPU = (1ULL << 4),
+	FLD_TYP_PERIOD        = (1ULL << 5),
+	FLD_TYP_PID           = (1ULL << 6),
+	FLD_TYP_TID           = (1ULL << 7),
+	FLD_TYP_TIMESTAMP     = (1ULL << 8),
+	FLD_TYP_COMM          = (1ULL << 9),
+	FLD_TYP_COMM_PID      = (1ULL << 10),
+	FLD_TYP_COMM_PID_TID  = (1ULL << 11),
+	FLD_TYP_EXCL_PID_0    = (1ULL << 12),
+	FLD_TYP_DURATION_BEF  = (1ULL << 13),
+	FLD_TYP_DIV_BY_INTERVAL = (1ULL << 14),
+	FLD_TYP_TRC_BIN       = (1ULL << 15),
+	FLD_TYP_STATE_AFTER   = (1ULL << 16),
+	FLD_TYP_DURATION_PREV_TS_SAME_BY_VAL = (1ULL << 17),
+	FLD_TYP_DIV_BY_INTERVAL2 = (1ULL << 18),
+	FLD_TYP_TRC_FLD_PFX   = (1ULL << 19),
+	FLD_TYP_ETW_COMM_PID  = (1ULL << 20),
+	FLD_TYP_HEX_IN        = (1ULL << 21),
+	FLD_TYP_BY_VAR0       = (1ULL << 22),
+	FLD_TYP_BY_VAR1       = (1ULL << 23),
+	FLD_TYP_ETW_COMM_PID2 = (1ULL << 24),
+	FLD_TYP_COMM_PID_TID2 = (1ULL << 25),
+	FLD_TYP_TID2          = (1ULL << 26),
+	FLD_TYP_CSW_STATE     = (1ULL << 27),
+	FLD_TYP_CSW_REASON    = (1ULL << 28),
+	FLD_TYP_LAG           = (1ULL << 29),
+};
+
+enum {
+	FILE_TYP_PERF=1,
+	FILE_TYP_TRC_CMD,
+	FILE_TYP_LUA,
+	FILE_TYP_ETW,
+};
+
+struct file_list_str {
+	std::string file_bin, file_txt, wait_txt, file_tag;
+	int typ, grp;
+	file_list_str(): typ(-1), grp(-1) {}
+};
+
+#pragma once
+
+#ifdef EXTERN_STR
+#undef EXTERN_STR
+#endif
+
+#ifdef RD_JSON_CPP
+#define EXTERN_STR
+#else
+#define EXTERN_STR extern
+#endif
+
+EXTERN_STR std::vector <chart_cat_str> chart_category;
+EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str> &file_list, std::vector <std::string> use_file_tag,
+	int read_file_mode, std::string root_data_dir, int verbose);
+EXTERN_STR std::string rd_json(std::string flnm);
+EXTERN_STR int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose);
+//EXTERN_STR std::vector <fld_typ_str> fld_typ_strs;
+#if 0
+EXTERN_STR int grph_data_to_json(ns_grph::grph_str &grph);
+#endif
+EXTERN_STR std::unordered_map<std::string, uint32_t> ETW_events_to_skip_hash;
+EXTERN_STR std::vector <std::string> ETW_events_to_skip_vec;
+
+EXTERN_STR uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str);
+EXTERN_STR int ck_json(std::string str, std::string from_where, const char *file, int line, int verbose);
+
+

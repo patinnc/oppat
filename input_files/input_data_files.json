@@ -1,0 +1,38 @@
+{
+  "file_list":[
+	{"root_dir":"/data/ppat/"},
+
+	{"cur_dir":"%root_dir%/oppat_data/win/mem_bw4"},
+	{"cur_tag":"win_mem_bw4"},
+	{"txt_file":"etw_trace.txt", "tag":"%cur_tag%", "type":"ETW"},
+	{"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%cur_tag%", "type":"LUA"},
+
+	{"cur_dir":"%root_dir%/oppat_data/lnx/mem_bw4"},
+	{"cur_tag":"lnx_mem_bw4"},
+	{"bin_file":"prf_energy.txt", "txt_file":"prf_energy2.txt", "wait_file":"wait.txt", "tag":"%cur_tag%", "type":"LUA"},
+	{"bin_file":"prf_trace.data", "txt_file":"prf_trace.txt", "tag":"%cur_tag%", "type":"PERF"},
+	{"bin_file":"tc_trace.dat",  "txt_file":"tc_trace.txt", "tag":"%cur_tag%", "type":"TRACE_CMD"},
+
+	{"cur_dir":"%root_dir%/oppat_data/win/mem_bw3"},
+	{"cur_tag":"win_mem_bw3"},
+	{"txt_file":"trace.txt", "tag":"%cur_tag%", "type":"ETW"},
+	{"txt_file":"energy2.txt", "wait_file":"wait.txt", "tag":"%cur_tag%", "type":"LUA"},
+
+	{"cur_dir":"%root_dir%/oppat_data/lnx/mem_bw3"},
+	{"cur_tag":"lnx_mem_bw3"},
+	{"bin_file":"prf_energy.txt", "txt_file":"prf_energy2.txt", "wait_file":"wait.txt", "tag":"%cur_tag%", "type":"LUA"},
+	{"bin_file":"prf.data", "txt_file":"prf.txt", "tag":"%cur_tag%", "type":"PERF"},
+	{"bin_file":"trc.dat",  "txt_file":"trc.txt", "tag":"%cur_tag%", "type":"TRACE_CMD"},
+
+	{"cur_dir":"%root_dir%/oppat_data/lnx_try5"},
+	{"cur_tag":"lnx_try5"},
+	{"bin_file":"prf_energy.txt", "txt_file":"prf_energy2.txt", "wait_file":"wait.txt", "tag":"%cur_tag%", "type":"LUA"},
+	{"bin_file":"prf.data", "txt_file":"prf.txt", "tag":"%cur_tag%", "type":"PERF"},
+	{"bin_file":"trc.dat",  "txt_file":"trc.txt", "tag":"%cur_tag%", "type":"TRACE_CMD"},
+
+	{"cur_dir":"%root_dir%/oppat_data/win_mem_bw2"},
+	{"cur_tag":"win_mem_bw2"},
+	{"txt_file":"trace.txt", "tag":"%cur_tag%", "type":"ETW"},
+	{"txt_file":"energy2.txt", "wait_file":"wait.txt", "tag":"%cur_tag%", "type":"LUA"}
+	] 
+}

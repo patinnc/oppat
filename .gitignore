@@ -1,0 +1,75 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# vs linker pdb files
+*.ilk
+*.pdb
+*.db
+ipch/
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.x
+*.out
+*.app
+
+# exe bin
+bin/
+
+# obj .o .obj .d dirs
+obj/
+
+# reference files dir
+reference/
+
+# visual studio build info
+.vs/
+
+# gvim backup files
+*~
+*.swp
+*.swo
+
+# my extra scripts
+do_gvim.bat
+do_gvim.sh
+mk_clean.bat
+
+
+# temp files created during runs
+wait.pid.txt
+
+# my not currently used windows driver files
+drivers/
+
+# temp files
+zoom_win.bat
+zoom_lnx.bat
+tmp*.jnk
+tst*
+dat.json

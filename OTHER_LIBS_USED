@@ -1,0 +1,94 @@
+Files not listed below are created by Patrick Fay and use the MIT license (unless I've overlooked some files...)
+
+civetweb v1.11, license: MIT, https://github.com/civetweb/civetweb
+  used to communicate data between backend (oppat reading perf, trace-cmd, ETW, other data files) and front-end (displaying charts)
+
+ck_nesting.cpp, license: unknown, // from http://www.firmcodes.com/write-a-program-to-check-for-balanced-parentheses-in-an-expression-in-c/
+  used to parse perf print_fmt statements
+
+LUA v5.3.4, included with civetweb, license MIT
+  used to allow arbitrary data file formats to be imported without requiring recompilation
+
+MemoryMapped.cpp v2.?, license: zlib, https://create.stephan-brumme.com/portable-memory-mapping/ and https://github.com/stbrumme/portable-memory-mapping
+  used to memory map binary perf and trace-cmd files.
+
+mygetopt.c v ? , license: bsd, https://github.com/kimgr/getopt_port
+  for oppat backend command line options
+
+prf_read_data.cpp perf_event_subset.h, created by Patrick Fay but uses structures and #defines from linux perf subsystem which is GPL'd. If this attaches GPL to whole project and you don't want that then we can prune it. Options (not yet implemented) include:
+1) reading only the text files created by 'perf script' (which would not read the perf binary data files at all and not need the perf structures from perf_events.h. I've already implmented part of the code to extract data from the text file.
+2) if you don't care about perf and just use ETW  data then the perf stuff could all be excluded.
+
+
+printf.c, printf.h, v ?, license: MIT, https://github.com/mpaland/printf
+  used to parse perf print_fmt statements
+
+pugixml.cpp, v1.9, license: MIT, https://github.com/zeux/pugixml
+  used to parse the ETW XML WinSAT_SystemConfig event info (to get system config stuff like number of cpus, cpu type, etc)
+
+win_msr.c, v1.23, license: 3 clause BSD, based on IPPET code from https://software.intel.com/en-us/forums/software-tuning-performance-optimization-platform-monitoring/topic/518161 or https://software.intel.com/file/ippet-v123-setupzip
+  not really needed yet. I started adding code to read energy RAPL MSRs but I haven't done that yet.
+  I've looked at OPCM to get the data but running OPCM with xperf turns off SampledProfile event (and their stack traces) so not accepatble. This is probably due to PCM using the cpu PMU events which (I'm guessing) ETW also uses for the SampledProfile interrupts and when ETW sees that something else is messing with the PMU, then (I'm guessing) ETW stops using the PMU until reboot. I could change OPCM to not use the cpu PMU (so we just get RAPL, memory BW, cstates etc) but I haven't looked at this yet. It is also possible that if OPCM just doesn't use the ref-cycles event then maybe ETW won't have an issue but this is all speculation.
+
+dump.hpp, v ?, license BSD, https://github.com/steinwurf/hex/blob/master/src/hex/dump.hpp
+  used to hex dump some binary file data for debugging. 
+
+nlohmann\json.hpp, v3.1.2, license MIT, https://github.com/nlohmann/json
+  used to read the input files charts.json and input_data_files.json
+
+inc\Ols*.h, v1.3.x, winring0 driver header files, license: modified BSD, I have the files directly from the author (many years ago) but there is a version on github: https://github.com/QCute/WinRing0/releases. I haven't checked if it is the same.
+
+inc\sol inc\sol.hpp v2.20, license: MIT,  https://github.com/ThePhD/sol2
+  used to interface calling lua routines from c++ and exchanging data lua <--> c++
+
+
+web\js\BootSideMenu.js  v 2.0, license Apache v2.0, https://github.com/AndreaLombardo/BootSideMenu
+
+
+web\js\Bootstrap.min.js v3.3.7, license MIT, http://getbootstrap.com/docs/3.3/getting-started/#download
+  needed by bootsidemenu
+
+for bootstrap, I built a version which restricts itself to a div class following: https://stackoverflow.com/questions/10568065/limit-the-scope-of-bootstrap-styles
+and following https://stackoverflow.com/questions/11831346/applying-css-styles-only-to-certain-elements
+	Expanding on @Andrew Homeyer answer:
+	I got scoped styling of boostrap working in my Reactjs app by doing the following:
+		Went here and downloaded bootstrap source
+		Followed the guide here to install grunt. summary:
+		Bootstrap uses Grunt for its build system, with convenient methods for working with the framework. It's how we compile our code, run tests, and more.
+		Installing Grunt: To install Grunt, you must first download and install node.js (which includes npm). npm stands for node packaged modules and is a way to manage development dependencies through node.js.
+		Then, from the command line: Install grunt-cli globally with npm install -g grunt-cli. Navigate to the root /bootstrap/ directory, then run npm install. npm will look at the package.json file and automatically install the necessary local dependencies listed there. When completed, you'll be able to run the various Grunt commands provided from the command line.
+		Edited the file less/bootstrap.less from the downloaded source to the following:
+	.bootstrap-scope {...pasted all @imports here...}
+	enter image description here
+		Ran grunt dist and copied the new dist folder into my project
+		in App.js import './styling/bootstrap/css/bootstrap.min.css';.
+	enter image description here
+	Similar discussion here
+
+I got the list of 10 colors from 'let c10 = d3.schemeCategory10;' using d3 below
+web\js\d3.min.js v5.4.0, license BSD 3-clause, https://github.com/d3/d3
+  only used to get the list of colors (so that charts look more 'regular')
+
+I got the list of 40 colors using:
+var number_of_colors = 40;
+var gpalette = new DistinctColors({count: number_of_colors, lightMin: 30, chromaMin: 30, hueMin:20});
+for (let i=0; i < number_of_colors; i++) {
+	gcolor_lst.push(rgbToHex(i, gpalette[i]._rgb[0], gpalette[i]._rgb[1], gpalette[i]._rgb[2]));
+}
+and the list below.
+web\js\distinct-colors.min.js v1.0.4, license ISC (like MIT according to github), https://github.com/internalfx/distinct-colors
+
+web\js\jquery-3.3.1.min.js, v3.3.1, license MIT, https://jquery.com/download/
+  mostly used for bootsidemenu
+
+web\js\sprintf.js v1.1.1, license BSD 3-clause, https://github.com/alexei/sprintf.js/
+
+web\js\tasktimer\tasktimer.js v2.0.0, license MIT, https://github.com/onury/tasktimer
+
+web\css\font-awesome.min.css v4.3.0, css is licensed with MIT license (according to the font-awesome.min.css file). http://fontawesome.io
+
+
+web\fonts\glyphicons-halflings-regular.*, license appears to be MIT (same as bootstrap)... see https://glyphicons.com/license/ page and search for "License for GLYPHICONS Halflings in Bootstrap"
+
+
+
