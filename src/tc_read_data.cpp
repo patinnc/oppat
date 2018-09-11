@@ -247,17 +247,16 @@ do_page_hdr:
 							prf_obj_prev, prf_obj.file_tag_idx, prf_obj_prev->file_tag_idx, __FILE__, __LINE__);
 						}
 						if (prf_obj_prev != NULL && prf_obj.file_tag_idx == prf_obj_prev->file_tag_idx) {
-							int pid_i = (int)prf_obj_prev->tid_2_comm_indxp1[(uint32_t)pid];
-							if (pid_i == 0) {
+							pid_indx = (int)prf_obj_prev->tid_2_comm_indxp1[(uint32_t)pid];
+							if (pid_indx == 0) {
 								printf("didn't find the pid in PERF prf_obj either. Bye at %s %d\n", __FILE__, __LINE__);
 								exit(1);
 							} else {
-							pid_i--;
-							prf_add_comm((uint32_t)prf_obj_prev->comm[pid_i].pid, (uint32_t)prf_obj_prev->comm[pid_i].tid,
-								std::string(prf_obj_prev->comm[pid_i].comm), prf_obj, tsn);
+							prf_add_comm((uint32_t)prf_obj_prev->comm[pid_indx-1].pid, (uint32_t)prf_obj_prev->comm[pid_indx-1].tid,
+								std::string(prf_obj_prev->comm[pid_indx-1].comm), prf_obj, tsn);
 							printf("got pid in prf_obj_prev: pid= %d, tid= %d, comm= %s at %s %d\n",
-								(uint32_t)prf_obj_prev->comm[pid_i].pid, (uint32_t)prf_obj_prev->comm[pid_i].tid,
-								std::string(prf_obj_prev->comm[pid_i].comm).c_str(), __FILE__, __LINE__);
+								(uint32_t)prf_obj_prev->comm[pid_indx-1].pid, (uint32_t)prf_obj_prev->comm[pid_indx-1].tid,
+								std::string(prf_obj_prev->comm[pid_indx-1].comm).c_str(), __FILE__, __LINE__);
 							}
 						}  else {
 							printf("didn't find the pid in PERF prf_obj either2. Bye at %s %d\n", __FILE__, __LINE__);
