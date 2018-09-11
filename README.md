@@ -18,7 +18,8 @@ Open Power/Performance Analysis Tool (OPPAT)
 ## Introduction
 Open Power/Performance Analysis Tool (OPPAT) is cross-OS, cross-architecture power and performance analysis tool.
 
-See sample_html_files/lnx_mem_bw4.html for an example web file or sample_html_files\lnx_mem_bw4_full.html.tgz for a more complete (but compressed... (.tgz is a .tar.gz file))  file.
+See [windows sample html file](sample_html_files/win_mem_bw4.html) or [this Linux sample html file](sample_html_files/lnx_mem_bw4.html) for a more complete (but compressed... (.tgz is a .tar.gz file))  file.
+The above files are ~1 second intervals cut from 2 different ~8 second runs. See [the full 8 second Linux run sample html compressed file here](sample_html_files/lnx_mem_bw4_full.html.tgz) for a more complete (but compressed... (.tgz is a .tar.gz file))  file.
 
 --------------------------------------------------------------------------------
 ## OPPAT data supported
@@ -52,6 +53,7 @@ Viz general info
     - or compare 2 different runs on the same platform
     - a file group tag (file_tag) is prefixed to the title to distinguish charts
     - Charts with the same title are plotted one after the other to allow easy comparison
+
 #### chart features:
 - hovering over a section of a line of the chart shows the data point for that line at that point
     - this doesn't work for the vertical lines since they are just connecting 2 points... only the horizontal pieces of each line is searched for the data value
@@ -73,6 +75,7 @@ Viz general info
 - You can pan by:
     - on my laptop this is doing 2 fingers on horizontal scroll motion on the touchpad
     - using the slider below the chart 
+
 #### chart types:
 - 'cpu busy' chart: a kernelshark-like chart showing the cpu occupancy by pid/thread. See kernelshark reference http://rostedt.homelinux.com/kernelshark/
     - the chart is based on the context switch event and shows the thread running on each cpu at any given time
