@@ -71,7 +71,7 @@ struct chart_str {
 	std::vector <lag_str> lag_cfg;
 	std::vector <std::vector <double>> lag_vec;
 	std::vector <std::string> by_var_strs;
-	chart_str(): use_chart(true), var_idx(-1), by_var_idx(-1) {};
+	chart_str(): use_chart(true), var_idx(-1), by_var_idx(-1), pixels_high(-1) {};
 };
 
 struct chart_cat_str {
@@ -80,6 +80,10 @@ struct chart_cat_str {
 	chart_cat_str(): priority(0) {}
 };
 
+struct chart_defaults_str {
+	int32_t pixels_high_default;
+	chart_defaults_str(): pixels_high_default(250) {}
+};
 
 struct evt_str {
 	std::string event_name, event_type, event_name_w_area;
@@ -156,6 +160,8 @@ struct file_list_str {
 #else
 #define EXTERN_STR extern
 #endif
+
+EXTERN_STR chart_defaults_str chart_defaults;
 
 EXTERN_STR std::vector <chart_cat_str> chart_category;
 EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str> &file_list, std::vector <std::string> use_file_tag,

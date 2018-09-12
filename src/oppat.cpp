@@ -4333,6 +4333,7 @@ int main(int argc, char **argv)
 	}
 	cats += "]";
 	printf("categories str= %s at %s %d\n", cats.c_str(), __FILE__, __LINE__);
+	cats += ", \"pixels_high_default\":" + std::to_string(chart_defaults.pixels_high_default);
 	chrts_json += "]" + cats + "}";
 	if (options.show_json > 1) {
 		printf("chrts_json=\n%s\n at %s %d\n", chrts_json.c_str(), __FILE__, __LINE__);

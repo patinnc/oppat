@@ -6,11 +6,10 @@
 
 var webSocket;
 var messages = document.getElementById("messages");
-//var chrt_px_high = 350;
-var chrt_px_high = 250;
 var chart_divs = [];
 var gcanvas_args = [];
 var gmsg_span = null;
+var gpixels_high_default = 250;
 var gjson;
 var gjson_str_pool = null;
 var did_c10_colors = 0;
@@ -185,6 +184,21 @@ function ele_show_hide(menu_idx, show_me)
 	}
 }
 
+function change_pixels_high(cb, menu_idx, nm_idx)
+{
+	console.log("text val:"+cb.value);
+	let val = +cb.value;
+	if (val >= 100 && val <= 1500) {
+		gpixels_high_default = val;
+		console.log("set gpixels_high_default= "+gpixels_high_default);
+		update_status("start redraw charts");
+		for (let i=0; i < gjson.chart_data.length; i++) {
+			can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][2], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
+		}
+	}
+	return;
+}
+
 function lhs_menu_change(cb, menu_idx, nm_idx)
 {
 	console.log("checked:"+cb.checked+",indeter:"+cb.indeterminate+",nm_idx= "+nm_idx);
@@ -307,7 +321,7 @@ function lhs_menu_click(e)
 	console.log("clicked over menu item= "+i+", ttl= "+txt+", elenm= "+ele_nm+", ele="+ele+", ckd="+ckd);
 }
 
-function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1) {
+function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1) {
 	if (typeof chart_data == 'undefined') {
 		return;
 	}
@@ -318,6 +332,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		can_shape.sv_pt     = null;
 		can_shape.hvr_arr = [];
 	}
+	}
+	let px_high = px_high_in;
+	if (typeof px_high == 'undefined' || px_high < 100) {
+		px_high = gpixels_high_default;
+		//console.log("___set ch1 px_high= "+px_high);
+	} else {
+		//console.log("___set ch2 px_high= "+px_high);
 	}
 	var xPadding = 50;
 	var yPadding = 50;
@@ -371,13 +392,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		}
 	}
 
-	reset_minx_maxx(zoom_x0, zoom_x1, zoom_y0, zoom_y1);
 
-	function xlate(xin, yin, uminx, umaxx, uminy, umaxy) {
-		let xout = xPadding + Math.trunc((px_wide - xPadding) * (xin - uminx)/ (umaxx - uminx));
-		let yout = Math.trunc((px_high - yPadding) * (1.0 - (yin - uminy)/ (umaxy - uminy)));
-		return [xout, yout];
-	}
 	//console.log("sldr_cur= "+sldr_cur);
 	let myhvr_clr = document.getElementById(hvr_clr);
 	let mycanvas_nm_title = "title_"+hvr_clr;
@@ -406,6 +421,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 	}
 	mycanvas_title.innerHTML = ch_title;
 	let mycanvas = document.getElementById('canvas_'+hvr_clr);
+	if (mycanvas != null && mycanvas.height != (px_high-4)) {
+		mycanvas.height = px_high-4;
+	}
+	let canvas3_px_high = mycanvas.height;
 	let mycanvas2 = document.getElementById('canvas2_'+hvr_clr);
 	let mylegend  = document.getElementById(hvr_clr+'_legend');
 	let tm_here_01 = performance.now();
@@ -413,6 +432,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 	let proc_select = {};
 
 	var zoom_ckr = new TaskTimer(1000);
+
+	reset_minx_maxx(zoom_x0, zoom_x1, zoom_y0, zoom_y1);
 
 	zoom_ckr.addTask({
 	    name: 'zoom_ck '+hvr_clr,       // unique name of the task
@@ -542,7 +563,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		let nx1 = 1.0 * x;
 		let ny1 = 1.0 * y;
 		let xdiff1= +nx1 / (px_wide - xPadding);
-		let ydiff1= +ny1 / (px_high - yPadding);
+		let ydiff1= +ny1 / (canvas_px_high(null) - yPadding);
 		let nx0 = +minx+( xdiff1 * (maxx - minx));
 		let ny0 = +miny+( ydiff1 * (maxy - miny));
 		return {x: nx0, y: ny0};
@@ -675,6 +696,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 	*/
 	let tm_here_02 = performance.now();
 	//console.log("proc_arr.len= "+ proc_arr.length);
+
+	function xlate(tctx, xin, yin, uminx, umaxx, uminy, umaxy) {
+		let xout = xPadding + Math.trunc((px_wide - xPadding) * (xin - uminx)/ (umaxx - uminx));
+		let yout = Math.trunc((canvas_px_high(null) - yPadding) * (1.0 - (yin - uminy)/ (umaxy - uminy)));
+		return [xout, yout];
+	}
 
 	let num_events = 0;
 	let event_list = [];
@@ -1065,7 +1092,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 	let subcat_sidx_2_cs_hash = {}; // indexed by [subcat_idx], returns [cat, subcat]
 	let ylkup = [];
 
-	function redo_ylkup()
+	function redo_ylkup(ctx)
 	{
 	subcats = [];
 	subcat_cs_2_sidx_hash = {}; // indexed by [cat][subcat], returns subcat_idx
@@ -1077,8 +1104,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		subcat_cs_2_sidx_hash[cat] = {};
 	}
 	for (let i=0; i < chart_data.subcat_rng.length; i++) {
-		let beg = xlate(chart_data.subcat_rng[i].x0, chart_data.subcat_rng[i].y0, minx, maxx, miny, maxy);
-		let end = xlate(chart_data.subcat_rng[i].x1, chart_data.subcat_rng[i].y1, minx, maxx, miny, maxy);
+		let beg = xlate(ctx, chart_data.subcat_rng[i].x0, chart_data.subcat_rng[i].y0, minx, maxx, miny, maxy);
+		let end = xlate(ctx, chart_data.subcat_rng[i].x1, chart_data.subcat_rng[i].y1, minx, maxx, miny, maxy);
 		subcats.push(chart_data.subcat_rng[i]);
 		let cat = chart_data.subcat_rng[i].cat;
 		let subcat = chart_data.subcat_rng[i].subcat;
@@ -1092,13 +1119,15 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 	ylkup.sort(sortFunction);
 	}
 
-	redo_ylkup();
 
 	// ctx work begin
 	let tm_here_03 = performance.now();
 	let x_txt_px_max = 0;
 	let font_sz = 14;
 	let ctx = mycanvas.getContext("2d");
+
+	redo_ylkup(ctx);
+
 	ctx.font = font_sz + 'px Arial';
 	let y_axis_decimals = 4;
 	if (ch_type == "line" || ch_type == "stacked") {
@@ -1273,6 +1302,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		let use_fl_arr = [];
 		let use_fl_hsh = {};
 		let cs_idx = -1;
+		canvas3_px_high = mycanvas.height;
 		if (input_cs_evt != "") {
 			//console.log("b_fl_rpt: "+input_cs_evt+",txt_fld= "+txt_fld);
 			let got_it = false;
@@ -1281,7 +1311,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 					if (input_cs_evt != "" && lhs_menu_ch_list[kk].fl_arr[ii].event == input_cs_evt) {
 						//use_fl_hsh = lhs_menu_ch_list[kk].fl_hsh;
 						//use_fl_arr = lhs_menu_ch_list[kk].fl_arr;
-			//console.log("match b_fl_rpt: "+input_cs_evt+",txt_fld= "+txt_fld);
 						use_fl_hsh = g_fl_hsh[file_tag_idx];
 						use_fl_arr = g_fl_arr[file_tag_idx];
 						got_it = true;
@@ -1319,7 +1348,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 			//console.log("b_fl_rpt: "+input_cs_evt);
 		}
 		g_fl_obj[file_tag_idx][cs_idx] = g_fl_obj_rt[file_tag_idx][cs_idx];
-		function fl_xlate_ctx(xin, yin, uminx, umaxx, uminy, umaxy) {
+
+		function fl_xlate_ctx(ele, xin, yin, uminx, umaxx, uminy, umaxy) {
 			//let xPadding = 2;
 			//let yPadding = 2;
 			let xPadding = 0;
@@ -1327,7 +1357,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 			//let xout =  Math.trunc((px_wide - xPadding) * (xin - uminx)/ (umaxx - uminx));
 			//let yout = Math.trunc((px_high - yPadding) * (1.0 - (yin - uminy)/ (umaxy - uminy)));
 			let xout = ((px_wide - xPadding) * (xin - uminx)/ (umaxx - uminx));
-			let yout = ((mycanvas3.height - yPadding) * (1.0 - (yin - uminy)/ (umaxy - uminy)));
+			let yout = ((canvas_px_high(ele) - yPadding) * (1.0 - (yin - uminy)/ (umaxy - uminy)));
 			return [xout, yout];
 		}
 		let mycanvas3_nm_all = 'canvas3'+cs_idx+'_'+txt_fld+"_all";
@@ -1349,7 +1379,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		}
 		if (mycanvas3 == null) {
 			//addElement ('canvas', mycanvas3_nm, 'chart_anchor');
-			let str='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas3_nm_title+'"></div></div><div class="tooltip"><canvas id="'+mycanvas3_nm+'" width="'+(px_wide-2)+'" height="'+(px_high-2)+'" style="border:1px solid #000000;"></canvas><span id="'+mycanvas3_nm_txt+'"></span><span class="tooltiptext" id="'+mycanvas3_nm_tt+'"></span></div>';
+			let str='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas3_nm_title+'"></div></div><div class="tooltip"><canvas id="'+mycanvas3_nm+'" width="'+(px_wide-2)+'" height="'+(canvas3_px_high-2)+'" style="border:1px solid #000000;"></canvas><span id="'+mycanvas3_nm_txt+'"></span><span class="tooltiptext" id="'+mycanvas3_nm_tt+'"></span></div>';
 			//addElement ('div', mycanvas3_nm_all, 'chart_anchor', 'before');
 			addElement ('div', mycanvas3_nm_all, hvr_clr+'_bottom', 'before');
 			//addElement ('div', mycanvas3_nm_all, use_div, 'after');
@@ -1551,8 +1581,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 								lvl0_sum += fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum * diff_zm/diff_tot;
 								}
 							}
-							let bg0 = fl_xlate_ctx(x0, y0, x_min, x_max, y_min, y_max);
-							let bg1 = fl_xlate_ctx(x1, y1, x_min, x_max, y_min, y_max);
+							let bg0 = fl_xlate_ctx(mycanvas3, x0, y0, x_min, x_max, y_min, y_max);
+							let bg1 = fl_xlate_ctx(mycanvas3, x1, y1, x_min, x_max, y_min, y_max);
 							bg0[0] = Math.trunc(bg0[0]);
 							bg0[1] = Math.trunc(bg0[1]);
 							bg1[0] = Math.trunc(bg1[0]);
@@ -1803,9 +1833,20 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		return tsum;
 	}
 
+	function canvas_px_high(this_ele) {
+		if (this_ele == null) {
+			if (typeof px_high_in == 'undefined' || px_high_in < 100) {
+				return gpixels_high_default;
+			}
+			return px_high;
+		} else {
+			return this_ele.height;
+		}
+	}
+
 
 	function chart_redraw() {
-		redo_ylkup();
+		redo_ylkup(ctx);
 		let build_fl_tm = 0.0;
 		let tm_here_04a = performance.now();
 		let displayed_lines= 0;
@@ -1823,7 +1864,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		//let str = chart_data.y_label + " by " + chart_data.y_by_var;
 		let str = chart_data.y_label;
 		//let str = chart_data.title;
-		ctx.fillText(str, -px_high/2, font_sz);
+		ctx.fillText(str, -canvas_px_high(null)/2, font_sz);
 		ctx.restore()
 		// draw y by_var values.
 		ctx.font = font_sz + 'px Arial';
@@ -1886,7 +1927,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 				str = umaxy.toFixed(y_axis_decimals);
 			}
 			ctx.fillText(str, x, y);
-			y   = px_high - yPadding; 
+			y   = canvas_px_high(null) - yPadding; 
 			if (chart_data.y_fmt != "") {
 				str = vsprintf(chart_data.y_fmt, [uminy]);
 			} else {
@@ -1907,30 +1948,30 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 				ctx.fillText(str, x, y);
 			}
 		}
-		let beg = xlate(minx, 0, minx, maxx, uminy, umaxy);
+		let beg = xlate(ctx, minx, 0, minx, maxx, uminy, umaxy);
 		ctx.textAlign = "left";
 		let tstr = "rel.T= "+minx;
-		ctx.fillText(tstr, beg[0], px_high - yPadding + font_sz);
+		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + font_sz);
 		tstr = "T= "+(minx + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
-		ctx.fillText(tstr, beg[0], px_high - yPadding + 2* font_sz);
-		beg = xlate(maxx, 0, minx, maxx, uminy, umaxy);
+		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + 2* font_sz);
+		beg = xlate(ctx, maxx, 0, minx, maxx, uminy, umaxy);
 		ctx.textAlign = "right";
 		tstr = "rel.T= "+maxx;
-		ctx.fillText(tstr, beg[0], px_high - yPadding + font_sz);
+		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + font_sz);
 		tstr = "T= "+(maxx + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
-		ctx.fillText(tstr, beg[0], px_high - yPadding + 2* font_sz);
+		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + 2* font_sz);
 		tstr = "delta T= "+tm_diff_str(maxx - minx, 6, 'secs');
-		ctx.fillText(tstr, beg[0], px_high - yPadding + 3* font_sz);
+		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + 3* font_sz);
 		// draw yaxis line
 		ctx.beginPath();
 		ctx.moveTo(xPadding-1, 0);
-		ctx.lineTo(xPadding-1, px_high - yPadding+1);
+		ctx.lineTo(xPadding-1, canvas_px_high(null) - yPadding+1);
 		ctx.stroke();
 		// draw xaxis line
 		ctx.beginPath();
-		ctx.moveTo(xPadding-1, px_high - yPadding+1);
-		ctx.lineTo(px_wide, px_high-yPadding+1);
-		//ctx.lineTo(0, px_high - yPadding+5);
+		ctx.moveTo(xPadding-1, canvas_px_high(null) - yPadding+1);
+		ctx.lineTo(px_wide, canvas_px_high(null)-yPadding+1);
+		//ctx.lineTo(0, canvas_px_high(null) - yPadding+5);
 		//ctx.lineTo(mycanvas.wide, 0);
 		ctx.stroke();
 		let line_done = [];
@@ -2036,8 +2077,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 				}
 			}
 			//console.log("subcat_idx= "+subcat_idx+", cat= "+cat+", subcat= "+subcat);
-			let beg = xlate(x0, y0, minx, maxx, uminy, umaxy);
-			let end = xlate(x1, y1, minx, maxx, uminy, umaxy);
+			let beg = xlate(ctx, x0, y0, minx, maxx, uminy, umaxy);
+			let end = xlate(ctx, x1, y1, minx, maxx, uminy, umaxy);
 			if (beg[0] < xPadding) {
 				beg[0] = xPadding;
 			}
@@ -2261,7 +2302,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 							do_step = false;
 						}
 						if (do_step) {
-							let yPxlzero = px_high - yPadding;
+							let yPxlzero = canvas_px_high(null) - yPadding;
 							if (do_event_highlight) {
 								ctx.lineWidth = 5;
 							}
@@ -2541,7 +2582,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 				console.log("Drag xdiff= "+(x - ms_dn_pos[0])+", rel pxl from left= "+xdiff1)
 				reset_minx_maxx(gcanvas_args[idx][6], gcanvas_args[idx][7], gcanvas_args[idx][8], gcanvas_args[idx][9]);
 				chart_redraw();
-				//canvas_shapes(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]);
 			}
 			mycanvas.offmouseup = null;
 		};
@@ -2641,7 +2681,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high, zoom
 		let x0 = +xn - xdiff;
 		let x1 = +xn + xdiff;
 		zoom_to_new_xrange(x0, x1, true);
-		//canvas_shapes(args[0], args[1], args[2], args[3], args[4], args[5], args[6], args[7], args[8], args[9]);
 	} 
 	function checkVisible(elm) {
 		let rect = elm.getBoundingClientRect();
@@ -3015,6 +3054,9 @@ function start_charts() {
 	let chrts_started_max = chrts_started;
 	chrts_started = 0;
 	//myBarMove(0.0, chrts_started_max);
+	if (typeof gjson.pixels_high_default != 'undefined' && gjson.pixels_high_default >= 100) {
+		gpixels_high_default = gjson.pixels_high_default;
+	}
 	for (let kk=0; kk < gjson.categories.length; kk++) {
 		for (let j=0; j < ch_titles.length; j++) {
 			for (let k=0; k < ch_titles[j].length; k++) {
@@ -3045,10 +3087,8 @@ function start_charts() {
 				zoom_x1 = gjson.chart_data[i].x_range.max;
 				zoom_y0 = gjson.chart_data[i].y_range.min;
 				zoom_y1 = gjson.chart_data[i].y_range.max;
-				let pxls_high = chrt_px_high;
-				if (typeof gjson.chart_data[i].pixels_high != 'undefined' && gjson.chart_data[i].pixels_high > 0) {
-					pxls_high = gjson.chart_data[i].pixels_high;
-				}
+				let pxls_high = gjson.pixels_hight_default;
+
 				//console.log("zoom_x0= " + zoom_x0 + ", zoom_x1= " + zoom_x1);
 				gcanvas_args[i] = [ i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
 				can_shape(i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1);
@@ -3122,6 +3162,10 @@ function start_charts() {
 		txt = "Zoom/Pan: UnLinked";
 		lhs_menu_nm_list.push({menu_i:i, nm:nm, txt:txt, lvl_sub:-1, dad:-1, kids:[]});
 		lhs_menu_str += '<li class="il_none"><input type="checkbox" name="'+nm+'" id="'+nm+'" onchange="lhs_menu_change(this,'+i+','+i+');" '+cb_cls_str+'><label style="margin-top: 0px;margin-bottom:0px" for="'+nm+'" id="'+nm+'_label" title="This option changes pan zoom behavior. If the zooming is \'UnLinked\' then zooming/panning on one chart doesn\'t change any other chart. If zooming is \'Linked\' then zooming or panning on one chart also zooms every other chart in the chart group. If you have more than one chart group then the other chart groups aren\'t affected. The absolute time is used for the common X interval. The interval of the last chart zoomed/panned is applied to all the charts in the group. Note that flamegraphs \'zoom\' whenever the \'cpu busy\' chart is zoomed/panned regardless of the zoom link state.">'+txt+'</label ></li>';
+		nm  = 'lhs_menu_root_pixels_high';
+		txt = "Pixels high";
+		lhs_menu_nm_list.push({menu_i:i, nm:nm, txt:txt, lvl_sub:-1, dad:-1, kids:[]});
+		lhs_menu_str += '<li class="il_none"><label style="margin-top: 0px;margin-bottom:0px" for="'+nm+'" id="'+nm+'_label" title="This option changes the default pixels high for each chart.">'+txt+'</label><input type="text" name="'+nm+'" id="'+nm+'" maxlength="4" size="4" onchange="change_pixels_high(this,'+i+','+i+');" '+cb_cls_str+'></li>';
 		lhs_menu_str += '</ul>';
 	}
 	let lhs_ele = document.getElementById("lhs_menu_span");
@@ -3131,6 +3175,10 @@ function start_charts() {
 		ele.indeterminate = false;
 		ele.checked = true;
 	}
+	let ele = document.getElementById('lhs_menu_root_pixels_high');
+	ele.value = gpixels_high_default;
+
+
 	lhs_menu_ch_list_state = 1; // lhs_menu list finalized
 
 	return;
@@ -3315,7 +3363,7 @@ window.addEventListener('resize-end', function() {
 	let win_sz = get_win_wide_high();
 	let update = {
 		width: win_sz.width,  // or any new width
-		height: chrt_px_high  // " "
+		height: gpixels_high_default // " "
 	};
 	if (typeof gjson == 'undefined' || typeof gjson.chart_data == 'undefined') {
 		return;

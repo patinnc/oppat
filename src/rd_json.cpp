@@ -201,6 +201,7 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 		int32_t pxls_high = j[fld];
 		pixels_high_default = ck_pixels_high(json_file, "set defaults", fld, pxls_high, __LINE__);
 	} catch (...) { }
+	chart_defaults.pixels_high_default;
 	try { 
 		std::string use_def = j["chart_use_default"];
 		if (use_def == "y") {
@@ -443,11 +444,12 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 				cs.title    = j["event_array"][i]["event"]["charts"][k]["title"];
 				cs.var_name = j["event_array"][i]["event"]["charts"][k]["var_name"];
 				cs.by_var   = j["event_array"][i]["event"]["charts"][k]["by_var"];
-				cs.pixels_high = pixels_high_default;
+				cs.pixels_high = -1;
 				try { 
 					std::string fld = "pixels_high";
 					int32_t pxls_high = j["event_array"][i]["event"]["charts"][k][fld];
-					cs.pixels_high = ck_pixels_high(json_file, cs.title, fld, pxls_high, __LINE__);
+					//cs.pixels_high = ck_pixels_high(json_file, cs.title, fld, pxls_high, __LINE__);
+					cs.pixels_high = pxls_high;
 				} catch (...) { }
 				for (uint32_t m=0; m < event_table.back().flds.size(); m++) {
 					uint64_t flg = event_table.back().flds[m].flags;
