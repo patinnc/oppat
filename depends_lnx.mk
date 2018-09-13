@@ -365,9 +365,8 @@ obj/prf_read_data.o: src/prf_read_data.cpp  inc/rd_json2.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/utils.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/web_api.h
 obj/printf.o: src/printf.cpp  inc/printf.h
-obj/printf/printf.o: src/printf/printf.c  inc/printf.h
 obj/pugixml.o: src/pugixml.cpp  inc/pugixml.hpp
-obj/rd_json.o: src/rd_json.cpp  inc/nlohmann/json.hpp
+obj/rd_json.o: src/rd_json.cpp  inc/json.hpp
 obj/rd_json.o: src/rd_json.cpp  inc/rd_json.h
 obj/rd_json.o: src/rd_json.cpp  inc/rd_json2.h
 obj/rd_json.o: src/rd_json.cpp  inc/utils.h
