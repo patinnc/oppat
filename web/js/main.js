@@ -47,6 +47,10 @@ var gcolor_def = "lavender"; // lavender e6e6fa for events above 'number of colo
 var gcolor_lst = ["#b0556a", "#7adf39", "#8d40d6", "#ead12d", "#0160eb", "#aaed78", "#f945b7", "#04e6a0", "#cf193b", "#4df8ca", "#b21f72", "#41981b", "#b773eb", "#276718", "#f39afb", "#0ea26a", "#015fc6", "#ec7118", "#108cf5", "#feab4f", "#1eacf8", "#a13502", "#49f6fd", "#9e5d33", "#30d8ec", "#ab952f", "#8156a5", "#f5db82", "#1e67a9", "#f6b17c", "#47caf9", "#695909", "#7daaef", "#a4ce84", "#ef89bb", "#1c6c43", "#ecb5f2", "#7ddab8", "#0f88b4", "#07a1b2"];
 var number_of_colors = gcolor_lst.length;
 
+var mymodal = null;
+var mymodal_span = null;
+var mymodal_span_text = null;
+
 /* Adds Element BEFORE NeighborElement */
 Element.prototype.appendBefore = function(element) {
   element.parentNode.insertBefore(this, element);
@@ -366,15 +370,21 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let minx, maxx, miny, maxy, sldr_cur;
 	let slider         = null;
 	function reset_minx_maxx(zm_x0, zm_x1, zm_y0, zm_y1) {
-		if (zm_x0 > chart_data.x_range.min) {
+		if (gsync_zoom_linked) {
 			minx = zm_x0;
-		} else {
-			minx = chart_data.x_range.min;
-		}
-		if (zm_x1 < chart_data.x_range.max) {
 			maxx = zm_x1;
+			console.log("reset_minx: set minx= "+minx+", maxx= "+maxx+", title= "+chart_data.title);
 		} else {
-			maxx = chart_data.x_range.max;
+			if (zm_x0 > chart_data.x_range.min) {
+				minx = zm_x0;
+			} else {
+				minx = chart_data.x_range.min;
+			}
+			if (zm_x1 < chart_data.x_range.max) {
+				maxx = zm_x1;
+			} else {
+				maxx = chart_data.x_range.max;
+			}
 		}
 		if (zm_y0 > chart_data.y_range.min) {
 			miny = zm_y0;
@@ -2628,23 +2638,28 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		*/
 		//console.log("for 01, x1= "+x1);
-		if (x0 < chart_data.x_range.min) {
-			let xd = chart_data.x_range.min - x0;
-			x0 += xd;
-			x1 += xd;
-			if (x1 > chart_data.x_range.max) {
-				x1 = chart_data.x_range.max;
-			}
-			//console.log("for 02, x1= "+x1);
-		}
-		if (x1 > chart_data.x_range.max) {
-			let xd = x1 - chart_data.x_range.max;
-			x1 -= xd;
-			x0 -= xd;
-			//console.log("for 03, x1= "+x1);
+		if (update_gsync_zoom) {
+			console.log("zm2nw1: "+x0+",x1="+x1+",ttl="+chart_data.title);
 			if (x0 < chart_data.x_range.min) {
-				x0 = chart_data.x_range.min;
+				let xd = chart_data.x_range.min - x0;
+				x0 += xd;
+				x1 += xd;
+				if (x1 > chart_data.x_range.max) {
+					x1 = chart_data.x_range.max;
+				}
+				//console.log("for 02, x1= "+x1);
 			}
+			if (x1 > chart_data.x_range.max) {
+				let xd = x1 - chart_data.x_range.max;
+				x1 -= xd;
+				x0 -= xd;
+				//console.log("for 03, x1= "+x1);
+				if (x0 < chart_data.x_range.min) {
+					x0 = chart_data.x_range.min;
+				}
+			}
+		} else {
+			console.log("zm2nw2: "+x0+",x1="+x1+",ttl="+chart_data.title);
 		}
 		if (x1 <= x0) {
 			return;
@@ -3072,6 +3087,7 @@ function start_charts() {
 				tm_now = performance.now();
 				//alert("chart "+ chrts_started);
 				document.title = "grf "+chrts_started+"/"+chrts_started_max+",tm="+tm_diff_str(0.001*(tm_now-g_tm_beg), 1, "secs");
+				mymodal_span_text.innerHTML = document.title;
 				if ((tm_now - tm_top) > 2000.0) {
 					//update_status("started graph "+chrts_started);
 					tm_top = tm_now;
@@ -3099,6 +3115,11 @@ function start_charts() {
 	tm_now = performance.now();
 	console.log("tm_now - tm_top0= "+(tm_now - tm_top0));
 	update_status("finished "+chrts_started+" graphs, chart loop took "+tm_diff_str(0.001*(tm_now-tm_top0), 3, "secs"));
+    mymodal.style.display = "none";
+    document.getElementById("chart_container").style.display = "block";
+	// if (msWriteProfilerMark) {
+	//   msWriteProfilerMark("mark1");
+	// }
 
 	let lhs_menu_str = "";
 	let cat_idx_prv = -1;
@@ -3206,6 +3227,8 @@ function parse_str_pool(str_pool)
 	g_tm_beg = tm_now;
 }
 
+
+
 function openSocket(port_num) {
     // Ensures only one connection is open at a time
     if(webSocket !== undefined && webSocket.readyState !== WebSocket.CLOSED){
@@ -3224,6 +3247,8 @@ function openSocket(port_num) {
         // and the first time event.data is undefined.
         update_status("websocket opened. ck tab title for status msgs");
 		document.title = "Waiting on data";
+		mymodal.style.display = "block";
+		mymodal_span_text.innerHTML = document.title;
 		webSocket.send("Ready");
     };
 
@@ -3233,6 +3258,7 @@ function openSocket(port_num) {
 		if(typeof event.data === 'string' ) {
 			console.log('Received data string, sub20= '+event.data.substr(0, 20));
 			document.title = "got msg: "+event.data.substr(0,8);
+			mymodal_span_text.innerHTML = "loading data, creating charts. See page tab for status msgs."
 		}
 		if(event.data instanceof ArrayBuffer ){
 			let tm_beg = performance.now();
@@ -3331,6 +3357,23 @@ window.onload = function() {
 	console.log("window.location.origin= "+window.location.origin);
 	console.log("window.location.port= "+window.location.port);
 	
+	// Get the <span> element that closes the modal
+	mymodal = document.getElementById("mymodal");
+	mymodal_span = document.getElementById("mymodal_close_span");
+	mymodal_span_text = document.getElementById("mymodal_span_text");
+	//    modal.style.display = "block";
+
+	// When the user clicks on <span> (x), close the modal
+	mymodal_span.onclick = function() {
+    	mymodal.style.display = "none";
+	}
+
+// When the user clicks anywhere outside of the modal, close it
+window.onclick = function(event) {
+    if (event.target == mymodal) {
+        mymodal.style.display = "none";
+    }
+}
 	setup_resize_handler();
 	bootside_menu_setup('lhs_menu', 'left');
 	//bootside_menu_setup('rhs_menu', 'right');
@@ -3427,9 +3470,11 @@ function addElement (ele_typ, new_div_nm, before_div, where) {
 	newDiv.id = new_div_nm;
 
 	// add the newly created element and its content into the DOM 
+	let container = document.getElementById('chart_container'); 
 	let anchorDiv = document.getElementById(before_div); 
 	if (where == 'before') {
-		document.body.insertBefore(newDiv, anchorDiv); 
+		container.insertBefore(newDiv, anchorDiv); 
+		//document.body.insertBefore(newDiv, anchorDiv); 
 	} else {
 		newDiv.appendAfter(anchorDiv);
 		//newDiv.appendBefore(anchorDiv);
