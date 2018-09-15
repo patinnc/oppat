@@ -88,13 +88,13 @@ static int etw_add_event(int idx, std::string evt_str, prf_obj_str &prf_obj, std
 	return 1;
 }
 
-void etw_split_comm(const std::string &s, std::string &comm, std::string &pid)
+int etw_split_comm(const std::string &s, std::string &comm, std::string &pid, double ts)
 {
 	std::string::size_type pos;
 	pos = s.find(" (");
 	if (pos == std::string::npos) {
-		printf("didn't find ' (' in string '%s' in ETW file at %s %d\n", s.c_str(), __FILE__, __LINE__);
-		exit(1);
+		printf("didn't find ' (' in string '%s' in ETW file. ts= %.0f at %s %d\n", s.c_str(), ts, __FILE__, __LINE__);
+		return -1;
 	}
 	comm = s.substr(0, pos);
 	if (comm.size() > 3 && comm.front() == '"' && comm.back() == '"') {
@@ -109,6 +109,7 @@ void etw_split_comm(const std::string &s, std::string &comm, std::string &pid)
 	} else {
 		pid = rest.substr(pos, rest.length()-1-pos);
 	}
+	return 0;
 }
 
 static std::vector <std::string> WinSAT_SystemConfig;
@@ -123,7 +124,7 @@ int add_threads(std::vector <std::string> cols, prf_obj_str &prf_obj, uint32_t t
 	for (uint32_t i=0; i < prf_obj.etw_evts_set[t_idx].size(); i++) {
 		uint32_t data_idx = prf_obj.etw_evts_set[t_idx][i].data_idx;
 		uint64_t ts       = prf_obj.etw_evts_set[t_idx][i].ts;
-		etw_split_comm(prf_obj.etw_data[data_idx][pid_col], comm, pid);
+		etw_split_comm(prf_obj.etw_data[data_idx][pid_col], comm, pid, ts);
 		tid = prf_obj.etw_data[data_idx][tid_col];
 		uint32_t ipid, itid;
 		ipid = atoi(pid.c_str());
@@ -223,6 +224,11 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			doing_header = false;
 			break;
 		}
+		// ck for duplicates
+		uint32_t hsh_ck = prf_obj.etw_evts_hsh[tkns[0]];
+		if (hsh_ck != 0) {
+			continue;
+		}
 		hash_string(prf_obj.etw_evts_hsh, prf_obj.etw_evts_vec, tkns[0]);
 		std::vector <etw_str> es;
 		prf_obj.etw_evts_set.push_back(es);
@@ -289,8 +295,8 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	bool first_ts_valid = false;
 	uint32_t stk_idx = prf_obj.etw_evts_hsh["Stack"] - 1;
 	uint32_t sysconfig_idx = prf_obj.etw_evts_hsh["WinSAT_SystemConfig"] - 1;
-	uint32_t thr_st0 = prf_obj.etw_evts_hsh["T-DCStart"];
-	uint32_t thr_st1 = prf_obj.etw_evts_hsh["T-Start"];
+	uint32_t thr_st0 = prf_obj.etw_evts_hsh["T-DCStart"] - 1;
+	uint32_t thr_st1 = prf_obj.etw_evts_hsh["T-Start"] - 1;
 	double tm_beg2 = dclock();
 	while(!file.eof()){
 		//read data from file
@@ -310,11 +316,13 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			}
 #endif
 			evt_idx = prf_obj.etw_evts_hsh[tkns[0]] - 1;
+#if 1
 			if (evt_idx == UINT32_M1) {
 				printf("skipping etw line= '%s' at %s %d\n", line.c_str(), __FILE__, __LINE__);
 				continue;
 				//exit(1);
 			}
+#endif
 			etw_str es;
 			es.ts = atoll(tkns[1].c_str());
 			double tm = prf_obj.tm_beg + 1.0e-6 * (double)es.ts;
@@ -336,6 +344,15 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			}
 			if (options.tm_clip_beg_valid && tm < options.tm_clip_beg) {
 				continue;
+			}
+			if (ETW_events_to_skip_hash[tkns[0]] != 0) {
+				//printf("skipping ETW event: %s line= %d at %s %d\n", tkns[0].c_str(), line_num, __FILE__, __LINE__);
+				continue;
+			}
+			if (evt_idx >= prf_obj.etw_evts_set.size()) {
+				printf("evt_idx= %d >= prf_obj.etw_evts_set.size()= %d at %s %d\n",
+					evt_idx, (int)prf_obj.etw_evts_set.size(), __FILE__, __LINE__);
+				exit(1);
 			}
 			if (evt_idx == stk_idx && evt_idx_prv != (uint32_t)-2) {
 				uint32_t stk_sz = prf_obj.etw_data.size();

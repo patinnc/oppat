@@ -52,24 +52,6 @@
 #pragma comment(lib, "User32.lib")
 
 
-#if 0
-static struct options_str {
-	int verbose, help, file_mode, show_json, web_port;
-	std::string chart_file, data_file;
-	std::string perf_bin, perf_txt;
-	std::string tc_bin, tc_txt;
-	std::string lua_energy, lua_energy2, lua_wait;
-	std::string etw_txt;
-	std::vector <std::string> root_data_dirs;
-	std::vector <path_file_str> file_list;
-	std::vector <std::string> file_tag_vec;
-	double tm_clip_beg, tm_clip_end;
-	bool tm_clip_beg_valid, tm_clip_end_valid;
-	options_str(): verbose(0), help(0), file_mode(FILE_MODE_FIRST), show_json(SHOW_JSON_NO), web_port(8081),
-   		tm_clip_beg(-1.0), tm_clip_end(-1.0), tm_clip_beg_valid(false), tm_clip_end_valid(false) {}
-} options;
-#endif
-
 static int ck_bin_txt_file_opts(std::string opt_str, std::string &file_in, bool exit_on_not_found)
 {
 	if (file_in.size() > 0) {
@@ -1915,7 +1897,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (i > 0) {
 				x0 = sx0;
 			} else {
-				x0 = 0.0;
+				//x0 = 0.0; // setting x0=0.0 messes up case where there is only one point in line say for T=4.0->8.0 (like win_gui_delay)
 			}
 			ls0p->x[0] = x0;
 			ls0p->x[1] = x1;
@@ -2146,7 +2128,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				ls0p->y[0] = y_val[by_var_idx_val];
 				ls0p->y[1] = y_val[by_var_idx_val];
 				if (use_this_line) {
-					//abcd
 					chart_lines_ck_rng(ls0p->x[0], ls0p->y[0], ts0, ls0p->cat, ls0p->subcat, 0.0, ls0p->fe_idx);
 					chart_lines_ck_rng(ls0p->x[1], ls0p->y[1], ts0, ls0p->cat, ls0p->subcat, y_val[by_var_idx_val], ls0p->fe_idx);
 					ch_lines.line.push_back(*ls0p);
@@ -2542,8 +2523,19 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				uint32_t data_idx = prf_obj.etw_evts_set[set_idx][i].data_idx;
 				uint32_t file_tag_idx = prf_obj.file_tag_idx;
 				comm = pid_str = comm2 = pid_str2 = "";
-				if (comm_pid_idx != UINT32_M1) {
-					etw_split_comm(prf_obj.etw_data[data_idx][comm_pid_idx], comm, pid_str);
+				if (comm_pid_idx != UINT32_M1 && tid_idx != UINT32_M1) {
+					if (-1 == etw_split_comm(prf_obj.etw_data[data_idx][comm_pid_idx], comm, pid_str,
+							(double)prf_obj.etw_evts_set[set_idx][i].ts)) {
+						std::string str2 = prf_obj.events[set_idx].event_name;
+						fprintf(stderr, "failed for evt= %s ts= %s, evt2= %s, evt_nm= %s at %s %d\n", 
+							prf_obj.etw_data[data_idx][0].c_str(),
+							prf_obj.etw_data[data_idx][1].c_str(), str2.c_str(), evt_nm.c_str(),
+							__FILE__, __LINE__);
+						for (uint32_t i=0; i < prf_obj.events[set_idx].etw_cols.size(); i++) {
+							printf("col[%d]= %s\n", i, prf_obj.events[set_idx].etw_cols[i].c_str());
+						}
+						exit(1);
+					}
 					pid = atoi(pid_str.c_str());
 					if (tid_idx != UINT32_M1) {
 						tid = atoi(prf_obj.etw_data[data_idx][tid_idx].c_str());
@@ -2552,8 +2544,15 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], 
 							comm, pid, tid) - 1;
 				}
-				if (comm_pid_idx2 != UINT32_M1) {
-					etw_split_comm(prf_obj.etw_data[data_idx][comm_pid_idx2], comm2, pid_str2);
+				if (comm_pid_idx2 != UINT32_M1 && tid_idx2 != UINT32_M1) {
+					if (-1 == etw_split_comm(prf_obj.etw_data[data_idx][comm_pid_idx2], comm2, pid_str2,
+							(double)prf_obj.etw_evts_set[set_idx][i].ts)) {
+						fprintf(stderr, "failed for evt= %s ts= %s, evt_nm= %s at %s %d\n", 
+							prf_obj.etw_data[data_idx][0].c_str(),
+							prf_obj.etw_data[data_idx][1].c_str(), evt_nm.c_str(),
+							__FILE__, __LINE__);
+						exit(1);
+					}
 					pid2 = atoi(pid_str2.c_str());
 					if (tid_idx2 != UINT32_M1) {
 						tid2 = atoi(prf_obj.etw_data[data_idx][tid_idx2].c_str());
@@ -3015,10 +3014,14 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			uint32_t data_idx = prf_obj.etw_evts_set[prf_idx][i].data_idx;
 			if (cpu_idx != UINT32_M1) {
 				uint32_t kk = etw_col_map[cpu_idx];
-				if (kk != UINT32_M1) {
+				if (kk != UINT32_M1 && kk < prf_obj.etw_data[data_idx].size()) {
 					cpu = atoi(prf_obj.etw_data[data_idx][kk].c_str());
 				} else {
-					printf("cpu_idx= %d, kk= %d at %s %d\n", cpu_idx, kk, __FILE__, __LINE__);
+					printf("cpu_idx= %d, kk= %d, sz= %d data_idx= %d, ts= %.0f tkn0= %s evt= %s at %s %d\n",
+							cpu_idx, kk, (int)prf_obj.etw_data[data_idx].size(),
+						    data_idx, (double)prf_obj.etw_evts_set[prf_idx][i].ts,
+							prf_obj.etw_data[data_idx][0].c_str(),
+							prf_obj.events[prf_idx].event_name.c_str(), __FILE__, __LINE__);
 					exit(1);
 				}
 			}
@@ -3026,7 +3029,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				std::string pid_str;
 				uint32_t kk = etw_col_map[comm_pid_idx];
 				if (kk != UINT32_M1) {
-					etw_split_comm(prf_obj.etw_data[data_idx][kk], comm, pid_str);
+					if (-1 == etw_split_comm(prf_obj.etw_data[data_idx][kk], comm, pid_str, ts)) {
+						fprintf(stderr, "got err at %s %d\n", __FILE__, __LINE__);
+						exit(1);
+					}
 				}
 				if (pid_str.size() > 0) {
 					pid = atoi(pid_str.c_str());
@@ -3036,7 +3042,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				std::string pid_str;
 				uint32_t kk = etw_col_map[comm_pid_idx2];
 				if (kk != UINT32_M1) {
-					etw_split_comm(prf_obj.etw_data[data_idx][kk], comm2, pid_str);
+					if (-1 == etw_split_comm(prf_obj.etw_data[data_idx][kk], comm2, pid_str, ts)) {
+						fprintf(stderr, "got err at %s %d\n", __FILE__, __LINE__);
+						exit(1);
+					}
 				}
 				if (pid_str.size() > 0) {
 					pid2 = atoi(pid_str.c_str());
@@ -3281,7 +3290,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 							run_actions(x, event_table.flds[j].actions, use_value);
 						}
 						if (dura_idx > -1) {
-							dura = dv[dura_idx] = x;
+							dura = x;
+							if (dura_idx < dv.size()) {
+								dv[dura_idx] = x;
+							}
 						}
 					}
 					dv.push_back(x);
@@ -3293,7 +3305,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 						did_actions_already[j] = true;
 						run_actions(x, event_table.flds[j].actions, use_value);
 					}
-					dura = dv[j] = x;
+					dura = x;
+					if (j < dv.size()) {
+						dv[j] = x;
+					}
 					dv.push_back(x);
 					continue;
 				}
@@ -4084,6 +4099,8 @@ int main(int argc, char **argv)
 
 	prf_obj_str *prf_obj_prv = NULL;
 
+	do_json_events_to_skip(chart_file, json_evt_chrt_str, options.verbose);
+
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		int v_tmp = 0;
 		std::string file_tag = file_list[i].file_tag;
@@ -4096,6 +4113,15 @@ int main(int argc, char **argv)
 		}
 		prf_obj[i].file_type = file_list[i].typ;
 		prf_obj[i].file_tag_idx = file_tag_idx;
+		if (file_list[i].file_bin.size() > 0) {
+			replace_substr(file_list[i].file_bin, "\\", "/", verbose);
+		}
+		if (file_list[i].file_txt.size() > 0) {
+			replace_substr(file_list[i].file_txt, "\\", "/", verbose);
+		}
+		if (file_list[i].wait_txt.size() > 0) {
+			replace_substr(file_list[i].wait_txt, "\\", "/", verbose);
+		}
 		if (file_list[i].typ == FILE_TYP_TRC_CMD) {
 			
 			tc_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, prf_obj_prv);
@@ -4147,7 +4173,9 @@ int main(int argc, char **argv)
 			}
 			std::string evt_nm;
 			for (uint32_t j=0; j < prf_obj[k].events.size(); j++) {
-				if (prf_obj[k].events[j].event_name.find(":") != std::string::npos) {
+				if (prf_obj[k].file_type == FILE_TYP_ETW) {
+					evt_nm = prf_obj[k].events[j].event_name;
+				} else if (prf_obj[k].events[j].event_name.find(":") != std::string::npos) {
 					evt_nm = prf_obj[k].events[j].event_name;
 				} else {
 					if (prf_obj[k].events[j].event_area.size() > 0) {

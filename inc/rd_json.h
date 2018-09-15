@@ -168,6 +168,7 @@ EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str>
 	int read_file_mode, std::string root_data_dir, int verbose);
 EXTERN_STR std::string rd_json(std::string flnm);
 EXTERN_STR int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose);
+EXTERN_STR int do_json_events_to_skip(std::string json_file, std::string str, int verbose);
 //EXTERN_STR std::vector <fld_typ_str> fld_typ_strs;
 #if 0
 EXTERN_STR int grph_data_to_json(ns_grph::grph_str &grph);

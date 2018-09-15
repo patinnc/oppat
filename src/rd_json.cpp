@@ -168,6 +168,45 @@ int ck_json(std::string str, std::string from_where, const char *file, int line,
 	return 0;
 }
 
+int do_json_events_to_skip(std::string json_file, std::string str, int verbose)
+{
+	if (verbose > 0)
+		std::cout << str << std::endl;
+	uint32_t sz = (int)str.size();
+	bool use_charts_default = true;
+	bool worked=false;
+
+	json j;
+	try { 
+		j = json::parse(str);
+		worked=true;
+	} catch (json::parse_error& e) {
+			// output exception information
+			std::cout << "message: " << e.what() << '\n'
+				  << "exception id: " << e.id << '\n'
+				  << "byte position of error: " << e.byte << std::endl;
+	}
+	if (!worked) {
+		printf("parse of json data file= %s failed. bye at %s %d\n", json_file.c_str(), __FILE__, __LINE__);
+		printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
+		prt_line(sz);
+
+		exit(1);
+	}
+	sz = j["ETW_events_to_skip"].size();
+	for (uint32_t i=0; i < sz; i++) {
+		try {
+			std::string str = j["ETW_events_to_skip"][i];
+			hash_string(ETW_events_to_skip_hash, ETW_events_to_skip_vec, str);
+			if (verbose > 0) {
+				printf("ETW_events_to_skip[%d]= '%s' hsh= %d, at %s %d\n",
+						i, str.c_str(), ETW_events_to_skip_hash[str], __FILE__, __LINE__);
+			}
+		} catch (...) { }
+	}
+	return 0;
+}
+
 int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose)
 {
 	if (verbose > 0)
@@ -221,16 +260,6 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 						i, ch_cat.name.c_str(), ch_cat.priority, __FILE__, __LINE__);
 			}
 			chart_category.push_back(ch_cat);
-		} catch (...) { }
-	}
-	sz = j["ETW_events_to_skip"].size();
-	for (uint32_t i=0; i < sz; i++) {
-		try {
-			std::string str = j["ETW_events_to_skip"][i];
-			if (verbose > 0) {
-				printf("ETW_events_to_skip[%d]= '%s' at %s %d\n", i, str.c_str(), __FILE__, __LINE__);
-			}
-			hash_string(ETW_events_to_skip_hash, ETW_events_to_skip_vec, str);
 		} catch (...) { }
 	}
 	sz = j["event_array"].size();
