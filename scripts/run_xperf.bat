@@ -2,7 +2,7 @@
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 set SFX=mem_bw4
 set PFX=win
-set ODIR=..\data\%PFX%\%SFX%
+set ODIR=..\oppat_data\%PFX%\%SFX%
 set SCR_DIR=%~dp0
 set BIN_DIR=%SCR_DIR%\..\bin
 echo SCR_DIR=%SCR_DIR%
@@ -35,10 +35,12 @@ ECHO Found: %WAIT_FILE%
 for /f "delims=" %%x in (%WAIT_FILE%) do set pid=%%x
 
 
-xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile
+@rem xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile -start usersession -on Microsoft-Windows-Win32k
+xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile 
 
 
 %BIN_DIR%\spin.exe 4 > %ODIR%\spin.txt
+@rem xperf -stop usersession -stop -d %ODIR%\etw_trace.etl
 xperf -stop -d %ODIR%\etw_trace.etl
 %BIN_DIR%\win_send_signal.exe %pid%
 @rem taskkill /im pcm.exe
