@@ -21,22 +21,6 @@
     </head>
 <style>
 
-#myProgress {
-  width: 100%;
-  background-color: #ddd;
-  z-index: 2;
-}
-
-#myBar {
-  z-index: 2;
-  width: 10%;
-  height: 30px;
-  background-color: #4CAF50;
-  text-align: center;
-  line-height: 30px;
-  color: white;
-}
-
 .slidecontainer {
     //width: 100%; 
     float: right;
@@ -68,6 +52,45 @@
 }
 .clrTxtButton{
   display:block;
+}
+
+/* The Modal (background) */
+.mymodal_modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1; /* Sit on top */
+    padding-top: 100px; /* Location of the box */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgb(0,0,0); /* Fallback color */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+/* Modal Content */
+.mymodal_modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+}
+
+/* The Close Button */
+.mymodal_close {
+    color: #aaaaaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.mymodal_close:hover,
+.mymodal_close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .slider {
@@ -172,32 +195,25 @@ circle {
 	<script src="/js/tasktimer/tasktimer.js"></script>
     <script src="/js/main.js"></script>
 <body>
-<!--
-<div id="myProgress">
-  <div id="myBar">0%</div>
-</div>
--->
 <!-- lhs_menu -->
 <div id="lhs_menu" class='bootstrap-scope' visibility="hidden">
-<span id="lhs_menu_span">
-  <div class="list-group">
-	  Place holder for future.
-  </div>
-</span>
+ <span id="lhs_menu_span">
+  <div class="list-group">Place holder for future.</div>
+ </span>
 </div>
 <!-- /lhs_menu -->
-<!-- rhs_menu2 
-<div id="rhs_menu" class='bootstrap-scope' visibility="hidden">
-	  Place holder for future per-chart options
+<!-- The Modal -->
+<div id="mymodal" class="mymodal_modal">
+  <!-- Modal content -->
+  <div class="mymodal_modal-content">
+    <span id="mymodal_close_span" class="mymodal_close">&times;</span>
+	<span id="mymodal_span_text"><p>Some text in the Modal..</p></span>
+  </div>
 </div>
- /rhs_menu -->
-<div>
-	<input type="text" id="messageinput"></input><span id="msg_span"></span>
+<div> <input type="text" id="messageinput"></input><span id="msg_span"></span> </div>
+<div> <button type="button" onclick="send();">Send</button> <br> </div>
+<div id="chart_container" style="display:none">
+ <div id="chart_anchor" style="display:none;"></div>
 </div>
-<div>
-<button type="button" onclick="send();">Send</button>
-<br>
-</div>
-<div id="chart_anchor"></div>
 </body>
 </html>
