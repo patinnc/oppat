@@ -2,13 +2,14 @@
   "pixels_high_default":250,
   "chart_use_default":"y",
   "chart_category_priority":[
-	{"name":"power",   "priority":100},
-	{"name":"CPU",     "priority":200},
-	{"name":"GPU",     "priority":300},
-	{"name":"thermal", "priority":400},
-	{"name":"DRAM",    "priority":500},
-	{"name":"Disk",    "priority":600},
-	{"name":"Network", "priority":700}
+	{"name":"UI",      "priority":100},
+	{"name":"power",   "priority":200},
+	{"name":"CPU",     "priority":300},
+	{"name":"GPU",     "priority":400},
+	{"name":"thermal", "priority":500},
+	{"name":"DRAM",    "priority":600},
+	{"name":"Disk",    "priority":700},
+	{"name":"Network", "priority":800}
 	], "comment":"chart_category_priority defines grouping names for charts and priority (order) of charts",
   "event_array": [
   {"event": 
@@ -247,7 +248,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
-			"use_chart":"y"},
+			"use_chart":"d"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
 			"use_chart":"d", "y_fmt":"%.1f%%"},
 		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc", "chart_type":"stacked",
@@ -277,10 +278,10 @@
 	"charts": [
 		{"category":"CPU", "title":"wait time by thread",  "var_name": "wait_dura", "by_var":"nproc", 
 			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line", 
-			"use_chart":"y"},
+			"use_chart":"d"},
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc", 
 			"chart_tag":"RUN_QUEUE", "chart_type":"line", 
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
@@ -361,6 +362,24 @@
 			"use_chart":"y", "y_fmt":"%.1f%%", "actions":[{"oper":"mult", "val":100.0}]}
 		]
 	}
+  },
+  {"event": 
+	{
+	"evt_name": "Microsoft-Windows-Win32k/MessageCheckDelay/win:Info", "evt_type": "ETW", 
+	"evt_flds": [
+		{"name":"comm_pid",  "lkup": "Process Name ( PID)", "lkup_typ": "TYP_ETW_COMM_PID|TYP_STR"},
+		{"name":"tid",       "lkup": "ThreadID", "lkup_typ": "TYP_TID|TYP_INT"},
+		{"name":"cpu",   "lkup": "CPU", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"proc",  "lkup": "", "lkup_typ": "TYP_COMM_PID_TID|TYP_STR"},
+		{"name":"pid",   "lkup": "", "lkup_typ": "TYP_PID|TYP_INT"},
+		{"name":"dura",  "lkup": "DelayTimeMs", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.001}]},
+		{"name":"delay",  "lkup": "DelayTimeMs", "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":0.001}]}
+		],
+	"charts": [
+		{"category":"UI", "title":"GUI thread delay by Process",  "var_name":"delay", "by_var": "proc", "chart_tag":"UI_MSG_CK_DELAY", "chart_type":"line",
+			"use_chart":"y"}
+		]
+	}
   }
 ],
 	"ETW_events_to_skip":[
@@ -422,7 +441,9 @@
 "DbgId/NB10",
 "DbgId/RSDS",
 "DbgId/ILRSDS",
-"FileVersion"
+"FileVersion",
+"WinSAT_Metrics",
+"WinSAT_WinSPR"
 		]
 }
 
