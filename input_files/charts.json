@@ -259,7 +259,6 @@
   {"event": 
 	{
 	"evt_name": "CSwitch", "evt_type": "ETW", "comment":"CSwitch,  TimeStamp, New Process Name ( PID),    New TID, NPri, NQnt, TmSinceLast, WaitTime, Old Process Name ( PID),    Old TID, OPri, OQnt,        OldState,      Wait Reason, Swapable, InSwitchTime, CPU, IdealProc,  OldRemQnt, NewPriDecr, PrevCState",
-	"comment":"abcd",
 	"evt_flds": [
 		{"name":"ncomm_pid","lkup": "New Process Name ( PID)", "lkup_typ": "TYP_ETW_COMM_PID|TYP_STR"},
 		{"name":"ntid",     "lkup": "New TID",  "lkup_typ": "TYP_TID|TYP_INT"},
@@ -287,27 +286,7 @@
   },
   {"event": 
 	{
-	"evt_name": "DiskWrite2", "evt_type": "ETW", "comment":"DiskWrite,    3227674,           System (   4),       5604,   0, 0xffff8f0772460b40, 0x1573cb5000, 0x00010000,         187,        0, 0x060201,         187,       3, Original, 0xffffda05aa654160, \"C:\\kernel.etl\"", "layout":"DiskWrite,  TimeStamp,     Process Name ( PID),   ThreadID, CPU,             IrpPtr,   ByteOffset,     IOSize, ElapsedTime,  DiskNum, IrpFlags, DiskSvcTime, I/O Pri,  VolSnap,         FileObject, FileName",
-	
-	"evt_flds": [
-		{"name":"comm_pid",  "lkup": "Process Name ( PID)", "lkup_typ": "TYP_ETW_COMM_PID|TYP_STR"},
-		{"name":"tid",       "lkup": "ThreadID", "lkup_typ": "TYP_TID|TYP_INT"},
-		{"name":"cpu",   "lkup": "CPU", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"proc",  "lkup": "", "lkup_typ": "TYP_COMM_PID_TID|TYP_STR"},
-		{"name":"pid",   "lkup": "", "lkup_typ": "TYP_PID|TYP_INT"},
-		{"name":"dura",  "lkup": "ElapsedTime", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.001}]},
-		{"name":"Disk MB/s", "lkup": "IOSize", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_HEX_IN|TYP_DBL",  "actions":[{"oper":"mult", "val":1.0e-6}]}
-		],
-	"charts": [
-		{"category":"Disk", "title":"Disk write BW (MB/sec) by Process",  "var_name":"Disk MB/s", "by_var": "proc", "chart_tag":"DISK_MBPS_WRITE", "chart_type":"line",
-			"use_chart":"d"}
-		]
-	}
-  },
-  {"event": 
-	{
-	"evt_name": "DiskRead", "evt_type": "ETW", "comment":"DiskWrite,    3227674,           System (   4),       5604,   0, 0xffff8f0772460b40, 0x1573cb5000, 0x00010000,         187,        0, 0x060201,         187,       3, Original, 0xffffda05aa654160, \"C:\\kernel.etl\"", "layout":"DiskWrite,  TimeStamp,     Process Name ( PID),   ThreadID, CPU,             IrpPtr,   ByteOffset,     IOSize, ElapsedTime,  DiskNum, IrpFlags, DiskSvcTime, I/O Pri,  VolSnap,         FileObject, FileName",
-	
+	"evt_name": "DiskRead", "evt_type": "ETW", 
 	"evt_flds": [
 		{"name":"comm_pid",  "lkup": "Process Name ( PID)", "lkup_typ": "TYP_ETW_COMM_PID|TYP_STR"},
 		{"name":"tid",       "lkup": "ThreadID", "lkup_typ": "TYP_TID|TYP_INT"},
@@ -327,8 +306,7 @@
   },
   {"event": 
 	{
-	"evt_name": "DiskWrite", "evt_type": "ETW", "comment":"DiskWrite,    3227674,           System (   4),       5604,   0, 0xffff8f0772460b40, 0x1573cb5000, 0x00010000,         187,        0, 0x060201,         187,       3, Original, 0xffffda05aa654160, \"C:\\kernel.etl\"", "layout":"DiskWrite,  TimeStamp,     Process Name ( PID),   ThreadID, CPU,             IrpPtr,   ByteOffset,     IOSize, ElapsedTime,  DiskNum, IrpFlags, DiskSvcTime, I/O Pri,  VolSnap,         FileObject, FileName",
-	
+	"evt_name": "DiskWrite", "evt_type": "ETW", 
 	"evt_flds": [
 		{"name":"comm_pid",  "lkup": "Process Name ( PID)", "lkup_typ": "TYP_ETW_COMM_PID|TYP_STR"},
 		{"name":"tid",       "lkup": "ThreadID", "lkup_typ": "TYP_TID|TYP_INT"},
