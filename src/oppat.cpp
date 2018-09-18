@@ -584,7 +584,7 @@ static bool compareByChTime(const lines_str &a, const lines_str &b)
 {
 	return a.x[0] < b.x[0];
 }
- 
+
 uint16_t *buf_uint16_ptr(char *buf, int off) {
 	return (uint16_t *)(buf+off);
 }
@@ -818,7 +818,7 @@ uint32_t hash_uint32(std::unordered_map <uint32_t, uint32_t> &hsh_u32, std::vect
 	if (idx == 0) {
 		vec_u32.push_back(val);
 		idx = hsh_u32[lkup] = (uint32_t)vec_u32.size(); // so we are storing vec_str idx+1
-	} 
+	}
 	return idx;
 }
 
@@ -872,7 +872,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 		}
 	}
 	printf("doing build_chart_data(%d, %d) title= %s, by_var_idx= %d data.vals.size()= %d at %s %d\n",
-		evt_idx, chrt, event_table.charts[chrt].title.c_str(), by_var_idx, 
+		evt_idx, chrt, event_table.charts[chrt].title.c_str(), by_var_idx,
 		(int)event_table.data.vals.size(), __FILE__, __LINE__);
 	std::string by_var_str;
 	uint32_t fsz = (uint32_t)event_table.flds.size();
@@ -921,7 +921,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 		if (flg & FLD_TYP_DURATION_PREV_TS_SAME_BY_VAL) {
 			if (prv_ts_idx != (uint32_t)-1) {
 				printf("can only handle 1 TYP_DURATION_PREV_TS_SAME_BY_VAL attribute in evt_flds. fld= %s event= %s, Chart= %s. bye at %s %d\n",
-					event_table.flds[j].name.c_str(), 
+					event_table.flds[j].name.c_str(),
 					event_table.event_name_w_area.c_str(),
 					event_table.charts[chrt].title.c_str(), __FILE__, __LINE__);
 				exit(1);
@@ -984,7 +984,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 			byvv = 0;
 		}
 		if (idx >= (int)last_val_for_by_var_idx.size()) {
-			printf("screw up here at idx= %d, sz= %d, event= %s, title= %s at %s %d\n", 
+			printf("screw up here at idx= %d, sz= %d, event= %s, title= %s at %s %d\n",
 				idx, (int)last_val_for_by_var_idx.size(),
 				event_table.event_name_w_area.c_str(),
 				event_table.charts[chrt].title.c_str(), __FILE__, __LINE__);
@@ -1141,7 +1141,7 @@ static int report_chart_data(uint32_t evt_idx, uint32_t chrt, std::vector <evt_s
 	}
 	printf("report_chart_data: event_table[%d][%d].charts[%d].by_var_vals.size()= %d title= %s at %s %d\n",
 		grp, evt_idx, chrt,
-		(int)event_table[evt_idx].charts[chrt].by_var_vals.size(), 
+		(int)event_table[evt_idx].charts[chrt].by_var_vals.size(),
 		event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 	event_table[evt_idx].charts[chrt].by_var_strs.resize(event_table[evt_idx].charts[chrt].by_var_vals.size());
 
@@ -1174,7 +1174,7 @@ static int report_chart_data(uint32_t evt_idx, uint32_t chrt, std::vector <evt_s
 			}
 #endif
 		} else {
-			event_table[evt_idx].charts[chrt].by_var_strs[0] = 
+			event_table[evt_idx].charts[chrt].by_var_strs[0] =
 				event_table[evt_idx].flds[var_idx].name;
 			printf("%s\t%f\n", event_table[evt_idx].flds[var_idx].name.c_str(),
 				event_table[evt_idx].charts[chrt].by_var_sub_tots[i]);
@@ -1182,7 +1182,7 @@ static int report_chart_data(uint32_t evt_idx, uint32_t chrt, std::vector <evt_s
 	}
 	printf("report_chart_data: event_table[%d][%d].charts[%d].by_var_vals.size()= %d title= %s at %s %d\n",
 		grp, evt_idx, chrt,
-		(int)event_table[evt_idx].charts[chrt].by_var_vals.size(), 
+		(int)event_table[evt_idx].charts[chrt].by_var_vals.size(),
 		event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 	return 0;
 }
@@ -1350,7 +1350,7 @@ void prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 {
 	std::string cs_new, cs_prv;
 	for (uint32_t k=0; k < prf_obj.samples[prf_idx].callstack.size(); k++) {
-		if (prf_obj.samples[prf_idx].callstack[k].mod == "[unknown]" && 
+		if (prf_obj.samples[prf_idx].callstack[k].mod == "[unknown]" &&
 				prf_obj.samples[prf_idx].callstack[k].rtn == "[unknown]") {
 			continue;
 		}
@@ -1789,7 +1789,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					overlaps_used_sum[j] = 0.0;
 				}
 				if (fx1 < sx0) {
-					printf("what's going on here. fx1= %f, sx0= %f, fx0= %f i= %d, cur_idx= %d. bye at %s %d\n", 
+					printf("what's going on here. fx1= %f, sx0= %f, fx0= %f i= %d, cur_idx= %d. bye at %s %d\n",
 							fx1, sx0, fx0, i, cur_idx, __FILE__, __LINE__);
 					if (prf_obj.file_type == FILE_TYP_ETW) {
 			    		//uint32_t cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
@@ -1917,7 +1917,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				if (cpt_idx == UINT32_M1 && prf_obj.samples[i].comm.size() > 0 && prf_obj.samples[i].pid > -1 &&
 						prf_obj.samples[i].tid > -1) {
 					uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
-					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], 
+					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 						prf_obj.samples[i].comm, prf_obj.samples[i].pid, prf_obj.samples[i].tid) - 1;
 					printf("need new code here at %s %d\n", __FILE__, __LINE__);
 					exit(1);
@@ -1940,7 +1940,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						continue;
 					}
 					if (lag_reason_idx != -1 || lag_state_idx != -1) {
-						// 
+						//
 						int val0= -1, val1= -1;
 						std::string str;
 						if (lag_reason_idx != -1) {
@@ -2037,7 +2037,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
 					if (lag_reason_idx != -1 && lag_state_idx != -1) {
-						// 
+						//
 						int val0, val1;
 						std::string str;
 						val0 = event_table[evt_idx].data.vals[i][lag_reason_idx];
@@ -2058,7 +2058,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					std::vector <std::string> prefx;
 					bool got_ready = false;
 					if (lag_reason_idx != -1 || lag_state_idx != -1) {
-						// 
+						//
 						int val0= -1, val1= -1;
 						std::string str0, str1;
 						if (lag_reason_idx != -1) {
@@ -2087,7 +2087,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							y_val[by_var_idx_val] = 0.0;
 						}
 					}
-					if (got_ready && stk_idx != UINT32_M1 && 
+					if (got_ready && stk_idx != UINT32_M1 &&
 						prf_obj.etw_evts_set[prf_evt_idx][prv].cs_idx_beg != UINT32_M1) {
 						std::vector <int> callstacks;
 						etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx);
@@ -2135,7 +2135,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					chart_lines_ck_rng(ls0p->x[0], ls0p->y[0], ts0, ls0p->cat, ls0p->subcat, 0.0, ls0p->fe_idx);
 					chart_lines_ck_rng(ls0p->x[1], ls0p->y[1], ts0, ls0p->cat, ls0p->subcat, y_val[by_var_idx_val], ls0p->fe_idx);
 					ch_lines.line.push_back(*ls0p);
-				} 
+				}
 				i = 0;
 				overlaps_sz = (int)overlaps_idx.size();
 				while (i < overlaps_sz) {
@@ -2219,7 +2219,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		}
 		if (options.verbose)
 		fprintf(stderr, "stacked: skipped_due_to_same_x1= %d of %d events, o_lap_mx_sz= %d skip_idle= %d, title= %s at %s %d\n",
-				skipped_due_to_same_x1, beg_idx, overlaps_max_sz, (int)skip_idle, 
+				skipped_due_to_same_x1, beg_idx, overlaps_max_sz, (int)skip_idle,
 				event_table[evt_idx].charts[chrt].title.c_str(),
 				__FILE__, __LINE__);
 #endif
@@ -2271,7 +2271,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (cpt_idx == -1 && prf_obj.samples[prf_idx].comm.size() > 0 && prf_obj.samples[prf_idx].pid > -1 &&
 					prf_obj.samples[prf_idx].tid > -1) {
 				uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
-				cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], 
+				cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 					prf_obj.samples[prf_idx].comm, prf_obj.samples[prf_idx].pid, prf_obj.samples[prf_idx].tid) - 1;
 				printf("Need new code at %s %d\n", __FILE__, __LINE__);
 				exit(1);
@@ -2406,7 +2406,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						(int)prf_obj.samples[i].pid > -1 &&
 						(int)prf_obj.samples[i].tid > -1) {
 					uint32_t file_tag_idx = prf_obj.file_tag_idx;
-					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], 
+					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 						prf_obj.samples[i].comm, prf_obj.samples[i].pid, prf_obj.samples[i].tid) - 1;
 				}
 			}
@@ -2419,7 +2419,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.y[1] = ls0.y[0]+delta;
 			if (ls0.cpt_idx < 0) {
 				uint32_t file_tag_idx = prf_obj.file_tag_idx;
-				int cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], 
+				int cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 					prf_obj.samples[i].comm, prf_obj.samples[i].pid, prf_obj.samples[i].tid) - 1;
 				ls0.cpt_idx = cpt_idx;
 			}
@@ -2478,7 +2478,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			fe_idx = cpu_idx = comm_pid_idx = tid_idx = comm_pid_idx2 = tid_idx2 = UINT32_M1;
 
 			if (set_idx >= prf_obj.events.size()) {
-				printf("mess up here. set_idx= %d, events.sz= %d. bye at %s %d\n", 
+				printf("mess up here. set_idx= %d, events.sz= %d. bye at %s %d\n",
 					set_idx, (int)prf_obj.events.size(), __FILE__, __LINE__);
 				exit(1);
 			}
@@ -2531,7 +2531,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					if (-1 == etw_split_comm(prf_obj.etw_data[data_idx][comm_pid_idx], comm, pid_str,
 							(double)prf_obj.etw_evts_set[set_idx][i].ts)) {
 						std::string str2 = prf_obj.events[set_idx].event_name;
-						fprintf(stderr, "failed for evt= %s ts= %s, evt2= %s, evt_nm= %s at %s %d\n", 
+						fprintf(stderr, "failed for evt= %s ts= %s, evt2= %s, evt_nm= %s at %s %d\n",
 							prf_obj.etw_data[data_idx][0].c_str(),
 							prf_obj.etw_data[data_idx][1].c_str(), str2.c_str(), evt_nm.c_str(),
 							__FILE__, __LINE__);
@@ -2545,13 +2545,13 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						tid = atoi(prf_obj.etw_data[data_idx][tid_idx].c_str());
 					}
 					//std::string str = comm + " " + pid_str + "/" + std::to_string(tid);
-					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], 
+					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 							comm, pid, tid) - 1;
 				}
 				if (comm_pid_idx2 != UINT32_M1 && tid_idx2 != UINT32_M1) {
 					if (-1 == etw_split_comm(prf_obj.etw_data[data_idx][comm_pid_idx2], comm2, pid_str2,
 							(double)prf_obj.etw_evts_set[set_idx][i].ts)) {
-						fprintf(stderr, "failed for evt= %s ts= %s, evt_nm= %s at %s %d\n", 
+						fprintf(stderr, "failed for evt= %s ts= %s, evt_nm= %s at %s %d\n",
 							prf_obj.etw_data[data_idx][0].c_str(),
 							prf_obj.etw_data[data_idx][1].c_str(), evt_nm.c_str(),
 							__FILE__, __LINE__);
@@ -2561,7 +2561,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					if (tid_idx2 != UINT32_M1) {
 						tid2 = atoi(prf_obj.etw_data[data_idx][tid_idx2].c_str());
 					}
-					cpt_idx2 = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], 
+					cpt_idx2 = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 						comm2, pid2, tid2) - 1;
 				}
 				if (cpu_idx != UINT32_M1) {
@@ -2632,7 +2632,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	json += ", \"y_range\": { \"min\":" + std::to_string(ch_lines.range.y_range[0]) +
 		", \"max\":" + std::to_string(ch_lines.range.y_range[1]) + "}";
 	if (verbose) {
-		printf("x_rng= %f, %f, y_rng= %f, %f\n", 
+		printf("x_rng= %f, %f, y_rng= %f, %f\n",
 			ch_lines.range.x_range[0],
 			ch_lines.range.x_range[1],
 			ch_lines.range.y_range[0],
@@ -2650,7 +2650,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		var_strs += "\"" + use_str + "\":\"x_" + std::to_string(i) + "\"";
 	}
 	if (by_sz != ch_lines.legend.size()) {
-		printf("mess up here. Expected event_table[%d].charts[%d].by_var_sub_tots.size()= %d to be == to ch_lines.legend.size()= %d at %s %d\n", 
+		printf("mess up here. Expected event_table[%d].charts[%d].by_var_sub_tots.size()= %d to be == to ch_lines.legend.size()= %d at %s %d\n",
 			evt_idx, chrt, by_sz, (int)ch_lines.legend.size(), __FILE__, __LINE__);
 		exit(1);
 	}
@@ -2695,7 +2695,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	for (uint32_t i=0; i < ch_lines.range.subcat_rng.size(); i++) {
 		for (uint32_t j=0; j < ch_lines.range.subcat_rng[i].size(); j++) {
 			if (did_line) { json += ", "; }
-			//if (options.show_json > 0) 
+			//if (options.show_json > 0)
 			std::string ev = "evt unknown";
 			{
 			uint32_t file_tag_idx = UINT32_M1;
@@ -2707,7 +2707,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				ev = flnm_evt_vec[file_tag_idx][fe_idx].evt_str;
 			}
 
-			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s\n", i, j, 
+			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s\n", i, j,
 				ch_lines.range.subcat_rng[i][j].x0,
 				ch_lines.range.subcat_rng[i][j].x1,
 				ch_lines.range.subcat_rng[i][j].y0,
@@ -2858,16 +2858,16 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 			}
 			if (lag_by_var[j] == -1) {
-				printf("got input json file with \"lag_prev_by_var_using_fld\":\"%s\" but didn't find field in evt_flds for event %s. bye at %s %d\n", 
-					event_table.flds[j].lag_prev_by_var_using_fld.c_str(), 
-					event_table.event_name_w_area.c_str(), 
+				printf("got input json file with \"lag_prev_by_var_using_fld\":\"%s\" but didn't find field in evt_flds for event %s. bye at %s %d\n",
+					event_table.flds[j].lag_prev_by_var_using_fld.c_str(),
+					event_table.event_name_w_area.c_str(),
 					__FILE__, __LINE__);
 				exit(1);
 			}
 			if (lag_by_var[j] == j) {
-				printf("got input json file with \"lag_prev_by_var_using_fld\":\"%s\" but the field it points to is itself. error for event %s. bye at %s %d\n", 
-					event_table.flds[j].lag_prev_by_var_using_fld.c_str(), 
-					event_table.event_name_w_area.c_str(), 
+				printf("got input json file with \"lag_prev_by_var_using_fld\":\"%s\" but the field it points to is itself. error for event %s. bye at %s %d\n",
+					event_table.flds[j].lag_prev_by_var_using_fld.c_str(),
+					event_table.event_name_w_area.c_str(),
 					__FILE__, __LINE__);
 				exit(1);
 			}
@@ -2901,7 +2901,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			printf("missed match mk_proc_from_comm_tid_flds comm(%s) or tid(%s) to name fields for event= %s evt_fld= %s. Bye at %s %d\n",
 					event_table.flds[mk_proc[j].def_idx].mk_proc_from_comm_tid_flds.comm.c_str(),
 					event_table.flds[mk_proc[j].def_idx].mk_proc_from_comm_tid_flds.tid.c_str(),
-					event_table.event_name_w_area.c_str(), 
+					event_table.event_name_w_area.c_str(),
 					event_table.flds[mk_proc[j].def_idx].name.c_str(),
 					__FILE__, __LINE__);
 			exit(1);
@@ -2913,7 +2913,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	} else {
 		printf("ETW event= %s at %s %d\n", prf_obj.events[prf_idx].event_name.c_str(), __FILE__, __LINE__);
 		if (prf_idx >= prf_obj.etw_evts_set.size()) {
-			printf("out of bounds prf_idx(%d) >= etw_evts_set.sz(%d). Bye at %s %d\n", 
+			printf("out of bounds prf_idx(%d) >= etw_evts_set.sz(%d). Bye at %s %d\n",
 				(int)prf_idx, (int)prf_obj.etw_evts_set.size(), __FILE__, __LINE__);
 			exit(1);
 		}
@@ -2941,7 +2941,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		for (uint32_t j=0; j < fsz; j++) {
 			uint32_t k;
 			for (k=0; k < prf_obj.events[prf_idx].etw_cols.size(); k++) {
-				//printf("ck   etw_col_map[%d](%s) == %d (%s) at %s %d\n", j, 
+				//printf("ck   etw_col_map[%d](%s) == %d (%s) at %s %d\n", j,
 				 //       event_table.flds[j].lkup.c_str(), k, prf_obj.events[prf_idx].etw_cols[k].c_str(),
 				  //      __FILE__, __LINE__);
 				if (event_table.flds[j].lkup == prf_obj.events[prf_idx].etw_cols[k]) {
@@ -3000,7 +3000,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			fe_idx = flnm_evt_hash[file_tag_idx][fl_evt] - 1;
 			if (fe_idx == -1) {
 				printf("messed up hash of str='%s', evt_nm= %s, prf_evt_idx= %d, evt_nm_w_area= %s at %s %d\n",
-					fl_evt.c_str(), 
+					fl_evt.c_str(),
 					prf_obj.samples[i].event.c_str(),
 					prf_evt_idx,
 					prf_obj.events[prf_evt_idx].event_name_w_area.c_str(),
@@ -3091,7 +3091,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			fe_idx = flnm_evt_hash[file_tag_idx][fl_evt] - 1;
 			if (fe_idx == -1) {
 				printf("messed up hash of str='%s', evt_nm= %s, prf_evt_idx= %d, evt_nm_w_area= %s at %s %d\n",
-					fl_evt.c_str(), 
+					fl_evt.c_str(),
 					prf_obj.events[prf_idx].event_name.c_str(),
 					prf_evt_idx,
 					prf_obj.events[prf_idx].event_name_w_area.c_str(),
@@ -3124,7 +3124,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			exit(1);
 		}
 		uint32_t file_tag_idx = prf_obj.file_tag_idx;
-		if ( prf_obj.file_type == FILE_TYP_ETW || prf_obj.file_type == FILE_TYP_PERF || 
+		if ( prf_obj.file_type == FILE_TYP_ETW || prf_obj.file_type == FILE_TYP_PERF ||
 			prf_obj.file_type == FILE_TYP_TRC_CMD) {
 			if (comm.size() > 0 && pid != UINT32_M1 && tid != UINT32_M1) {
 				cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], comm, pid, tid) - 1;
@@ -3215,7 +3215,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					cmm = prf_obj.comm[pid_i].comm;
 #if 0
 					printf("mk_proc[%d] comm= %s, tid= %d, lkup comm= %s, pid= %d tid= %d fld= %d ts= %f at %s %d\n",
-							mpj, cmm.c_str(), tid_i, prf_obj.comm[pid_i].comm.c_str(), 
+							mpj, cmm.c_str(), tid_i, prf_obj.comm[pid_i].comm.c_str(),
 							prf_obj.comm[pid_i].pid, prf_obj.comm[pid_i].tid, j, ts, __FILE__, __LINE__);
 #endif
 					std::string str = cmm + " " + std::to_string(prf_obj.comm[pid_i].pid) + "/" + std::to_string(prf_obj.comm[pid_i].tid);
@@ -3391,7 +3391,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					exit(1);
 				}
 				if (prf_obj.samples[i].args.size() == 0) {
-					printf("args.size()== 0 for TYP_TRC_FLD_PFX for event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s. bye at %s %d\n", 
+					printf("args.size()== 0 for TYP_TRC_FLD_PFX for event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s. bye at %s %d\n",
 						prf_obj.events[prf_evt_idx2].event_name.c_str(), event_table.flds[j].name.c_str(),
 						event_table.flds[j].lkup.c_str(),
 						prf_obj.samples[i].tm_str.c_str(), i,
@@ -3518,7 +3518,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 						continue;
 					} else {
 						printf("don't yet handle size= %d name= %s, typ= %s at %s %d\n",
-							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size, 
+							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size,
 							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
 							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ.c_str(),
 							__FILE__, __LINE__);
@@ -3699,9 +3699,9 @@ static void web_push_from_srvr_to_clnt(Queue<std::string>& q, unsigned int id) {
 	}
 }
 
-static int start_web_server_threads(Queue<std::string>& q_from_srvr_to_clnt, 
-	Queue <std::string>& q_bin_from_srvr_to_clnt, 
-	Queue <std::string>& q_from_clnt_to_srvr, 
+static int start_web_server_threads(Queue<std::string>& q_from_srvr_to_clnt,
+	Queue <std::string>& q_bin_from_srvr_to_clnt,
+	Queue <std::string>& q_from_clnt_to_srvr,
 	std::vector<std::thread> &thrds_started, int verbose)
 {
 	int thrd_status = THRD_STARTED;
@@ -3805,14 +3805,14 @@ void create_web_file(int verbose)
 						ofile << "  start_charts();" << std::endl;
 						doing_main_js = false;
 						continue;
-					} 
+					}
 				}
   				ofile << line2 << std::endl;
 			}
 			file2.close();
   			ofile << "</script>" << std::endl;
 			continue;
-		} 
+		}
 		pos = line.find(style);
 		if (pos != std::string::npos) {
 			if (first_style) {
@@ -3863,7 +3863,7 @@ void create_web_file(int verbose)
 			file2.close();
   			ofile << "</style>" << std::endl;
 			continue;
-		} 
+		}
 		if (write_it) {
   			ofile << line << std::endl;
 		}
