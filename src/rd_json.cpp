@@ -146,7 +146,7 @@ int ck_json(std::string str, std::string from_where, const char *file, int line,
 	bool worked=false;
 
 	json j;
-	try { 
+	try {
 		j = json::parse(str);
 		worked=true;
 	} catch (json::parse_error& e) {
@@ -168,7 +168,7 @@ int ck_json(std::string str, std::string from_where, const char *file, int line,
 	return 0;
 }
 
-int do_json_events_to_skip(std::string json_file, std::string str, int verbose)
+int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose)
 {
 	if (verbose > 0)
 		std::cout << str << std::endl;
@@ -177,7 +177,7 @@ int do_json_events_to_skip(std::string json_file, std::string str, int verbose)
 	bool worked=false;
 
 	json j;
-	try { 
+	try {
 		j = json::parse(str);
 		worked=true;
 	} catch (json::parse_error& e) {
@@ -204,51 +204,6 @@ int do_json_events_to_skip(std::string json_file, std::string str, int verbose)
 			}
 		} catch (...) { }
 	}
-	return 0;
-}
-
-int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose)
-{
-	if (verbose > 0)
-		std::cout << str << std::endl;
-	uint32_t sz = (int)str.size();
-	bool use_charts_default = true;
-	bool worked=false;
-
-	json j;
-	try { 
-		j = json::parse(str);
-		worked=true;
-	} catch (json::parse_error& e) {
-			// output exception information
-			std::cout << "message: " << e.what() << '\n'
-				  << "exception id: " << e.id << '\n'
-				  << "byte position of error: " << e.byte << std::endl;
-	}
-	if (!worked) {
-		printf("parse of json data file= %s failed. bye at %s %d\n", json_file.c_str(), __FILE__, __LINE__);
-		printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
-		prt_line(sz);
-
-		exit(1);
-	}
-	int32_t pixels_high_min = 100;
-	int32_t pixels_high_max = 1500;
-	int32_t pixels_high_default = 250;
-	try { 
-		std::string fld = "pixels_high_default";
-		int32_t pxls_high = j[fld];
-		pixels_high_default = ck_pixels_high(json_file, "set defaults", fld, pxls_high, __LINE__);
-	} catch (...) { }
-	chart_defaults.pixels_high_default;
-	try { 
-		std::string use_def = j["chart_use_default"];
-		if (use_def == "y") {
-			use_charts_default = true;
-		} else {
-			use_charts_default = false;
-		}
-	} catch (...) { }
 	sz = j["chart_category_priority"].size();
 	for (uint32_t i=0; i < sz; i++) {
 		try {
@@ -263,11 +218,65 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 		} catch (...) { }
 	}
 	sz = j["event_array"].size();
+	return sz;
+}
+
+uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose)
+{
+	if (verbose > 0)
+		std::cout << str << std::endl;
+	uint32_t sz = (int)str.size();
+	bool use_charts_default = true;
+	bool worked=false;
+
+	if (want_evt_num >= 0 && want_evt_num != UINT32_M1 && lkfor_evt_name.size() > 0) {
+		fprintf(stderr, "do_json: enter either want_evt_num or lkfor_event_name, but not both. Bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	if (want_evt_num == UINT32_M1 && lkfor_evt_name.size() == 0) {
+		fprintf(stderr, "do_json: enter either want_evt_num or lkfor_event_name. Bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	json j;
+	try {
+		j = json::parse(str);
+		worked=true;
+	} catch (json::parse_error& e) {
+		std::cout << "message: " << e.what() << '\n' << "exception id: " << e.id << '\n' << "byte position of error: " << e.byte << std::endl;
+	}
+	if (!worked) {
+		printf("parse of json data file= %s failed. bye at %s %d\n", json_file.c_str(), __FILE__, __LINE__);
+		printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
+		prt_line(sz);
+
+		exit(1);
+	}
+	int32_t pixels_high_min = 100;
+	int32_t pixels_high_max = 1500;
+	int32_t pixels_high_default = 250;
+	try {
+		std::string fld = "pixels_high_default";
+		int32_t pxls_high = j[fld];
+		pixels_high_default = ck_pixels_high(json_file, "set defaults", fld, pxls_high, __LINE__);
+	} catch (...) { };
+	chart_defaults.pixels_high_default;
+	try {
+		std::string use_def = j["chart_use_default"];
+		if (use_def == "y") {
+			use_charts_default = true;
+		} else {
+			use_charts_default = false;
+		}
+	} catch (...) { };
+	sz = j["event_array"].size();
 	if (verbose > 0) {
 		printf("sz= %d\n", sz);
 	}
 	try {
 		for (uint32_t i=0; i < sz; i++) {
+			if (want_evt_num != UINT32_M1 && i != want_evt_num) {
+				continue;
+			}
 			if (verbose > 0) {
 				std::cout << j["event_array"][i]["event"].dump() << std::endl;
 				fflush(NULL);
@@ -277,15 +286,17 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 			if (verbose > 0) {
 				printf("evt_nm[%d]= '%s', typ= '%s'\n", i, evt_nm.c_str(), evt_typ.c_str());
 			}
-			if (evt_nm == lkfor_evt_nm) {
-				if (verbose > 0) {
-					printf("do_json: add evt_nm= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+			if (lkfor_evt_name.size() > 0) {
+				if (evt_nm == lkfor_evt_name) {
+					if (verbose > 0) {
+						printf("do_json: add evt_nm= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+					}
+				} else {
+					if (verbose > 0) {
+						printf("do_json: skip evt_nm= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+					}
+					continue;
 				}
-			} else {
-				if (verbose > 0) {
-					printf("do_json: skip evt_nm= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
-				}
-				continue;
 			}
 			if (verbose > 0) {
 				std::cout << j["event_array"][i]["event"]["flds"].dump() << std::endl;
@@ -294,9 +305,22 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 			es.event_name = evt_nm;
 			es.event_type = evt_typ;
 			event_table.push_back(es);
-			//fflush(NULL);
 			uint32_t fsz = 0;
-			try { 
+			try {
+				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_used"].size();
+				for (uint32_t k=0; k < fsz; k++) {
+					event_table.back().evt_derived.evts_used.push_back(j["event_array"][i]["event"]["evt_derived"]["evts_used"][k]);
+				}
+				fsz = j["event_array"][i]["event"]["evt_derived"]["new_cols"].size();
+				for (uint32_t k=0; k < fsz; k++) {
+					event_table.back().evt_derived.new_cols.push_back(j["event_array"][i]["event"]["evt_derived"]["new_cols"][k]);
+				}
+				event_table.back().evt_derived.evt_trigger = j["event_array"][i]["event"]["evt_derived"]["evt_trigger"];
+				event_table.back().evt_derived.lua_file = j["event_array"][i]["event"]["evt_derived"]["lua_file"];
+				event_table.back().evt_derived.lua_rtn  = j["event_array"][i]["event"]["evt_derived"]["lua_rtn"];
+			} catch (...) { }
+			//fflush(NULL);
+			try {
 				fsz = j["event_array"][i]["event"]["evt_flds"].size();
 			} catch (...) { }
 			
@@ -308,17 +332,17 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 				std::string lkup     = j["event_array"][i]["event"]["evt_flds"][k]["lkup"];
 				std::string lkup_typ = j["event_array"][i]["event"]["evt_flds"][k]["lkup_typ"];
 				std::string lkup_dlm_str;
-				try { 
+				try {
 					lkup_dlm_str = j["event_array"][i]["event"]["evt_flds"][k]["lkup_dlm_str"];
 				} catch (...) { }
 				std::string diff_ts_with_ts_of_prev_by_var_using_fld;
-				try { 
+				try {
 					diff_ts_with_ts_of_prev_by_var_using_fld = j["event_array"][i]["event"]["evt_flds"][k]["diff_ts_with_ts_of_prev_by_var_using_fld"];
 					got_diff_ts_stuff = true;
 				} catch (...) { }
 				std::string lag_prev_by_var_using_fld;
 				uint32_t lag_by_var=0;
-				try { 
+				try {
 					lag_prev_by_var_using_fld = j["event_array"][i]["event"]["evt_flds"][k]["lag_prev_by_var_using_fld"]["name"];
 					lag_by_var = j["event_array"][i]["event"]["evt_flds"][k]["lag_prev_by_var_using_fld"]["by_var"];
 				} catch (...) { }
@@ -328,7 +352,7 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 					exit(1);
 				}
 				std::string mk_proc_from_comm_tid_flds_1, mk_proc_from_comm_tid_flds_2;
-				try { 
+				try {
 					mk_proc_from_comm_tid_flds_1 = j["event_array"][i]["event"]["evt_flds"][k]["mk_proc_from_comm_tid_flds"]["comm"];
 					mk_proc_from_comm_tid_flds_2 = j["event_array"][i]["event"]["evt_flds"][k]["mk_proc_from_comm_tid_flds"]["tid"];
 				} catch (...) { }
@@ -338,12 +362,12 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 					exit(1);
 				}
 				std::string next_for_name;
-				try { 
+				try {
 					next_for_name = j["event_array"][i]["event"]["evt_flds"][k]["next_for_name"];
 				} catch (...) { }
 				std::vector <std::string> stg = {"actions", "actions_stage2"};
 				for (uint32_t kk=0; kk < stg.size(); kk++) {
-					try { 
+					try {
 					uint32_t asz = j["event_array"][i]["event"]["evt_flds"][k][stg[kk]].size();
 					if (verbose > 0) {
 						printf("%s size= %d at %s %d\n", stg[kk].c_str(), asz, __FILE__, __LINE__);
@@ -363,7 +387,7 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 							printf("invalid %s in chart json file: got oper= '%s' at %s %d\n", stg[kk].c_str(), as.oper.c_str(), __FILE__, __LINE__);
 							exit(1);
 						}
-						try { 
+						try {
 							as.val  = j["event_array"][i]["event"]["evt_flds"][k][stg[kk]][m]["val1"];
 							if (stg[kk] == "actions") {
 								fs.actions.back().val1 = as.val;
@@ -446,7 +470,7 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 			for (uint32_t k=0; k < csz; k++) {
 				struct chart_str cs;
 				bool use_chart = use_charts_default;
-				try { 
+				try {
 					std::string use_chrt = j["event_array"][i]["event"]["charts"][k]["use_chart"];
 					if (use_chrt == "y") {
 						use_chart = true;
@@ -458,15 +482,15 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 				} catch (...) { }
 				cs.use_chart = use_chart;
 				std::string y_fmt, by_val_ts, by_val_dura;
-				try { 
+				try {
 					y_fmt = j["event_array"][i]["event"]["charts"][k]["y_fmt"];
 				} catch (...) { }
 				cs.y_fmt = y_fmt;
-				try { 
+				try {
 					by_val_ts = j["event_array"][i]["event"]["charts"][k]["by_val_ts"];
 				} catch (...) { }
 				cs.by_val_ts = by_val_ts;
-				try { 
+				try {
 					by_val_dura = j["event_array"][i]["event"]["charts"][k]["by_val_dura"];
 				} catch (...) { }
 				cs.by_val_dura = by_val_dura;
@@ -474,7 +498,7 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 				cs.var_name = j["event_array"][i]["event"]["charts"][k]["var_name"];
 				cs.by_var   = j["event_array"][i]["event"]["charts"][k]["by_var"];
 				cs.pixels_high = -1;
-				try { 
+				try {
 					std::string fld = "pixels_high";
 					int32_t pxls_high = j["event_array"][i]["event"]["charts"][k][fld];
 					//cs.pixels_high = ck_pixels_high(json_file, cs.title, fld, pxls_high, __LINE__);
@@ -491,7 +515,7 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 					}
 				}
 				std::string chrt_actn = "actions";
-				try { 
+				try {
 				json jact = j["event_array"][i]["event"]["charts"][k][chrt_actn];
 				//uint32_t asz = j["event_array"][i]["event"]["charts"][k][chrt_actn].size();
 				uint32_t asz = jact.size();
@@ -507,19 +531,19 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 						printf("invalid in chart json file: got oper= '%s' at %s %d\n", as.oper.c_str(), __FILE__, __LINE__);
 						exit(1);
 					}
-					try { 
+					try {
 						as.val  = jact[m]["val1"];
 						cs.actions.back().val1 = as.val;
 					} catch (...) { }
 				}
 				} catch (...) { }
-				try { 
+				try {
 					cs.chart_tag = j["event_array"][i]["event"]["charts"][k]["chart_tag"];
 				} catch (...) { }
-				try { 
+				try {
 					cs.chart_category = j["event_array"][i]["event"]["charts"][k]["category"];
 				} catch (...) { }
-				try { 
+				try {
 					cs.chart_type = j["event_array"][i]["event"]["charts"][k]["chart_type"];
 				} catch (...) { }
 				if (verbose > 0) {
@@ -556,7 +580,7 @@ int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, st
 		// output exception information
 		std::cout << "message: " << e.what() << '\n'
 			  << "exception id: " << e.id << ", at " << __FILE__ << " " << __LINE__ << std::endl;
-	}
+	};
 	fflush(NULL);
 	//std::cout << j.dump() << std::endl;
 	//std::cout << j.dump(4) << std::endl;
@@ -638,7 +662,7 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 	bool worked=false;
 
 	json j;
-	try { 
+	try {
 		j = json::parse(str);
 		worked=true;
 	} catch (json::parse_error& e) {
@@ -655,7 +679,7 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 		exit(1);
 	}
 #if 0
-	try { 
+	try {
 		std::string use_def = j["file_use_default"];
 		if (use_def == "y") {
 			use_charts_default = true;

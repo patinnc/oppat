@@ -85,8 +85,15 @@ struct chart_defaults_str {
 	chart_defaults_str(): pixels_high_default(250) {}
 };
 
+struct evt_derived_str {
+	std::vector <std::string> evts_used;
+	std::vector <std::string> new_cols;
+	std::string evt_trigger, lua_file, lua_rtn;
+};
+
 struct evt_str {
 	std::string event_name, event_type, event_name_w_area;
+	struct evt_derived_str evt_derived;
 	uint32_t prf_obj_idx, event_idx_in_file;
 	std::unordered_map <std::string, uint32_t> hsh_str;
 	std::vector <std::string> vec_str;
@@ -167,8 +174,8 @@ EXTERN_STR std::vector <chart_cat_str> chart_category;
 EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str> &file_list, std::vector <std::string> use_file_tag,
 	int read_file_mode, std::string root_data_dir, int verbose);
 EXTERN_STR std::string rd_json(std::string flnm);
-EXTERN_STR int do_json(std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose);
-EXTERN_STR int do_json_events_to_skip(std::string json_file, std::string str, int verbose);
+EXTERN_STR uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose);
+EXTERN_STR int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose);
 //EXTERN_STR std::vector <fld_typ_str> fld_typ_strs;
 #if 0
 EXTERN_STR int grph_data_to_json(ns_grph::grph_str &grph);
