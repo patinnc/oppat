@@ -46,6 +46,7 @@ EXTERN2 char *get_root_dir_of_exe(void);
 EXTERN2 char *set_root_dir_of_exe(char *pth);
 EXTERN2 int ck_filename_exists(const char *filename, const char *file, int line, int verbose);
 EXTERN2 uint64_t get_file_size(const char *filename, const char *file, int line, int verbose);
+EXTERN2 int run_heapchk(const char *prefx, const char *file, int line, int verbose);
 EXTERN2 uint32_t build_bit_ui(int beg, int end);
 EXTERN2 uint64_t extract_bits(uint64_t myin, int beg, int end);
 EXTERN2 uint64_t build_bit(int beg, int end);

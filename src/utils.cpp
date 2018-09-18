@@ -23,6 +23,7 @@
 #include <iostream>
 #include <chrono>
 #include <vector>
+#include <malloc.h>
 
 #include <stdint.h>
 #define UTILS_CPP
@@ -361,6 +362,39 @@ uint64_t get_file_size(const char *filename, const char *file, int line, int ver
 	return stat_buffer.st_size;
 }
 
+int run_heapchk(const char *prefx, const char *file, int line, int verbose)
+{
+   int rc = 0;
+#ifdef _WIN32
+	int heapstatus;
+	// Check heap status
+	heapstatus = _heapchk();
+	switch( heapstatus )
+	{
+	case _HEAPOK:
+		if (verbose)
+			printf("heapchk: %s: OK - heap is fine: called from %s %d. at %s %d\n", prefx, file, line, __FILE__, __LINE__);
+		rc = 0;
+		break;
+	case _HEAPEMPTY:
+		if (verbose)
+			printf("heapchk: %s: OK - heap is empty: called from %s %d. at %s %d\n", prefx, file, line, __FILE__, __LINE__);
+		rc = 0;
+		break;
+	case _HEAPBADBEGIN:
+		if (verbose)
+			printf("heapchk: %s: ERROR - bad start of heap: called from %s %d. at %s %d\n", prefx, file, line, __FILE__, __LINE__);
+		rc = -1;
+		break;
+	case _HEAPBADNODE:
+		if (verbose)
+			printf("heapchk: %s: ERROR - bad node in heap: called from %s %d. at %s %d\n", prefx, file, line, __FILE__, __LINE__);
+		rc = -1;
+		break;
+	}
+#endif
+	return rc;
+}
 
 #if 0
 #if defined __cplusplus
