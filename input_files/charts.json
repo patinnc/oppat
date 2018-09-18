@@ -1,5 +1,5 @@
 {
-  "chart_use_default":"n",
+  "chart_use_default":"y",
   "pixels_high_default":250,
   "chart_category_priority":[
 	{"name":"UI",      "priority":100},
@@ -19,15 +19,15 @@
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"proc",  "lkup": "", "lkup_typ": "TYP_COMM_PID_TID|TYP_STR"},
 		{"name":"pid",   "lkup": "", "lkup_typ": "TYP_PID|TYP_INT"},
-		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"},
-		{"name":"cpu_busy", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DBL"},
+		{"name":"dura",      "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"},
+		{"name":"cpu_busy",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DBL"},
 		{"name":"%busy_sys", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DIV_BY_INTERVAL|TYP_EXCL_PID_0|TYP_DBL", "actions":[{"oper":"mult", "val":100.0}]}
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
 			"use_chart":"y"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"proc", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
-			"use_chart":"n", "y_fmt":"%.1f%%"}
+			"use_chart":"y", "y_fmt":"%.1f%%"}
 		]
 	}
   },
@@ -248,11 +248,11 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
-			"use_chart":"d"},
+			"use_chart":"y"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
-			"use_chart":"d", "y_fmt":"%.1f%%"},
+			"use_chart":"y", "y_fmt":"%.1f%%"},
 		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc", "chart_type":"stacked",
-			"use_chart":"d", "y_fmt":"%.1f%%", "comment":"if you use type=stacked then this chart can use a lot of memory"}
+			"use_chart":"y", "y_fmt":"%.1f%%", "comment":"if you use type=stacked then this chart can use a lot of memory"}
 		]
 	}
   },

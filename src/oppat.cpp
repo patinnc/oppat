@@ -3664,7 +3664,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			event_table.data.prf_sample_idx.push_back(i);
 		}
-		if (cpu_idx != UINT32_M1) {
+		if (cpu >= 0) {
 			ts_cpu[cpu] = ts;
 		}
 	}
