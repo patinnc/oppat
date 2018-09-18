@@ -32,6 +32,7 @@
 #include "printf.h"
 #include "oppat.h"
 #include "pugixml.hpp"
+#include "lua_rtns.h"
 #include "etw_parse.h"
 
 void parse_etw_cfg_xml(std::string &cfg_str, prf_obj_str &prf_obj, int verbose)
@@ -140,7 +141,29 @@ int add_threads(std::vector <std::string> cols, prf_obj_str &prf_obj, uint32_t t
 	return pids;
 }
 
-int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose)
+struct nms_str {
+	std::string str;
+	std::vector <std::string> cols;
+	int count, len, ext_strs;
+};
+
+static uint32_t add_evt_and_cols(prf_obj_str &prf_obj, std::vector <std::string> tkns, std::vector <nms_str> &nms)
+{
+	hash_string(prf_obj.etw_evts_hsh, prf_obj.etw_evts_vec, tkns[0]);
+	std::vector <etw_str> es;
+	prf_obj.etw_evts_set.push_back(es);
+	struct nms_str ns;
+	ns.str = tkns[0];
+	ns.cols = tkns;
+	ns.count = 0;
+	ns.ext_strs = 0;
+	ns.len = ns.str.size();
+	etw_add_event((int)nms.size(), tkns[0], prf_obj, tkns);
+	nms.push_back(ns);
+	return nms.size() - 1;
+}
+
+int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose, std::vector <evt_str> &evt_tbl2)
 {
 	std::ifstream file;
 	//long pos = 0;
@@ -148,11 +171,6 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	int lines_comments = 0, lines_samples = 0, lines_callstack = 0, lines_null=0;
 	int samples = -1, s_idx = -1;
 
-	struct nms_str {
-		std::string str;
-		std::vector <std::string> cols;
-		int count, len, ext_strs;
-	};
 
 	std::vector <nms_str> nms;
 
@@ -195,7 +213,7 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		}
 	}
 	printf("got %d events in ETW txt file at %s %d\n", (int)nms.size(), __FILE__, __LINE__);
-	std::vector <std::string> tkns;
+	std::vector <std::string> tkns, tkns2;
 #if 0
 	std::unordered_map<std::string, uint32_t> evts_hsh;
 	std::vector <std::string> evts_vec;
@@ -229,6 +247,8 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		if (hsh_ck != 0) {
 			continue;
 		}
+		add_evt_and_cols(prf_obj, tkns, nms);
+#if 0
 		hash_string(prf_obj.etw_evts_hsh, prf_obj.etw_evts_vec, tkns[0]);
 		std::vector <etw_str> es;
 		prf_obj.etw_evts_set.push_back(es);
@@ -240,8 +260,61 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		ns.len = ns.str.size();
 		etw_add_event((int)nms.size(), tkns[0], prf_obj, tkns);
 		nms.push_back(ns);
+#endif
 	}
 
+	struct evts_derived_str {
+		uint32_t evt_tbl2_idx, trigger_idx, evt_new_idx;
+		std::vector <uint32_t> evts_used;
+		std::vector <std::string> new_cols;
+		std::vector <std::string> new_vals;
+	};
+
+	std::vector <evts_derived_str> evts_derived;
+
+	for (uint32_t i=0; i < evt_tbl2.size(); i++) {
+		if (evt_tbl2[i].event_type == "ETW" && evt_tbl2[i].evt_derived.evts_used.size() > 0) {
+			bool okay= true;
+			evts_derived_str eds;
+			eds.evts_used.resize(0);
+			uint32_t hsh_ck;
+			for (uint32_t j=0; j < evt_tbl2[i].evt_derived.evts_used.size(); j++) {
+				hsh_ck = prf_obj.etw_evts_hsh[evt_tbl2[i].evt_derived.evts_used[j]];
+				if (hsh_ck == 0) {
+					okay= false;
+					break;
+				}
+				eds.evts_used.push_back(hsh_ck - 1);
+			}
+			std::string trigger = evt_tbl2[i].evt_derived.evt_trigger;
+			if (okay) {
+				hsh_ck = prf_obj.etw_evts_hsh[trigger];
+				if (hsh_ck == 0) {
+					okay = false;
+				}
+			}
+			if (okay) {
+				std::string new_nm  = evt_tbl2[i].event_name;
+				hsh_ck = prf_obj.etw_evts_hsh[trigger] - 1;
+				std::vector <std::string> tkns = prf_obj.events[hsh_ck].etw_cols;
+				tkns[0] = new_nm;
+				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
+					tkns.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
+				}
+				uint32_t new_idx = add_evt_and_cols(prf_obj, tkns, nms);
+				eds.evt_tbl2_idx = i;
+				eds.trigger_idx = hsh_ck;
+				eds.evt_new_idx = new_idx;
+				evts_derived.push_back(eds);
+				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
+					evts_derived.back().new_cols.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
+				}
+				printf("trigger= %s, tkns[0]= %s, new_nm= %s trg_idx= %d, new_idx= %d evts_der.back().used.sz= %d at %s %d\n",
+					trigger.c_str(), tkns[0].c_str(), new_nm.c_str(), hsh_ck, new_idx,
+					(int)evts_derived.back().evts_used.size(), __FILE__, __LINE__);
+			}
+		}
+	}
 	if (doing_header) {
 		printf("missed 'EndHeader' string in ETW text file '%s'. Bye at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 		exit(1);
@@ -388,6 +461,56 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			es.ts -= first_ts;
 			prf_obj.etw_evts_set[evt_idx].push_back(es);
 			prf_obj.etw_data.push_back(tkns);
+			bool got_it = false;
+			for (uint32_t j=0; j < evts_derived.size(); j++) {
+				uint32_t tbl2_idx = evts_derived[j].evt_tbl2_idx;
+				uint32_t trig_idx = evts_derived[j].trigger_idx;
+				uint32_t new_idx = evts_derived[j].evt_new_idx;
+				std::vector <std::string> &cols = prf_obj.events[evt_idx].etw_cols;
+				for (uint32_t k=0; k < evts_derived[j].evts_used.size(); k++) {
+					if (evts_derived[j].evts_used[k] == evt_idx) {
+						uint32_t new_sz = evts_derived[j].new_cols.size();
+						uint32_t old_sz = tkns.size();
+						tkns2.resize(old_sz);
+						//for (uint32_t m=0; m < old_sz; m++) {
+						//	tkns2.push_back(tkns[m]);
+						//}
+						tkns2 = tkns;
+						tkns2.resize(old_sz+new_sz);
+						got_it = true;
+						//printf("got evts_used= %s ts %s, at %s %d\n", tkns[0].c_str(), tkns[1].c_str(), __FILE__, __LINE__);
+						std::string lua_file = evt_tbl2[tbl2_idx].evt_derived.lua_file;
+						std::string lua_rtn  = evt_tbl2[tbl2_idx].evt_derived.lua_rtn;
+						std::vector <std::string> new_vals;
+						new_vals.resize(new_sz);
+
+						lua_derived_evt(lua_file, lua_rtn, cols[0], cols, tkns, evts_derived[j].new_cols, new_vals, verbose);
+						if (trig_idx == evt_idx) {
+							tkns2[0] = prf_obj.events[new_idx].etw_cols[0];
+							if (verbose > 0)
+								printf("trigger: new_idx= %d, etw_cols.zs= %d, tkns2.sz= %d, at %s %d\n",
+									new_idx, (int)prf_obj.events[evt_idx].etw_cols.size(), (int)tkns2.size(), __FILE__, __LINE__);
+							if (tkns2.size() < (old_sz+new_sz)) {
+								printf("ummm. dude. bye at %s %d\n", __FILE__, __LINE__);
+								exit(1);
+							}
+							for (uint32_t kk=0; kk < new_sz; kk++) {
+								tkns2[old_sz + kk] = new_vals[kk];
+							}
+							es.data_idx = prf_obj.etw_data.size();
+							prf_obj.etw_evts_set[new_idx].push_back(es);
+							prf_obj.etw_data.push_back(tkns2);
+							if (verbose > 0)
+								printf("current evt is trigger event at %s %d\n", __FILE__, __LINE__);
+						}
+						//run_heapchk("etw_parse:", __FILE__, __LINE__, 1);
+						break;
+					}
+				}
+				if (got_it) {
+					break;
+				}
+			}
 			if (evt_idx != stk_idx) {
 				evt_idx_prv = evt_idx;
 			}
