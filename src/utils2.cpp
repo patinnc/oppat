@@ -77,6 +77,9 @@ We appreciate, but do not require, attribution. An attribution usually includes 
 
 void replace_substr(std::string &base_str, std::string lkfor_str, std::string replace_with_str, int verbose)
 {
+	if (base_str.size() == 0) {
+		return;
+	}
 	size_t pos = base_str.find(lkfor_str);
 	if (pos != std::string::npos) {
 		if (verbose)
