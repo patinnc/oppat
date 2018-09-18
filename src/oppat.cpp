@@ -2008,7 +2008,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			    //cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
 			    cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
 			    uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
-				ls0p->pid        = comm_pid_tid_vec[file_tag_idx][cpt_idx].pid;
+				if (cpt_idx != UINT32_M1) {
+					ls0p->pid        = comm_pid_tid_vec[file_tag_idx][cpt_idx].pid;
+				} else {
+					ls0p->pid        = -1;
+				}
 				ls0p->fe_idx     = get_fe_idxm1(prf_obj, event_table[evt_idx].event_name_w_area, __LINE__, true, event_table[evt_idx]);
 				if (var_cpu_idx > -1) {
 			        ls0p->cpu    = event_table[evt_idx].data.vals[i][var_cpu_idx];
@@ -2095,7 +2099,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				{
 					int ti;
 					if (prf_obj.file_type == FILE_TYP_ETW) {
-						ti = cpt_idx - 1;
+						ti = cpt_idx - 1; // not sure this should be -1 for ETW
 					} else {
 						//ti = prf_obj.samples[prf_idx].cpt_idx;
 						ti = event_table[evt_idx].data.cpt_idx[0][i];
@@ -2782,6 +2786,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	double ts_0, ts_end;
 	double dura=0.0;
 
+	//run_heapchk("top of fill_data_table:", __FILE__, __LINE__, 1);
 	ts_0   = prf_obj.tm_beg;
 	ts_end = prf_obj.tm_end;
 
@@ -2794,7 +2799,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	double ts_cumu = 0.0, ts_idle= 0.0;
 	std::string str;
 	std::string flnm = prf_obj.filename_bin + " " + prf_obj.filename_text + " ";
-	printf("filenames= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
+	if (verbose > 0)
+		printf("filenames= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 	static int doing_SCHED_SWITCH = 0;
 	if (doing_SCHED_SWITCH == 0 &&
 			(event_table.event_name_w_area == "sched:sched_switch" || event_table.event_name == "CSwitch")) {
@@ -2930,8 +2936,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		// lets do the column mapping
 		etw_col_map.resize(fsz, -1);
 		etw_col_strs.resize(fsz, "");
-		printf("fsz= %d, prf_idx= %d cols.sz= %d at %s %d\n",
-				fsz, prf_idx, (int)prf_obj.events[prf_idx].etw_cols.size(), __FILE__, __LINE__);
+		//printf("fsz= %d, prf_idx= %d cols.sz= %d at %s %d\n",
+		//		fsz, prf_idx, (int)prf_obj.events[prf_idx].etw_cols.size(), __FILE__, __LINE__);
 		for (uint32_t j=0; j < fsz; j++) {
 			uint32_t k;
 			for (k=0; k < prf_obj.events[prf_idx].etw_cols.size(); k++) {
@@ -3099,7 +3105,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			flnm_evt_vec[file_tag_idx][fe_idx].total++;
 		}
 		std::string strx = comm + " " + std::to_string(pid) + "/" + std::to_string(tid);
-		if (pid == -1 && tid == -1 && (prf_obj.file_type == FILE_TYP_ETW)) {
+		if (pid == -1 && tid == -1 && (prf_obj.file_type == FILE_TYP_ETW) && comm_pid_idx != UINT32_M1) {
 			if ( prf_obj.file_type == FILE_TYP_ETW && (prf_obj.etw_evts_set.size() <= prf_idx ||
 					prf_obj.etw_evts_set[prf_idx].size() <= i)) {
 				printf("ETW bad szs: set.sz= %d, prf_idx= %d, [prf_idx].sz= %d, i= %d at %s %d\n",
@@ -3108,7 +3114,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				exit(1);
 			}
 
-			if ( prf_obj.file_type == FILE_TYP_ETW) {
+			if (prf_obj.file_type == FILE_TYP_ETW) {
 				printf("bad strx= '%s' at timestamp= %.0f at %s %d\n",
 					strx.c_str(), (double)prf_obj.etw_evts_set[prf_idx][i].ts, __FILE__, __LINE__);
 			} else {
@@ -3120,9 +3126,11 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		uint32_t file_tag_idx = prf_obj.file_tag_idx;
 		if ( prf_obj.file_type == FILE_TYP_ETW || prf_obj.file_type == FILE_TYP_PERF || 
 			prf_obj.file_type == FILE_TYP_TRC_CMD) {
-			cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], comm, pid, tid) - 1;
-			if (prf_obj.file_type != FILE_TYP_ETW) {
-				//prf_obj.samples[i].cpt_idx = cpt_idx-1;
+			if (comm.size() > 0 && pid != UINT32_M1 && tid != UINT32_M1) {
+				cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], comm, pid, tid) - 1;
+				if (prf_obj.file_type != FILE_TYP_ETW) {
+					//prf_obj.samples[i].cpt_idx = cpt_idx-1;
+				}
 			}
 			if (comm2.size() > 0 && pid != UINT32_M1 && tid != UINT32_M1) {
 				cpt_idx2 = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], comm2, pid2, tid2) - 1;
@@ -3656,13 +3664,18 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			event_table.data.prf_sample_idx.push_back(i);
 		}
-		ts_cpu[cpu] = ts;
+		if (cpu_idx != UINT32_M1) {
+			ts_cpu[cpu] = ts;
+		}
 	}
-	if (verbose)
+	//run_heapchk("bot of fill_data_table:", __FILE__, __LINE__, 1);
+	if (verbose) {
 		printf("ts_cumu %f, ts_idle= %f\n", ts_cumu, ts_idle);
-	printf("event= %s, event_table[%d].data.vals.size()= %d\n",
-		event_table.event_name_w_area.c_str(),
-		evt_idx, (int)event_table.data.vals.size());
+		printf("event= %s, event_table[%d].data.vals.size()= %d\n",
+			event_table.event_name_w_area.c_str(),
+			evt_idx, (int)event_table.data.vals.size());
+	}
+	fflush(NULL);
 	return 0;
 }
 
@@ -3906,7 +3919,7 @@ void do_load_replay(int verbose)
 
 int main(int argc, char **argv)
 {
-	std::vector <std::vector <evt_str>> event_table;
+	std::vector <std::vector <evt_str>> event_table, evt_tbl2;
 	std::vector<std::thread> thrds_started;
 	Queue<std::string> q_from_srvr_to_clnt;
 	Queue<std::string> q_bin_from_srvr_to_clnt;
@@ -3926,6 +3939,7 @@ int main(int argc, char **argv)
 		int pid = (int)GetCurrentProcessId();
 		std::string cmd = "vsjitdebugger.exe -p " + std::to_string(pid);
 		system(cmd.c_str());
+		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF | _CRTDBG_CHECK_ALWAYS_DF );
 	}
 #endif
 
@@ -4099,7 +4113,26 @@ int main(int argc, char **argv)
 
 	prf_obj_str *prf_obj_prv = NULL;
 
-	do_json_events_to_skip(chart_file, json_evt_chrt_str, options.verbose);
+	uint32_t ck_num_events = do_json_evt_chrts_defaults(chart_file, json_evt_chrt_str, options.verbose);
+	evt_tbl2.resize(1);
+	for (uint32_t i=0; i <  ck_num_events; i++) {
+		std::string evt_nm;
+		do_json(i, evt_nm, chart_file, json_evt_chrt_str, evt_tbl2[0], options.verbose);
+	}
+	printf("chart_file has %d events. At %s %d\n", ck_num_events, __FILE__, __LINE__);
+	std::cout << "evt_tbl2[0].size() " << evt_tbl2[0].size() << std::endl;
+	for (uint32_t i=0; i <  evt_tbl2[0].size(); i++) {
+		printf("evt_tbl2[0].event_name[%d]= %s, type= %s\n",
+				i, evt_tbl2[0][i].event_name.c_str(), evt_tbl2[0][i].event_type.c_str());
+		if (evt_tbl2[0][i].evt_derived.evts_used.size() > 0) {
+			for (uint32_t j=0; j <  evt_tbl2[0][i].evt_derived.evts_used.size(); j++) {
+				printf("\tevt_derived.evts_used[%d]= %s\n", j, evt_tbl2[0][i].evt_derived.evts_used[j].c_str());
+			}
+			printf("\tevt_derived.evt_trigger= %s\n", evt_tbl2[0][i].evt_derived.evt_trigger.c_str());
+			printf("\tevt_derived.lua_file= %s rtn= %s\n",
+					evt_tbl2[0][i].evt_derived.lua_file.c_str(), evt_tbl2[0][i].evt_derived.lua_rtn.c_str());
+		}
+	}
 
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		int v_tmp = 0;
@@ -4123,7 +4156,6 @@ int main(int argc, char **argv)
 			replace_substr(file_list[i].wait_txt, "\\", "/", verbose);
 		}
 		if (file_list[i].typ == FILE_TYP_TRC_CMD) {
-			
 			tc_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, prf_obj_prv);
 			tc_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp);
 			printf("\nafter tc_read_data_bin(%s) at %s %d\n", file_list[i].file_bin.c_str(), __FILE__, __LINE__);
@@ -4148,7 +4180,7 @@ int main(int argc, char **argv)
 		else if (file_list[i].typ == FILE_TYP_ETW) {
 			if (verbose)
 				fprintf(stderr, "begin etw_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
-			etw_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp);
+			etw_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
 			fprintf(stderr, "after etw_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 		} else {
 			fprintf(stderr, "unknown file typ(%d) at %s %d\n", file_list[i].typ, __FILE__, __LINE__);
@@ -4191,7 +4223,7 @@ int main(int argc, char **argv)
 					str, prf_obj[k].filename_bin, prf_obj[k].filename_text,  evt_nm, k, j, -1) - 1;
 				//printf("fe_idx= %d, str= '%s' at %s %d\n", fe_idx, str.c_str(), __FILE__, __LINE__);
 				flnm_evt_vec[file_tag_idx][fe_idx].evt_tbl_idx = (uint32_t)grp_list[g];
-				do_json(evt_nm, chart_file, json_evt_chrt_str, event_table[grp_list[g]], options.verbose);
+				do_json(UINT32_M1, evt_nm, chart_file, json_evt_chrt_str, event_table[grp_list[g]], options.verbose);
 				if (get_signal() == 1) {
 					fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
