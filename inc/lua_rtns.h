@@ -14,3 +14,9 @@
 #define EXTERN2 extern
 #endif
 EXTERN2 int lua_read_data(std::string data_filename, std::string data2_filename, std::string wait_filename, prf_obj_str &prf_obj, int verbose);
+EXTERN2 double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &evt_nm,
+		std::vector <std::string> &data_cols,
+		std::vector <std::string> &data_vals,
+		std::vector <std::string> &new_cols,
+		std::vector <std::string> &new_vals,
+		int verbose);
