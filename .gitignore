@@ -71,5 +71,6 @@ drivers/
 zoom_win.bat
 zoom_lnx.bat
 tmp*.jnk
+disk_tst_*
 tst*
 dat.json
