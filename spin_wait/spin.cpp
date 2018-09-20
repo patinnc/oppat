@@ -11,6 +11,9 @@
 #include <iostream>
 #include <time.h>
 #include <stdlib.h>
+#include <inttypes.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 //#include <arm_neon.h>
 #include <ctime>
 #include <cstdio>
@@ -81,6 +84,143 @@ uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t adder, uint64_t &ops)
 
 std::vector <args_str> args;
 
+static int alloc_pg_bufs(int num_bytes, char **buf_ptr)
+{
+	size_t pg_sz = getpagesize();
+	size_t use_bytes = num_bytes;
+	if ((use_bytes % pg_sz) != 0) {
+		use_bytes += use_bytes % pg_sz;
+	}
+	int rc = posix_memalign((void **)buf_ptr, pg_sz, use_bytes);
+	if (rc != 0) {
+		printf("failed to malloc %" PRId64 " bytes on alignment= %d at %s %d\n",
+			use_bytes, (int)pg_sz, __FILE__, __LINE__);
+		exit(1);
+	}
+	return pg_sz;
+}
+
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
+static size_t disk_write_dir(int myi, const char *filename, int ar_sz, int loops)
+{
+	int fd, val=0;
+	char *buf;
+
+	int pg_sz = alloc_pg_bufs(ar_sz, &buf);
+	fd = open(filename, O_WRONLY|O_CREAT|O_BINARY|O_DIRECT, 0x666);
+	if (!fd)
+	{
+		printf("Unable to open file %s at %s %d\n", filename, __FILE__, __LINE__);
+		exit(1);
+	}
+	size_t byts = 0;
+	int num_pages = ar_sz / pg_sz;
+	for (int i=0; i < loops; i++) {
+		for (int j= 0; j < ar_sz; j+= 256) {
+			buf[j] += j + val;
+		}
+		val++;
+		for (int j=0; j < num_pages; j += 16) {
+			byts += write(fd, buf+(j*pg_sz), 16*pg_sz);
+		}
+	}
+	args[myi].rezult = val;
+	close(fd);
+	return byts;
+}
+
+static size_t disk_read_dir(int myi, const char *filename, int ar_sz, int loops)
+{
+	int fd, val=0;
+	char *buf;
+	size_t ret;
+
+	int pg_sz = alloc_pg_bufs(ar_sz, &buf);
+	fd = open(filename, O_RDONLY | O_BINARY | O_DIRECT, 0);
+	if (!fd)
+	{
+		printf("Unable to open file %s at %s %d\n", filename, __FILE__, __LINE__);
+		exit(1);
+	}
+	int num_pages = ar_sz / pg_sz;
+	size_t byts = 0;
+	for (int i=0; i < loops; i++) {
+		for (int j=0; j < num_pages; j += 16) {
+			byts += read(fd, buf+(j*pg_sz), 16*pg_sz);
+		}
+		for (int j= 0; j < ar_sz; j+= 256) {
+			val += buf[j];
+		}
+	}
+	close(fd);
+	args[myi].rezult = val;
+	return byts;
+}
+
+static int disk_write(int myi, const char *filename, int ar_sz, int loops, bool do_flush)
+{
+	int counter;
+	FILE *fp;
+	int val=0;
+	char *buf;
+
+	int pg_sz = alloc_pg_bufs(ar_sz, &buf);
+	fp = fopen(filename,"wb");
+	if (!fp)
+	{
+		printf("Unable to open file %s at %s %d\n", filename, __FILE__, __LINE__);
+		exit(1);
+	}
+	int num_pages = ar_sz / pg_sz;
+	for (int i=0; i < loops; i++) {
+		for (int j= 0; j < ar_sz; j+= 512) {
+			buf[j] += j + val;
+		}
+		val++;
+		for (int j=0; j < num_pages; j++) {
+      			fwrite(buf+(j*pg_sz), pg_sz, 1, fp);
+		}
+	}
+	//fflush(fp);
+	//fsync(fileno(fp));
+	args[myi].rezult = val;
+	fclose(fp);
+	return 0;
+}
+
+static int disk_read(int myi, const char *filename, int ar_sz, int loops)
+{
+	int counter;
+	FILE *fp;
+	int val=0;
+	char *buf;
+	size_t ret;
+
+	int pg_sz = alloc_pg_bufs(ar_sz, &buf);
+	fp = fopen(filename,"rb");
+	if (!fp)
+	{
+		printf("Unable to open file %s at %s %d\n", filename, __FILE__, __LINE__);
+		exit(1);
+	}
+	//setvbuf(fp, NULL, _IONBF, 0);
+	int num_pages = ar_sz / pg_sz;
+	for (int i=0; i < loops; i++) {
+		for (int j=0; j < num_pages; j++) {
+      			ret = fread(buf+(j*pg_sz), pg_sz, 1, fp);
+		}
+		for (int j= 0; j < ar_sz; j+= 512) {
+			val += buf[j];
+		}
+	}
+	fclose(fp);
+	args[myi].rezult = val;
+	return val;
+}
+
 int array_write(char *buf, int ar_sz, int strd)
 {
 	int res=0;
@@ -97,6 +237,183 @@ int array_read(char *buf, int ar_sz, int strd)
 		res += buf[i];
 	}
 	return res;
+}
+
+float disk_wr(unsigned int i)
+{
+	double tm_to_run = args[i].spin_tm;
+	int cpu =  args[i].id;
+	//unsigned int i;
+	uint64_t ops = 0;
+	uint64_t j, loops;
+	uint64_t rezult = 0;
+	double tm_end, tm_beg, bytes=0.0;
+	std::string filename = "disk_tst_" + std::to_string(i);
+	loops = args[i].loops;
+	int arr_sz = 1024*1024;
+	uint64_t adder = args[i].adder;
+	loops = 100;
+	bool do_flush = false;
+	tm_end = tm_beg = dclock();
+	while((tm_end - tm_beg) < tm_to_run) {
+		disk_write(i, filename.c_str(), arr_sz, loops, do_flush);
+		bytes += arr_sz * loops;
+		tm_end = dclock();
+	}
+	double dura = tm_end - tm_beg;
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, MiB/sec= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-6 * (double)(bytes)/(dura));
+	args[i].rezult = rezult;
+	return 0;
+}
+
+float disk_rd(unsigned int i)
+{
+	double tm_to_run = args[i].spin_tm;
+	int bops=0, cpu =  args[i].id;
+	//unsigned int i;
+	uint64_t ops = 0;
+	uint64_t j, loops;
+	uint64_t rezult = 0;
+	double tm_end, tm_beg, bytes=0.0;
+	std::string filename = "disk_tst_" + std::to_string(i);
+	loops = args[i].loops;
+	int arr_sz = 1024*1024;
+	uint64_t adder = args[i].adder;
+	loops = 100;
+	tm_end = tm_beg = dclock();
+	while((tm_end - tm_beg) < tm_to_run) {
+		bops += disk_read(i, filename.c_str(), arr_sz, loops);
+		bytes += arr_sz * loops;
+		tm_end = dclock();
+	}
+	double dura = tm_end - tm_beg;
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, MiB/sec= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-6 * (double)(bytes)/(dura));
+	if (bops < 0) {
+		printf("bops= %d at %s %d\n", bops, __FILE__, __LINE__);
+	}
+	args[i].rezult = rezult;
+	return 0;
+}
+
+float disk_rdwr(unsigned int i)
+{
+	double tm_to_run = args[i].spin_tm;
+	int bops=0, cpu =  args[i].id;
+	//unsigned int i;
+	uint64_t ops = 0;
+	uint64_t j, loops;
+	uint64_t rezult = 0;
+	double tm_end, tm_beg, bytes=0.0;
+	std::string filename = "disk_tst_" + std::to_string(i);
+	loops = args[i].loops;
+	int arr_sz = 1024*1024;
+	uint64_t adder = args[i].adder;
+	loops = 100;
+	bool do_flush= true;
+	tm_end = tm_beg = dclock();
+	while((tm_end - tm_beg) < tm_to_run) {
+		disk_write(i, filename.c_str(), arr_sz, loops, do_flush);
+		bops += disk_read(i, filename.c_str(), arr_sz, loops);
+		bytes += 2.0 * arr_sz * loops;
+		tm_end = dclock();
+	}
+	double dura = tm_end - tm_beg;
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, MiB/sec= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-6 * (double)(bytes)/(dura));
+	if (bops < 0) {
+		printf("bops= %d at %s %d\n", bops, __FILE__, __LINE__);
+	}
+	args[i].rezult = rezult;
+	return 0;
+}
+
+float disk_wr_dir(unsigned int i)
+{
+	double tm_to_run = args[i].spin_tm;
+	int bops=0, cpu =  args[i].id;
+	//unsigned int i;
+	uint64_t ops = 0;
+	uint64_t j, loops;
+	uint64_t rezult = 0;
+	double tm_end, tm_beg, bytes=0.0;
+	std::string filename = "disk_tst_" + std::to_string(i);
+	loops = args[i].loops;
+	int arr_sz = 1024*1024;
+	uint64_t adder = args[i].adder;
+	loops = 100;
+	bool do_flush= true;
+	tm_end = tm_beg = dclock();
+	while((tm_end - tm_beg) < tm_to_run) {
+		bytes += disk_write_dir(i, filename.c_str(), arr_sz, loops);
+		tm_end = dclock();
+	}
+	double dura = tm_end - tm_beg;
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, MiB/sec= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-6 * (double)(bytes)/(dura));
+	if (bops < 0) {
+		printf("bops= %d at %s %d\n", bops, __FILE__, __LINE__);
+	}
+	args[i].rezult = rezult;
+	return 0;
+}
+
+float disk_rd_dir(unsigned int i)
+{
+	double tm_to_run = args[i].spin_tm;
+	int bops=0, cpu =  args[i].id;
+	//unsigned int i;
+	uint64_t ops = 0;
+	uint64_t j, loops;
+	uint64_t rezult = 0;
+	double tm_end, tm_beg, bytes=0.0;
+	std::string filename = "disk_tst_" + std::to_string(i);
+	loops = args[i].loops;
+	int arr_sz = 1024*1024;
+	uint64_t adder = args[i].adder;
+	loops = 100;
+	bool do_flush= true;
+	tm_end = tm_beg = dclock();
+	while((tm_end - tm_beg) < tm_to_run) {
+		bytes += disk_read_dir(i, filename.c_str(), arr_sz, loops);
+		tm_end = dclock();
+	}
+	double dura = tm_end - tm_beg;
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, MiB/sec= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-6 * bytes/dura);
+	args[i].rezult = rezult;
+	return 0;
+}
+
+float disk_rdwr_dir(unsigned int i)
+{
+	double tm_to_run = args[i].spin_tm;
+	int bops=0, cpu =  args[i].id;
+	//unsigned int i;
+	uint64_t ops = 0;
+	uint64_t j, loops;
+	uint64_t rezult = 0;
+	double tm_end, tm_beg, bytes=0.0;
+	std::string filename = "disk_tst_" + std::to_string(i);
+	loops = args[i].loops;
+	int arr_sz = 1024*1024;
+	uint64_t adder = args[i].adder;
+	loops = 100;
+	tm_end = tm_beg = dclock();
+	while((tm_end - tm_beg) < tm_to_run) {
+		bytes += disk_write_dir(i, filename.c_str(), arr_sz, loops);
+		bytes += disk_read_dir(i, filename.c_str(), arr_sz, loops);
+		tm_end = dclock();
+	}
+	double dura = tm_end - tm_beg;
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, MiB/sec= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-6 * (double)(bytes)/(dura));
+	if (bops < 0) {
+		printf("bops= %d at %s %d\n", bops, __FILE__, __LINE__);
+	}
+	args[i].rezult = rezult;
+	return 0;
 }
 
 float mem_bw(unsigned int i)
@@ -165,6 +482,18 @@ float dispatch_work(int  i)
 		res = simd_dot0(i);
 	} else if (args[i].work == "mem_bw") {
 		res = mem_bw(i);
+	} else if (args[i].work == "disk_wr") {
+		res = disk_wr(i);
+	} else if (args[i].work == "disk_rd") {
+		res = disk_rd(i);
+	} else if (args[i].work == "disk_rdwr") {
+		res = disk_rdwr(i);
+	} else if (args[i].work == "disk_rd_dir") {
+		res = disk_rd_dir(i);
+	} else if (args[i].work == "disk_wr_dir") {
+		res = disk_wr_dir(i);
+	} else if (args[i].work == "disk_rdwr_dir") {
+		res = disk_rdwr_dir(i);
 	}
 	return res;
 }
@@ -175,6 +504,7 @@ int main(int argc, char **argv)
 	double t_first = dclock();
 	unsigned num_cpus = std::thread::hardware_concurrency();
 	double spin_tm = 2.0;
+	bool doing_disk = false;
 	std::mutex iomutex;
 	std::vector<std::thread> threads(num_cpus);
 	printf("t_first= %.9f\n", t_first);
@@ -196,9 +526,15 @@ int main(int argc, char **argv)
 	std::string work = "spin";
 	if (argc > i) {
 		work = std::string(argv[i]);
-		if (work != "spin" && work != "mem_bw") {
-			printf("supported work types = 'spin' and 'mem_bw' at %s %d\n", __FILE__, __LINE__);
+		if (work != "spin" && work != "mem_bw" && work != "disk_wr" && work != "disk_rd" &&
+			work != "disk_rdwr" && work != "disk_rdwr_dir" &&
+			work != "disk_rd_dir" && work != "disk_wr_dir") {
+			printf("supported work types = spin, mem_bw, disk_w', disk_rd, disk_rdwr, disk_rd_dir, disk_wr_dir, disk_rdwr_dir at %s %d\n", __FILE__, __LINE__);
 			exit(1);
+		}
+		if (work == "disk_wr" || work == "disk_rd" || work == "disk_rdwr" || work == "disk_rdwr_dir" ||
+			work == "disk_wr_dir" || work == "disk_rd_dir") {
+			doing_disk = true;
 		}
 	}
 	i++; //3
@@ -222,20 +558,23 @@ int main(int argc, char **argv)
 	dispatch_work(0);
 	t_end = dclock();
 	t_start = dclock();
+	printf("work= %s\n", work.c_str());
 
-	for (unsigned i = 0; i < num_cpus; ++i) {
-		threads[i] = std::thread([&iomutex, i] {
-			dispatch_work(i);
-		});
-	}
+	if (!doing_disk) {
+		for (unsigned i = 0; i < num_cpus; ++i) {
+			threads[i] = std::thread([&iomutex, i] {
+				dispatch_work(i);
+			});
+		}
 
-	for (auto& t : threads) {
-		t.join();
+		for (auto& t : threads) {
+			t.join();
+		}
 	}
 
 	t_end = dclock();
-	std::cout << "\nExecution time on 4 CPUs: " << t_end - t_start << " secs" << std::endl;
-	if (loops < 100) {
+	if (loops < 100 && !doing_disk) {
+		std::cout << "\nExecution time on 4 CPUs: " << t_end - t_start << " secs" << std::endl;
 		for (unsigned i=0; i < num_cpus; i++) {
 			printf("rezult[%d]= %lu\n", i, args[i].rezult);
 		}
