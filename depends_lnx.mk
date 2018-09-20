@@ -13,6 +13,7 @@ obj/embedded_cpp.o: src/embedded_cpp.cpp  inc/utils.h
 obj/embedded_cpp.o: src/embedded_cpp.cpp  inc/utils2.h
 obj/embedded_cpp.o: src/embedded_cpp.cpp  inc/web_api.h
 obj/etw_parse.o: src/etw_parse.cpp  inc/etw_parse.h
+obj/etw_parse.o: src/etw_parse.cpp  inc/lua_rtns.h
 obj/etw_parse.o: src/etw_parse.cpp  inc/oppat.h
 obj/etw_parse.o: src/etw_parse.cpp  inc/perf_event_subset.h
 obj/etw_parse.o: src/etw_parse.cpp  inc/printf.h
