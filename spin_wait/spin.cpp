@@ -5,6 +5,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#include <io.h>
 #define pid_t int
 #endif
 
@@ -17,6 +18,7 @@
 //#include <arm_neon.h>
 #include <ctime>
 #include <cstdio>
+#include <string>
 #include <thread>
 #include <mutex>
 #include <iostream>
@@ -84,14 +86,33 @@ uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t adder, uint64_t &ops)
 
 std::vector <args_str> args;
 
+static size_t sys_getpagesize(void)
+{
+	size_t pg_sz = 4096; // sane? default
+#ifdef __linux__
+	pg_sz = sys_getpagesize();
+#else
+	SYSTEM_INFO siSysInfo;
+	// Copy the hardware information to the SYSTEM_INFO structure. 
+	GetSystemInfo(&siSysInfo); 
+	pg_sz = siSysInfo.dwPageSize;
+#endif
+	return pg_sz;
+}
+
 static int alloc_pg_bufs(int num_bytes, char **buf_ptr)
 {
-	size_t pg_sz = getpagesize();
+	size_t pg_sz = sys_getpagesize();
 	size_t use_bytes = num_bytes;
 	if ((use_bytes % pg_sz) != 0) {
 		use_bytes += use_bytes % pg_sz;
 	}
-	int rc = posix_memalign((void **)buf_ptr, pg_sz, use_bytes);
+	int rc;
+#ifdef __linux__
+	rc = posix_memalign((void **)buf_ptr, pg_sz, use_bytes);
+#else
+	*buf_ptr = (char *)_aligned_malloc(use_bytes, pg_sz);
+#endif
 	if (rc != 0) {
 		printf("failed to malloc %" PRId64 " bytes on alignment= %d at %s %d\n",
 			use_bytes, (int)pg_sz, __FILE__, __LINE__);
@@ -102,6 +123,12 @@ static int alloc_pg_bufs(int num_bytes, char **buf_ptr)
 
 #ifndef O_BINARY
 #define O_BINARY 0
+#endif
+
+#ifndef O_DIRECT
+// windows needs CreateFile FILE_FLAG_NO_BUFFERING. See https://github.com/ronomon/direct-iok
+// I haven't added this yet for windows... so the dir rtns are the same as not-dir on windows at the moment
+#define O_DIRECT 0
 #endif
 
 static size_t disk_write_dir(int myi, const char *filename, int ar_sz, int loops)
