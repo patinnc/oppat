@@ -1677,11 +1677,16 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				double used_so_far = 0.0;
 				if (overlaps_idx_used[i] > -1) {
 					used_so_far = overlaps_used_sum[i];
+#if 0
 					if (used_so_far > dura) {
 						printf("mess up here. used_so_far= %f, dura= %f, fix yer code dude. Bye at %s %d\n",
 								used_so_far, dura, __FILE__, __LINE__);
 						exit(1);
 					}
+#else
+					used_so_far = dura;
+					overlaps_used_sum[i] = used_so_far;
+#endif
 				}
 				fx1 -= used_so_far;
 			}
@@ -2991,8 +2996,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 
 			prf_evt_idx = (int)prf_obj.samples[i].evt_idx;
 			if (prf_evt_idx == -1) {
-				printf("messed up prf event indx number of str='%s' at %s %d\n",
-						prf_obj.samples[i].event.c_str(), __FILE__, __LINE__);
+				printf("messed up prf event indx number of event[%d] name='%s' at %s %d\n",
+						i, prf_obj.samples[i].event.c_str(), __FILE__, __LINE__);
 				exit(1);
 			}
 			fl_evt = flnm + prf_obj.events[prf_evt_idx].event_name_w_area;
@@ -3232,6 +3237,44 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					dv.push_back(idx);
 					continue;
 				}
+			}
+			if (flg & FLD_TYP_NEW_VAL) {
+				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
+				std::string nd_lkup = event_table.flds[j].lkup;
+				int got_it = -1;
+				for (uint32_t kk=0; kk < prf_obj.events[prf_evt_idx2].new_cols.size(); kk++) {
+					if (nd_lkup == prf_obj.events[prf_evt_idx2].new_cols[kk]) {
+						printf("got match on derived evt col %s at %s %d\n", nd_lkup.c_str(), __FILE__, __LINE__);
+						got_it = kk;
+						break;
+					}
+				}
+				if (got_it == -1) {
+					printf("missed lkup '%s' for TYP_NEW_VAL for event= %s.\nNeed lkup string to appear in list of derived events fields. Got fields:\n",
+							nd_lkup.c_str(), prf_obj.events[prf_evt_idx2].event_name.c_str());
+					for (uint32_t kk=0; kk < prf_obj.events[prf_evt_idx2].new_cols.size(); kk++) {
+						printf("new_cols[%d]= %s\n", kk, prf_obj.events[prf_evt_idx2].new_cols[kk].c_str());
+					}
+					printf("bye at %s %d\n", __FILE__, __LINE__);
+					exit(1);
+				}
+				if ((flg & FLD_TYP_DBL) ||(flg & FLD_TYP_INT)) {
+					double val = atof(prf_obj.samples[i].new_vals[got_it].c_str());
+					printf("NEW_VAL val= %f at %s %d\n", val, __FILE__, __LINE__);
+					if (flg & FLD_TYP_DURATION_BEF) {
+						dura_idx = j;
+						dura = val;
+					}
+					dv.push_back(val);
+				}
+				if (flg & FLD_TYP_STR) {
+					std::string str = prf_obj.samples[i].new_vals[got_it];
+					printf("NEW_VAL str= %s at %s %d\n", str.c_str(), __FILE__, __LINE__);
+					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
+					dv.push_back(idx);
+					continue;
+				}
+				continue;
 			}
 			if (flg & FLD_TYP_DIV_BY_INTERVAL) {
 				div_by_interval_idx.push_back(j);
@@ -4157,7 +4200,7 @@ int main(int argc, char **argv)
 		}
 		if (file_list[i].typ == FILE_TYP_TRC_CMD) {
 			tc_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, prf_obj_prv);
-			tc_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp);
+			tc_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
 			printf("\nafter tc_read_data_bin(%s) at %s %d\n", file_list[i].file_bin.c_str(), __FILE__, __LINE__);
 		}
 		else if (file_list[i].typ == FILE_TYP_PERF) {
@@ -4167,7 +4210,7 @@ int main(int argc, char **argv)
 			prf_obj_prv = &prf_obj[i];
 			if (verbose)
 				fprintf(stderr, "begin prf_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
-			prf_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp);
+			prf_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
 			fprintf(stderr, "after prf_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 		}
 		else if (file_list[i].typ == FILE_TYP_LUA) {

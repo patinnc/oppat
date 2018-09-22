@@ -66,7 +66,7 @@ struct prf_comm_str {
 struct prf_events_str {
 	struct perf_event_attr pea;
 	std::vector <uint64_t> ids;
-	std::vector <std::string> etw_cols;
+	std::vector <std::string> etw_cols, new_cols;
 	std::unordered_map<std::string, uint32_t> etw_col_hsh;
 	std::vector <std::string> etw_col_vec;
 	std::string event_area;
@@ -92,6 +92,13 @@ struct lua_data_str {
 	std::vector <int> timestamp_idx, duration_idx;
 };
 
+struct evts_derived_str {
+	uint32_t evt_tbl2_idx, trigger_idx, evt_new_idx;
+	std::vector <uint32_t> evts_used;
+	std::vector <std::string> new_cols;
+	std::vector <std::string> new_vals;
+};
+
 struct prf_samples_str {
 	std::string comm, event, tm_str;
 	uint32_t evt_idx, pid, tid, cpu;
@@ -99,7 +106,7 @@ struct prf_samples_str {
 	int fe_idx;
 	long mm_off;
 	uint64_t ts, period;
-	std::vector <std::string> args;
+	std::vector <std::string> args, new_vals;
 	std::vector <prf_callstack_str> callstack;
 	//prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), cpt_idx(-1), cpt_idx2(-1), fe_idx(-1), mm_off(-1), ts(0), period(0) {}
 	prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), fe_idx(-1), mm_off(-1), ts(0), period(0) {}
