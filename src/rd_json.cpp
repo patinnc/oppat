@@ -629,6 +629,7 @@ static void bld_fld_typ(void)
 	fld_typ_strs.push_back({FLD_TYP_CSW_STATE,     "TYP_CSW_STATE"});
 	fld_typ_strs.push_back({FLD_TYP_CSW_REASON,    "TYP_CSW_REASON"});
 	fld_typ_strs.push_back({FLD_TYP_LAG,           "TYP_LAG"});
+	fld_typ_strs.push_back({FLD_TYP_NEW_VAL,       "TYP_NEW_VAL"});
 }
 
 std::string rd_json(std::string flnm)

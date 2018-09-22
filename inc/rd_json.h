@@ -141,6 +141,7 @@ enum fld_typ_enums {
 	FLD_TYP_CSW_STATE     = (1ULL << 27),
 	FLD_TYP_CSW_REASON    = (1ULL << 28),
 	FLD_TYP_LAG           = (1ULL << 29),
+	FLD_TYP_NEW_VAL       = (1ULL << 30),
 };
 
 enum {
