@@ -118,7 +118,7 @@
 	"evt_name": "power:cpu_idle", "evt_type": "ftrace", "comment":"cpu_idle ftrace event",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "cpu_id", "lkup_typ": "TYP_TRC_BIN|TYP_INT"},
-		{"name":"cpu_idle state", "lkup": "state",  "lkup_typ": "TYP_TRC_BIN|TYP_STATE_AFTER|TYP_DBL", "actions":[{"oper":"replace", "val":4294967295, "val1":-1}, {"oper":"add", "val":0}]},
+		{"name":"cpu_idle state", "lkup": "state",  "lkup_typ": "TYP_TRC_BIN|TYP_STATE_AFTER|TYP_DBL", "actions":[{"oper":"replace", "val":4294967295, "val1":-1}, {"oper":"add", "val":0}, {"oper":"cap", "val":8}]},
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
