@@ -115,7 +115,6 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 		std::cout << "Something went horribly wrong loading the code: " << sol::to_string(status) << " error" << "\n\t" << err.what() << std::endl;
 		printf("error on check of lua file '%s'. bye at %s %d\n", lua_file.c_str(), __FILE__, __LINE__);
 		exit(1);
-		
 	}
 	std::string lua_rtn = "do_tst";
 	lua_st[lua_idx].loaded_chunk();
@@ -293,18 +292,6 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 		std::vector <std::string> &data_cols, std::vector <std::string> &data_vals,
 		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals, int verbose)
 {
-#if 0
-	if (new_cols.size() != new_vals.size()) {
-		fprintf(stderr, "expected new_cols.sz= %d to be == new_vals.sz= %d. Bye at %s %d\n",
-				(int)new_cols.size(), (int)new_vals.size(), __FILE__, __LINE__);
-		exit(1);
-	}
-	for (uint32_t i=0; i < new_cols.size(); i++) {
-		new_vals[i] = 0.0;
-		printf("lua new_val[%d]= %s at %s %d\n", i, new_vals[i].c_str(), __FILE__, __LINE__);
-	}
-#else
-
 	int lua_idx = (int)hash_string(lua_state_hash, lua_state_vec, lua_file) - 1;
 	if (lua_idx >= lua_states.size()) {
 		printf("create lua state for lua_idx= %d lua_file= %s at %s %d\n", lua_idx, lua_file.c_str(), __FILE__, __LINE__);
@@ -348,7 +335,6 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 			std::cout << "Something went horribly wrong loading the code: " << sol::to_string(status) << " error" << "\n\t" << err.what() << std::endl;
 			printf("error on check of lua file '%s'. bye at %s %d\n", lua_file.c_str(), __FILE__, __LINE__);
 			exit(1);
-			
 		}
 		lua_states[lua_idx]->loaded_chunk();
 		std::string err_hndlr = "got_problems";
@@ -404,8 +390,124 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 			printf("lua new_val[%d]= %s at %s %d\n", i, new_vals[i].c_str(), __FILE__, __LINE__);
 		}
 	}
-#endif
 	return 0;
-
 }
 
+double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string &evt_nm,
+		struct prf_samples_str &samples,
+		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals,
+		std::string &extra_str, int verbose)
+{
+	int lua_idx = (int)hash_string(lua_state_hash, lua_state_vec, lua_file) - 1;
+	if (lua_idx >= lua_states.size()) {
+		printf("create lua state for lua_idx= %d lua_file= %s at %s %d\n", lua_idx, lua_file.c_str(), __FILE__, __LINE__);
+		mylua_str* mls;
+		mls = new mylua_str;
+		lua_states.push_back(mls);
+		//lua_states.resize(lua_idx+1);
+		// open some common libraries
+		lua_states[lua_idx]->lua.open_libraries();
+
+		// error handling based on https://github.com/ThePhD/sol2/issues/386
+		// This is a lower-level, more explicit way to load code
+		// This explicitly loads the code, giving you access to any errors
+		// plus the load status
+		// then, it turns the loaded code into a sol::protected_function
+		// which is then called so that the code can run
+		// you can then check that too, for any errors
+		// The two previous approaches are recommended
+		std::string ds = std::string(DIR_SEP);
+		std::string root_dir = std::string(get_root_dir_of_exe());
+		std::string base_filename = "src_lua"+ ds + lua_file;
+		std::string filename = root_dir + ds + base_filename;
+		printf("try lua file %s at %s %d\n", filename.c_str(), __FILE__, __LINE__);
+		int rc = ck_filename_exists(filename.c_str(), __FILE__, __LINE__, 0);
+		if (rc != 0) {
+			std::string f2 = root_dir + ds + ".." + ds + base_filename;
+			rc = ck_filename_exists(f2.c_str(), __FILE__, __LINE__, 0);
+			if (rc != 0) {
+				printf("failed to find lua file with base file name= %s\nlooked for %s and %s at %s %d\n",
+						base_filename.c_str(), filename.c_str(), f2.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			filename = f2;
+			printf("found lua file %s at %s %d\n", filename.c_str(), __FILE__, __LINE__);
+		}
+		lua_states[lua_idx]->loaded_chunk = lua_states[lua_idx]->lua.load_file(filename);
+		if (!lua_states[lua_idx]->loaded_chunk.valid()) {
+			sol::error err = lua_states[lua_idx]->loaded_chunk;
+			sol::load_status status = lua_states[lua_idx]->loaded_chunk.status();
+			std::cout << "Something went horribly wrong loading the code: " << sol::to_string(status) << " error" << "\n\t" << err.what() << std::endl;
+			printf("error on check of lua file '%s'. bye at %s %d\n", lua_file.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		lua_states[lua_idx]->loaded_chunk();
+		std::string err_hndlr = "got_problems";
+		lua_states[lua_idx]->script_func.error_handler = lua_states[lua_idx]->lua[err_hndlr];
+		if (!lua_states[lua_idx]->script_func.error_handler) {
+			printf("didn't find LUA script named '%s' in file %s. Bye at %s %d\n",
+				err_hndlr.c_str(), lua_file.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		lua_states[lua_idx]->lua["data_cols"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		lua_states[lua_idx]->lua["data_vals"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		lua_states[lua_idx]->lua["new_cols"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		lua_states[lua_idx]->lua["new_vals"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+	}
+	lua_states[lua_idx]->script_func = lua_states[lua_idx]->lua[lua_rtn];
+	if (!lua_states[lua_idx]->script_func) {
+		printf("didn't find LUA script named '%s' in file %s. Bye at %s %d\n",
+			lua_rtn.c_str(), lua_file.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	std::string comm, event, tm_str;
+	uint32_t evt_idx, pid, tid, cpu;
+	uint64_t ts, period;
+	std::vector <std::string> args;
+
+	int i = 0;
+	lua_states[lua_idx]->lua["data_cols"][++i] = "event";
+	lua_states[lua_idx]->lua["data_cols"][++i] = "ts";
+	lua_states[lua_idx]->lua["data_cols"][++i] = "extra_str";
+	lua_states[lua_idx]->lua["data_cols"][++i] = "comm";
+	lua_states[lua_idx]->lua["data_cols"][++i] = "pid";
+	lua_states[lua_idx]->lua["data_cols"][++i] = "tid";
+	lua_states[lua_idx]->lua["data_cols"][++i] = "cpu";
+	lua_states[lua_idx]->lua["data_cols"][++i] = "period";
+	i = 0;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.event;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.ts;
+	lua_states[lua_idx]->lua["data_vals"][++i] = extra_str;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.comm;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.pid;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.tid;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.cpu;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.period;
+
+	for (i=0; i < (int)new_cols.size(); i++) {
+		lua_states[lua_idx]->lua["new_cols"][i+1] = new_cols[i];
+	}
+	printf("lua extra_str= %s at %s %d\n", extra_str.c_str(), __FILE__, __LINE__);
+
+	// load the input data and headers
+	sol::protected_function_result result = lua_states[lua_idx]->script_func(verbose);
+	if (!result.valid()) {
+		sol::error err = result;
+		sol::call_status status = result.status();
+		std::cout << "Something went horribly wrong running the code: " << sol::to_string(status) << " error" << "\n\t" << err.what() << std::endl;
+		printf("error running lua file '%s'. bye at %s %d\n", lua_file.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (new_cols.size() != new_vals.size()) {
+		fprintf(stderr, "expected new_cols.sz= %d to be == new_vals.sz= %d. Bye at %s %d\n",
+				(int)new_cols.size(), (int)new_vals.size(), __FILE__, __LINE__);
+		exit(1);
+	}
+	for (uint32_t i=0; i < new_cols.size(); i++) {
+		new_vals[i] = lua_states[lua_idx]->lua["new_vals"][i+1];
+		if (verbose > 0) {
+			printf("lua new_val[%d]= %s at %s %d\n", i, new_vals[i].c_str(), __FILE__, __LINE__);
+		}
+	}
+	return 0;
+}
