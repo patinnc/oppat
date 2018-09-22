@@ -206,6 +206,57 @@
   },
   {"event":
 	{
+	"evt_name": "ext4_da_write", "evt_type": "ftrace", "comment":"derived event for ext4_da_write_begin and ext4_da_write_exit",
+	"example_record":"perf-17708 [001] 15155313933314: ext4_da_write_begin:  dev 8,6 ino 275381 pos 35073 len 556 flags 0",
+	"example_record":"perf-17708 [001] 15155313935547: ext4_da_write_end:    dev 8,6 ino 275381 pos 35073 len 556 copied 556",
+	"evt_derived":{
+		"evts_used":["ext4:ext4_da_write_begin", "ext4:ext4_da_write_end"],
+		"evt_trigger":"ext4:ext4_da_write_end",
+		"new_cols":["MiB/s", "bytes", "duration", "area"],
+		"lua_file":"tc_ext4_da_write.lua",
+		"lua_rtn":"ext4_da_write"
+	},
+	"evt_flds": [
+		{"name":"MiB/s", "lkup": "MiB/s",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1.0e-6}]},
+		{"name":"bytes", "lkup": "bytes",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"DISK", "title":"Disk BW MiB/sec ext4_da_write",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW",
+			"chart_type":"line",
+			"use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "ext4_direct_IO", "evt_type": "ftrace", "comment":"derived event for ext4_da_write_begin and ext4_da_write_exit",
+	"example_record":"spin.x-17593 [001] 15110116275907: ext4_direct_IO_enter: dev 8,6 ino 302391 pos 104792064 len 65536 rw 1",
+	"example_record":"spin.x-17593 [001] 15110116443521: ext4_direct_IO_exit:  dev 8,6 ino 302391 pos 104792064 len 65536 rw 1 ret 65536",
+	"evt_derived":{
+		"evts_used":["ext4:ext4_direct_IO_enter", "ext4:ext4_direct_IO_exit"],
+		"evt_trigger":"ext4:ext4_direct_IO_exit",
+		"new_cols":["MiB/s", "bytes", "duration", "area"],
+		"lua_file":"tc_ext4_direct_IO.lua",
+		"lua_rtn":"ext4_direct_IO"
+	},
+	"evt_flds": [
+		{"name":"MiB/s", "lkup": "MiB/s",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1.0e-6}]},
+		{"name":"bytes", "lkup": "bytes",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"proc",  "lkup": "", "lkup_typ": "TYP_COMM_PID_TID|TYP_STR"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"DISK", "title":"Disk BW MiB/sec ext4_direct_IO",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW_DIRECT",
+			"chart_type":"line",
+			"use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "i915:i915_flip_complete", "evt_type": "ftrace", "comment":"frames completed?",
 	"example_record":"spin.x-24314 [001] 10219453598301: i915_flip_complete:   plane=0, obj=0xffff880148573440",
 	"evt_flds": [
