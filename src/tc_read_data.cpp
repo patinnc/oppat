@@ -47,6 +47,7 @@
 #include "MemoryMapped.h"
 #include "mygetopt.h"
 #include "dump.hpp"
+#define TC_RD_DATA_CPP
 #include "tc_read_data.h"
 
 #define BUF_MAX 4096
@@ -254,15 +255,21 @@ do_page_hdr:
 							} else {
 							prf_add_comm((uint32_t)prf_obj_prev->comm[pid_indx-1].pid, (uint32_t)prf_obj_prev->comm[pid_indx-1].tid,
 								std::string(prf_obj_prev->comm[pid_indx-1].comm), prf_obj, tsn);
-							printf("got pid in prf_obj_prev: pid= %d, tid= %d, comm= %s at %s %d\n",
-								(uint32_t)prf_obj_prev->comm[pid_indx-1].pid, (uint32_t)prf_obj_prev->comm[pid_indx-1].tid,
+							printf("old pid_indx= %d, got pid in prf_obj_prev: pid= %d, tid= %d, comm= %s at %s %d\n",
+								pid_indx, (uint32_t)prf_obj_prev->comm[pid_indx-1].pid, (uint32_t)prf_obj_prev->comm[pid_indx-1].tid,
 								std::string(prf_obj_prev->comm[pid_indx-1].comm).c_str(), __FILE__, __LINE__);
+							pid_indx = prf_obj.tid_2_comm_indxp1[(uint32_t)pid];
 							}
-						}  else {
+						}
+						if (pid_indx == 0) {
 							printf("didn't find the pid in PERF prf_obj either2. Bye at %s %d\n", __FILE__, __LINE__);
 							exit(1);
 						}
 					}
+				}
+				if (pid_indx <= 0 || pid_indx > prf_obj.comm.size()) {
+					printf("invalid pid_indx= %d , sz= %d at %s %d\n", pid_indx, (int)prf_obj.comm.size(), __FILE__, __LINE__);
+					exit(1);
 				}
 				pss.comm   = prf_obj.comm[(uint64_t)(pid_indx-1)].comm;
 				pss.event  = evt_nm;
@@ -382,11 +389,26 @@ int bth_ck_fmt(std::string lkfor, std::string fmt, int verbose)
 	return 0;
 }
 
-static int tc_add_event(int idx, int evt_sz, char *buf_in, const char *area, prf_obj_str &prf_obj, int verbose)
+static int tc_add_event(int evt_id, std::string evt_str, std::string area, prf_obj_str &prf_obj, int verbose)
+{
+	prf_events_str pes;
+	pes.event_name = evt_str;
+	pes.pea.type = PERF_TYPE_TRACEPOINT;
+	pes.pea.config = (uint64_t)evt_id;
+	if (area.size() > 0) {
+		pes.event_area = area;
+	}
+	if (verbose)
+		printf("add tc event name= '%s', ID= %d, num_evts= %d\n", evt_str.c_str(), evt_id, (int)prf_obj.events.size());
+	prf_add_ids((uint32_t)evt_id, (int)prf_obj.events.size(), prf_obj);
+	prf_obj.events.push_back(pes);
+	return (int)prf_obj.events.size();
+}
+
+static int tc_build_event(char *buf_in, const char *area, prf_obj_str &prf_obj, int verbose)
 {
 	char evt_str[256];
 	int evt_id= -1;
-	prf_events_str pes;
 	char *cp, *cp1;
 
 	cp = strstr(buf_in, "name: ");
@@ -413,18 +435,12 @@ static int tc_add_event(int idx, int evt_sz, char *buf_in, const char *area, prf
 	}
 	cp += 4;
 	evt_id = atoi(cp);
-	pes.event_name = std::string(evt_str);
-	pes.pea.type = PERF_TYPE_TRACEPOINT;
-	pes.pea.config = (uint64_t)evt_id;
+	std::string event_name = std::string(evt_str);
+	std::string sarea;
 	if (area) {
-		pes.event_area = std::string(area);
+		sarea = std::string(area);
 	}
-	pes.event_name = std::string(evt_str);
-	if (verbose)
-		printf("slen= %d, tc event name= '%s', ID= %d, num_evts= %d\n", slen, evt_str, evt_id, (int)prf_obj.events.size());
-	prf_add_ids((uint32_t)evt_id, (int)prf_obj.events.size(), prf_obj);
-	prf_obj.events.push_back(pes);
-	return 1;
+	return tc_add_event(evt_id, event_name, sarea, prf_obj, verbose);
 }
 
 static int tc_parse_pid_buf(int buf_sz, char *buf_in, prf_obj_str &prf_obj, double tm, int verbose)
@@ -585,7 +601,7 @@ int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double
 		buf[evt_sz] = 0;
 		if (verbose)
 			printf("got evt_sz= %ld, ftrace_evt_fmt= \n%s\n", evt_sz, buf);
-		tc_add_event(j, evt_sz, buf, NULL, prf_obj, verbose);
+		tc_build_event(buf, NULL, prf_obj, verbose);
 	}
 
 	std::vector < tc_fte_area_str > ft_areas;
@@ -627,7 +643,7 @@ int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double
 			ft_fmts.push_back(ffs);
 			if (verbose)
 				printf("area= %s, evt_fmt= %s\n", area.c_str(), buf);
-			tc_add_event(num_ftrace_evts+evt_cur, fmt_sz, buf, area.c_str(), prf_obj, verbose);
+			tc_build_event(buf, area.c_str(), prf_obj, verbose);
 			evt_cur++;
 		}
 	}
@@ -953,13 +969,169 @@ int tp_read_event_formats(std::string flnm, int verbose)
 	return 0;
 }
 
-int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose)
+
+static std::vector <evts_derived_str> evts_derived;
+
+static uint32_t add_evt_and_cols(prf_obj_str &prf_obj, std::string event_name, std::vector <std::string> cols, int verbose)
+{
+	int evt_id = 10000 + prf_obj.events.size(); // add a bogus number (10000) for the id
+	std::string area;
+	uint32_t evt_idx = tc_add_event(evt_id, event_name, area, prf_obj, verbose) - 1;
+	prf_obj.events[evt_idx].new_cols.resize(cols.size());
+	prf_obj.events[evt_idx].new_cols = cols;
+	return evt_idx;
+}
+
+
+uint32_t ck_for_match_on_event_name(std::string evt, prf_obj_str &prf_obj, int verbose)
+{
+	uint32_t hsh_ck = UINT32_M1;
+	std::string evt_w_area = evt;
+	std::string evt_wo_area = evt;
+	size_t pos = evt_wo_area.find(":");
+	if (pos != std::string::npos && evt_wo_area.size() > (pos+1)) {
+		evt_wo_area = evt_wo_area.substr(pos+1);
+		printf("evt_wo_area= %s at %s %d\n", evt_wo_area.c_str(), __FILE__, __LINE__);
+	}
+	for (uint32_t k=0; k < prf_obj.events.size(); k++) {
+		if (verbose)
+			printf("ck derived evt match on nm= %s vs evt_w_area[%d]= %s and evt= %s at %s %d\n", 
+				evt_w_area.c_str(), k, prf_obj.events[k].event_name_w_area.c_str(),
+				prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
+		if (prf_obj.events[k].event_name_w_area == evt_w_area ||
+			prf_obj.events[k].event_name == evt_wo_area) {
+			printf("got derived evt match on nm= %s at %s %d\n", 
+				prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
+			hsh_ck = k;
+			break;
+		}
+	}
+	if (verbose)
+		fflush(NULL);
+	return hsh_ck;
+}
+
+static uint32_t ck_got_derived_evt_dependents(prf_obj_str &prf_obj,  evt_str &evt_tbl2, bool do_trigger,
+		evts_derived_str &eds, int verbose)
+{
+	if (do_trigger) {
+		return ck_for_match_on_event_name(evt_tbl2.evt_derived.evt_trigger, prf_obj, verbose);
+	}
+
+	uint32_t hsh_ck = UINT32_M1;
+	for (uint32_t j=0; j < evt_tbl2.evt_derived.evts_used.size(); j++) {
+		hsh_ck = ck_for_match_on_event_name(evt_tbl2.evt_derived.evts_used[j], prf_obj, verbose);
+		if (hsh_ck == UINT32_M1) {
+			return UINT32_M1;
+		}
+		eds.evts_used.push_back(hsh_ck);
+	}
+	return hsh_ck;
+}
+
+void ck_derived_evts(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2, int verbose)
+{
+
+	for (uint32_t i=0; i < evt_tbl2.size(); i++) {
+		if (evt_tbl2[i].event_type == "ftrace" && evt_tbl2[i].evt_derived.evts_used.size() > 0) {
+			bool okay= true;
+			evts_derived_str eds;
+			eds.evts_used.resize(0);
+			printf("ck derived evt= %s at %s %d\n", evt_tbl2[i].event_name.c_str(), __FILE__, __LINE__);
+			fflush(NULL);
+			uint32_t hsh_ck = ck_got_derived_evt_dependents(prf_obj,  evt_tbl2[i], false, eds, verbose);
+			if (hsh_ck == UINT32_M1) {
+				okay = false;
+			}
+			uint32_t trgr_idx = UINT32_M1;
+			if (okay) {
+				trgr_idx = ck_got_derived_evt_dependents(prf_obj,  evt_tbl2[i], true, eds, verbose);
+				if (trgr_idx == UINT32_M1) {
+					okay = false;
+				}
+				printf("derived_evt got trigger idx= %d at %s %d\n", trgr_idx, __FILE__, __LINE__);
+			}
+			if (okay) {
+				std::string new_nm  = evt_tbl2[i].event_name;
+				std::vector <std::string> tkns;
+				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
+					tkns.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
+				}
+				uint32_t new_idx = add_evt_and_cols(prf_obj, new_nm, tkns, verbose);
+				eds.evt_tbl2_idx = i;
+				eds.trigger_idx = trgr_idx;
+				eds.evt_new_idx = new_idx;
+				evts_derived.push_back(eds);
+				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
+					evts_derived.back().new_cols.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
+				}
+				printf("trigger= %s, tkns[0]= %s, new_nm= %s trg_idx= %d, new_idx= %d evts_der.back().used.sz= %d at %s %d\n",
+					evt_tbl2[i].evt_derived.evt_trigger.c_str(), tkns[0].c_str(), new_nm.c_str(), trgr_idx, new_idx,
+					(int)evts_derived.back().evts_used.size(), __FILE__, __LINE__);
+			}
+		}
+	}
+	return;
+}
+
+void ck_if_evt_used_in_derived_evt(int mtch, prf_obj_str &prf_obj, int verbose, std::vector <evt_str> &evt_tbl2,
+	std::vector <prf_samples_str> &samples, std::string &extra_str)
+{
+	bool got_it = false;
+	for (uint32_t j=0; j < evts_derived.size(); j++) {
+		uint32_t i = mtch;
+		uint32_t tbl2_idx = evts_derived[j].evt_tbl2_idx;
+		uint32_t trig_idx = evts_derived[j].trigger_idx;
+		uint32_t new_idx = evts_derived[j].evt_new_idx;
+		uint32_t evt_idx = prf_obj.samples[i].evt_idx;
+		std::vector <std::string> &cols = prf_obj.events[evt_idx].etw_cols;
+		for (uint32_t k=0; k < evts_derived[j].evts_used.size(); k++) {
+			if (evts_derived[j].evts_used[k] == evt_idx) {
+				std::vector <std::string> tkns;
+				printf("got derived evt= %s at %s %d\n", prf_obj.samples[i].event.c_str(), __FILE__, __LINE__);
+				uint32_t new_sz = evts_derived[j].new_cols.size();
+				uint32_t old_sz = tkns.size();
+				got_it = true;
+				//printf("got evts_used= %s ts %s, at %s %d\n", tkns[0].c_str(), tkns[1].c_str(), __FILE__, __LINE__);
+				std::string lua_file = evt_tbl2[tbl2_idx].evt_derived.lua_file;
+				std::string lua_rtn  = evt_tbl2[tbl2_idx].evt_derived.lua_rtn;
+				std::vector <std::string> new_vals;
+				new_vals.resize(new_sz);
+
+				lua_derived_tc_prf(lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
+						evts_derived[j].new_cols, new_vals, extra_str, verbose);
+				if (trig_idx == evt_idx) {
+					samples.push_back(prf_obj.samples[mtch]);
+					samples.back().event   = prf_obj.events[new_idx].event_name;
+					samples.back().evt_idx = new_idx;
+					samples.back().new_vals.resize(new_vals.size());
+					samples.back().new_vals = new_vals;
+#if 0
+					for (uint32_t kk=0; kk < new_sz; kk++) {
+						printf("new_vals[%d]= '%s' at %s %d\n",
+							kk, samples.back().new_vals[kk].c_str(), __FILE__, __LINE__);
+					}
+#endif
+					if (verbose > 0)
+						printf("current evt is trigger event at %s %d\n", __FILE__, __LINE__);
+				}
+				//run_heapchk("etw_parse:", __FILE__, __LINE__, 1);
+				break;
+			}
+		}
+		if (got_it) {
+			break;
+		}
+	}
+}
+
+int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose, std::vector <evt_str> &evt_tbl2)
 {
 	std::ifstream file;
 	//long pos = 0;
 	std::string line;
 	int lines_comments = 0, lines_samples = 0, lines_callstack = 0, lines_null=0;
-	int samples = -1, s_idx = -1;
+	int samples_count = -1, s_idx = -1;
 
 	struct nms_str {
 		std::string str;
@@ -977,6 +1149,8 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 		ns.len = ns.str.size();
 		nms.push_back(ns);
 	}
+	ck_derived_evts(prf_obj, evt_tbl2, verbose);
+	std::vector <prf_samples_str> samples;
 
 	prf_obj.tm_beg = 1.0e-9 * (double)prf_obj.samples[0].ts;
 	prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
@@ -1047,7 +1221,7 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 		} else {
 			lines_samples++;
 			store_callstack_idx = -1;
-			samples++;
+			samples_count++;
 			unknown_mod = "";
 			int evt = -1;
 			std::string extra_str;
@@ -1059,6 +1233,7 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 					if (pos2 != std::string::npos) {
 						nms[evt].ext_strs++;
 						extra_str = line.substr(pos + nms[i].len + pos2);
+						//printf("extra_str= '%s' at %s %d\n", extra_str.c_str(), __FILE__, __LINE__);
 					}
 					nms[evt].count++;
 					break;
@@ -1091,6 +1266,9 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 					break;
 				}
 			}
+			if (evts_derived.size() > 0 && mtch >= 0) {
+				samples.push_back(prf_obj.samples[mtch]);
+			}
 			if (options.tm_clip_beg_valid && mtch == -1) {
 				continue;
 			}
@@ -1100,15 +1278,24 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 					tm = prf_obj.samples[s_idx].tm_str;
 				}
 				printf("missed samples %d, s_idx= %d, i_beg= %d, tm[%d]= '%s', line= %s\nsz= %d at %s %d",
-					samples, s_idx, i_beg, s_idx, tm.c_str(), line.c_str(), sz, __FILE__, __LINE__);
+					samples_count, s_idx, i_beg, s_idx, tm.c_str(), line.c_str(), sz, __FILE__, __LINE__);
 				exit(1);
 			}
 			if (s_idx == -1) {
 				s_idx = -2;
 			}
+			ck_if_evt_used_in_derived_evt(mtch, prf_obj, verbose, evt_tbl2, samples, extra_str);
 		}
 	}
 	file.close();
+	if (evts_derived.size() > 0 && samples.size() > 0) {
+		double tm_cpy_beg = dclock();
+		prf_obj.samples.clear();
+		prf_obj.samples.resize(samples.size());
+		prf_obj.samples = samples;
+		double tm_cpy_end = dclock();
+		printf("tc_parse_text: samples copy tm= %f at %s %d\n", tm_cpy_end-tm_cpy_beg, __FILE__, __LINE__);
+	}
 	double tm_end = dclock();
 	printf("tc_parse_text: tm_end - tm_beg = %f, tm from begin= %f\n", tm_end - tm_beg, tm_end - tm_beg_in);
 	printf("cmmnts= %d, samples= %d, callstack= %d, null= %d\n",
