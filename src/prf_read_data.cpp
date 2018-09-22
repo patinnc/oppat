@@ -48,19 +48,23 @@
 #include "MemoryMapped.h"
 #include "mygetopt.h"
 #include "dump.hpp"
+#include "tc_read_data.h"
+#define PRF_RD_DATA_CPP
 #include "prf_read_data.h"
 
 
 #define BUF_MAX 4096
 static char buf[BUF_MAX];
 
-int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose)
+static std::vector <evts_derived_str> evts_derived;
+
+int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose, std::vector <evt_str> &evt_tbl2)
 {
 	std::ifstream file;
 	//long pos = 0;
 	std::string line;
 	int lines_comments = 0, lines_samples = 0, lines_callstack = 0, lines_null=0;
-	int samples = -1, s_idx = -1;
+	int samples_count = -1, s_idx = -1;
 
 	struct nms_str {
 		std::string str;
@@ -79,6 +83,10 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		ns.len = ns.str.size();
 		nms.push_back(ns);
 	}
+	printf("bef prf_read_data ck_derived_evts at %s %d\n", __FILE__, __LINE__);
+	ck_derived_evts(prf_obj, evt_tbl2, verbose);
+	std::vector <prf_samples_str> samples;
+	printf("aft prf_read_data ck_derived_evts at %s %d\n", __FILE__, __LINE__);
 
 	prf_obj.filename_text = flnm;
 	int store_callstack_idx = -1;
@@ -145,7 +153,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		} else {
 			lines_samples++;
 			store_callstack_idx = -1;
-			samples++;
+			samples_count++;
 			unknown_mod = "";
 			int evt = -1;
 			std::string extra_str;
@@ -198,6 +206,9 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					break;
 				}
 			}
+			if (evts_derived.size() > 0 && mtch >= 0) {
+				samples.push_back(prf_obj.samples[mtch]);
+			}
 			if (mtch == -1 && options.tm_clip_beg_valid) {
 				continue;
 			}
@@ -207,7 +218,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					tm = prf_obj.samples[s_idx].tm_str;
 				}
 				printf("missed samples %d, s_idx= %d, i_beg= %d, tm[%d]= '%s', line= %s\n",
-					samples, s_idx, i_beg, s_idx, tm.c_str(), line.c_str());
+					samples_count, s_idx, i_beg, s_idx, tm.c_str(), line.c_str());
 				exit(1);
 			}
 			if (s_idx == -1) {
@@ -216,9 +227,18 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			if (nxt != -1) {
 				s_idx = nxt;
 			}
+			ck_if_evt_used_in_derived_evt(mtch, prf_obj, verbose, evt_tbl2, samples, extra_str);
 		}
 	}
 	file.close();
+	if (evts_derived.size() > 0 && samples.size() > 0) {
+		double tm_cpy_beg = dclock();
+		prf_obj.samples.clear();
+		prf_obj.samples.resize(samples.size());
+		prf_obj.samples = samples;
+		double tm_cpy_end = dclock();
+		printf("prf_parse_text: samples copy tm= %f at %s %d\n", tm_cpy_end-tm_cpy_beg, __FILE__, __LINE__);
+	}
 	double tm_end = dclock();
 	printf("prf_parse_text: tm_end - tm_beg = %f, tm from begin= %f\n", tm_end - tm_beg, tm_end - tm_beg_in);
 	printf("cmmnts= %d, samples= %d, callstack= %d, null= %d\n",
