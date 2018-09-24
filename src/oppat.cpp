@@ -539,7 +539,8 @@ enum {
 struct min_max_str {
 	double x0, x1, y0, y1, total;
 	int fe_idx;
-	min_max_str(): x0(-1.0), x1(-1.0), y0(-1.0), y1(-1.0), total(0.0), fe_idx(-1) {}
+	bool initd;
+	min_max_str(): x0(-1.0), x1(-1.0), y0(-1.0), y1(-1.0), total(0.0), fe_idx(-1), initd(false) {}
 };
 
 struct chart_lines_rng_str {
@@ -1278,6 +1279,7 @@ void chart_lines_ck_rng(double x, double y, double ts0, int cat, int subcat, dou
 	if (ch_lines.range.subcat_rng[cat][subcat].y1 < y) {
 		ch_lines.range.subcat_rng[cat][subcat].y1 = y;
 	}
+	ch_lines.range.subcat_rng[cat][subcat].initd = true;
 	ch_lines.range.subcat_rng[cat][subcat].fe_idx = fe_idx;
 	ch_lines.range.subcat_rng[cat][subcat].total += cur_val;
 	//printf("subcat[%d][%d]\n", cat, subcat);
@@ -2397,6 +2399,24 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		return 0;
 	}
 	bool got_cpt_neg = false;
+	for (int i=0; i < prf_obj.features_nr_cpus_online; i++) {
+		// if sched_switch didn't occur on a cpu, we can get errors in get_by_var_idx (since the cpu won't have been registered)
+		double cpu = i;
+		if (event_table[evt_idx].charts[chrt].by_var_hsh[cpu] == 0) {
+			hash_dbl( event_table[evt_idx].charts[chrt].by_var_hsh,
+					event_table[evt_idx].charts[chrt].by_var_vals, cpu,
+					event_table[evt_idx].charts[chrt].by_var_sub_tots, 0.0);
+			std::string by_var_str = std::to_string(i);
+			if (event_table[evt_idx].charts[chrt].by_var_strs.size() < event_table[evt_idx].charts[chrt].by_var_vals.size()) {
+				event_table[evt_idx].charts[chrt].by_var_strs.resize(event_table[evt_idx].charts[chrt].by_var_vals.size());
+				event_table[evt_idx].charts[chrt].by_var_strs.back() = by_var_str;
+			}
+			if (event_table[evt_idx].charts[chrt].by_var_sub_tots.size() < event_table[evt_idx].charts[chrt].by_var_vals.size()) {
+				event_table[evt_idx].charts[chrt].by_var_sub_tots.resize(event_table[evt_idx].charts[chrt].by_var_vals.size(), 0.0);
+			}
+		}
+	}
+
 	if (prf_obj.file_type != FILE_TYP_ETW) {
 		for (uint32_t i=0; i < prf_obj.samples.size(); i++) {
 			if (prf_obj.samples[i].evt_idx == event_table[evt_idx].event_idx_in_file) {
@@ -2449,6 +2469,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				prf_mk_callstacks(prf_obj, i, callstacks, __LINE__, prefx);
 				ls0.callstack_str_idxs = callstacks;
 			}
+			printf("evt_nm= %s cpu= %f at %s %d\n", event_table[evt_idx].event_name_w_area.c_str(), cpu, __FILE__, __LINE__);
 			int by_var_idx_val2 = (int)get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, cpu, __LINE__);
 			ls0.cat = by_var_idx_val2;
 			ls0.subcat = 1;
@@ -2655,9 +2676,11 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		var_strs += "\"" + use_str + "\":\"x_" + std::to_string(i) + "\"";
 	}
 	if (by_sz != ch_lines.legend.size()) {
-		printf("mess up here. Expected event_table[%d].charts[%d].by_var_sub_tots.size()= %d to be == to ch_lines.legend.size()= %d at %s %d\n",
+		fprintf(stderr, "mess up here. Expected event_table[%d].charts[%d].by_var_sub_tots.size()= %d to be == to ch_lines.legend.size()= %d at %s %d\n",
 			evt_idx, chrt, by_sz, (int)ch_lines.legend.size(), __FILE__, __LINE__);
-		exit(1);
+		fprintf(stderr, "for chart titled= %s at %s %d\n", event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
+		fprintf(stderr, "proceeding but there may be problems...\n");
+		//exit(1);
 	}
 	json += var_strs + "}";
 	json += ", \"myshapes\":[";
@@ -2700,9 +2723,8 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	for (uint32_t i=0; i < ch_lines.range.subcat_rng.size(); i++) {
 		for (uint32_t j=0; j < ch_lines.range.subcat_rng[i].size(); j++) {
 			if (did_line) { json += ", "; }
-			//if (options.show_json > 0)
+			std::string legnd, sbcat;
 			std::string ev = "evt unknown";
-			{
 			uint32_t file_tag_idx = UINT32_M1;
 			if (ch_lines.prf_obj != 0) {
 				file_tag_idx = ch_lines.prf_obj->file_tag_idx;
@@ -2712,7 +2734,41 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				ev = flnm_evt_vec[file_tag_idx][fe_idx].evt_str;
 			}
 
-			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s\n", i, j,
+			// we can have some entries (like a cpu) with no samples. See if we can pick up a string from elsewhere
+			if (i < ch_lines.legend.size()) {
+				legnd = ch_lines.legend[i];
+			} else {
+				if (i < event_table[evt_idx].charts[chrt].by_var_strs.size()) {
+					legnd = event_table[evt_idx].charts[chrt].by_var_strs[i];
+				} else {
+					legnd =  "unknwn "+std::to_string(i);
+				}
+				printf("using legnd= %s at %s %d\n", legnd.c_str(), __FILE__, __LINE__);
+			}
+			if (i >= ch_lines.range.subcat_rng.size()) {
+				printf("err: ch_lines.range.subcat_rng.size()= %d, i= %d at %s %d\n",
+					(int)ch_lines.range.subcat_rng.size(), i, __FILE__, __LINE__);
+			}
+			if (j >= ch_lines.range.subcat_rng[i].size()) {
+				printf("err: ch_lines.range.subcat_rng[%d].size()= %d, j= %d at %s %d\n",
+					i, (int)ch_lines.range.subcat_rng[i].size(), j, __FILE__, __LINE__);
+			}
+			if (i >= ch_lines.subcats.size()) {
+				printf("err: ch_lines.subcats.size()= %d, i= %d at %s %d\n",
+					(int)ch_lines.subcats.size(), i, __FILE__, __LINE__);
+				sbcat = "unknown "+std::to_string(i);
+			}
+			if (j >= ch_lines.subcats[i].size()) {
+				printf("err: ch_lines.subcats[%d].size()= %d, j= %d at %s %d\n",
+					i, (int)ch_lines.subcats[i].size(), j, __FILE__, __LINE__);
+				sbcat = "unknown "+std::to_string(i) + " " + std::to_string(j);
+			}
+#if 0
+			if (i < ch_lines.subcats.size() && j < ch_lines.subcats[i].size()) {
+				printf("subcats[%d][%d]= %s at %s %d\n", i, j, ch_lines.subcats[i][j].c_str(), __FILE__, __LINE__);
+			}
+#endif
+			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s, initd= %d\n", i, j,
 				ch_lines.range.subcat_rng[i][j].x0,
 				ch_lines.range.subcat_rng[i][j].x1,
 				ch_lines.range.subcat_rng[i][j].y0,
@@ -2720,8 +2776,9 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				ch_lines.range.subcat_rng[i][j].fe_idx,
 				ev.c_str(),
 				ch_lines.range.subcat_rng[i][j].total,
-				(int)i, ch_lines.legend[i].c_str());
-			}
+				(int)i, legnd.c_str(), 
+				ch_lines.range.subcat_rng[i][j].initd
+				);
 			json += "{ \"x0\":" + std::to_string(ch_lines.range.subcat_rng[i][j].x0) +
 				", \"x1\":" + std::to_string(ch_lines.range.subcat_rng[i][j].x1) +
 				", \"y0\":" + std::to_string(ch_lines.range.subcat_rng[i][j].y0) +
@@ -2731,8 +2788,8 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				", \"total\":" + std::to_string(ch_lines.range.subcat_rng[i][j].total) +
 				", \"cat\":" + std::to_string(i) +
 				", \"subcat\":" + std::to_string(j) +
-				", \"cat_text\":\"" + ch_lines.legend[i]+"\"" +
-				", \"subcat_text\":\"" + ch_lines.subcats[i][j] + "\""+
+				", \"cat_text\":\"" + legnd + "\"" +
+				", \"subcat_text\":\"" + sbcat + "\""+
 				"}";
 			did_line = true;
 		}
