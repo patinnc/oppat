@@ -56,8 +56,6 @@
 #define BUF_MAX 4096
 static char buf[BUF_MAX];
 
-static std::vector <evts_derived_str> evts_derived;
-
 int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose, std::vector <evt_str> &evt_tbl2)
 {
 	std::ifstream file;
@@ -65,6 +63,8 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	std::string line;
 	int lines_comments = 0, lines_samples = 0, lines_callstack = 0, lines_null=0;
 	int samples_count = -1, s_idx = -1;
+	std::vector <evts_derived_str> evts_derived;
+ 	std::vector <prf_samples_str> samples;
 
 	struct nms_str {
 		std::string str;
@@ -83,10 +83,9 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		ns.len = ns.str.size();
 		nms.push_back(ns);
 	}
-	printf("bef prf_read_data ck_derived_evts at %s %d\n", __FILE__, __LINE__);
-	ck_derived_evts(prf_obj, evt_tbl2, verbose);
-	std::vector <prf_samples_str> samples;
-	printf("aft prf_read_data ck_derived_evts at %s %d\n", __FILE__, __LINE__);
+	printf("bef prf_read_data ck_evts_derived at %s %d\n", __FILE__, __LINE__);
+	ck_evts_derived(prf_obj, evt_tbl2, evts_derived, verbose);
+	printf("aft prf_read_data ck_evts_derived at %s %d\n", __FILE__, __LINE__);
 
 	prf_obj.filename_text = flnm;
 	int store_callstack_idx = -1;
@@ -227,15 +226,16 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			if (nxt != -1) {
 				s_idx = nxt;
 			}
-			ck_if_evt_used_in_derived_evt(mtch, prf_obj, verbose, evt_tbl2, samples, extra_str);
+			ck_if_evt_used_in_evts_derived(mtch, prf_obj, verbose, evt_tbl2, samples, extra_str, evts_derived);
 		}
 	}
 	file.close();
 	if (evts_derived.size() > 0 && samples.size() > 0) {
 		double tm_cpy_beg = dclock();
-		prf_obj.samples.clear();
-		prf_obj.samples.resize(samples.size());
-		prf_obj.samples = samples;
+		for (uint32_t i=0; i < samples.size(); i++) {
+			prf_obj.samples.push_back(samples[i]);
+		}
+		std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
 		double tm_cpy_end = dclock();
 		printf("prf_parse_text: samples copy tm= %f at %s %d\n", tm_cpy_end-tm_cpy_beg, __FILE__, __LINE__);
 	}
