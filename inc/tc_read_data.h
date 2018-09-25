@@ -21,4 +21,4 @@ EXTERN_STR int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_b
 EXTERN_STR void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 		std::vector <evts_derived_str> &evts_derived, int verbose);
 EXTERN_STR void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose, std::vector <evt_str> &evt_tbl2,
-				std::vector <prf_samples_str> &samples, std::string &extra_str, std::vector <evts_derived_str> &evts_derived);
+				std::vector <prf_samples_str> &samples, std::vector <evts_derived_str> &evts_derived);

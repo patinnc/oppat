@@ -4,7 +4,7 @@
  */
 
 /*
- * trace-cmd reference: 
+ * trace-cmd reference:
  *   trace-cmd/Documentation/trace-cmd.dat.5.txt
  */
 
@@ -93,9 +93,10 @@ static char *tc_decode_evt_hdr_typ(uint32_t eh_typ)
 	return "unknown";
 }
 
-static int tc_read_evt(long max_pos, int cpu, long page_sz, const unsigned char *mm_buf, 
+static int tc_read_evt(long max_pos, int cpu, long page_sz, const unsigned char *mm_buf,
 		long &pos, uint64_t &ts, int line, prf_obj_str &prf_obj, int verbose, prf_obj_str *prf_obj_prev)
 {
+	static int orig_order=0;
 	int evt_len = 0;
 do_page_hdr:
 	if (((pos+4) % page_sz) == 0) {
@@ -174,7 +175,7 @@ do_page_hdr:
 			//printf("evt_hdr_typ == 0x%x(%s), len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
 			//	evt_hdr_typ, hdr_typ_str, len, evt_len, pos_sv, pos, __FILE__, __LINE__);
 			if (evt_hdr_typ < tc_eh_typ_data_len_max) {
-			//if (evt_hdr_typ == 0x10 || evt_hdr_typ == 0x4 || evt_hdr_typ == 0x8) 
+			//if (evt_hdr_typ == 0x10 || evt_hdr_typ == 0x4 || evt_hdr_typ == 0x8)
 #pragma pack(push, 1)
 				struct cmn_hdr_str {
 					uint16_t type;
@@ -194,11 +195,11 @@ do_page_hdr:
 					printf("ckck: tc_evt_num= %u, flags= 0x%x, prempt= %d, pid= %d, cpu= %d ts= %.9f, off= %ld, len= %d at %s %d\n",
 					cmn_hdr->type, cmn_hdr->flags, cmn_hdr->preempt_count, cmn_hdr->pid, cpu, tsn, pss.mm_off, len, __FILE__, __LINE__);
 				}
-		
+
 				uint32_t ck_idx = prf_obj.ids_2_evt_indxp1[cmn_hdr->type];
 				uint32_t ck_evt_idx = prf_obj.ids_vec[ck_idx-1];
 				std::string evt_nm = prf_obj.events[ck_evt_idx].event_name;
-	
+
 				if (prf_obj.events[ck_evt_idx].pea.type == PERF_TYPE_TRACEPOINT &&
 					prf_obj.events[ck_evt_idx].lst_ft_fmt_idx == -2) {
 					prf_obj.events[ck_evt_idx].lst_ft_fmt_idx = -1;
@@ -238,8 +239,6 @@ do_page_hdr:
 							printf("still missed loookup of comm for pid= %d, tid= %d, evt_nm= %s at %s %d\n", pid, pid, evt_nm.c_str(), __FILE__, __LINE__);
 							exit(1);
 						}
-						
-
 					} else {
 						// see if we've already read the prf bin file and if prf_bin is the same 'file_tag'
 						// prf bin has more complete pid/tid info. see if we can find the tid there.
@@ -280,6 +279,7 @@ do_page_hdr:
 				pss.ts     = ts;
 				pss.period = 1;
 				pss.mm_off = (long)mm_off;
+				pss.orig_order = orig_order++;
 				char num_buf[256];
 #define TRACE_CMD_CLOCK_MONO
 #ifdef TRACE_CMD_CLOCK_MONO
@@ -323,7 +323,7 @@ do_page_hdr:
 		pos_sv, pos, evt_hdr_typ, hdr_typ_str,
 		(evt_hdr - evt_hdr_typ), evt_len, ts, __FILE__, __LINE__);
 	}
-	
+
 #if 1
 	if (strcmp(hdr_typ_str, "unknown") == 0) {
 		mm_read_n_bytes(mm_buf, pos_sv, 64, __LINE__, buf, BUF_MAX);
@@ -666,7 +666,7 @@ int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double
 	i = mm_read_n_bytes_buf(mm_buf, pos, kallsyms_sz, kallsyms_buf, __LINE__);
 	kallsyms_buf[kallsyms_sz] = 0;
 
-	// below prints a lot of data 
+	// below prints a lot of data
 	//printf("got kallsyms= %s\n", kallsyms_buf);
 
 	//i = read_n_bytes(file, pos, 4, __LINE__);
@@ -703,7 +703,7 @@ int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double
 	//i = read_n_bytes(file, pos, 10, __LINE__);
 	i = mm_read_n_bytes(mm_buf, pos, 10, __LINE__, buf, BUF_MAX);
 	printf("got option= %s\n", buf);
-	 
+
 	std::vector <tc_opts_str> tc_opts;
 
 	if (strcmp(buf, "options  ") == 0) {
@@ -728,7 +728,7 @@ read_opt_again:
 			if (cur_opt == 5) {
 				/*
 				tc shows: Linux x86_64_laptop 4.10.0+ x86_64
-				which seems to be from 
+				which seems to be from
 				  pfay@x86_64_laptop:~/ppat$ uname -snrm
 				  Linux x86_64_laptop 4.10.0+ x86_64
 				probably should try to parse this into its pieces but...
@@ -738,13 +738,13 @@ read_opt_again:
 			}
 			tc_opts.push_back(tos);
 			goto read_opt_again;
-		} 
+		}
 		//i = read_n_bytes(file, pos, 10, __LINE__);
 		i = mm_read_n_bytes(mm_buf, pos, 10, __LINE__, buf, BUF_MAX);
 	}
 	printf("got next option= %s\n", buf);
 
-	
+
 	std::vector <tc_cpu_data_str> tc_cpu_data;
 
 	if (strcmp(buf, "flyrecord") == 0) {
@@ -804,7 +804,7 @@ int tp_read_event_formats(std::string flnm, int verbose)
 		printf("messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
-	std::string str, ev_file, fstr; 
+	std::string str, ev_file, fstr;
 	lst_ft_fmt_str ffs;
 	int doing_common=0;
 	while (std::getline(file, str))
@@ -862,11 +862,11 @@ int tp_read_event_formats(std::string flnm, int verbose)
 			fs.common = (uint32_t)doing_common;
 			for (int i=0; i < 4; i++) {
 				size_t n = str.find(";");
-				std::string sb = str.substr(0, n); 
+				std::string sb = str.substr(0, n);
 				if (i == 0) {
 					std::string s0 = sb;
 					size_t m;
-					
+
 					fs.arr_sz = 0;
 					if (s0.size() > 0 && s0.substr(s0.size()-1) == "]") {
 						m = s0.find_last_of("[");
@@ -993,13 +993,13 @@ static uint32_t ck_for_match_on_event_name(std::string evt, prf_obj_str &prf_obj
 	}
 	for (uint32_t k=0; k < prf_obj.events.size(); k++) {
 		if (verbose)
-			printf("ck derived evt match on nm= %s vs evt_w_area[%d]= %s and evt= %s at %s %d\n", 
+			printf("ck derived evt match on nm= %s vs evt_w_area[%d]= %s and evt= %s at %s %d\n",
 				evt_w_area.c_str(), k, prf_obj.events[k].event_name_w_area.c_str(),
 				prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
 		if (prf_obj.events[k].event_name_w_area == evt_w_area ||
 			prf_obj.events[k].event_name == evt_w_area ||
 			prf_obj.events[k].event_name == evt_wo_area) {
-			printf("got derived evt match on nm= %s at %s %d\n", 
+			printf("got derived evt match on nm= %s at %s %d\n",
 				prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
 			hsh_ck = k;
 			break;
@@ -1074,8 +1074,10 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 	return;
 }
 
+static double tm_lua_derived = 0.0;
+
 void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose, std::vector <evt_str> &evt_tbl2,
-	std::vector <prf_samples_str> &samples, std::string &extra_str, std::vector <evts_derived_str> &evts_derived)
+	std::vector <prf_samples_str> &samples, std::vector <evts_derived_str> &evts_derived)
 {
 	bool got_it = false;
 	for (uint32_t j=0; j < evts_derived.size(); j++) {
@@ -1098,14 +1100,20 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 				std::vector <std::string> new_vals;
 				new_vals.resize(new_sz);
 
+				double tm_beg = dclock();
 				lua_derived_tc_prf(lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
-						evts_derived[j].new_cols, new_vals, extra_str, verbose);
+						evts_derived[j].new_cols, new_vals, verbose);
+				double tm_end = dclock();
+				tm_lua_derived += tm_end - tm_beg;
 				if (trig_idx == evt_idx) {
+#if 1
 					samples.push_back(prf_obj.samples[mtch]);
-					samples.back().event   = prf_obj.events[new_idx].event_name;
+					samples.back().event      = prf_obj.events[new_idx].event_name;
+					samples.back().orig_order++;
 					samples.back().evt_idx = new_idx;
 					samples.back().new_vals.resize(new_vals.size());
 					samples.back().new_vals = new_vals;
+#endif
 #if 0
 					for (uint32_t kk=0; kk < new_sz; kk++) {
 						printf("new_vals[%d]= '%s' at %s %d\n",
@@ -1164,10 +1172,15 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 		printf("messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
+	double tm_lua = 0, tm_lua_iters=0, tm_parse=0;
+	double tm_lua_der0 = tm_lua_derived;
+	double tm_parse_beg = dclock();
+	int64_t line_num = 0;
 	std::string unknown_mod;
-	while(!file.eof()){
+	while(!file.eof()) {
 		//read data from file
 		std::getline (file, line);
+		line_num++;
 		int sz = line.size();
 		if (sz > 5 && line.substr(0, 5) == "cpus=") {
 			//lines_comments++;
@@ -1204,7 +1217,7 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 					}
 					if (rtn == "[unknown]") {
 						if (msz > 0 && module == unknown_mod) {
-							// if we have more than 1 unknown rtns for a module then don't add 
+							// if we have more than 1 unknown rtns for a module then don't add
 							continue;
 						}
 						unknown_mod = module;
@@ -1253,16 +1266,19 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 			if (sz > (i_beg+100)) {
 				sz = i_beg + 100;
 			}
-			int mtch=-1;
+			int mtch=-1, nxt=-1;
 			for (int i=i_beg; i < sz; i++) {
 				//printf("ck tm[%d]= %s, line= %s\n", i, prf_obj.samples[i].tm_str.c_str(), line.c_str());
 				if (line.find(prf_obj.samples[i].tm_str) != std::string::npos) {
 					s_idx = i;
 					store_callstack_idx = i;
+					nxt = i+1;
 					mtch = i;
 					if (extra_str.size() > 0) {
-						prf_obj.samples[i].args.push_back(extra_str);
+						//prf_obj.samples[i].args.push_back(extra_str);
+						prf_obj.samples[i].extra_str = extra_str;
 					}
+					prf_obj.samples[i].line_num = line_num;
 					prf_obj.samples[i].evt_idx = evt;
 					//printf("got tm[%d]= %s, line= %s\n", i, prf_obj.samples[i].tm_str.c_str(), line.c_str());
 					break;
@@ -1283,9 +1299,30 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 			if (s_idx == -1) {
 				s_idx = -2;
 			}
-			ck_if_evt_used_in_evts_derived(mtch, prf_obj, verbose, evt_tbl2, samples, extra_str, evts_derived);
+			if (nxt != -1) {
+				s_idx = nxt;
+			}
+			if (mtch != -1) {
+#if 0
+				printf("line= %s, evt= %s, tm_str= %s at %s %d\n",
+						line.c_str(),
+						prf_obj.samples[mtch].event.c_str(),
+						prf_obj.samples[mtch].tm_str.c_str(), __FILE__, __LINE__);
+#endif
+				double tm_lua_beg = dclock();
+				ck_if_evt_used_in_evts_derived(mtch, prf_obj, verbose, evt_tbl2, samples, evts_derived);
+				double tm_lua_end = dclock();
+				tm_lua += tm_lua_end - tm_lua_beg;
+				tm_lua_iters++;
+			}
 		}
 	}
+	double tm_parse_end = dclock();
+	double tm_lua_der1 = tm_lua_derived;
+	double tm_parse_dff = tm_parse_end - tm_parse_beg;
+	double tm_per_iter  = 1.0e6 * (tm_lua_iters > 0.0 ? tm_parse_dff / tm_lua_iters : 0.0);
+	fprintf(stderr, "tc_parse_text tm_parse= %f, tm_lua= %f iters= %.0f usecs/iter= %f lua_rtn= %f at %s %d\n",
+			tm_parse_end-tm_parse_beg, tm_lua, tm_lua_iters, tm_per_iter, tm_lua_der1-tm_lua_der0,  __FILE__, __LINE__);
 	file.close();
 	if (evts_derived.size() > 0 && samples.size() > 0) {
 		double tm_cpy_beg = dclock();
