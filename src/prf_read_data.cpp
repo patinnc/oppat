@@ -95,10 +95,13 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		printf("messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
+	double tm_lua = 0, tm_lua_iters=0;
+	int64_t line_num = 0;
 	std::string unknown_mod;
-	while(!file.eof()){
+	while(!file.eof()) {
 		//read data from file
 		std::getline (file, line);
+		line_num++;
 		int sz = line.size();
 		if (sz > 0 && line[0] == '#') {
 			lines_comments++;
@@ -198,15 +201,13 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					store_callstack_idx = i;
 					mtch = i;
 					if (extra_str.size() > 0) {
-						prf_obj.samples[i].args.push_back(extra_str);
+						prf_obj.samples[i].extra_str = extra_str;
 					}
+					prf_obj.samples[i].line_num = line_num;
 					prf_obj.samples[i].evt_idx = evt;
 					//printf("ck tm[%d]= %s, line= %s\n", i, prf_obj.samples[i].tm_str.c_str(), line.c_str());
 					break;
 				}
-			}
-			if (evts_derived.size() > 0 && mtch >= 0) {
-				samples.push_back(prf_obj.samples[mtch]);
 			}
 			if (mtch == -1 && options.tm_clip_beg_valid) {
 				continue;
@@ -226,10 +227,19 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			if (nxt != -1) {
 				s_idx = nxt;
 			}
-			ck_if_evt_used_in_evts_derived(mtch, prf_obj, verbose, evt_tbl2, samples, extra_str, evts_derived);
+			if (mtch != -1) {
+				double tm_lua_beg = dclock();
+				ck_if_evt_used_in_evts_derived(mtch, prf_obj, verbose, evt_tbl2, samples, evts_derived);
+				double tm_lua_end = dclock();
+				tm_lua += tm_lua_end - tm_lua_beg;
+				tm_lua_iters++;
+			}
 		}
 	}
 	file.close();
+	if (tm_lua > 0.0) {
+		fprintf(stderr, "prf_parse_text tm_lua= %f iters= %.0f at %s %d\n", tm_lua, tm_lua_iters, __FILE__, __LINE__);
+	}
 	if (evts_derived.size() > 0 && samples.size() > 0) {
 		double tm_cpy_beg = dclock();
 		for (uint32_t i=0; i < samples.size(); i++) {
@@ -492,6 +502,7 @@ static void tm_print(void)
 static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, int disp, prf_obj_str &prf_obj, double tm_beg_in)
 {
 	int verbose = 0;
+	static int orig_order= 0;
 
 	switch(typ) {
 		case PERF_RECORD_SAMPLE:
@@ -773,6 +784,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			pss.tid    = tid;
 			pss.cpu    = cpu;
 			pss.ts     = time;
+			pss.orig_order = orig_order++;
 			//printf("ts= %f at %s %d\n", tm, __FILE__, __LINE__);
 			if (options.tm_clip_beg_valid && tm < options.tm_clip_beg) {
 				break;
