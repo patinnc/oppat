@@ -363,6 +363,7 @@ obj/prf_read_data.o: src/prf_read_data.cpp  inc/prf_read_data.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/printf.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/rd_json.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/rd_json2.h
+obj/prf_read_data.o: src/prf_read_data.cpp  inc/tc_read_data.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/utils.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/web_api.h
 obj/printf.o: src/printf.cpp  inc/printf.h
