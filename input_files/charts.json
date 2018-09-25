@@ -27,7 +27,7 @@
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
 			"use_chart":"y"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"proc", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
-			"use_chart":"y", "y_fmt":"%.1f%%"}
+			"use_chart":"d", "y_fmt":"%.1f%%"}
 		]
 	}
   },
@@ -39,6 +39,7 @@
 		{"name":"ncomm", "lkup":"next_comm", "lkup_typ": "TYP_TRC_BIN|TYP_STR"},
 		{"name":"npid",  "lkup":"next_pid", "lkup_typ": "TYP_TRC_BIN|TYP_INT"},
 		{"name":"nproc", "lkup":"", "lkup_typ": "TYP_BY_VAR0|TYP_STR", "mk_proc_from_comm_tid_flds":{"comm":"ncomm", "tid":"npid"}},
+		{"name":"state", "lkup":"prev_state=", "lkup_typ": "TYP_STR|TYP_TRC_FLD_PFX|TYP_CSW_STATE", "lkup_dlm_str":" ==> "},
 		{"name":"cpu",   "lkup": "",     "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"ocomm", "lkup":"prev_comm", "lkup_typ": "TYP_TRC_BIN|TYP_STR"},
 		{"name":"opid",  "lkup":"prev_pid", "lkup_typ": "TYP_TRC_BIN|TYP_INT"},
@@ -48,7 +49,7 @@
 	"charts": [
 		{"category":"CPU", "title":"wait time by thread",  "var_name": "wait_dura", "by_var":"nproc",
 			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
@@ -70,7 +71,7 @@
 	"charts": [
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc",
 			"chart_tag":"RUN_QUEUE", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
@@ -200,7 +201,7 @@
 		],
 	"charts": [
 		{"category":"thermal", "title":"Temperature(C) by zone",  "var_name": "Temp(C)", "by_var": "thermal_zone", "chart_tag":"TEMPERATURE_BY_ZONE", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
@@ -223,9 +224,9 @@
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"DISK", "title":"Disk BW MiB/sec ext4_da_write",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW",
+		{"category":"Disk", "title":"Disk BW MiB/sec ext4_da_write",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW",
 			"chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
@@ -249,9 +250,9 @@
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"DISK", "title":"Disk BW MiB/sec ext4_direct_IO",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW_DIRECT",
+		{"category":"Disk", "title":"Disk BW MiB/sec ext4_direct_IO",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW_DIRECT",
 			"chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
@@ -301,9 +302,9 @@
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
 			"use_chart":"y"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
-			"use_chart":"y", "y_fmt":"%.1f%%"},
+			"use_chart":"d", "y_fmt":"%.1f%%"},
 		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc", "chart_type":"stacked",
-			"use_chart":"y", "y_fmt":"%.1f%%", "comment":"if you use type=stacked then this chart can use a lot of memory"}
+			"use_chart":"d", "y_fmt":"%.1f%%", "comment":"if you use type=stacked then this chart can use a lot of memory"}
 		]
 	}
   },
