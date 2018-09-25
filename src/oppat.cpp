@@ -3757,22 +3757,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			if (ti != -1 && ti < comm_pid_tid_vec[file_tag_idx].size()) {
 			    comm_pid_tid_vec[file_tag_idx][ti].total += dura;
 			}
-#if 0
-			if (doing_SCHED_SWITCH == 1) {
-				if (dura <= 0.0) {
-					printf("got dura = %f, ts= %f ts_prv= %f cpu= %d ts_0= %f evt= %s line= %d at %s %d\n", 
-							dura, (double)ts, ts_cpu[cpu], cpu, ts_0,
-							prf_obj.samples[i].event.c_str(),
-							(int)prf_obj.samples[i].line_num, __FILE__, __LINE__);
-					exit(1);
-				}
-			}
-			printf("got dura = %f, ts= %f ts_prv= %f cpu= %d ts_0= %f evt= %s line_num= %d at %s %d\n", 
-							dura, (double)ts, ts_cpu[cpu], cpu, ts_0,
-							prf_obj.samples[i].event.c_str(),
-							(int)prf_obj.samples[i].line_num,
-							__FILE__, __LINE__);
-#endif
 		} else {
 		}
 
