@@ -100,16 +100,17 @@ struct evts_derived_str {
 };
 
 struct prf_samples_str {
-	std::string comm, event, tm_str;
+	std::string comm, event, tm_str, extra_str;
 	uint32_t evt_idx, pid, tid, cpu;
 	//int cpt_idx, cpt_idx2, fe_idx;
-	int fe_idx;
+	int fe_idx, orig_order, line_num;
 	long mm_off;
 	uint64_t ts, period;
 	std::vector <std::string> args, new_vals;
 	std::vector <prf_callstack_str> callstack;
 	//prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), cpt_idx(-1), cpt_idx2(-1), fe_idx(-1), mm_off(-1), ts(0), period(0) {}
-	prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), fe_idx(-1), mm_off(-1), ts(0), period(0) {}
+	prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), fe_idx(-1),
+		orig_order(-1), line_num(0), mm_off(-1), ts(0), period(0) {}
 };
 
 struct prf_event_desc_str { 

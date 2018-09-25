@@ -578,6 +578,9 @@ static void sighandler(int sig)
 
 bool compareByTime(const prf_samples_str &a, const prf_samples_str &b)
 {
+	if (a.ts == b.ts) {
+		return a.orig_order < b.orig_order;
+	}
 	return a.ts < b.ts;
 }
 
@@ -1946,7 +1949,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						cur_idx--;
 						continue;
 					}
-					if (lag_reason_idx != -1 || lag_state_idx != -1) {
+					if (lag_reason_idx != -1 || lag_state_idx != -1 || cur_state_idx != -1) {
 						//
 						int val0= -1, val1= -1;
 						std::string str;
@@ -2044,7 +2047,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
 					if (lag_reason_idx != -1 && lag_state_idx != -1) {
-						//
 						int val0, val1;
 						std::string str;
 						val0 = event_table[evt_idx].data.vals[i][lag_reason_idx];
@@ -2255,6 +2257,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			hi = lo + delta;
 		}
 		
+		double dura = event_table[evt_idx].data.ts[i].duration;
 		idle_pid = false;
 		if (var_pid_idx > -1) {
 			pid_num = (int)event_table[evt_idx].data.vals[i][var_pid_idx];
@@ -2262,7 +2265,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				idle_pid = true;
 			}
 		}
-		double dura = event_table[evt_idx].data.ts[i].duration;
 		x = event_table[evt_idx].data.ts[i].ts - dura - ts0;
 		y = lo;
 		if (var_comm_idx > -1) {
@@ -2292,6 +2294,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls1.pid  = -1; // want to show all the events...
 			ls1.typ  = SHAPE_LINE;
 			ls1.fe_idx  = get_fe_idxm1(prf_obj, event_table[evt_idx].event_name_w_area, __LINE__, true, event_table[evt_idx]);
+			ls1.period = 0.0;
 			if (prf_obj.file_type != FILE_TYP_ETW) {
 				ls1.cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
 				ls1.period  = (double)prf_obj.samples[prf_idx].period;
@@ -2306,19 +2309,19 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			    ls1.cpt_idx    = cpt_idx;
 				ls1.period  = 1.0;
 			}
-			if (ls1.period == 1.0 && dura > 0.0) {
-				ls1.period = dura;
-			}
+			ls1.period = dura;
 			if (prf_obj.file_type != FILE_TYP_ETW) {
 				std::string ostr;
 				prf_sample_to_string(prf_idx, ostr, prf_obj);
 				ls1.text = ostr;
+				ls1.text += "<br>" + prf_obj.samples[prf_idx].extra_str;
 				if (prf_obj.samples[prf_idx].args.size() > 0) {
 					ls1.text += "<br>";
 					for (uint32_t k=0; k < prf_obj.samples[prf_idx].args.size(); k++) {
 						ls1.text += " " + prf_obj.samples[prf_idx].args[k];
 					}
 				}
+				ls1.text += ", line " + std::to_string(prf_obj.samples[prf_idx].line_num);
 				if (prf_obj.samples[prf_idx].callstack.size() > 0) {
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
@@ -2372,6 +2375,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
 			ls0.period  = (double)prf_obj.samples[prf_idx].period;
 			ls0.cpu     = (int)prf_obj.samples[prf_idx].cpu;
+			ls0.text += ", line " + std::to_string(prf_obj.samples[prf_idx].line_num);
+			ls0.text += "<br>" + prf_obj.samples[prf_idx].extra_str;
 		} else {
 			ls0.fe_idx  = get_fe_idxm1(prf_obj, event_table[evt_idx].event_name_w_area, __LINE__, true, event_table[evt_idx]);
 			uint32_t cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
@@ -2425,16 +2430,18 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 			lines_str ls0;
 
-			if (prf_obj.file_type != FILE_TYP_ETW) {
-				int cpt_idx = -1;
-				if (cpt_idx == -1 && prf_obj.samples[i].comm.length() > 0 &&
-						(int)prf_obj.samples[i].pid > -1 &&
-						(int)prf_obj.samples[i].tid > -1) {
-					uint32_t file_tag_idx = prf_obj.file_tag_idx;
-					cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
-						prf_obj.samples[i].comm, prf_obj.samples[i].pid, prf_obj.samples[i].tid) - 1;
-				}
+			int cpt_idx = -1;
+			uint32_t file_tag_idx = prf_obj.file_tag_idx;
+			if (cpt_idx == -1 && prf_obj.samples[i].comm.length() > 0 &&
+					(int)prf_obj.samples[i].pid > -1 &&
+					(int)prf_obj.samples[i].tid > -1) {
+				cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
+					prf_obj.samples[i].comm, prf_obj.samples[i].pid, prf_obj.samples[i].tid) - 1;
 			}
+			//int e_idx = prf_obj.samples[i].evt_idx;
+			//if (e_idx != -1 && prf_obj.events[e_idx].event_name == "ext4_direct_IO") {
+			//	continue;
+			//}
 			//shape_str ss;
 			double cpu = prf_obj.samples[i].cpu;
 			double ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
@@ -2442,12 +2449,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.y[0] = cpu + delta;
 			ls0.x[1] = ls0.x[0];
 			ls0.y[1] = ls0.y[0]+delta;
-			if (ls0.cpt_idx < 0) {
-				uint32_t file_tag_idx = prf_obj.file_tag_idx;
-				int cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
+			//if (ls0.cpt_idx < 0) {
+				cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 					prf_obj.samples[i].comm, prf_obj.samples[i].pid, prf_obj.samples[i].tid) - 1;
 				ls0.cpt_idx = cpt_idx;
-			}
+			//}
 			ls0.period  = (double)prf_obj.samples[i].period;
 			ls0.cpu     = (int)prf_obj.samples[i].cpu;
 			ls0.fe_idx  = (int)prf_obj.samples[i].fe_idx;
@@ -2463,13 +2469,15 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					ls0.text += " " + prf_obj.samples[i].args[k];
 				}
 			}
+			ls0.text += "<br>" + prf_obj.samples[i].extra_str;
+			ls0.text += ", line " + std::to_string(prf_obj.samples[i].line_num);
 			if (prf_obj.samples[i].callstack.size() > 0) {
 				std::vector <int> callstacks;
 				std::vector <std::string> prefx;
 				prf_mk_callstacks(prf_obj, i, callstacks, __LINE__, prefx);
 				ls0.callstack_str_idxs = callstacks;
 			}
-			printf("evt_nm= %s cpu= %f at %s %d\n", event_table[evt_idx].event_name_w_area.c_str(), cpu, __FILE__, __LINE__);
+			//printf("evt_nm= %s cpu= %f at %s %d\n", event_table[evt_idx].event_name_w_area.c_str(), cpu, __FILE__, __LINE__);
 			int by_var_idx_val2 = (int)get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, cpu, __LINE__);
 			ls0.cat = by_var_idx_val2;
 			ls0.subcat = 1;
@@ -3301,7 +3309,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				int got_it = -1;
 				for (uint32_t kk=0; kk < prf_obj.events[prf_evt_idx2].new_cols.size(); kk++) {
 					if (nd_lkup == prf_obj.events[prf_evt_idx2].new_cols[kk]) {
-						printf("got match on derived evt col %s at %s %d\n", nd_lkup.c_str(), __FILE__, __LINE__);
+						//printf("got match on derived evt col %s at %s %d\n", nd_lkup.c_str(), __FILE__, __LINE__);
 						got_it = kk;
 						break;
 					}
@@ -3317,7 +3325,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				if ((flg & FLD_TYP_DBL) ||(flg & FLD_TYP_INT)) {
 					double val = atof(prf_obj.samples[i].new_vals[got_it].c_str());
-					printf("NEW_VAL val= %f at %s %d\n", val, __FILE__, __LINE__);
+					//printf("NEW_VAL val= %f at %s %d\n", val, __FILE__, __LINE__);
 					if (flg & FLD_TYP_DURATION_BEF) {
 						dura_idx = j;
 						dura = val;
@@ -3326,7 +3334,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				if (flg & FLD_TYP_STR) {
 					std::string str = prf_obj.samples[i].new_vals[got_it];
-					printf("NEW_VAL str= %s at %s %d\n", str.c_str(), __FILE__, __LINE__);
+					//printf("NEW_VAL str= %s at %s %d\n", str.c_str(), __FILE__, __LINE__);
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 					dv.push_back(idx);
 					continue;
@@ -3490,8 +3498,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					printf("lst_ft_fmt_idx should be >= 0. Bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
 				}
-				if (prf_obj.samples[i].args.size() == 0) {
-					printf("args.size()== 0 for TYP_TRC_FLD_PFX for event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s. bye at %s %d\n",
+				if (prf_obj.samples[i].extra_str.size() == 0) {
+					printf("extra_str.size()== 0 for TYP_TRC_FLD_PFX for event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s. bye at %s %d\n",
 						prf_obj.events[prf_evt_idx2].event_name.c_str(), event_table.flds[j].name.c_str(),
 						event_table.flds[j].lkup.c_str(),
 						prf_obj.samples[i].tm_str.c_str(), i,
@@ -3501,7 +3509,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				int lst_ft_fmt_idx = prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx;
 				std::string extracted;
 				if (event_table.flds[j].lkup_dlm_str.size() > 0) {
-					extracted = get_str_between_dlms(prf_obj.samples[i].args[0],
+					extracted = get_str_between_dlms(prf_obj.samples[i].extra_str,
 						event_table.flds[j].lkup, event_table.flds[j].lkup_dlm_str, event_table, __LINE__);
 					add_basic_typ(flg, extracted, event_table, dv);
 					//printf("got fld_pfx str= '%s' at %s %d\n", extracted.c_str(), __FILE__, __LINE__);
@@ -3510,9 +3518,9 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				if (event_table.flds[j].lst_ft_fmt_fld_idx == -2) {
 					for(uint32_t f=0; f < lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld.size(); f++) {
 						if (lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld[f].prefix == event_table.flds[j].lkup) {
-							printf("got match on trc_fld_pfx lkup field= %s args.sz= %d at %s %d\n",
+							printf("got match on trc_fld_pfx lkup field= %s extra_str.sz= %d at %s %d\n",
 								event_table.flds[j].lkup.c_str(),
-								(int)prf_obj.samples[i].args.size(),
+								(int)prf_obj.samples[i].extra_str.size(),
 								__FILE__, __LINE__);
 							event_table.flds[j].lst_ft_fmt_fld_idx = (int)f;
 							if ((f+1) >= lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld.size()) {
@@ -3528,7 +3536,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 						exit(1);
 					}
 				}
-				extracted = get_str_between_dlms(prf_obj.samples[i].args[0],
+				extracted = get_str_between_dlms(prf_obj.samples[i].extra_str,
 					event_table.flds[j].lkup, event_table.flds[j].lkup_dlm_str, event_table, __LINE__);
 				add_basic_typ(flg, extracted, event_table, dv);
 				printf("got fld_pfx str= '%s' at %s %d\n", extracted.c_str(), __FILE__, __LINE__);
@@ -3749,6 +3757,22 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			if (ti != -1 && ti < comm_pid_tid_vec[file_tag_idx].size()) {
 			    comm_pid_tid_vec[file_tag_idx][ti].total += dura;
 			}
+#if 0
+			if (doing_SCHED_SWITCH == 1) {
+				if (dura <= 0.0) {
+					printf("got dura = %f, ts= %f ts_prv= %f cpu= %d ts_0= %f evt= %s line= %d at %s %d\n", 
+							dura, (double)ts, ts_cpu[cpu], cpu, ts_0,
+							prf_obj.samples[i].event.c_str(),
+							(int)prf_obj.samples[i].line_num, __FILE__, __LINE__);
+					exit(1);
+				}
+			}
+			printf("got dura = %f, ts= %f ts_prv= %f cpu= %d ts_0= %f evt= %s line_num= %d at %s %d\n", 
+							dura, (double)ts, ts_cpu[cpu], cpu, ts_0,
+							prf_obj.samples[i].event.c_str(),
+							(int)prf_obj.samples[i].line_num,
+							__FILE__, __LINE__);
+#endif
 		} else {
 		}
 
