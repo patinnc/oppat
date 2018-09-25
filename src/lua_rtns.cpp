@@ -395,8 +395,7 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 
 double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string &evt_nm,
 		struct prf_samples_str &samples,
-		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals,
-		std::string &extra_str, int verbose)
+		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals, int verbose)
 {
 	int lua_idx = (int)hash_string(lua_state_hash, lua_state_vec, lua_file) - 1;
 	if (lua_idx >= lua_states.size()) {
@@ -453,6 +452,18 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 		lua_states[lua_idx]->lua["data_vals"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
 		lua_states[lua_idx]->lua["new_cols"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
 		lua_states[lua_idx]->lua["new_vals"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		int i = 0;
+		lua_states[lua_idx]->lua["data_cols"][++i] = "event";
+		lua_states[lua_idx]->lua["data_cols"][++i] = "ts";
+		lua_states[lua_idx]->lua["data_cols"][++i] = "extra_str";
+		lua_states[lua_idx]->lua["data_cols"][++i] = "comm";
+		lua_states[lua_idx]->lua["data_cols"][++i] = "pid";
+		lua_states[lua_idx]->lua["data_cols"][++i] = "tid";
+		lua_states[lua_idx]->lua["data_cols"][++i] = "cpu";
+		lua_states[lua_idx]->lua["data_cols"][++i] = "period";
+		for (i=0; i < (int)new_cols.size(); i++) {
+			lua_states[lua_idx]->lua["new_cols"][i+1] = new_cols[i];
+		}
 	}
 	lua_states[lua_idx]->script_func = lua_states[lua_idx]->lua[lua_rtn];
 	if (!lua_states[lua_idx]->script_func) {
@@ -466,28 +477,16 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 	std::vector <std::string> args;
 
 	int i = 0;
-	lua_states[lua_idx]->lua["data_cols"][++i] = "event";
-	lua_states[lua_idx]->lua["data_cols"][++i] = "ts";
-	lua_states[lua_idx]->lua["data_cols"][++i] = "extra_str";
-	lua_states[lua_idx]->lua["data_cols"][++i] = "comm";
-	lua_states[lua_idx]->lua["data_cols"][++i] = "pid";
-	lua_states[lua_idx]->lua["data_cols"][++i] = "tid";
-	lua_states[lua_idx]->lua["data_cols"][++i] = "cpu";
-	lua_states[lua_idx]->lua["data_cols"][++i] = "period";
-	i = 0;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.event;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.ts;
-	lua_states[lua_idx]->lua["data_vals"][++i] = extra_str;
+	lua_states[lua_idx]->lua["data_vals"][++i] = samples.extra_str;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.comm;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.pid;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.tid;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.cpu;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.period;
 
-	for (i=0; i < (int)new_cols.size(); i++) {
-		lua_states[lua_idx]->lua["new_cols"][i+1] = new_cols[i];
-	}
-	printf("lua extra_str= %s at %s %d\n", extra_str.c_str(), __FILE__, __LINE__);
+	//printf("lua extra_str= %s at %s %d\n", samples.extra_str.c_str(), __FILE__, __LINE__);
 
 	// load the input data and headers
 	sol::protected_function_result result = lua_states[lua_idx]->script_func(verbose);
