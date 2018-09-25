@@ -277,7 +277,9 @@ TBD
     - On my laptop (with 4 CPUs), running for 10 seconds of data collection runs fine.
     - Servers with lots of CPUs or running for a long time will probably blow up OPPAT currently.
     - The stacked chart can cause lots of data to be sent due to how it each event on one line is now stacked on every other line.
-- No mechanism yet to put more than 1 event on a chart... say for computing CPI (cycles per instruction).
+- No mechanism yet to put more than 1 event on a chart... say for computing CPI (cycles per instruction). You can use the derived events facility to create a new event from 1 or more other events.
+    - For instance, OPPAT creates a ext4_da_write event from the ftrace events ext4:ext4_da_write_begin and ext4:ext4_da_write_end. See the input_files/charts.json file.
+    - The derived events facility permits the calculation of the event duration (timestamp at end - begin) for each disk IO so we can calulate a disk bandwidth for each disk event.
 - The user has to supply or install the data collection software:
     - on Windows xperf
         - See https://docs.microsoft.com/en-us/windows-hardware/get-started/adk-install 
@@ -308,41 +310,4 @@ sudo apt-get install linux-tools-common linux-tools-generic linux-tools-`uname -
 - Zooming Using touchpad scroll on Firefox seems to not work as well it works on Chrome
 
 
---------------------------------------------------------------------------------
-PCM Tools
---------------------------------------------------------------------------------
-
-PCM provides a number of command-line utilities for real-time monitoring:
-
-- pcm : basic processor monitoring utility (instructions per cycle, core frequency (including Intel(r) Turbo Boost Technology), memory and Intel(r) Quick Path Interconnect bandwidth, local and remote memory bandwidth, cache misses, core and CPU package sleep C-state residency, core and CPU package thermal headroom, cache utilization, CPU and memory energy consumption)
-- pcm-memory : monitor memory bandwidth (per-channel and per-DRAM DIMM rank)
-- pcm-pcie : monitor PCIe bandwidth per-socket
-- pcm-iio : monitor PCIe bandwidth per PCIe device
-- pcm-numa : monitor local and remote memory accesses
-- pcm-power : monitor sleep and energy states of processor, Intel(r) Quick Path Interconnect, DRAM memory, reasons of CPU frequency throttling and other energy-related metrics
-- pcm-tsx: monitor performance metrics for Intel(r) Transactional Synchronization Extensions
-- pcm-core and pmu-query: query and monitor arbitrary processor core events
-
-Graphical front ends:
-- pcm-sensor :  front-end for KDE KSysGuard
-- pcm-service :  front-end for Windows perfmon
-
-There is also a utility for reading/writing Intel model specific registers (pcm-msr) supported on Linux, Windows, Mac OS X and FreeBDS.
-
-And finally a daemon that stores core, memory and QPI counters in shared memory that can be be accessed by non-root users.
-
---------------------------------------------------------------------------------
-PCM API documentation
---------------------------------------------------------------------------------
-
-PCM API documentation is embedded in the source code and can be generated into html format from source using Doxygen (www.doxygen.org).
-
---------------------------------------------------------------------------------
-Building the PCM Tools
---------------------------------------------------------------------------------
-
-- Linux: just type 'make'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory.
-- FreeBSD/DragonFlyBSD: just type 'gmake'. You will get all the utilities (pcm.x, pcm-memory.x, etc) built in the main PCM directory. If the 'gmake' command is not available, you need to install GNU make from ports (for example with 'pkg install gmake').
-- Windows: follow the steps in [WINDOWS_HOWTO.rtf](https://raw.githubusercontent.com/opcm/pcm/master/WINDOWS_HOWTO.rtf) (will will need to build or download additional drivers). You can also download PCM binaries from [appveyor build service](https://ci.appveyor.com/project/opcm/pcm/build/artifacts) and required Visual C++ Redistributable from [www.microsoft.com](https://www.microsoft.com/en-us/download/details.aspx?id=48145).
-- Mac OS X: follow instructions in [MAC_HOWTO.txt](https://github.com/opcm/pcm/blob/master/MAC_HOWTO.txt)
 
