@@ -37,7 +37,7 @@ end
 
 
 function ext4_direct_IO(verbose)
-	print "in lua routine ext4_direct_IO"
+	--print "in lua routine ext4_direct_IO"
 	local ts0
 
 	if type(new_cols_hash) ~= "table" then
@@ -49,45 +49,17 @@ function ext4_direct_IO(verbose)
 		for k,t in ipairs(data_cols) do
     		data_cols_hash[t] = k
 		end
-		local MiBs_idx = new_cols_hash["MiB/s"];
-		if MiBs_idx == nil then
-			error("expected to find field 'MiB/s' in new_cols list")
+		local tbl_ck_new_cols = {"MiB/s", "duration", "bytes", "area"}
+		for k,t in ipairs(tbl_ck_new_cols) do
+			if new_cols_hash[t] == nil then
+				error("expected to find field '"..t.."' in new_cols list")
+			end
 		end
-		local dura_idx = new_cols_hash["duration"];
-		if dura_idx == nil then
-			error("expected to find field 'duration' in new_cols list")
-		end
-		local bytes_idx = new_cols_hash["bytes"];
-		if bytes_idx == nil then
-			error("expected to find field 'bytes' in new_cols list")
-		end
-		local area_idx = new_cols_hash["area"];
-		if area_idx == nil then
-			error("expected to find field 'area' in new_cols list")
-		end
-		local idx = data_cols_hash["ts"];
-		if idx == nil then
-			error("expected to find field 'ts' in data_cols list")
-		end
-		idx = data_cols_hash["event"];
-		if idx == nil then
-			error("expected to find field 'event' in data_cols list")
-		end
-		idx = data_cols_hash["extra_str"];
-		if idx == nil then
-			error("expected to find field 'extra' in data_cols list")
-		end
-		local comm_idx = data_cols_hash["comm"];
-		if comm_idx == nil then
-			error("expected to find field 'comm' in data_cols list")
-		end
-		local pid_idx = data_cols_hash["pid"];
-		if pid_idx == nil then
-			error("expected to find field 'pid' in data_cols list")
-		end
-		local tid_idx = data_cols_hash["tid"];
-		if tid_idx == nil then
-			error("expected to find field 'tid' in data_cols list")
+		local tbl_ck_data_cols = {"event", "ts", "extra_str", "comm", "pid", "tid"}
+		for k,t in ipairs(tbl_ck_data_cols) do
+			if data_cols_hash[t] == nil then
+				error("expected to find field '"..t.."' in data_cols list")
+			end
 		end
 	end
 	--for k,t in ipairs(data_cols) do
@@ -109,7 +81,7 @@ function ext4_direct_IO(verbose)
 		error("got problem with ext4_direct_IO_enter/exit str= "..ky.." ts= "..ts)
 	end
 	local rdwr = string.sub(ky, e+1, e+1)
-	printf("in lua rdwr= %s\n", rdwr)
+	--printf("in lua rdwr= %s\n", rdwr)
 	local action
 	if rdwr == "0" then
 		action = "rd"
