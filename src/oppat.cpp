@@ -1338,6 +1338,8 @@ static std::string build_flnm_evt_string(uint32_t file_grp, int evt_idx, std::ve
 			"\", \"event\":\"" + str3 +
 			"\", \"skip\":"+std::to_string(skip) +
 			", \"idx\":"+std::to_string(i)+
+			", \"file_tag_idx\":"+std::to_string(file_tag_idx)+
+			", \"prf_obj_idx\":"+std::to_string(flnm_evt_vec[file_tag_idx][i].prf_obj_idx)+
 			", \"total\":"+std::to_string(flnm_evt_vec[file_tag_idx][i].total)+"}";
 		did_line = 1;
 	}
@@ -2649,7 +2651,8 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	json += ", \"file_tag\": \"" + file_tag + "\"";
 	json += ", \"chart_tag\": \"" + event_table[evt_idx].charts[chrt].chart_tag + "\"";
 	json += ", \"y_label\": \"" + event_table[evt_idx].flds[var_idx].name + "\"";
-	json += ", \"file_tag_idx\": " + std::to_string(event_table[evt_idx].file_tag_idx) ;
+	json += ", \"file_tag_idx\": " + std::to_string(event_table[evt_idx].file_tag_idx);
+	json += ", \"prf_obj_idx\": " + std::to_string(event_table[evt_idx].prf_obj_idx);
 	json += ", \"chart_type\": \"" + event_table[evt_idx].charts[chrt].chart_type + "\"";
 	std::string cat = event_table[evt_idx].charts[chrt].chart_category;
 	if (cat.size() == 0) {

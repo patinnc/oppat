@@ -13,8 +13,8 @@ enum {
 
 struct flnm_evt_str {
 	std::string filename_bin, filename_text, evt_str;
-	uint32_t prf_obj_idx, prf_evt_idx, evt_tbl_idx, evt_tbl_evt_idx, total;
-	flnm_evt_str(): prf_obj_idx(-1), prf_evt_idx(-1), evt_tbl_idx(-1), evt_tbl_evt_idx(-1), total(0) {}
+	uint32_t prf_obj_idx, prf_evt_idx, evt_tbl_idx, evt_tbl_evt_idx, total, file_tag_idx;
+	flnm_evt_str(): prf_obj_idx(-1), prf_evt_idx(-1), evt_tbl_idx(-1), evt_tbl_evt_idx(-1), total(0), file_tag_idx(-1) {}
 };
 
 struct action_str {
