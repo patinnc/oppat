@@ -718,6 +718,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let event_lkup = {};
 	let event_total = 0;
 	let context_switch_event = "";
+	let this_chart_prf_obj_idx = chart_data.prf_obj_idx;
 	for (let j=0; j < chart_data.flnm_evt.length; j++) {
 		if (chart_data.flnm_evt[j].event == "CSwitch") {
 			context_switch_event = chart_data.flnm_evt[j].event;
@@ -740,6 +741,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	} else {
 		num_events = chart_data.flnm_evt.length;
+		//abcd
 		for (let j=0; j < num_events; j++) {
 			if (chart_data.flnm_evt[j].total == 0) {
 				continue;
@@ -792,7 +794,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		console.log("number of colors for events= "+number_of_colors_events);
 	  }
 	  for (let j=0; j < event_list.length; j++) {
-		let i = event_list[j].idx;
+		let i = event_list[j].idx; // this is fe_idx
 		if ( typeof event_select[i] == 'undefined') {
 			event_select[i] = [j, 'show'];
 		}
@@ -803,13 +805,28 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (this_tot == 0) {
 			continue;
 		}
+		let fe_idx = event_list[j].idx;
+		if (typeof event_list[j].fe_idx != 'undefined') {
+			// so we are doing a non-event list (like a chart by process)
+			fe_idx = event_list[j].fe_idx;
+		}
 		let nm = event_list[j].event;
 		let flnm = event_list[j].filename_text;
 		if (typeof flnm == 'undefined') {
-			let fe_idx = event_list[j].fe_idx;
 			//console.log("fe_idx= "+fe_idx+", flnm_evt.sz= "+ chart_data.flnm_evt.length+", ev= "+nm);
 			if (typeof fe_idx != 'undefined' && fe_idx > -1) {
-				flnm = "bin:"+chart_data.flnm_evt[fe_idx].filename_bin + ", txt:"+chart_data.flnm_evt[fe_idx].filename_text + ", event:"+chart_data.flnm_evt[fe_idx].event;
+				let fentr = chart_data.flnm_evt[fe_idx];
+				let fbin = '';
+				let ftxt = '';
+				let fevt = '';
+			   	if (typeof fentr != 'undefined') {
+					fbin = fentr.filename_bin;
+					ftxt = fentr.filename_text;
+					fevt = fentr.event;
+				} else {
+					console.log("__null fbin for evt= "+nm);
+				}
+				flnm = "bin:"+fbin + ", txt:"+ftxt + ", event:"+fevt;
 			}
 		}
 		let title = "event["+j+"]= "+nm+" samples: "+this_tot+", %tot_samples= "+this_pct.toFixed(4)+"%, cumu_pct: "+pct_cumu.toFixed(4)+"%, file="+flnm;
@@ -845,13 +862,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (this_tot == 0) {
 			continue;
 		}
+		let fe_idx = event_list[j].idx;
+		let nm = event_list[j].event;
+		if (fe_idx > -1 && chart_data.flnm_evt[fe_idx].prf_obj_idx != this_chart_prf_obj_idx) {
+			//abcd
+			continue;
+		}
 		non_zero_legends++;
 		let this_pct = 100.0* (this_tot/event_total);
 		let pct_cumu = 100.0* (event_cumu/event_total);
-		let nm = event_list[j].event;
 		let flnm = event_list[j].filename_text;
 		if (typeof flnm == 'undefined') {
-			let fe_idx = event_list[j].fe_idx;
 			if (typeof fe_idx != 'undefined') {
 				flnm = "bin:"+chart_data.flnm_evt[fe_idx].filename_bin + ", txt:"+chart_data.flnm_evt[fe_idx].filename_text;
 			}
@@ -933,15 +954,15 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	}
 	for (let j=0; j < event_list.length; j++) {
-		let i = event_list[j].idx;
+		let fe_idx = event_list[j].idx;
 		let leg_num = event_list[j].legend_num;
 		let id_nm = hvr_clr+'_legendp_'+leg_num;
 		if (j > non_zero_legends) {
 			continue;
 		}
-		legend_add_listener(id_nm, j, i, 'event');
+		legend_add_listener(id_nm, j, fe_idx, 'event');
 		id_nm = hvr_clr+'_legendt_'+leg_num;
-		legend_add_listener(id_nm, j, i, 'event');
+		legend_add_listener(id_nm, j, fe_idx, 'event');
 	}
 	function legend_click(evt)
 	{
@@ -1049,13 +1070,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		chart_redraw();
 		//window.alert( evt.target.myParam );
 	}
-	function legend_mouse_enter(evt)
+	let last_legend_mouse_evt = null;
+	let last_legend_timeout = null;
+	function legend_hover(evt)
 	{
-		//console.log(evt);
-		//console.log(evt.target.parentNode);
-		//console.log(evt.target.parentNode.rank);
-		//let ele_nm = evt.target.parentNode.id;
+		clearTimeout(last_legend_timeout);
+		last_legend_timeout = null;
 		let ele_nm = evt.target.id;
+
 		let ele = document.getElementById(ele_nm);
 		let i = ele.rank;
 		let typ = ele.typ_legend;
@@ -1072,7 +1094,25 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			chart_redraw();
 			event_select[proc_idx] = [i, prev_state];
 		}
+
+		if (last_legend_timeout != null) {
+			clearTimeout(last_legend_timeout);
+			last_legend_timeout = null;
+		}
 		//window.alert( evt.target.myParam );
+	}
+	function legend_mouse_enter(evt)
+	{
+		//console.log(evt);
+		//console.log(evt.target.parentNode);
+		//console.log(evt.target.parentNode.rank);
+		//let ele_nm = evt.target.parentNode.id;
+		let ele_nm = evt.target.id;
+		//console.log("__legend_mouse_enter ele= "+ele_nm);
+		// this is a delay so we don't redraw a bunch when all we are doing is passing over the legend entries.
+		last_legend_timeout = setTimeout(legend_hover, 500, evt);
+		return;
+
 	}
 	function legend_mouse_out(evt)
 	{
@@ -1080,6 +1120,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		//console.log(evt.target.parentNode);
 		//console.log(evt.target.parentNode.rank);
 		//let ele_nm = evt.target.parentNode.id;
+		if (last_legend_timeout != null) {
+			clearTimeout(last_legend_timeout);
+			last_legend_timeout = null;
+			return;
+		}
 		let ele_nm = evt.target.id;
 		let ele = document.getElementById(ele_nm);
 		let i = ele.rank;
@@ -2293,6 +2338,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				} else if (ch_type == "line" || line_done[subcat_idx][beg[0]] != 1) {
 					let do_event = false;
 					let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
+					if (ch_type == "block") {
+						fe_idx = chart_data.myshapes[i].ival[IVAL_FE];
+					}
 					if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' && 
 						(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
 						do_event = true;
@@ -3058,7 +3106,7 @@ function start_charts() {
 			for (let k=0; k < ch_titles[j].length; k++) {
 				let i = ch_titles[j][k];
 				let cat = gjson.chart_data[i].chart_category;
-				if (cat != gjson.categories[kk].name) {
+				if (cat.toLowerCase() != gjson.categories[kk].name.toLowerCase()) {
 					continue;
 				}
 				chrts_started++;
@@ -3078,7 +3126,7 @@ function start_charts() {
 				let i = ch_titles[j][k];
 				//let this_title = gjson.chart_data[i].title;
 				let cat = gjson.chart_data[i].chart_category;
-				if (cat != gjson.categories[kk].name) {
+				if (cat.toLowerCase() != gjson.categories[kk].name.toLowerCase()) {
 					continue;
 				}
 				chrts_started++;
