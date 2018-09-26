@@ -389,7 +389,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"%Busy sampledProfile by Process",  "var_name":"dura", "by_var": "comm_pid", "chart_tag":"DISK_BUSY_SMPLD", "chart_type":"stacked",
-			"use_chart":"y", "y_fmt":"%.1f%%", "actions":[{"oper":"mult", "val":100.0}]}
+			"use_chart":"d", "y_fmt":"%.1f%%", "actions":[{"oper":"mult", "val":100.0}]}
 		]
 	}
   }
@@ -408,7 +408,7 @@
 		],
 	"charts": [
 		{"category":"UI", "title":"GUI thread delay by Process",  "var_name":"delay", "by_var": "proc", "chart_tag":"UI_MSG_CK_DELAY", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   }
@@ -435,7 +435,7 @@
 		],
 	"charts": [
 		{"category":"UI", "title":"GUI InputDeviceRead by Process",  "var_name":"dura", "by_var": "proc", "chart_tag":"UI_INPUT_READ", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   }
@@ -456,7 +456,7 @@
 		],
 	"charts": [
 		{"category":"UI", "title":"FocusChange by Process",  "var_name": "duration", "by_var": "comm_pid", "chart_tag":"FOCUS_CHG_BY_PROC", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   }
@@ -483,7 +483,7 @@
 		],
 	"charts": [
 		{"category":"UI", "title":"GUI GUIThread by Process",  "var_name":"dura", "by_var": "proc", "chart_tag":"UI_INPUT_READ", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   }
