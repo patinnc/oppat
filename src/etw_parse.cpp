@@ -525,13 +525,13 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		printf("csw= %d, csw2= %d at %s %d\n", csw, csw2, __FILE__, __LINE__);
 		fflush(NULL);
 	}
-	int csw_sz = (csw_idx >=0 ? (int)prf_obj.etw_evts_set[csw_idx].size() : 0);
-	printf("parsed file in %f secs, prf_obj.etw_evts_set.size()= %d csw_sz= %d at %s %d\n",
-			tm_end2-tm_beg2, (int)prf_obj.etw_evts_set.size(), csw_sz, __FILE__, __LINE__);
-	if (csw_idx < 0) {
+	if (csw_idx == UINT32_M1) {
 		printf("didn't get cswitch event, bye at %s %d\n", __FILE__, __LINE__);
 		exit(1);
 	}
+	int csw_sz = (csw_idx != UINT32_M1 ? (int)prf_obj.etw_evts_set[csw_idx].size() : 0);
+	printf("parsed file in %f secs, prf_obj.etw_evts_set.size()= %d csw_sz= %d at %s %d\n",
+			tm_end2-tm_beg2, (int)prf_obj.etw_evts_set.size(), csw_sz, __FILE__, __LINE__);
 	fflush(NULL);
 	if (WinSAT_SystemConfig.size() == 0) {
 		printf("sorry but I need event WinSAT_SystemConfig in the ETW trace text file '%s'. bye at %s %d\n",
