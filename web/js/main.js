@@ -368,7 +368,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		chrt_div = document.getElementById(use_div);
 	}
 	let minx, maxx, miny, maxy, sldr_cur;
-	let slider         = null;
+	let draw_mini_box = {};
+	let draw_mini_cursor_prev = null;
+	let mycanvas2_ctx = null;
+
 	function reset_minx_maxx(zm_x0, zm_x1, zm_y0, zm_y1) {
 		if (gsync_zoom_linked) {
 			minx = zm_x0;
@@ -396,9 +399,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		} else {
 			maxy = chart_data.y_range.max;
 		}
-		sldr_cur = Math.trunc(1000.0 * ( +minx + (0.5 * (+maxx - minx))));
-		if (slider != null) {
-			slider.value = sldr_cur;
+		//console.log("__draw_mini: mnx="+minx+",mxx= "+maxx+", chmn= "+chart_data.x_range.min+", chmx= "+chart_data.x_range.max);
+		if (mycanvas2_ctx != null) {
+			//abcd
+			let xd = (chart_data.x_range.max - chart_data.x_range.min);
+			let xd0 = 0.5 * (maxx - minx);
+			let xd1 = minx + xd0;
+			let xd2 = xd1 / xd;
+			draw_mini(xd2);
 		}
 	}
 
@@ -412,16 +420,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		addElement ('div', hvr_clr+'_bottom', 'chart_anchor', 'before');
 		//console.log("set sldr_cur= "+sldr_cur);
 		myhvr_clr = document.getElementById(hvr_clr);
-		let str ='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas_nm_title+'"></div></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide-2)+'" height="'+(px_high-4)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div><canvas id="canvas2_'+hvr_clr+'" width="'+(px_wide-2)+'" height="25px" style="border:1px solid #000000;"></canvas><div class="slidecontainer" id="slidecontainer_'+hvr_clr+'"><div id="'+hvr_clr+'_sldr0" width="1px" height="25px" background="white"></div><input type="range" min="'+Math.floor(chart_data.x_range.min*1000.0)+'" max="'+Math.ceil(chart_data.x_range.max*1000.0)+'" value="'+sldr_cur+'" class="slider" id="'+hvr_clr+'_sldr"></div><button onclick="showLegend(\''+hvr_clr+'\', \'show_top_20\');" />Legend top20</button><button onclick="showLegend(\''+hvr_clr+'\', \'show_all\');" />Legend all</button><button onclick="showLegend(\''+hvr_clr+'\', \'hide_all\');" />Legend hide</button><span id="'+hvr_clr+'_legend" style="height:200px;word-wrap: break-word;overflow-y: auto;"></span><button id="but_' + hvr_clr +'" class="clrTxtButton" style="visibility:hidden" onclick="clearHoverInfo(\''+hvr_clr+'_txt\', \''+hvr_clr+'\');" />Clear_text</button><span id="'+hvr_clr+'_txt" style="margin-left:0px;" clrd="n" ></span><span id="'+hvr_clr+'_canspan"></span>';
+		let str ='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas_nm_title+'"></div></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide-2)+'" height="'+(px_high-4)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div><canvas id="canvas2_'+hvr_clr+'" width="'+(px_wide-2)+'" height="25px" style="border:1px solid #000000;"></canvas><button onclick="showLegend(\''+hvr_clr+'\', \'show_top_20\');" />Legend top20</button><button onclick="showLegend(\''+hvr_clr+'\', \'show_all\');" />Legend all</button><button onclick="showLegend(\''+hvr_clr+'\', \'hide_all\');" />Legend hide</button><span id="'+hvr_clr+'_legend" style="height:200px;word-wrap: break-word;overflow-y: auto;"></span><button id="but_' + hvr_clr +'" class="clrTxtButton" style="visibility:hidden" onclick="clearHoverInfo(\''+hvr_clr+'_txt\', \''+hvr_clr+'\');" />Clear_text</button><span id="'+hvr_clr+'_txt" style="margin-left:0px;" clrd="n" ></span><span id="'+hvr_clr+'_canspan"></span>';
 		//console.log("create hvr_clr butn str= "+str);
 		myhvr_clr.innerHTML = str;
 	}
-	let slider0        = document.getElementById(hvr_clr+"_sldr0");
-	slider         = document.getElementById(hvr_clr+"_sldr");
-	let slidecontainer = document.getElementById("slidecontainer_"+hvr_clr);
 	let mytooltip      = document.getElementById("tooltip_"+hvr_clr);
-	slider.value = sldr_cur;
-	// Update the current slider value (each time you drag the slider handle)
 	let myhvr_clr_txt = document.getElementById(hvr_clr+'_txt');
 	let mycanvas_title = document.getElementById(mycanvas_nm_title);
 	let ch_title = chart_data.title;
@@ -741,7 +744,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	} else {
 		num_events = chart_data.flnm_evt.length;
-		//abcd
 		for (let j=0; j < num_events; j++) {
 			if (chart_data.flnm_evt[j].total == 0) {
 				continue;
@@ -865,7 +867,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let fe_idx = event_list[j].idx;
 		let nm = event_list[j].event;
 		if (fe_idx > -1 && chart_data.flnm_evt[fe_idx].prf_obj_idx != this_chart_prf_obj_idx) {
-			//abcd
 			continue;
 		}
 		non_zero_legends++;
@@ -1209,16 +1210,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	}
 	xPadding = Math.trunc(font_sz + x_txt_px_max + 10);
-	/*
-	slider0.style.float = 'left';
-	slider0.style.width = (xPadding-5)+'px';
-	slider.style.float = 'left';
-	slider.style.width = (px_wide - xPadding)+'px';
-	*/
-	slider0.style.float = 'right';
-	slider0.style.width = (xPadding-5)+'px';
-	slider.style.float = 'right';
-	slider.style.width = (px_wide - xPadding)+'px';
 
 	let tm_here_04 = performance.now();
 	let lkup = [];
@@ -2453,12 +2444,78 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let tm_here_05 = performance.now();
 	// ctx work end
 
-	//console.log("shapes: drew: lns= "+drew_lns+", bxs="+drew_bxs+", skipped= "+skipped+", draw time= "+(tm_here_05-tm_here_04));
+	mycanvas2_ctx = mycanvas2.getContext('2d');
+
+	function draw_mini(zero_to_one)
+	{
+		if ( typeof draw_mini.x_prev == 'undefined' ) {
+			draw_mini.x_prev = -1;
+			draw_mini.image_rdy = 0;
+			draw_mini.image = new Image();
+			draw_mini.image.src = mycanvas.toDataURL("image/png");
+			//draw_mini.image.src = mycanvas.toDataURL();
+			draw_mini.image.onload = function(){
+				draw_mini.image_rdy = 1;
+				mycanvas2_ctx.drawImage(draw_mini.image, 0, 0, mycanvas2.width, mycanvas2.height);
+				//console.log("__draw_mini saved image");
+				draw_mini.x_prev = -1;
+				draw_mini(0.5);
+			};
+			//console.log("__draw_mini save image");
+		}
+
+		let x_int = Math.trunc(zero_to_one * 1000);
+		if (x_int == draw_mini.x_prev) {
+			//console.log("__draw_mini return");
+			return;
+		}
+		draw_mini.x_prev = x_int;
+		mycanvas2_ctx.clearRect(0, 0, mycanvas2.width, mycanvas2.height);
+		mycanvas2_ctx.drawImage(draw_mini.image, 0, 0, mycanvas2.width, mycanvas2.height);
+		mycanvas2_ctx.fillStyle = 'rgba(0, 204, 0, 0.5)';
+		let xbeg = xPadding;
+		let xwid = mycanvas2.width - xPadding;
+		let xmid = zero_to_one * xwid;
+		let wd = 16;
+		let x0 = xbeg + xmid  - wd;
+		let x1 = x0 + wd;
+		let y0 = 0;
+		let y1 = mycanvas2.height;
+		let rx0 = (x0 - xPadding)/xwid;
+		let rx1 = (x1 - xPadding)/xwid;
+		mycanvas2_ctx.fillRect(x0, y0, x1-x0, y1);
+		mycanvas2_ctx.strokeStyle = 'black';
+		mycanvas2_ctx.strokeRect(x0, y0, wd, y1);
+		mycanvas2_ctx.stroke();
+		draw_mini_box = {x0:x0, x1:x1, y0:y0, y1:y1, rx0:rx0, rx1:rx1};
+		let xdiff = +0.5 * (maxx - minx);
+		let xn = zero_to_one * (chart_data.x_range.max - chart_data.x_range.min) ;
+		x0 = +xn - xdiff;
+		x1 = +xn + xdiff;
+		zoom_to_new_xrange(x0, x1, true);
+	}
 	if (chart_did_image[chrt_idx] == null || copy_canvas == true) {
 		//grab the context from your destination canvas
-		let destCtx = mycanvas2.getContext('2d');
-		destCtx.drawImage(mycanvas, 0, 0, mycanvas2.width, mycanvas2.height);
-		chart_did_image[chrt_idx] = 1;
+		chart_did_image[chrt_idx] = mycanvas;
+		mycanvas2.onmousemove = function(e) {
+			// important: correct mouse position:
+			let rect = this.getBoundingClientRect(),
+				x = Math.trunc(e.clientX - rect.left),
+				y = Math.trunc(e.clientY - rect.top);
+			let xn = (x - xPadding)/(mycanvas2.width - xPadding);
+			if (xn > 0 && ((draw_mini_box.rx0 ) <= xn && xn <= (draw_mini_box.rx1+0.02))) {
+				draw_mini_cursor_prev = mycanvas2.style.cursor;
+				mycanvas2.onmouseout = function(e) {
+					if (draw_mini_cursor_prev != null) {
+						mycanvas2.style.cursor = draw_mini_cursor_prev;
+						draw_mini_cursor_prev = null;
+					}
+				}
+				mycanvas2.style.cursor = 'pointer';
+				draw_mini(xn);
+			}
+		}
+		draw_mini(0.5);
 	}
 	for (let i=0; i < lkup.length; i++) {
 		lkup[i].sort(sortFunction);
@@ -2687,7 +2744,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		*/
 		//console.log("for 01, x1= "+x1);
 		if (update_gsync_zoom) {
-			console.log("zm2nw1: "+x0+",x1="+x1+",ttl="+chart_data.title);
+			//console.log("zm2nw1: "+x0+",x1="+x1+",ttl="+chart_data.title);
 			if (x0 < chart_data.x_range.min) {
 				let xd = chart_data.x_range.min - x0;
 				x0 += xd;
@@ -2720,11 +2777,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (update_gsync_zoom) {
 			set_gsync_zoom(x0, x1, chart_data.file_tag, chart_data.ts_initial.ts);
 		}
-		console.log("zoom: x0: "+x0+",x1= "+x1+", abs x0="+(x0+chart_data.ts_initial.ts)+",ax1="+(x1+chart_data.ts_initial.ts));
+		//console.log("zoom: x0: "+x0+",x1= "+x1+", abs x0="+(x0+chart_data.ts_initial.ts)+",ax1="+(x1+chart_data.ts_initial.ts));
 		gcanvas_args[idx][6] = x0;
 		gcanvas_args[idx][7] = x1;
 		let args = gcanvas_args[idx];
-		//console.log("slider = "+x0+", x1= "+x1)
 		reset_minx_maxx(args[6], args[7], args[8], args[9]);
 		chart_redraw();
 	}
@@ -2738,13 +2794,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		return val_str;
 	}
 	//console.log("mycanvas.width= "+mycanvas.width);
-	slider.oninput = function() {
-		let xdiff = +0.5 * (maxx - minx);
-		let xn = +this.value * 0.001;
-		let x0 = +xn - xdiff;
-		let x1 = +xn + xdiff;
-		zoom_to_new_xrange(x0, x1, true);
-	} 
 	function checkVisible(elm) {
 		let rect = elm.getBoundingClientRect();
 		let viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
