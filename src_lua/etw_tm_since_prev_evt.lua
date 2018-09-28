@@ -3,6 +3,7 @@
 -- License http://opensource.org/licenses/mit-license.php MIT License
 
 function got_problems( error_msg )
+	print(debug.traceback())
 	return "got_problems handler: " .. error_msg
 end
 

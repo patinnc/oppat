@@ -3,6 +3,7 @@
 -- License http://opensource.org/licenses/mit-license.php MIT License
 
 function got_problems( error_msg )
+	print(debug.traceback())
 	return "got_problems handler: " .. error_msg
 end
 
@@ -228,7 +229,7 @@ function do_tst(flnm_energy, flnm_energy2, flnm_wait, verbose)
    for k,v in pairs(evt_hash) do
 	events = events + 1
 	table.insert(event_nms, k)
-	printf("lua event[%d]= %s\n", events, event_nms[events])
+	printf("col_types: lua event[%d]= %s\n", events, event_nms[events])
 	data_shape['col_names'][events] = {col.ts, col.area, evt_units_hash[k], col.dura, col.event}
    	data_shape['col_types'][events] = {"dbl",  "str",    "dbl",             "dbl",    "str"}
    end
@@ -237,7 +238,7 @@ function do_tst(flnm_energy, flnm_energy2, flnm_wait, verbose)
    data_shape['event_name'] = {}
    for k = 1, events, 1
    do
-       printf("lua event[%d]= %s\n", k, event_nms[k])
+       printf("data_shape: lua event[%d]= %s\n", k, event_nms[k])
        data_shape['event_name'][k] = event_nms[k]
    end
    data_shape['events'] = events
