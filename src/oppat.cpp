@@ -267,6 +267,9 @@ get_opt_main (int argc, char **argv)
 		   "   You can either read the perf/xperf/trace-cmd data files and create the web page\n"
 		   "   or you can --load a replay file and create the web_file.\n"
 		},
+		{"web_file_quit",    required_argument,   0, 0, "same as web_file option above but quit after making html file\n"
+		   "   Default is don't quit after generating web_file and enter the 'wait for browser' loop.\n"
+		},
 		{0, 0, 0, 0}
 	};
 
@@ -320,6 +323,10 @@ get_opt_main (int argc, char **argv)
 				break;
 			}
 			if (load_long_opt_val(long_options[option_index].name, "tc_txt", options.tc_txt, optarg) > 0) {
+				break;
+			}
+			if (load_long_opt_val(long_options[option_index].name, "web_file_quit", options.web_file, optarg) > 0) {
+				options.web_file_quit = true;
 				break;
 			}
 			if (load_long_opt_val(long_options[option_index].name, "web_file", options.web_file, optarg) > 0) {
@@ -4557,6 +4564,11 @@ int main(int argc, char **argv)
 
 	if (options.web_file.size() > 0) {
 		create_web_file(options.verbose);
+		if (options.web_file_quit) {
+			fprintf(stderr, "quitting after creating web_file %s due to using web_file_quit option. Bye at %s %d\n",
+					options.web_file.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
 	}
 	fprintf(stderr, "entering oppat loop to wait for browser to request data. Connect browser to http://localhost:%d\n",
 			options.web_port);

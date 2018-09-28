@@ -28,10 +28,10 @@ struct options_str {
 	std::vector <path_file_str> file_list;
 	std::vector <std::string> file_tag_vec;
 	double tm_clip_beg, tm_clip_end;
-	bool tm_clip_beg_valid, tm_clip_end_valid, load_replay_file;
+	bool tm_clip_beg_valid, tm_clip_end_valid, load_replay_file, web_file_quit;
 	options_str(): verbose(0), help(0), file_mode(-1), show_json(SHOW_JSON_NO), web_port(8081),
    		tm_clip_beg(-1.0), tm_clip_end(-1.0), tm_clip_beg_valid(false), tm_clip_end_valid(false),
-   		load_replay_file(false) {}
+   		load_replay_file(false), web_file_quit(false) {}
 };
 
 struct numa_str {
