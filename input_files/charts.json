@@ -9,7 +9,8 @@
 	{"name":"thermal", "priority":500},
 	{"name":"DRAM",    "priority":600},
 	{"name":"Disk",    "priority":700},
-	{"name":"Network", "priority":800}
+	{"name":"Network", "priority":800},
+	{"name":"Test",    "priority":10000}
 	], "comment":"chart_category_priority defines grouping names for charts and priority (order) of charts",
   "event_array": [
   {"event":
@@ -484,6 +485,22 @@
 	"charts": [
 		{"category":"UI", "title":"GUI GUIThread by Process",  "var_name":"dura", "by_var": "proc", "chart_tag":"UI_INPUT_READ", "chart_type":"line",
 			"use_chart":"d"}
+		]
+	}
+  }
+	,
+  {"event":
+	{
+	"evt_name": "lua:gen_line1", "evt_type": "lua", "comment":"read perf stat file for rapl energy MSRs",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"line",     "lkup":"line",       "lkup_typ": "TYP_DBL"},
+		{"name":"area",     "lkup":"area",       "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"test", "title":"first test line",  "var_name": "line", "by_var":"area", "chart_tag":"TST_GEN_LINE1", "chart_type":"line",
+			"use_chart":"y"}
 		]
 	}
   }
