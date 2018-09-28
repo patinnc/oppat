@@ -152,7 +152,7 @@ enum {
 };
 
 struct file_list_str {
-	std::string file_bin, file_txt, wait_txt, file_tag;
+	std::string file_bin, file_txt, wait_txt, file_tag, lua_file, lua_rtn;
 	int typ, grp;
 	file_list_str(): typ(-1), grp(-1) {}
 };

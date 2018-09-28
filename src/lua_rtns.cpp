@@ -66,10 +66,12 @@ static int lua_add_event(std::string evt_str, std::string area, prf_obj_str &prf
 }
 
 #endif
-int lua_read_data(std::string data_filename, std::string data2_filename, std::string wait_filename, prf_obj_str &prf_obj, int verbose)
+int lua_read_data(std::string data_filename, std::string data2_filename, std::string wait_filename,
+		prf_obj_str &prf_obj, std::string lua_file_in, std::string lua_rtn_in, int verbose)
 {
 	std::cout << "=== opening a state ===" << std::endl;
 	int lua_idx = 0;
+	verbose = 1;
 
 	std::vector <mylua_str> lua_st;
 	lua_st.resize(lua_idx+1);
@@ -91,7 +93,15 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 	// The two previous approaches are recommended
 	std::string ds = std::string(DIR_SEP);
 	std::string root_dir = std::string(get_root_dir_of_exe());
-	std::string base_filename = "src_lua"+ ds + "test_01.lua";
+	std::string lua_file = "test_01.lua";
+	std::string lua_rtn  = "do_tst";
+	if (lua_file_in.size() > 0) {
+		lua_file = lua_file_in;
+	}
+	if (lua_rtn_in.size() > 0) {
+		lua_rtn = lua_rtn_in;
+	}
+	std::string base_filename = "src_lua"+ ds + lua_file;
 	std::string filename = root_dir + ds + base_filename;
 	printf("try lua file %s at %s %d\n", filename.c_str(), __FILE__, __LINE__);
 	int rc = ck_filename_exists(filename.c_str(), __FILE__, __LINE__, 0);
@@ -106,7 +116,7 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 		filename = f2;
 		printf("found lua file %s at %s %d\n", filename.c_str(), __FILE__, __LINE__);
 	}
-	std::string lua_file = filename;
+	lua_file = filename;
 	lua_st[lua_idx].loaded_chunk = lua_st[lua_idx].lua.load_file(lua_file);
 	//c_assert(!loaded_chunk.valid());
 	if (!lua_st[lua_idx].loaded_chunk.valid()) {
@@ -116,11 +126,10 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 		printf("error on check of lua file '%s'. bye at %s %d\n", lua_file.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
-	std::string lua_rtn = "do_tst";
 	lua_st[lua_idx].loaded_chunk();
 	lua_st[lua_idx].script_func = lua_st[lua_idx].lua[lua_rtn];
 	if (!lua_st[lua_idx].script_func) {
-		printf("didn't find LUA script named '%s' in file %s. Bye at %s %d\n",
+		printf("didn't find lua function named '%s' in lua file %s. Bye at %s %d\n",
 			lua_rtn.c_str(), lua_file.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
@@ -147,6 +156,7 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 	}
 	int rows = lua_st[lua_idx].lua["data_shape"]["rows"];
 	int cols = lua_st[lua_idx].lua["data_shape"]["cols"];
+	printf("lua data_shape rows= %d cols= %d at %s %d\n", rows, cols, __FILE__, __LINE__);
 	//std::vector <int> col_typ;
 	std::vector <std::vector <int>> col_typ;
 	std::vector <std::vector <std::string>> col_names;
@@ -178,6 +188,7 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			} else if (str == "event") {
 				evt_nm_idx[ev-1] = j;
 			}
+			printf("lua data_shape[\"col_name\"][%d][%d]= '%s' at %s %d\n", ev, j+1, str.c_str(), __FILE__, __LINE__);
 			str = lua_st[lua_idx].lua["data_shape"]["col_types"][ev][j+1];
 			if (str == "str") {
 				cols_typ.push_back(FLD_TYP_STR);
@@ -186,9 +197,10 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			} else if (str == "int") {
 				cols_typ.push_back(FLD_TYP_INT);
 			} else {
-				printf("invalid col_type[%d]= %s at %s %d\n", j, str.c_str(), __FILE__, __LINE__);
+				printf("invalid col_type[%d]= '%s' at %s %d\n", j, str.c_str(), __FILE__, __LINE__);
 				exit(1);
 			}
+			printf("lua data_shape[\"col_types\"][%d][%d]= '%s' at %s %d\n", ev, j+1, str.c_str(), __FILE__, __LINE__);
 		}
 		col_names.push_back(cols_vec);
 		col_typ.push_back(cols_typ);
@@ -201,8 +213,8 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 	prf_obj.features_nr_cpus_online = 1; // the power stats are system wide (I think... not sure how multi socket shows up)
 	prf_obj.features_nr_cpus_available = 1;
 	prf_obj.lua_data.events = event_nms;
-	prf_obj.lua_data.col_names = col_names;;
-	prf_obj.lua_data.col_typ = col_typ;;
+	prf_obj.lua_data.col_names = col_names;
+	prf_obj.lua_data.col_typ = col_typ;
 	prf_obj.lua_data.timestamp_idx = ts_idx;
 	prf_obj.lua_data.duration_idx = dura_idx;
 	printf("begin lua data_table rows= %d, cols= %d\n", rows, cols);

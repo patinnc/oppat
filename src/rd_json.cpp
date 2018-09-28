@@ -496,7 +496,9 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				cs.by_val_dura = by_val_dura;
 				cs.title    = j["event_array"][i]["event"]["charts"][k]["title"];
 				cs.var_name = j["event_array"][i]["event"]["charts"][k]["var_name"];
-				cs.by_var   = j["event_array"][i]["event"]["charts"][k]["by_var"];
+				try {
+					cs.by_var   = j["event_array"][i]["event"]["charts"][k]["by_var"];
+				} catch (...) { }
 				cs.pixels_high = -1;
 				try {
 					std::string fld = "pixels_high";
@@ -567,7 +569,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					exit(1);
 				}
 				cs.var_idx = got_name;
-				if (got_by_var == -1 && cs.var_name.size() > 0) {
+				if (got_by_var == -1 && cs.var_name.size() > 0 && cs.by_var.size() > 0) {
 					printf("for event: '%s' with chart title '%s' by_var is '%s' but that fld name is not in the evt_flds list. Bye at %s %d\n",
 						evt_nm.c_str(), cs.title.c_str(), cs.by_var.c_str(), __FILE__, __LINE__);
 					exit(1);
@@ -765,8 +767,9 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 			printf("cur_dir= '%s' at %s %d\n", cur_dir.c_str(), __FILE__, __LINE__);
 			continue;
 		} catch (...) { }
-		std::vector <std::string> flds= {"bin_file", "txt_file", "wait_file", "type", "tag"};
+		std::vector <std::string> flds= {"bin_file", "txt_file", "wait_file", "type", "tag", "lua_file", "lua_rtn"};
 		std::vector <std::string> vals;
+		std::string lua_file, lua_rtn;
 		uint32_t file_typ = UINT32_M1;
 		vals.resize(flds.size());
 		for (uint32_t fld=0; fld < flds.size(); fld++) {
@@ -816,6 +819,12 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 		}
 		fls.typ       = file_typ;
 		fls.file_tag  = vals[4];
+		if (vals[5].size() > 0) {
+			fls.lua_file  = vals[5];
+		}
+		if (vals[6].size() > 0) {
+			fls.lua_rtn   = vals[6];
+		}
 		if (use_file_tag.size() > 0) {
 			for (uint32_t ft=0; ft < use_file_tag.size(); ft++) {
 				if (use_file_tag[ft] == fls.file_tag) {

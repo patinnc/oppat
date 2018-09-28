@@ -2779,6 +2779,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				printf("subcats[%d][%d]= %s at %s %d\n", i, j, ch_lines.subcats[i][j].c_str(), __FILE__, __LINE__);
 			}
 #endif
+			if (verbose > 0)
 			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s, initd= %d\n", i, j,
 				ch_lines.range.subcat_rng[i][j].x0,
 				ch_lines.range.subcat_rng[i][j].x1,
@@ -4284,7 +4285,8 @@ int main(int argc, char **argv)
 		else if (file_list[i].typ == FILE_TYP_LUA) {
 			if (verbose)
 				fprintf(stderr, "begin lua_read__data(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
-			lua_read_data(file_list[i].file_bin, file_list[i].file_txt, file_list[i].wait_txt, prf_obj[i], verbose); // need to pass lua script filename and lua routine name
+			lua_read_data(file_list[i].file_bin, file_list[i].file_txt,
+					file_list[i].wait_txt, prf_obj[i], file_list[i].lua_file, file_list[i].lua_rtn, verbose); // need to pass lua script filename and lua routine name
 			fprintf(stderr, "begin lua_read_data(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 			//fprintf(stderr, "after prf_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 		}
