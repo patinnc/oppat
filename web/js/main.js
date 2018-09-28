@@ -2366,7 +2366,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								// don't just overdraw lines... slows things down and no extra info
 								// so don't draw 2nd part of line up vertical unless it is visibly diff from down vertical
 								// As we zoom in then the lines will get drawn anyway (since separation btwn up/down vert will be > 2)
-								if (Math.abs(beg[0] - step[subcat_idx][0]) > 2) {
+								//if (Math.abs(beg[0] - step[subcat_idx][0]) > 2) { // leaves dangling lines
+								if (Math.abs(beg[0] - step[subcat_idx][0]) >= 0) {
 									ctx.lineTo(beg[0], yPxlzero);
 									lkup[subcat_idx].push([step[subcat_idx][0], yPxlzero, beg[0], yPxlzero, i, 0, step[subcat_idx][2], x0]);
 									ctx.lineTo(beg[0], beg[1]);
