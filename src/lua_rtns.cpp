@@ -71,7 +71,6 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 {
 	std::cout << "=== opening a state ===" << std::endl;
 	int lua_idx = 0;
-	verbose = 1;
 
 	std::vector <mylua_str> lua_st;
 	lua_st.resize(lua_idx+1);
