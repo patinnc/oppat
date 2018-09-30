@@ -10,6 +10,7 @@ var chart_divs = [];
 var gcanvas_args = [];
 var gmsg_span = null;
 var gpixels_high_default = 250;
+var doc_title_def = "OPPAT: Open Power/Performance Analysis Tool";
 var gjson;
 var gjson_str_pool = null;
 var did_c10_colors = 0;
@@ -62,7 +63,7 @@ Element.prototype.appendAfter = function(element) {
 }, false;
 
 jQuery.fn.redraw = function() {
-    this.css('display', 'none'); 
+    this.css('display', 'none');
     var temp = this[0].offsetHeight;
     this.css('display', '');
     temp = this[0].offsetHeight;
@@ -78,9 +79,9 @@ var forceRedraw = function(element){
 };
 
 function myBarMove(cur_val, max_val) {
-  var elem = document.getElementById("myBar");   
+  var elem = document.getElementById("myBar");
   var width = 100 * cur_val/max_val;
-  elem.style.width = width + '%'; 
+  elem.style.width = width + '%';
   elem.innerHTML = width * 1  + '%';
   //var id = setInterval(frame, 10);
   /*
@@ -88,8 +89,8 @@ function myBarMove(cur_val, max_val) {
     if (width >= 100) {
       clearInterval(id);
     } else {
-      width++; 
-      elem.style.width = width + '%'; 
+      width++;
+      elem.style.width = width + '%';
       elem.innerHTML = width * 1  + '%';
     }
   }
@@ -137,6 +138,10 @@ if (!("TextDecoder" in window)) {
 }
 
 var gsync_zoom_linked = false;
+var gsync_zoom_active_now = false;
+var gsync_zoom_active_redraw_beg_tm = 0;
+var gsync_zoom_charts_redrawn = 0;
+var gsync_zoom_charts_hash = {}
 var gsync_zoom_arr = [];
 function LinkZoom( el )
 {
@@ -346,7 +351,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 	var xPadding = 50;
 	var yPadding = 50;
-    
+
 	let file_tag_idx = chart_data.file_tag_idx;
 	while(file_tag_idx >= g_fl_obj.length) {
 		g_fl_obj.push({});
@@ -401,7 +406,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		//console.log("__draw_mini: mnx="+minx+",mxx= "+maxx+", chmn= "+chart_data.x_range.min+", chmx= "+chart_data.x_range.max);
 		if (mycanvas2_ctx != null) {
-			//abcd
 			let xd = (chart_data.x_range.max - chart_data.x_range.min);
 			let xd0 = 0.5 * (maxx - minx);
 			let xd1 = minx + xd0;
@@ -441,8 +445,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let mycanvas2 = document.getElementById('canvas2_'+hvr_clr);
 	let mylegend  = document.getElementById(hvr_clr+'_legend');
 	let tm_here_01 = performance.now();
-	let ckd_for_linked_zoom;
 	let proc_select = {};
+	let build_flame_rpt_timeout = null;
 
 	var zoom_ckr = new TaskTimer(1000);
 
@@ -455,16 +459,36 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	    zoom_id_last: -1,      // run 10 times only. (set to 0 for unlimited times)
 	    callback: function (task) {
 		// code to be executed on each run
-		if (gsync_zoom_linked) {
+		if (gsync_zoom_linked && !gsync_zoom_active_now) {
+			let did_grph=0;
 			for (let i=0; i < gsync_zoom_arr.length; i++) {
 				if (chart_data.file_tag == gsync_zoom_arr[i].file_tag && gsync_zoom_arr[i].id != task.zoom_id_last) {
-					console.log('task :'+task.name + ' id= '+task.zoom_id_last);
+					//console.log('task :'+task.name + ' id= '+task.zoom_id_last);
 					task.zoom_id_last = gsync_zoom_arr[i].id;
 					let x0 = gsync_zoom_arr[i].x0 - chart_data.ts_initial.ts;
 					let x1 = gsync_zoom_arr[i].x1 - chart_data.ts_initial.ts;
-					zoom_to_new_xrange(x0, x1, false);
+					if (typeof gsync_zoom_charts_hash[chrt_idx] == 'undefined') {
+						gsync_zoom_charts_hash[chrt_idx] = {tms:0, zoom_id:task.zoom_id_last, x0:x0, x1:x1}
+					}
+					gsync_zoom_charts_hash[chrt_idx].tms++;
+					if (gsync_zoom_charts_hash[chrt_idx].tms == 1 ||
+						x0 != gsync_zoom_charts_hash[chrt_idx].x0 || x1 != gsync_zoom_charts_hash[chrt_idx].x1) {
+					console.log("z_h["+chrt_idx+"].tms= "+ gsync_zoom_charts_hash[chrt_idx].tms+", zido= "+
+						task.zoom_id_last+",n= "+gsync_zoom_charts_hash[chrt_idx].zoom_id+"xo= "+
+						gsync_zoom_charts_hash[chrt_idx].x0+"-"+gsync_zoom_charts_hash[chrt_idx].x1+", xn= "+
+						x0+"-"+x1
+						);
+						gsync_zoom_charts_hash[chrt_idx].x0 = x0;
+						gsync_zoom_charts_hash[chrt_idx].x1 = x1;
+						gsync_zoom_charts_redrawn++;
+						let tm_now  = performance.now();
+						document.title = "upd grf "+gsync_zoom_charts_redrawn+",tm="+
+							tm_diff_str(0.001*(tm_now-gsync_zoom_active_redraw_beg_tm), 1, "secs");
+						zoom_to_new_xrange(x0, x1, false);
+					}
 				}
 			}
+			//document.title = doc_title_def;
 		}
 	    }
 	});
@@ -483,7 +507,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		    delta,
 		    delta_x, delta_y,
 		    direction,
-		    interval = 50,
+		    interval = 200,
 		    counter1 = 0,
 		    counter2;
 
@@ -520,6 +544,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		function wheelStart(){
 		  marker = false;
+		  gsync_zoom_active_redraw_beg_tm = performance.now();
+		  gsync_zoom_active_now = true;
 		  wheelAct();
 		  //info.innerHTML = 'event start: '+direction;
 		}
@@ -538,16 +564,16 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let pt1 = get_xy(canvas, mycli);
 			let xdiff = pt1.x - pt0.x;
 		    if (use_x) {
-			// change " - delta_x " to " + delta_x" below to change dir for horizontal scroll in response to mouse wheel
-			let nx0 = minx - xdiff;
-			let nx1 = maxx - xdiff;
-			//console.log("new wheel pan x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x);
-			zoom_to_new_xrange(nx0, nx1, true);
+				// change " - delta_x " to " + delta_x" below to change dir for horizontal scroll in response to mouse wheel
+				let nx0 = minx - xdiff;
+				let nx1 = maxx - xdiff;
+				//console.log("new wheel pan x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x);
+				zoom_to_new_xrange(nx0, nx1, true);
 		    } else {
-			let nx0 = minx - 0.5 * xdiff;
-			let nx1 = maxx + 0.5 * xdiff;
-			//console.log("new wheel zoom x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x);
-			zoom_to_new_xrange(nx0, nx1, true);
+				let nx0 = minx - 0.5 * xdiff;
+				let nx1 = maxx + 0.5 * xdiff;
+				//console.log("new wheel zoom x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x);
+				zoom_to_new_xrange(nx0, nx1, true);
 		    }
 		    }
 		    delta_x = 0.0;
@@ -561,12 +587,15 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		  },interval);
 		}
 		function wheelEnd(){
-		  marker = true,
-		  counter1 = 0,
-		  counter2 = 0;
-		  //info.innerHTML = info.innerHTML+'<br>event end'+", x_chg= "+delta_x+", y_chg="+delta_y;
-		  delta_x = 0;
-		  delta_y = 0;
+			marker = true,
+			gsync_zoom_charts_redrawn = 0;
+			gsync_zoom_charts_hash = {};
+			gsync_zoom_active_now = false;
+			counter1 = 0,
+			counter2 = 0;
+			//info.innerHTML = info.innerHTML+'<br>event end'+", x_chg= "+delta_x+", y_chg="+delta_y;
+			delta_x = 0;
+			delta_y = 0;
 		}
 	}
 	function get_xy(canvas, tch) {
@@ -776,7 +805,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let c40 = gcolor_lst;
 	let use_color_list = gcolor_lst;
 	let legend_text_len = 0;
-	let non_zero_legends = -1;
+	let non_zero_legends = 0;
 	//console.log(c20);
 	if (ch_type == "line" || ch_type == "stacked") {
 		if (typeof event_list == 'undefined') {
@@ -793,7 +822,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	  } else {
 		use_color_list = gcolor_lst;
 		number_of_colors_events = gcolor_lst.length;
-		console.log("number of colors for events= "+number_of_colors_events);
+		//console.log("number of colors for events= "+number_of_colors_events);
 	  }
 	  for (let j=0; j < event_list.length; j++) {
 		let i = event_list[j].idx; // this is fe_idx
@@ -850,7 +879,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//evt_str = chart_data.y_by_var+" ";
 		}
 		legend_text_len += evt_str.length + nm.length;
-		
+
 		legend_str += '<span  title="'+title+'" class="'+disp_str+'" style="margin-right:5px; white-space: nowrap; display: inline-block;"><span id="'+hvr_clr+'_legendp_'+leg_num+'" class="legend_square" style="background-color: '+clr+'; display: inline-block"></span><span id="'+hvr_clr+'_legendt_'+leg_num+'">'+evt_str+nm+'</span></span>';
 	  }
 	} else {
@@ -892,7 +921,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		event_list[j].legend_num = event_id_begin+j;
 		let leg_num = event_list[j].legend_num;
 		legend_text_len += 5 + nm.length;
-		
+
 		legend_str += '<span  title="'+title+'" class="'+disp_str+'" style="margin-right:5px; white-space: nowrap; display: inline-block;"><span id="'+hvr_clr+'_legendp_'+leg_num+'" class="legend_square" style="background-color: '+clr+'; display: inline-block"></span><span id="'+hvr_clr+'_legendt_'+leg_num+'">evt: '+nm+'</span></span>';
 	  }
 	  for (let j=0; j < proc_arr.length; j++) {
@@ -959,6 +988,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let leg_num = event_list[j].legend_num;
 		let id_nm = hvr_clr+'_legendp_'+leg_num;
 		if (j > non_zero_legends) {
+			//console.log("leg.skp ev= "+event_list[j].event);
 			continue;
 		}
 		legend_add_listener(id_nm, j, fe_idx, 'event');
@@ -974,7 +1004,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let i = ele.rank;
 		let proc_idx = ele.proc_idx;
 		let typ = ele.typ_legend;
-		console.log("clicked id= "+evt.target.parentNode.id+", rank= "+i+", proc_idx= "+proc_idx+", typ= "+typ);
 		let cur_state;
 		if (typ == 'proc') {
 			cur_state = proc_select[proc_idx][1];
@@ -999,8 +1028,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			event_select[proc_idx] = [i, cur_state];
 		}
 		console.log("legend exit id= "+ele_nm+", rank= "+i+", proc_idx= "+proc_idx+", cur_state= "+cur_state);
-		chart_redraw();
-		//window.alert( evt.target.myParam );
+		chart_redraw("lgnd_clk");
 	}
 	function legend_dblclick(evt)
 	{
@@ -1068,8 +1096,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			event_select[proc_idx] = [rnk, cur_state];
 		}
 		console.log("legend dbl click 2nd_draw id= "+ele_nm+", rank= "+rnk+", proc_idx= "+proc_idx+", cur_state= "+cur_state);
-		chart_redraw();
-		//window.alert( evt.target.myParam );
+		chart_redraw("lgnd_dblclk");
 	}
 	let last_legend_mouse_evt = null;
 	let last_legend_timeout = null;
@@ -1087,12 +1114,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (typ == 'proc') {
 			let prev_state = proc_select[proc_idx][1];
 			proc_select[proc_idx] = [i, 'highlight'];
-			chart_redraw();
+			chart_redraw("lgnd_hvr_hghlght_proc");
 			proc_select[proc_idx] = [i, prev_state];
 		} else {
 			let prev_state = event_select[proc_idx][1];
 			event_select[proc_idx] = [i, 'highlight'];
-			chart_redraw();
+			chart_redraw("lgnd_hvr_hghlght_evnt");
 			event_select[proc_idx] = [i, prev_state];
 		}
 
@@ -1100,7 +1127,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			clearTimeout(last_legend_timeout);
 			last_legend_timeout = null;
 		}
-		//window.alert( evt.target.myParam );
 	}
 	function legend_mouse_enter(evt)
 	{
@@ -1109,9 +1135,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		//console.log(evt.target.parentNode.rank);
 		//let ele_nm = evt.target.parentNode.id;
 		let ele_nm = evt.target.id;
-		//console.log("__legend_mouse_enter ele= "+ele_nm);
+		let ele = document.getElementById(ele_nm);
+		let i = ele.rank;
+		let typ = ele.typ_legend;
+		let proc_idx = ele.proc_idx;
+		if (typ == 'event') {
+			console.log("__legend_mouse_enter id= "+evt.target.parentNode.id+", rank= "+i+", proc_idx= "+
+				proc_idx+", typ= "+typ+",nm="+event_list[i].event);
+		}
+		console.log("__legend_mouse_enter ele= "+ele_nm);
 		// this is a delay so we don't redraw a bunch when all we are doing is passing over the legend entries.
-		last_legend_timeout = setTimeout(legend_hover, 500, evt);
+		last_legend_timeout = setTimeout(legend_hover, 400, evt);
 		return;
 
 	}
@@ -1141,7 +1175,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		console.log("legend_mouse_out: cur_state= "+cur_state);
 		console.log("legend exit id= "+ele_nm+", rank= "+i+", proc_idx= "+proc_idx+", typ= "+typ);
-		chart_redraw();
+		chart_redraw("lgnd_mouseout");
 	}
 	let subcats = [];
 	let subcat_cs_2_sidx_hash = {}; // indexed by [cat][subcat], returns subcat_idx
@@ -1246,7 +1280,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		// struct is:
 		//  holder (typ:0) obj has a list of all the siblings (sections of flame at same level with common parent)
 		/*     lvl 1       create a holder for level 1
-		*       /  +===\  
+		*       /  +===\
 		*      0       1     so lvl 1's holder has 2 sibling objs
 		*    lvl 2   lvl 2   sib obj 0 and 1 have kids so create a holder for the kids of sib obj 0 and a holder for the kids of sib obj 1
 		*    / \    /  |  \
@@ -1379,13 +1413,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		/*
 		*/
 		for (let cs_idx=0; cs_idx < use_fl_arr.length; cs_idx++) {
-		console.log("build_flame_rpt: cs_idx="+cs_idx+",g_fl_arr.evt= "+g_fl_arr[file_tag_idx][cs_idx].event+", use_arr.evt="+use_fl_arr[cs_idx].event);
+		//console.log("build_flame_rpt: cs_idx="+cs_idx+",g_fl_arr.evt= "+g_fl_arr[file_tag_idx][cs_idx].event+", use_arr.evt="+use_fl_arr[cs_idx].event);
 		//let fl_menu_ch_title_str = "Flamegraph for event: "+g_fl_arr[file_tag_idx][cs_idx].event;
 		if (input_cs_evt == context_switch_event+"_offcpu" && ++dbg_cntr3 < 10) {
 			for (let cs_idx2=0; cs_idx2 < use_fl_arr.length; cs_idx2++) {
 				//console.log("g_f_a["+cs_idx2+"]="+use_fl_arr[cs_idx2].event);
 			}
-			console.log("b_fl_rpt: "+input_cs_evt+",cs_idx= "+cs_idx+", g_fl_arr= "+ g_fl_arr[file_tag_idx][cs_idx].event);
+			//console.log("b_fl_rpt: "+input_cs_evt+",cs_idx= "+cs_idx+", g_fl_arr= "+ g_fl_arr[file_tag_idx][cs_idx].event);
 		}
 		if (input_cs_evt != "" && use_fl_arr[cs_idx].event != input_cs_evt) {
 			continue;
@@ -1456,7 +1490,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		function fl_xlate_x(tot_wide, x) {
 			return x/tot_wide;
 		}
-		function build_fl_rpt(cs_idx, lvl_arr, lvl_in, cs_str) { 
+		function build_fl_rpt(cs_idx, lvl_arr, lvl_in, cs_str) {
 			let fl_obj = lvl_arr[lvl_in][1];
 			let lvl = lvl_arr[lvl_in][0];
 			if (fl_lkup.length <= lvl) {
@@ -1553,7 +1587,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 		}
 		let fl_menu_ch_title_str = "Flamegraph for event: "+g_fl_arr[file_tag_idx][cs_idx].event;
-		g_fl_obj[file_tag_idx][cs_idx] = g_fl_obj_rt[file_tag_idx][cs_idx]; 
+		g_fl_obj[file_tag_idx][cs_idx] = g_fl_obj_rt[file_tag_idx][cs_idx];
 		if (g_fl_obj[file_tag_idx][cs_idx] == null) {
 			console.log("apparently build_flame() never got any callstacks for cs_idx= "+cs_idx+", nothing to report");
 			let fl_title_str = fl_menu_ch_title_str+", no data for graph";
@@ -1650,12 +1684,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								ctx3.lineTo(bg0[0], bg0[1]);
 								ctx3.lineTo(bg0[0]+triangle_wd, bg1[1]);
 								ctx3.closePath();
-								 
+
 								// the outline
 								//ctx3.lineWidth = 10;
 								//ctx3.strokeStyle = '#666666';
 								//ctx3.stroke();
-								 
+
 								// the fill color
 								ctx3.fillStyle = "red";
 								ctx3.fill();
@@ -1872,7 +1906,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				mycanvas3.scrollIntoView(false);
 			};
 		};
-	
+
 		tsum += sum;
 		//console.log("sum0 = "+(1.0e-9 * sum0)+", fl_end_sum= "+(1.e-9 * fl_end_sum));
 		}
@@ -1891,7 +1925,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 
 
-	function chart_redraw() {
+	function chart_redraw(from_where) {
 		redo_ylkup(ctx);
 		let build_fl_tm = 0.0;
 		let tm_here_04a = performance.now();
@@ -1937,14 +1971,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					//console.log("e_se["+fe_idx+"]="+ event_select[fe_idx][1]);
 					//console.log("got RAPL chart");
 				}
-				if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' && 
+				if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' &&
 					(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
 					do_event = true;
 				}
 				if (!do_event) {
 					continue;
 				}
-				if (tmaxy == null) { 
+				if (tmaxy == null) {
 					tminy = chart_data.myshapes[i].pts[PTS_Y0];
 					tmaxy = tminy;
 				}
@@ -1973,7 +2007,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				str = umaxy.toFixed(y_axis_decimals);
 			}
 			ctx.fillText(str, x, y);
-			y   = canvas_px_high(null) - yPadding; 
+			y   = canvas_px_high(null) - yPadding;
 			if (chart_data.y_fmt != "") {
 				str = vsprintf(chart_data.y_fmt, [uminy]);
 			} else {
@@ -2041,6 +2075,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let cs_str_period = 0;
 		let cs_sum = 0;
 		let dbg_cntr = 0;
+		//abcd
+		let fl_tm_bld = 0;
+		let fl_tm_rpt = 0;
 		for (let i=0; i < chart_data.myshapes.length; i++) {
 			let x0 = chart_data.myshapes[i].pts[PTS_X0];
 			let x1 = chart_data.myshapes[i].pts[PTS_X1];
@@ -2056,22 +2093,19 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				 * If you are zooming in, say for sched_switch, you might get no events
 				 * But for some events (like sched_switch) I know the beg and end of the event.
 				 * because there isn't a context switch during the interval.
-				 * For instance, you might not get a cswitch for 1+ seconds whereas you 
+				 * For instance, you might not get a cswitch for 1+ seconds whereas you
 				 * might zoom into usec level. Since the cswitch overlaps this zoom interval
 				 * the callstack (the actual cswitch) might be out of the zoom range.
 				 * So I compute the interval and crop it to the zoom range (if it is in range).
 				 * This is sort of fake... the context switch or cpu-clock callstack
 				 * might have actually occurred out of the range.
-				 * I could probably do this for more events and just take the percent of 
+				 * I could probably do this for more events and just take the percent of
 				 * the sample that lies in the interval... but it is harder to say what the
-				 * interval really is. One could say the 'interval' is the time delta 
+				 * interval really is. One could say the 'interval' is the time delta
 				 * between events but that is kind of fuzzy. For instance, if the cpu has gone
 				 * idle then there might a long interval without samples.
 				 */
 				if (x0 < minx) {
-					continue;
-				}
-				if (x0 > maxx) {
 					continue;
 				}
 				let fe_idx = chart_data.myshapes[i].ival[IVAL_FE];
@@ -2084,12 +2118,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
                 }
 				let ev = "unknown3";
                 if (typeof fe_2 != 'undefined') {
-				ev = event_list[fe_2].event;
-				if (ev != "CSwitch" && ev != "sched:sched_switch" && ev != "cpu-clock") {
-					if (x1 > maxx) {
-						continue;
+					ev = event_list[fe_2].event;
+					if (ev != "CSwitch" && ev != "sched:sched_switch" && ev != "cpu-clock") {
+						if (x1 > maxx) {
+							continue;
+						}
 					}
-				}
                 }
 				let nperiod = operiod;
 				if (ev == "cpu-clock") {
@@ -2099,6 +2133,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (x0t > maxx) {
 					continue;
 				}
+				/*
+				if (x0 > maxx) {
+					continue;
+				}
+				*/
 				if (x0t < minx) {
 					x0t = minx;
 				}
@@ -2148,7 +2187,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				drew_bxs++;
 				if (idx >= 0) {
 					let rnk = proc_rank[idx];
-					if (typeof proc_select[idx] != 'undefined' && 
+					if (typeof proc_select[idx] != 'undefined' &&
 						(proc_select[idx][1] == 'highlight' || proc_select[idx][1] == 'show')) {
 						if (rnk < number_of_colors_proc) {
 							ctx.fillStyle = gcolor_lst[rnk];
@@ -2194,19 +2233,21 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				    clr = event_list[fe_rnk].color;
                 }
 				let do_proc = false, do_event = false, do_event_highlight = false;
-				if (idx == -1 || (typeof proc_select[idx] != 'undefined' && 
+				if (idx == -1 || (typeof proc_select[idx] != 'undefined' &&
 					(proc_select[idx][1] == 'highlight' || proc_select[idx][1] == 'show'))) {
 					do_proc = true;
 				}
-				if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' && 
+				if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' &&
 					(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
 					do_event = true;
 					if (event_select[fe_idx][1] == 'highlight') {
 						do_event_highlight = true;
 					}
 				}
-				if ((do_proc && ch_type == "block") || (do_event && 
-							(chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE"))) {
+				if ((do_proc && ch_type == "block") || (do_event &&
+						(chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE"))) {
+					let tm_0 = performance.now();
+
 					if (chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE") {
 						fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 					}
@@ -2238,7 +2279,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							unit = 'nsecs';
 						}
 						let period = operiod;
-							
+
 						if (ev == "sched:sched_switch" || ev == "CSwitch") {
 							// for sched_switch, the 'period' is the duration in seconds. convert secs to nanaosecs.
 							// The other events (like cycles and instructions) have about 1e9 occurences/sec so
@@ -2287,18 +2328,32 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						if (!doing_idle && chart_data.chart_tag == "PCT_BUSY_BY_CPU") {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(event_list[fe_2].event, unit, cs_ret.arr, period, hvr_clr, cs_clr);
+							/*if (build_flame_rpt_timeout != null) {
+								clearTimeout(build_flame_rpt_timeout);
+								build_flame_rpt_timeout = null;
+							}*/
 						}
 						if ((chart_data.chart_tag == "WAIT_TIME_BY_proc")) {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(context_switch_event+"_offcpu", unit, cs_ret.arr, period, hvr_clr, clr);
+							/*if (build_flame_rpt_timeout != null) {
+								clearTimeout(build_flame_rpt_timeout);
+								build_flame_rpt_timeout = null;
+							}*/
 						}
 						if ((chart_data.chart_tag == "RUN_QUEUE")) {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(context_switch_event+"_runqueue", unit, cs_ret.arr, period, hvr_clr, clr);
+							/*if (build_flame_rpt_timeout != null) {
+								clearTimeout(build_flame_rpt_timeout);
+								build_flame_rpt_timeout = null;
+							}*/
 						}
 						cs_sum += operiod;
 						build_fl_tm += performance.now() - tm_fl_here_0;
 					}
+					let tm_1 = performance.now();
+					fl_tm_bld += tm_1 - tm_0;
 				}
 				if (ch_type == "stacked") {
 					if (do_proc||do_event) {
@@ -2332,7 +2387,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					if (ch_type == "block") {
 						fe_idx = chart_data.myshapes[i].ival[IVAL_FE];
 					}
-					if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' && 
+					if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' &&
 						(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
 						do_event = true;
 						if (event_select[fe_idx][1] == 'highlight') {
@@ -2366,7 +2421,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								// don't just overdraw lines... slows things down and no extra info
 								// so don't draw 2nd part of line up vertical unless it is visibly diff from down vertical
 								// As we zoom in then the lines will get drawn anyway (since separation btwn up/down vert will be > 2)
-								//if (Math.abs(beg[0] - step[subcat_idx][0]) > 2) { // leaves dangling lines
 								if (Math.abs(beg[0] - step[subcat_idx][0]) >= 0) {
 									ctx.lineTo(beg[0], yPxlzero);
 									lkup[subcat_idx].push([step[subcat_idx][0], yPxlzero, beg[0], yPxlzero, i, 0, step[subcat_idx][2], x0]);
@@ -2410,7 +2464,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					skipped++;
 				}
 			}
-			if (!filtering || drew_this_shape) 
+			if (!filtering || drew_this_shape)
 			{
 				lkup[subcat_idx].push([beg[0], beg[1], end[0], end[1], i]);
 			}
@@ -2424,7 +2478,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let tm_here_04b = performance.now();
 		//console.log("chart_redraw took "+flt_dec(tm_here_04b - tm_here_04a, 4)+" ms");
 		//console.log("cs_str_period= "+ (1.0e-9*cs_str_period));
-		if ((ch_type == "block" && chart_data.chart_tag == "PCT_BUSY_BY_CPU") || 
+		if ((ch_type == "block" && chart_data.chart_tag == "PCT_BUSY_BY_CPU") ||
 			chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE") {
 			let input_evt = "";
 			if (chart_data.chart_tag == "WAIT_TIME_BY_proc") {
@@ -2433,15 +2487,52 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			if (chart_data.chart_tag == "RUN_QUEUE") {
 				input_evt = context_switch_event+"_runqueue";
 			}
-			let tm_here = performance.now();
+			//let tm_here = performance.now();
 			//console.log("build_flame_rpt: before:");
-			let sum = build_flame_rpt(hvr_clr, input_evt);
-			let tm_now  = performance.now();
+			if (1==20 && build_flame_rpt_timeout != null) {
+				clearTimeout(build_flame_rpt_timeout);
+				build_flame_rpt_timeout = null;
+			}
+			let sum = 0;
+			let bfr_args = {ele:hvr_clr, evt:input_evt};
+			//build_flame_rpt_timeout = setTimeout(do_build_flame_rpt, 300, bfr_args);
+			//build_flame_rpt_timeout = setTimeout(do_build_flame_rpt, 300, hvr_clr, input_evt);
+			let tm_0 = performance.now();
+			do_build_flame_rpt(hvr_clr, input_evt);
+			let tm_1 = performance.now();
+			fl_tm_rpt += tm_1 - tm_0;
+			//sum = build_flame_rpt(hvr_clr, input_evt);
+			//let tm_now  = performance.now();
 			//console.log("build_flame_rpt: after: took msecs= "+(tm_now-tm_here)+", ret sum= "+(1.0e-9 * sum)+", exp sum= "+(1.e-9 * cs_sum));
-			console.log("build_flame_rpt: after: took msecs= "+(tm_now-tm_here), "bld_fl msecs="+build_fl_tm);
+			//console.log("build_flame_rpt: after: took msecs= "+(tm_now-tm_here), "bld_fl msecs="+build_fl_tm);
+			if (build_fl_tm > 500) {
+				console.log("build_flame_rpt: bld_fl msecs="+build_fl_tm);
+			}
+		}
+		let tm_now = performance.now();
+		let tm_dff = tm_now - tm_here_04a;
+		let fl_tm = fl_tm_bld + fl_tm_rpt;
+		if (tm_dff > 500 || fl_tm > 500) {
+			console.log("__ch["+chrt_idx+"].tm(ms)= "+tm_dff.toFixed(2)+" from "+from_where+", ttl= "+chart_data.title+", fl_tm_bld= "+fl_tm_bld.toFixed(2)+", fl_tm_rpt= "+fl_tm_rpt.toFixed(2)
+					);
 		}
 	}
-	chart_redraw();
+	function do_build_flame_rpt(ele, evt)
+	{
+		//clearTimeout(build_flame_rpt_timeout);
+		//build_flame_rpt_timeout = null;
+		let tm_here = performance.now();
+		//build_flame_rpt_timeout = setTimeout(do_build_flame_rpt, 500, bfr_args);
+		//build_flame_rpt(args.ele, args.evt);
+		//console.log("do_build_flame_rpt: ele= "+ele+", evt= "+evt);
+		build_flame_rpt(ele, evt);
+		let tm_now  = performance.now();
+		let tm_dff = tm_now-tm_here;
+		if (tm_dff > 500.0) {
+			console.log("do_build_flame_rpt: after: took msecs= "+tm_dff);
+		}
+	}
+	chart_redraw("main_line_"+chrt_idx);
 	let tm_here_05 = performance.now();
 	// ctx work end
 
@@ -2478,13 +2569,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let xwid = mycanvas2.width - xPadding;
 		let xmid = zero_to_one * xwid;
 		let wd = 16;
-		let x0 = xbeg + xmid  - wd;
-		let x1 = x0 + wd;
+		let x0 = xbeg + xmid  - 0.5*wd;
+		let x1 = x0 + 0.5*wd;
 		let y0 = 0;
 		let y1 = mycanvas2.height;
 		let rx0 = (x0 - xPadding)/xwid;
 		let rx1 = (x1 - xPadding)/xwid;
-		mycanvas2_ctx.fillRect(x0, y0, x1-x0, y1);
+		mycanvas2_ctx.fillRect(x0, y0, wd, y1);
 		mycanvas2_ctx.strokeStyle = 'black';
 		mycanvas2_ctx.strokeRect(x0, y0, wd, y1);
 		mycanvas2_ctx.stroke();
@@ -2504,24 +2595,33 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				x = Math.trunc(e.clientX - rect.left),
 				y = Math.trunc(e.clientY - rect.top);
 			let xn = (x - xPadding)/(mycanvas2.width - xPadding);
-			if (xn > 0 && ((draw_mini_box.rx0 ) <= xn && xn <= (draw_mini_box.rx1+0.02))) {
+			if (xn > 0 && ((draw_mini_box.rx0 - 0.01 ) <= xn && xn <= (draw_mini_box.rx1+0.02))) {
+				//console.log("rx0= "+(draw_mini_box.rx0-0.01)+", xn= "+xn+",rx1= "+(draw_mini_box.rx1+0.02));
+				gsync_zoom_active_redraw_beg_tm = performance.now();
+				gsync_zoom_active_now = true;
 				draw_mini_cursor_prev = mycanvas2.style.cursor;
-				mycanvas2.onmouseout = function(e) {
-					if (draw_mini_cursor_prev != null) {
-						mycanvas2.style.cursor = draw_mini_cursor_prev;
-						draw_mini_cursor_prev = null;
-					}
-				}
 				mycanvas2.style.cursor = 'pointer';
 				draw_mini(xn);
+			} else {
+				//console.log("zoom inactive");
 			}
+		}
+		mycanvas2.onmouseout = function(e) {
+			if (draw_mini_cursor_prev != null) {
+				mycanvas2.style.cursor = draw_mini_cursor_prev;
+				draw_mini_cursor_prev = null;
+			}
+			gsync_zoom_charts_redrawn = 0;
+		    gsync_zoom_charts_hash = {};
+			gsync_zoom_active_now = false;
+			console.log("zoom inactive");
 		}
 		draw_mini(0.5);
 	}
 	for (let i=0; i < lkup.length; i++) {
 		lkup[i].sort(sortFunction);
 	}
-	
+
 
 	function sortRow(a, b) {
 		return a[0]-b[0];
@@ -2667,7 +2767,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					str4 = "<br>abs.T= "+intrvl_x0+ " - " + intrvl_x1;
 				}
 				let rel_nx0 = nx0 + chart_data.ts_initial.tm_beg_offset_due_to_clip;
-				myhvr_clr_txt.innerHTML = "x= " + x + ", rel.T= "+rel_nx0+", T= "+(nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x)+str4+str2+str3; 
+				myhvr_clr_txt.innerHTML = "x= " + x + ", rel.T= "+rel_nx0+", T= "+(nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x)+str4+str2+str3;
 				let clr_button = document.getElementById("but_"+hvr_clr);
 	    			clr_button.style.visibility = 'visible';
 				nx0_prev = nx0;
@@ -2697,7 +2797,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				set_gsync_zoom(gcanvas_args[idx][6], gcanvas_args[idx][7], chart_data.file_tag, chart_data.ts_initial.ts);
 				console.log("Drag xdiff= "+(x - ms_dn_pos[0])+", rel pxl from left= "+xdiff1)
 				reset_minx_maxx(gcanvas_args[idx][6], gcanvas_args[idx][7], gcanvas_args[idx][8], gcanvas_args[idx][9]);
-				chart_redraw();
+				chart_redraw("cnvs_mouseup");
 			}
 			mycanvas.offmouseup = null;
 		};
@@ -2727,8 +2827,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			gsync_zoom_arr[use_idx].file_tag = file_tag;
 		}
 	}
-	
+
 	function zoom_to_new_xrange(x0, x1, update_gsync_zoom) {
+		if (typeof zoom_to_new_xrange.prev == 'undefined') {
+			zoom_to_new_xrange.prev = {};
+		}
 		let idx = chrt_idx;
     		//console.log("pan x0= "+x0+", x1= "+x1);
 		let xdiff = +0.5 * (maxx - minx);
@@ -2783,7 +2886,19 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		gcanvas_args[idx][7] = x1;
 		let args = gcanvas_args[idx];
 		reset_minx_maxx(args[6], args[7], args[8], args[9]);
-		chart_redraw();
+		if (typeof zoom_to_new_xrange.prev.x0 == 'undefined') {
+			zoom_to_new_xrange.prev = {x0:x0, x1:x1};
+		}
+		if (zoom_to_new_xrange.prev.x0 == x0 && zoom_to_new_xrange.prev.x1 == x1) {
+			//console.log("skip zoom_2_new x0= "+x0+", x1= "+x1);
+			return;
+		}
+		zoom_to_new_xrange.prev = {x0:x0, x1:x1};
+		let tm_0 = performance.now();
+		//console.log("zoom: x0: "+x0+",x1= "+x1+", abs x0="+(x0+chart_data.ts_initial.ts)+",ax1="+(x1+chart_data.ts_initial.ts));
+		chart_redraw("zoom_2_new");
+		let tm_1 = performance.now();
+		//console.log("ch["+chrt_idx+"].rdrw tm= "+tm_diff_str(tm_1-tm_0, 6, 'secs'));
 	}
 	function fmt_val(val) {
 		let val_str;
@@ -2803,7 +2918,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (rect.bottom > viewHeight) {
 			return false;
 		}
-	
+
 		return !((rect.bottom < 0) || ((rect.top - viewHeight) >= 0));
 	}
 	function clearToolTipText(tt_ele) {
@@ -3098,7 +3213,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	//console.log("cs time04= "+(tm_here_04 - tm_here_03).toFixed(2));
 	//console.log("cs time05= "+(tm_here_05 - tm_here_04).toFixed(2));
 	//console.log("cs time06= "+(tm_here_06 - tm_here_05).toFixed(2));
-	console.log("cs time= "+(tm_here_06 - tm_top0).toFixed(2));
+	let tm_dff = tm_here_06 - tm_top0;
+	if (tm_dff > 500) {
+		console.log("cs time= "+tm_dff.toFixed(2));
+	}
 	return;
 	}
 /*
@@ -3209,9 +3327,9 @@ function start_charts() {
 			}
 		}
 	}
-	document.title = "OPPAT: Open Power/Performance Analysis Tool";
+	document.title = doc_title_def;
 	tm_now = performance.now();
-	console.log("tm_now - tm_top0= "+(tm_now - tm_top0));
+	//console.log("tm_now - tm_top0= "+(tm_now - tm_top0));
 	update_status("finished "+chrts_started+" graphs, chart loop took "+tm_diff_str(0.001*(tm_now-tm_top0), 3, "secs"));
     mymodal.style.display = "none";
     document.getElementById("chart_container").style.display = "block";
@@ -3239,7 +3357,7 @@ function start_charts() {
 		let ch_idx = lhs_menu_ch_list[i].ch_idx;
 		let cat_idx = lhs_menu_ch_list[i].cat_idx;
 		if (cat_idx_prv != cat_idx) {
-			
+
 			cat_idx_prv = cat_idx;
 			lvl += 1;
 			lvl_sub = -1;
@@ -3257,7 +3375,7 @@ function start_charts() {
 		lhs_menu_nm_list.push({menu_i:i, nm:nm, txt:txt, lvl_sub:lvl_sub, dad:dad, kids:[]});
 		let nm_idx = lhs_menu_nm_list.length - 1;
 		lhs_menu_nm_list[dad].kids.push(nm_idx);
-		
+
 		lhs_menu_str += '<li class="il_none"><input type="checkbox" name="'+nm+'" id="'+nm+'" onchange="lhs_menu_change(this,'+i+','+nm_idx+');" '+cb_cls_str+'><label onmouseover="javascript:menu_hover('+i+');" for="'+nm+'" style="font-weight:normal;margin: 0em 0em 5px 0;margin-top: 0px;margin-bottom:0px">'+txt+'</label></li>';
 		if ((i+1) == lhs_menu_ch_list.length || lhs_menu_ch_list[i].cat_idx != lhs_menu_ch_list[i+1].cat_idx) {
 			lhs_menu_str += '</ul></li></ul>';
@@ -3335,7 +3453,7 @@ function openSocket(port_num) {
     }
     // Create a new instance of the websocket
     webSocket = new WebSocket("ws://localhost:"+port_num);
-     
+
     webSocket.binaryType = 'arraybuffer';
     /*
      * Binds functions to the listeners for the websocket.
@@ -3445,7 +3563,7 @@ function bootside_menu_setup(div_nm, which_side) {
 	  },
 
 	  theme: '',
-	  
+
 	});
 }
 window.onload = function() {
@@ -3454,7 +3572,7 @@ window.onload = function() {
 	const url = document.createElement('a');
 	console.log("window.location.origin= "+window.location.origin);
 	console.log("window.location.port= "+window.location.port);
-	
+
 	// Get the <span> element that closes the modal
 	mymodal = document.getElementById("mymodal");
 	mymodal_span = document.getElementById("mymodal_close_span");
@@ -3558,27 +3676,27 @@ function showLegend(class_nm, action) {
 	}
 }
 
-function addElement (ele_typ, new_div_nm, before_div, where) { 
-	// create a new div element 
-	let newDiv = document.createElement(ele_typ); 
-	// and give it some content 
-	//let newContent = document.createTextNode("Hi there and greetings!"); 
+function addElement (ele_typ, new_div_nm, before_div, where) {
+	// create a new div element
+	let newDiv = document.createElement(ele_typ);
+	// and give it some content
+	//let newContent = document.createTextNode("Hi there and greetings!");
 	// add the text node to the newly created div
-	//newDiv.appendChild(newContent);  
+	//newDiv.appendChild(newContent);
 	newDiv.id = new_div_nm;
 
-	// add the newly created element and its content into the DOM 
-	let container = document.getElementById('chart_container'); 
-	let anchorDiv = document.getElementById(before_div); 
+	// add the newly created element and its content into the DOM
+	let container = document.getElementById('chart_container');
+	let anchorDiv = document.getElementById(before_div);
 	if (where == 'before') {
-		container.insertBefore(newDiv, anchorDiv); 
-		//document.body.insertBefore(newDiv, anchorDiv); 
+		container.insertBefore(newDiv, anchorDiv);
+		//document.body.insertBefore(newDiv, anchorDiv);
 	} else {
 		newDiv.appendAfter(anchorDiv);
 		//newDiv.appendBefore(anchorDiv);
-		//document.body.insertAfter(newDiv, anchorDiv); 
+		//document.body.insertAfter(newDiv, anchorDiv);
 	}
-	//document.body.append(newDiv, anchorDiv); 
+	//document.body.append(newDiv, anchorDiv);
 }
 
 
