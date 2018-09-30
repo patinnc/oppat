@@ -276,12 +276,16 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			continue;
 		}
 		dura = ldvs_vec[dura_idx[evt_idx]].dval;
-		if (need_ts0) {
-			prf_obj.tm_beg = ldvs_vec[ts_idx[evt_idx]].dval;
+		double ts_beg = ldvs_vec[ts_idx[evt_idx]].dval - dura;
+		if (need_ts0 || ts_beg < prf_obj.tm_beg) {
+			prf_obj.tm_beg = ts_beg;
 			printf("LUA prf_obj.tm_beg= %f at %s %d\n", prf_obj.tm_beg, __FILE__, __LINE__);
 			need_ts0 = false;
+			prf_obj.tm_end = ldvs_vec[ts_idx[evt_idx]].dval;
 		}
-		prf_obj.tm_end = ldvs_vec[ts_idx[evt_idx]].dval;
+		if (prf_obj.tm_end < ldvs_vec[ts_idx[evt_idx]].dval) {
+			prf_obj.tm_end = ldvs_vec[ts_idx[evt_idx]].dval;
+		}
 		prf_obj.lua_data.data_rows.push_back(ldvs_vec);
 		lua_push_sample(prf_obj, verbose, evt_idx, 1e9*(ldvs_vec[ts_idx[evt_idx]].dval - dura));
 	}
