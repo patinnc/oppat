@@ -26,7 +26,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
-			"use_chart":"d"},
+			"use_chart":"y"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"proc", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
 			"use_chart":"d", "y_fmt":"%.1f%%"}
 		]
@@ -125,7 +125,7 @@
 		],
 	"charts": [
 		{"category":"power", "title":"power:cpu_idle by cpu",  "var_name": "cpu_idle state", "by_var": "cpu", "chart_tag":"CPU_IDLE_BY_CPU", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
@@ -139,7 +139,7 @@
 		],
 	"charts": [
 		{"category":"power", "title":"power:cpu_frequency by cpu",  "var_name": "freq(GHz)", "by_var": "cpu", "chart_tag":"CPU_FREQ_BY_CPU", "chart_type":"line",
-			"use_chart":"y"}
+			"use_chart":"d"}
 		]
 	}
   },
