@@ -70,6 +70,7 @@ drivers/
 # temp files
 zoom_win.bat
 zoom_lnx.bat
+gen_html_files.bat
 tmp*.jnk
 disk_tst_*
 tst*
