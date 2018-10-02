@@ -806,6 +806,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let use_color_list = gcolor_lst;
 	let legend_text_len = 0;
 	let non_zero_legends = 0;
+	let has_cpi = false;
+	let cpi_str = {};
 	//console.log(c20);
 	if (ch_type == "line" || ch_type == "stacked") {
 		if (typeof event_list == 'undefined') {
@@ -885,6 +887,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	} else {
 	  for (let j=0; j < event_list.length; j++) {
 		let i = event_list[j].idx;
+		let nm = event_list[j].event;
 		if ( typeof event_select[i] == 'undefined') {
 			event_select[i] = [j, 'show'];
 		}
@@ -894,9 +897,15 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			continue;
 		}
 		let fe_idx = event_list[j].idx;
-		let nm = event_list[j].event;
 		if (fe_idx > -1 && chart_data.flnm_evt[fe_idx].prf_obj_idx != this_chart_prf_obj_idx) {
 			continue;
+		}
+		if (nm == "cycles") {
+			cpi_str.cycles = nm;
+		} else if (nm == "instructions") {
+			cpi_str.instructions = nm;
+		} else if (nm == "cpu-clock") {
+			cpi_str.time = nm;
 		}
 		non_zero_legends++;
 		let this_pct = 100.0* (this_tot/event_total);
@@ -923,6 +932,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		legend_text_len += 5 + nm.length;
 
 		legend_str += '<span  title="'+title+'" class="'+disp_str+'" style="margin-right:5px; white-space: nowrap; display: inline-block;"><span id="'+hvr_clr+'_legendp_'+leg_num+'" class="legend_square" style="background-color: '+clr+'; display: inline-block"></span><span id="'+hvr_clr+'_legendt_'+leg_num+'">evt: '+nm+'</span></span>';
+	  }
+	  if (typeof cpi_str.cycles != 'undefined' &&
+			  typeof cpi_str.instructions != 'undefined' &&
+			  typeof cpi_str.time != 'undefined') {
+		  has_cpi = true;
 	  }
 	  for (let j=0; j < proc_arr.length; j++) {
 		let i = proc_arr[j][1];
@@ -1249,6 +1263,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let lkup = [];
 	let flm_obj = {};
 	let fl_end_sum = 0;
+	let fl_end_sum1 = 0;
+	let fl_end_sum2 = 0;
 	let fl_id = -1;
 	let current_tooltip_text = "";
 	let current_tooltip_shape = -1;
@@ -1276,7 +1292,24 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	let dbg_cntr2 = 0;
 
-	function build_flame(evt, cs_unit, callstack, val, txt_fld, cs_color) {
+	function fl_add_val(evt, component_evt, val, obj)
+	{
+		if (has_cpi && evt == "CPI") {
+			if (component_evt == cpi_str.time) {
+				obj.sum0 += val;
+			} else if (component_evt == cpi_str.cycles) {
+				obj.sum1 += val;
+			} else { // assume instructions
+				obj.sum2 += val;
+			}
+		}
+		else
+		{
+			obj.sum0 += val;
+		}
+	}
+
+	function build_flame(evt, cs_unit, callstack, val, txt_fld, cs_color, component_evt) {
 		// struct is:
 		//  holder (typ:0) obj has a list of all the siblings (sections of flame at same level with common parent)
 		/*     lvl 1       create a holder for level 1
@@ -1288,10 +1321,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		*   the 'dad' pointer in a sib points to its holder.
 		*   the 'dad' pointer in a holder points to the sib obj who created the holder obj
 		*   We should be able to walk back from the tip of the flame to base by following the dad pointers.
-                */
+        */
 		if (!(evt in g_fl_hsh[file_tag_idx])) {
 			g_fl_hsh[file_tag_idx][evt] = g_fl_arr[file_tag_idx].length;
-			g_fl_arr[file_tag_idx].push({event: evt, unit:cs_unit, level0_tot:-1.0});
+			g_fl_arr[file_tag_idx].push({event: evt, unit:cs_unit, level0_tot:-1.0, component_evt:component_evt});
 			let ln = g_fl_arr[file_tag_idx].length-1;
 			if (lhs_menu_ch_list_state == 0) {
 				for (let kk=0; kk < lhs_menu_ch_list.length; kk++) {
@@ -1332,9 +1365,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let csz = callstack.length;
 		if (g_fl_obj_rt[file_tag_idx][cs_idx] == null && g_fl_obj[file_tag_idx][cs_idx] == null) {
 			fl_id += 1;
-			g_fl_obj[file_tag_idx][cs_idx] = new Object({sum:0, lvl:0, lvl_sum:0, typ:0, key:callstack[0], sib_hsh:{}, sib_arr:[], dad:null, kids:null, id:fl_id, beg:0, end:0, color:cs_color, krnl:0});
+			g_fl_obj[file_tag_idx][cs_idx] = new Object({sum:0, sum1:0, sum2:0, lvl:0, lvl_sum:0, lvl_sum1:0, lvl_sum2:0, typ:0, key:callstack[0], sib_hsh:{}, sib_arr:[], dad:null, kids:null, id:fl_id, beg:0, end:0, color:cs_color, krnl:0});
 			g_fl_obj_rt[file_tag_idx][cs_idx] = g_fl_obj[file_tag_idx][cs_idx];
 			fl_end_sum = 0;
+			fl_end_sum1 = 0;
+			fl_end_sum2 = 0;
 			//console.log("flm: added nm= "+nm+", lvl= "+i);
 		}
 		g_fl_obj[file_tag_idx][cs_idx] = g_fl_obj_rt[file_tag_idx][cs_idx];
@@ -1350,27 +1385,65 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (nm.includes('[krnl]')) {
 					krnl = 1;
 				}
-				g_fl_obj[file_tag_idx][cs_idx].sib_arr.push(new Object({sum:0, lvl:i, lvl_sum:0, typ:1, key:nm, sib_hsh:{}, sib_arr:[], dad:g_fl_obj[file_tag_idx][cs_idx], kids:null, id:fl_id, beg:0, end:0, color:cs_color, krnl:krnl}));
+				g_fl_obj[file_tag_idx][cs_idx].sib_arr.push(new Object({sum:0, sum1:0, sum2:0, lvl:i, lvl_sum:0, lvl_sum1:0, lvl_sum2:0, typ:1, key:nm, sib_hsh:{}, sib_arr:[], dad:g_fl_obj[file_tag_idx][cs_idx], kids:null, id:fl_id, beg:0, end:0, color:cs_color, krnl:krnl}));
 				//console.log("flm: new sib_hsh["+nm+"]="+idx);
 			}
-			g_fl_obj[file_tag_idx][cs_idx].lvl_sum += val;
+			{
+				let op = {sum0:g_fl_obj[file_tag_idx][cs_idx].lvl_sum,
+					sum1:g_fl_obj[file_tag_idx][cs_idx].lvl_sum1,
+					sum2:g_fl_obj[file_tag_idx][cs_idx].lvl_sum2};
+				fl_add_val(evt, component_evt, val, op);
+				g_fl_obj[file_tag_idx][cs_idx].lvl_sum = op.sum0;
+				g_fl_obj[file_tag_idx][cs_idx].lvl_sum1 = op.sum1;
+				g_fl_obj[file_tag_idx][cs_idx].lvl_sum2 = op.sum2;
+			}
+			//g_fl_obj[file_tag_idx][cs_idx].lvl_sum, sum1:g_fl_obj[file_tag_idx][cs_idx].lvl_sum1});
+			{
+				let op = {sum0:g_fl_obj[file_tag_idx][cs_idx].sum,
+					sum1:g_fl_obj[file_tag_idx][cs_idx].sum1,
+					sum2:g_fl_obj[file_tag_idx][cs_idx].sum2};
+				fl_add_val(evt, component_evt, val, op);
+				g_fl_obj[file_tag_idx][cs_idx].sum = op.sum0;
+				g_fl_obj[file_tag_idx][cs_idx].sum1 = op.sum1;
+				g_fl_obj[file_tag_idx][cs_idx].sum2 = op.sum2;
+			}
+			//g_fl_obj[file_tag_idx][cs_idx].sum += val;
 			idx = g_fl_obj[file_tag_idx][cs_idx].sib_hsh[nm];
-			g_fl_obj[file_tag_idx][cs_idx].sum += val;
 			if ((i+1) == csz) {
-				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum += val;
+				let op = {sum0:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum,
+					sum1:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum1,
+					sum2:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum2};
+				fl_add_val(evt, component_evt, val, op);
+				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum = op.sum0;
+				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum1 = op.sum1;
+				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum2 = op.sum2;
+				/*g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum += val;*/
 			}
 			if ((i+1) < csz && g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].kids == null) {
 				// this flame goes above current level and doesn't already have holder for next level
 				// create the holder now and set the dad and kids pointers
 				// new holder obj dad points to this flame branch.
 				fl_id += 1;
-				let g_fl_obj2 = new Object({sum:0, lvl:i+1, lvl_sum:0, typ:0, key:callstack[i+1], sib_hsh:{}, sib_arr:[], dad:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx], kids:null, id:fl_id, beg:0, end:0, color:cs_color, krnl:0});
+				let g_fl_obj2 = new Object({sum:0, sum1:0, sum2:0, lvl:i+1, lvl_sum:0, lvl_sum1:0, lvl_sum2:0, typ:0, key:callstack[i+1], sib_hsh:{}, sib_arr:[], dad:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx], kids:null, id:fl_id, beg:0, end:0, color:cs_color, krnl:0});
 				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].kids = g_fl_obj2;
 			}
 			if ((i+1) == csz) {
-				fl_end_sum += val;
+				let op = {sum0:fl_end_sum, sum1:fl_end_sum1, sum2:fl_end_sum2};
+				fl_add_val(evt, component_evt, val, op);
+				fl_end_sum  = op.sum0;
+				fl_end_sum1 = op.sum1;
+				fl_end_sum2 = op.sum2;
 			}
-			g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum += val;
+			{
+				let op = {sum0:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum,
+					sum1:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum1,
+					sum2:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum2};
+				fl_add_val(evt, component_evt, val, op);
+				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum = op.sum0;
+				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum1 = op.sum1;
+				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum2 = op.sum2;
+			}
+			//g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum += val;
 			g_fl_obj[file_tag_idx][cs_idx] = g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].kids;
 		}
 		did_prt += 1;
@@ -1424,6 +1497,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (input_cs_evt != "" && use_fl_arr[cs_idx].event != input_cs_evt) {
 			continue;
 		}
+		//console.log("bld_fl_rpt evt= "+use_fl_arr[cs_idx].event+", inp_evt= "+input_cs_evt);
 		if (input_cs_evt == context_switch_event+"_offcpu" && ++dbg_cntr3 < 10) {
 			//console.log("b_fl_rpt: "+input_cs_evt);
 		}
@@ -1618,6 +1692,126 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			g_fl_arr[file_tag_idx][cs_idx].level0_tot = lvl0_sum;
 		}
 
+		function get_CPI(sum1, sum2) {
+			let cycl = sum1;
+			let inst = sum2;
+			let cpi = 0;
+			if (inst > 0) {
+				cpi = cycl/inst;
+			}
+			return cpi;
+		}
+		function get_CPI_str(sum1, sum2) {
+			let cpi = get_CPI(sum1, sum2);
+			let tstr = ", CPI= "+cpi.toFixed(3);
+			return tstr;
+		}
+
+		let cpi_gradient_shape = {};
+		let cpi_gradient = [];
+		let cpi_hist_hsh = {};
+		let cpi_hist_vec = [];
+		let rgb_clr = [];
+		let cpi_map_factor = 0.0;
+		let cpi_map_hi_2_rnk = {};
+
+		function build_cpi_gradient() 
+		{
+			let dbg_cpi_tm_tot = 0;
+			for (let i=0; i < fl_lkup.length; i++) {
+				for (let j=0; j < fl_lkup[i].length; j++) {
+					for (let k=0; k < fl_lkup[i][j].fl_obj.sib_arr.length; k++) {
+						// don't have the check on zooming x here.
+						// If we put it in then the colors 9for a given CPI) keeps changing as you zoom.
+						let cpi = get_CPI(fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum1,
+										fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum2);
+						let cpi_str = cpi.toFixed(2);
+						if (typeof cpi_hist_hsh[cpi_str] == 'undefined') {
+							cpi_hist_hsh[cpi_str] = cpi_hist_vec.length;
+							let ncpi = Math.round(cpi*100)/100;
+							if (ncpi == 0.0) {
+								console.log("_fl cpi_zero= "+cpi_hist_vec.length);
+							}
+							cpi_hist_vec.push({cpi:ncpi, sum: 0, smpls:0, smpls1:0, smpls2:0, tm:0, cycl:0, inst:0});
+						}	
+						let h_i = cpi_hist_hsh[cpi_str];
+						fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx = h_i;
+						if (fl_lkup[i][j].fl_obj.sib_arr[k].sum > 0) {
+							cpi_hist_vec[h_i].smpls++;
+						}
+						if (fl_lkup[i][j].fl_obj.sib_arr[k].sum1 > 0) {
+							cpi_hist_vec[h_i].smpls1++;
+						}
+						if (fl_lkup[i][j].fl_obj.sib_arr[k].sum2 > 0) {
+							cpi_hist_vec[h_i].smpls2++;
+						}
+						cpi_hist_vec[h_i].sum  += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
+						cpi_hist_vec[h_i].tm   += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
+						cpi_hist_vec[h_i].cycl += fl_lkup[i][j].fl_obj.sib_arr[k].sum1;
+						cpi_hist_vec[h_i].inst += fl_lkup[i][j].fl_obj.sib_arr[k].sum2;
+						//if ( fl_lkup[i][j].fl_obj.sib_arr[k].kids == null) {
+							dbg_cpi_tm_tot += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
+						//}
+					}
+				}
+			}
+			let cpi_hist_lkup = [];
+			for (let kk=0; kk < cpi_hist_vec.length; kk++) {
+				cpi_hist_lkup.push(kk);
+			}
+			function sortHist(a, b) {
+				return cpi_hist_vec[a].cpi - cpi_hist_vec[b].cpi;
+			}
+			cpi_hist_lkup.sort(sortHist);
+			for (let kk=0; kk < cpi_hist_vec.length; kk++) {
+				cpi_map_hi_2_rnk[cpi_hist_lkup[kk]] = kk;
+			}
+			let chv_sz = cpi_hist_vec.length;
+			for (let kk=0; kk <= 255; kk++) {
+				let str = vsprintf("#ff%02x00", [kk]);
+				rgb_clr.push(str);
+			}
+			for (let kk=255; kk >= 0; kk--) {
+				let str = vsprintf("#%02xff00", [kk]);
+				rgb_clr.push(str);
+			}
+			for (let kk=0; kk <= 255; kk++) {
+				let str = vsprintf("#00ff%02x", [kk]);
+				rgb_clr.push(str);
+			}
+			for (let kk=255; kk >= 0; kk--) {
+				let str = vsprintf("#00%02xff", [kk]);
+				rgb_clr.push(str);
+			}
+
+			console.log("__cpi_tm_tot_= "+(1.0e-9 * dbg_cpi_tm_tot)+
+					",cpi_hist_vec.len= "+cpi_hist_vec.length+
+					",cpi_min= "+cpi_hist_vec[cpi_hist_lkup[1]].cpi+
+					",cpi_max= "+cpi_hist_vec[cpi_hist_lkup[cpi_hist_vec.length-1]].cpi);
+			if (cpi_hist_vec.length > 0) {
+				cpi_map_factor = 1024.0/cpi_hist_vec.length;
+			}
+			let cnvs_wd = mycanvas3.width - xPadding;
+			let blk_wd = cnvs_wd / 1024;
+			if (blk_wd < 1) { blk_wd = 1; }
+			//abcd
+			cpi_gradient_shape = {x0:0, x1:0, y0:0, y1:0};
+			for (let kk=0; kk <  cpi_hist_vec.length; kk++) {
+				ctx3.beginPath();
+				let nkk = Math.floor(kk * cpi_map_factor);
+				ctx3.fillStyle = rgb_clr[nkk];
+				let x0= kk*blk_wd;
+				ctx3.fillRect(x0, 0, blk_wd, 25);
+				let cpi0 = cpi_hist_vec[cpi_hist_lkup[kk]].cpi;
+				cpi_gradient.push({idx:kk, x0:x0, x1:(x0+blk_wd), y0:0, y1:25, cpi0:cpi0, cpi1:(cpi0+0.01)});
+				cpi_gradient_shape.x1 = x0+blk_wd;
+				cpi_gradient_shape.y1 = 25;
+
+				//ctx3.strokeStyle = 'black';
+				//ctx3.strokeRect(bg0[0], bg0[1], wd, hi);
+			}
+		}
+
 		function fl_redraw(cs_idx, ctx_rng, do_draw) {
 			let lvl0_sum = 0.0;
 			let x_min = ctx_rng.x_min;
@@ -1634,6 +1828,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				y_max = fl_ymx;
 			}
 			let got_y_max = 0.0;
+			if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
+				build_cpi_gradient();
+			}
 			for (let i=0; i < fl_lkup.length; i++) {
 				for (let j=0; j < fl_lkup[i].length; j++) {
 					for (let k=0; k < fl_lkup[i][j].fl_obj.sib_arr.length; k++) {
@@ -1658,7 +1855,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								let diff_tot = fl_lkup[i][j].fl_obj.sib_arr[k].end - fl_lkup[i][j].fl_obj.sib_arr[k].beg;
 								let diff_zm = x1 - x0;
 								if (diff_tot > 0.0) {
-								lvl0_sum += fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum * diff_zm/diff_tot;
+									lvl0_sum += fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum * diff_zm/diff_tot;
 								}
 							}
 							let bg0 = fl_xlate_ctx(mycanvas3, x0, y0, x_min, x_max, y_min, y_max);
@@ -1670,7 +1867,20 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							let wd = bg1[0] - bg0[0];
 							let hi = bg1[1] - bg0[1];
 							ctx3.beginPath();
-							ctx3.fillStyle = fl_lkup[i][j].fl_obj.sib_arr[k].color;
+							if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
+								ctx3.fillStyle = fl_lkup[i][j].fl_obj.sib_arr[k].color;
+							} else {
+								let h_i = fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx;
+								if (cpi_hist_vec[h_i].cpi == 0.0) {
+									ctx3.fillStyle = 'white';
+								} else {
+									let clr_idx = cpi_map_hi_2_rnk[h_i];
+									//clr_idx *= cpi_map_factor;
+									//clr_idx = Math.floor(clr_idx);
+									let nkk = Math.floor(clr_idx * cpi_map_factor);
+									ctx3.fillStyle = rgb_clr[nkk];
+								}
+							}
 							ctx3.fillRect(bg0[0], bg0[1], wd, hi);
 							ctx3.strokeStyle = 'black';
 							ctx3.strokeRect(bg0[0], bg0[1], wd, hi);
@@ -1711,8 +1921,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								let spc = (-hi - (font_sz))/2;
 								//let tm = 1.0e-9 * fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum;
 								let tm = fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum;
-								let tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
-								let tstr = fl_lkup[i][j].fl_obj.sib_arr[k].key + ", tm= "+tm_str;
+								let tm_str;
+								if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
+									tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
+								} else {
+									tm_str = tm_diff_str(tm, 3, cpi_str.time_unit);
+								}
+								let tstr = fl_lkup[i][j].fl_obj.sib_arr[k].key + ", val= "+tm_str;
+								if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
+									tstr += get_CPI_str(fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum1,
+											fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum2);
+								}
 								let sz = ctx.measureText(tstr).width;
 								ctx3.textAlign = "left";
 								ctx3.fillStyle = 'black';
@@ -1736,10 +1955,19 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 				//str += "<br>fl_lkup lvl["+i+"]: sum2= "+(1.0e-9 * sum2)+", sum2b= "+(1.0e-9 * sum2b)+", sum_sib= "+(1.0e-9*sum_sib)+", kids= "+kids;
 			}
-			let lvl0_str = tm_diff_str(g_fl_arr[file_tag_idx][cs_idx].level0_tot, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
+			let lvl0_str;
+			if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
+				lvl0_str = tm_diff_str(g_fl_arr[file_tag_idx][cs_idx].level0_tot, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
+			} else {
+				lvl0_str = tm_diff_str(g_fl_arr[file_tag_idx][cs_idx].level0_tot, 3, cpi_str.time_unit);
+			}
 			let zoom_str = "";
 			if (g_fl_arr[file_tag_idx][cs_idx].level0_tot != lvl0_sum) {
-				zoom_str = ", zoomed to "+tm_diff_str(lvl0_sum, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
+				if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
+					zoom_str = ", zoomed to "+tm_diff_str(lvl0_sum, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
+				} else {
+					zoom_str = ", zoomed to "+tm_diff_str(lvl0_sum, 3, cpi_str.time_unit);
+				}
 			}
 			let file_tag = chart_data.file_tag;
 			if (file_tag.length > 0) {
@@ -1791,8 +2019,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						let f_o = fl_lkup[i][j].fl_obj.sib_arr[k];
 						let tms = 0;
 						let tm = f_o.lvl_sum;
-						let tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
+						let tm_str;
+						if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
+							tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
+						} else {
+							tm_str = tm_diff_str(tm, 3, cpi_str.time_unit);
+						}
+						//abcd
 						let cs_str3 = "x= "+x+", val= "+tm_str;
+						if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
+							cs_str3 += get_CPI_str(f_o.lvl_sum1, f_o.lvl_sum2);
+						}
 						while (true) {
 							if (f_o.dad == null) {break;}
 							tms += 1;
@@ -1811,6 +2048,19 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					}
 				}
 				//str += "<br>fl_lkup lvl["+i+"]: sum2= "+(1.0e-9 * sum2)+", sum2b= "+(1.0e-9 * sum2b)+", sum_sib= "+(1.0e-9*sum_sib)+", kids= "+kids;
+			}
+			if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
+				//console.log("x= "+x+",x_px= "+x_px);
+				if (x_px >= cpi_gradient_shape.x0 && x_px <= cpi_gradient_shape.x1 &&
+					y_px >= cpi_gradient_shape.y0 && y_px <= cpi_gradient_shape.y1) {
+					for (let kk=0; kk < cpi_gradient.length; kk++) {
+						if (cpi_gradient[kk].x0 <= x_px && x_px <= cpi_gradient[kk].x1) {
+							let str= "CPI= "+cpi_gradient[kk].cpi0 + " - " +cpi_gradient[kk].cpi1.toFixed(2);
+							setTooltipText(mytooltip3, mycanvas3, str, x_px, y_px);
+							return "";
+						}
+					}
+				}
 			}
 			clearToolTipText(mytooltip3);
 			return "";
@@ -2075,7 +2325,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let cs_str_period = 0;
 		let cs_sum = 0;
 		let dbg_cntr = 0;
-		//abcd
 		let fl_tm_bld = 0;
 		let fl_tm_rpt = 0;
 		for (let i=0; i < chart_data.myshapes.length; i++) {
@@ -2327,7 +2576,21 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						}
 						if (!doing_idle && chart_data.chart_tag == "PCT_BUSY_BY_CPU") {
 							let cs_ret = get_cs_str(i, nm);
-							build_flame(event_list[fe_2].event, unit, cs_ret.arr, period, hvr_clr, cs_clr);
+							build_flame(event_list[fe_2].event, unit, cs_ret.arr, period, hvr_clr, cs_clr, null);
+							if (has_cpi && (
+								event_list[fe_2].event == cpi_str.cycles ||
+								event_list[fe_2].event == cpi_str.time ||
+								event_list[fe_2].event == cpi_str.instructions)
+								) {
+								if (event_list[fe_2].event == cpi_str.cycles) {
+									cpi_str.cycles_unit = unit;
+								} else if (event_list[fe_2].event == cpi_str.time) {
+									cpi_str.time_unit = unit;
+								} else if (event_list[fe_2].event == cpi_str.instructions) {
+									cpi_str.instructions_unit = unit;
+								}
+								build_flame("CPI", unit, cs_ret.arr, period, hvr_clr, cs_clr, event_list[fe_2].event);
+							}
 							/*if (build_flame_rpt_timeout != null) {
 								clearTimeout(build_flame_rpt_timeout);
 								build_flame_rpt_timeout = null;
@@ -2335,7 +2598,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						}
 						if ((chart_data.chart_tag == "WAIT_TIME_BY_proc")) {
 							let cs_ret = get_cs_str(i, nm);
-							build_flame(context_switch_event+"_offcpu", unit, cs_ret.arr, period, hvr_clr, clr);
+							build_flame(context_switch_event+"_offcpu", unit, cs_ret.arr, period, hvr_clr, clr, null);
 							/*if (build_flame_rpt_timeout != null) {
 								clearTimeout(build_flame_rpt_timeout);
 								build_flame_rpt_timeout = null;
@@ -2343,7 +2606,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						}
 						if ((chart_data.chart_tag == "RUN_QUEUE")) {
 							let cs_ret = get_cs_str(i, nm);
-							build_flame(context_switch_event+"_runqueue", unit, cs_ret.arr, period, hvr_clr, clr);
+							build_flame(context_switch_event+"_runqueue", unit, cs_ret.arr, period, hvr_clr, clr, null);
 							/*if (build_flame_rpt_timeout != null) {
 								clearTimeout(build_flame_rpt_timeout);
 								build_flame_rpt_timeout = null;
