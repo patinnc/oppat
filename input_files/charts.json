@@ -301,7 +301,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
-			"use_chart":"d"},
+			"use_chart":"y"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
 			"use_chart":"d", "y_fmt":"%.1f%%"},
 		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc", "chart_type":"stacked",
