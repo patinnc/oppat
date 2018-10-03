@@ -806,17 +806,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let use_color_list = gcolor_lst;
 	let legend_text_len = 0;
 	let non_zero_legends = 0;
-	let has_cpi = false;
+	let has_cpi  = false;
+	let has_gips = false;
 	let cpi_str = {};
-	//console.log(c20);
 	if (ch_type == "line" || ch_type == "stacked") {
 		if (typeof event_list == 'undefined') {
 			console.log("screw up here. event_list not defined. event_list=");
 			console.log(event_list);
-		}
-		if (typeof c10 == 'undefined') {
-			console.log("screw up here. c10 not defined. c10=");
-			console.log(c10);
 		}
 	  if (event_list.length < c10.length) {
 		use_color_list = c10;
@@ -885,6 +881,35 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		legend_str += '<span  title="'+title+'" class="'+disp_str+'" style="margin-right:5px; white-space: nowrap; display: inline-block;"><span id="'+hvr_clr+'_legendp_'+leg_num+'" class="legend_square" style="background-color: '+clr+'; display: inline-block"></span><span id="'+hvr_clr+'_legendt_'+leg_num+'">'+evt_str+nm+'</span></span>';
 	  }
 	} else {
+		let cpi_tm = "";
+		let cpi_tm2 = "";
+		let cpi_cycles = "";
+		let cpi_cycles2 = "";
+		for (let j=0; j < event_list.length; j++) {
+			let nm = event_list[j].event;
+			//if (ev != "CSwitch" && ev != "sched:sched_switch" && ev != "cpu-clock") {
+			if (!event_list[j].has_callstacks) {
+				continue;
+			}
+			if (nm == "CSwitch" || nm == "sched:sched_switch") {
+				cpi_tm2 = nm;
+			}
+			if (nm == "cpu-clock") {
+				cpi_tm = nm;
+			}
+			if (nm == "cycles") {
+				cpi_cycles = nm;
+			}
+			if (nm == "ref-cycles") {
+				cpi_cycles2 = nm;
+			}
+		}
+		if (cpi_tm == "" && cpi_tm2 != "") {
+			cpi_tm = cpi_tm2;
+		}
+		if (cpi_cycles == "" && cpi_cycles2 != "") {
+			cpi_cycles = cpi_cycles2;
+		}
 	  for (let j=0; j < event_list.length; j++) {
 		let i = event_list[j].idx;
 		let nm = event_list[j].event;
@@ -900,11 +925,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (fe_idx > -1 && chart_data.flnm_evt[fe_idx].prf_obj_idx != this_chart_prf_obj_idx) {
 			continue;
 		}
-		if (nm == "cycles") {
+		if (cpi_cycles != "" && nm == cpi_cycles) {
 			cpi_str.cycles = nm;
 		} else if (nm == "instructions") {
 			cpi_str.instructions = nm;
-		} else if (nm == "cpu-clock") {
+		} else if (cpi_tm != "" && nm == cpi_tm) {
 			cpi_str.time = nm;
 		}
 		non_zero_legends++;
@@ -937,6 +962,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			  typeof cpi_str.instructions != 'undefined' &&
 			  typeof cpi_str.time != 'undefined') {
 		  has_cpi = true;
+	  }
+	  if ( typeof cpi_str.instructions != 'undefined' &&
+			  typeof cpi_str.time != 'undefined') {
+		  has_gips = true;
 	  }
 	  for (let j=0; j < proc_arr.length; j++) {
 		let i = proc_arr[j][1];
@@ -1294,7 +1323,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	function fl_add_val(evt, component_evt, val, obj)
 	{
-		if (has_cpi && evt == "CPI") {
+		if (has_gips && evt == "GIPS") {
+			if (component_evt == cpi_str.time) {
+				obj.sum0 += val;
+			} else if (component_evt == cpi_str.instructions) {
+				obj.sum2 += val;
+			}
+		} else if (has_cpi && evt == "CPI") {
 			if (component_evt == cpi_str.time) {
 				obj.sum0 += val;
 			} else if (component_evt == cpi_str.cycles) {
@@ -1692,63 +1727,86 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			g_fl_arr[file_tag_idx][cs_idx].level0_tot = lvl0_sum;
 		}
 
-		function get_CPI(sum1, sum2) {
-			let cycl = sum1;
-			let inst = sum2;
-			let cpi = 0;
-			if (inst > 0) {
-				cpi = cycl/inst;
+		function get_CPI(evt, f_o) {
+			if (evt == "CPI") {
+				let cycl = f_o.lvl_sum1;
+				let inst = f_o.lvl_sum2;
+				let cpi = 0;
+				if (inst > 0) {
+					cpi = cycl/inst;
+				}
+				return cpi;
 			}
-			return cpi;
+			if (evt == "GIPS") {
+				let tm   = f_o.lvl_sum;
+				let inst = f_o.lvl_sum2;
+				let gips = 0;
+				if (tm > 0) {
+					gips = inst/tm;
+				}
+				return gips;
+			}
+			return 0;
 		}
-		function get_CPI_str(sum1, sum2) {
-			let cpi = get_CPI(sum1, sum2);
-			let tstr = ", CPI= "+cpi.toFixed(3);
+		function get_CPI_str(evt, f_o) {
+			let cpi = get_CPI(evt, f_o);
+			let tstr = ", "+evt+"= "+cpi.toFixed(3);
 			return tstr;
 		}
 
-		let cpi_gradient_shape = {};
-		let cpi_gradient = [];
-		let cpi_hist_hsh = {};
-		let cpi_hist_vec = [];
-		let rgb_clr = [];
-		let cpi_map_factor = 0.0;
-		let cpi_map_hi_2_rnk = {};
 
-		function build_cpi_gradient() 
+		let evt_idx_hash = {}
+		evt_idx_hash["CPI"]  = 0;
+		evt_idx_hash["GIPS"] = 1;
+		let cpi_gradient_shape = [{}, {}];
+		let cpi_gradient = [[], []];
+		let cpi_hist_hsh = [{}, {}];
+		let cpi_hist_vec = [[], []];
+		let rgb_clr = [];
+		let cpi_map_factor = [0.0, 0.0];
+		let cpi_map_hi_2_rnk = [{}, {}];
+
+		function build_cpi_gradient(evt)
 		{
 			let dbg_cpi_tm_tot = 0;
+			if (typeof evt_idx_hash[evt] == 'undefined') {
+				console.log("unexpected evt= "+evt);
+				return;
+			}
+			let evt_idx = evt_idx_hash[evt];
 			for (let i=0; i < fl_lkup.length; i++) {
 				for (let j=0; j < fl_lkup[i].length; j++) {
 					for (let k=0; k < fl_lkup[i][j].fl_obj.sib_arr.length; k++) {
 						// don't have the check on zooming x here.
 						// If we put it in then the colors 9for a given CPI) keeps changing as you zoom.
-						let cpi = get_CPI(fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum1,
-										fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum2);
+						let cpi = get_CPI(evt, fl_lkup[i][j].fl_obj.sib_arr[k]);
 						let cpi_str = cpi.toFixed(2);
-						if (typeof cpi_hist_hsh[cpi_str] == 'undefined') {
-							cpi_hist_hsh[cpi_str] = cpi_hist_vec.length;
+						if (typeof cpi_hist_hsh[evt_idx][cpi_str] == 'undefined') {
+							cpi_hist_hsh[evt_idx][cpi_str] = cpi_hist_vec[evt_idx].length;
 							let ncpi = Math.round(cpi*100)/100;
 							if (ncpi == 0.0) {
-								console.log("_fl cpi_zero= "+cpi_hist_vec.length);
+								console.log("_fl cpi_zero= "+cpi_hist_vec[evt_idx].length);
 							}
-							cpi_hist_vec.push({cpi:ncpi, sum: 0, smpls:0, smpls1:0, smpls2:0, tm:0, cycl:0, inst:0});
-						}	
-						let h_i = cpi_hist_hsh[cpi_str];
-						fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx = h_i;
+							cpi_hist_vec[evt_idx].push({cpi:ncpi, sum: 0, smpls:0, smpls1:0, smpls2:0, tm:0, cycl:0, inst:0});
+						}
+						let h_i = cpi_hist_hsh[evt_idx][cpi_str];
+						if (typeof fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx == 'undefined') {
+							fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx = [-1, -1];
+						}
+						fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx[evt_idx] = h_i;
 						if (fl_lkup[i][j].fl_obj.sib_arr[k].sum > 0) {
-							cpi_hist_vec[h_i].smpls++;
+							cpi_hist_vec[evt_idx][h_i].smpls++;
 						}
 						if (fl_lkup[i][j].fl_obj.sib_arr[k].sum1 > 0) {
-							cpi_hist_vec[h_i].smpls1++;
+							cpi_hist_vec[evt_idx][h_i].smpls1++;
 						}
 						if (fl_lkup[i][j].fl_obj.sib_arr[k].sum2 > 0) {
-							cpi_hist_vec[h_i].smpls2++;
+							cpi_hist_vec[evt_idx][h_i].smpls2++;
 						}
-						cpi_hist_vec[h_i].sum  += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
-						cpi_hist_vec[h_i].tm   += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
-						cpi_hist_vec[h_i].cycl += fl_lkup[i][j].fl_obj.sib_arr[k].sum1;
-						cpi_hist_vec[h_i].inst += fl_lkup[i][j].fl_obj.sib_arr[k].sum2;
+						cpi_hist_vec[evt_idx][h_i].sum  += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
+						cpi_hist_vec[evt_idx][h_i].tm   += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
+						cpi_hist_vec[evt_idx][h_i].cycl += fl_lkup[i][j].fl_obj.sib_arr[k].sum1;
+						cpi_hist_vec[evt_idx][h_i].inst += fl_lkup[i][j].fl_obj.sib_arr[k].sum2;
 						//if ( fl_lkup[i][j].fl_obj.sib_arr[k].kids == null) {
 							dbg_cpi_tm_tot += fl_lkup[i][j].fl_obj.sib_arr[k].sum;
 						//}
@@ -1756,17 +1814,24 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 			}
 			let cpi_hist_lkup = [];
-			for (let kk=0; kk < cpi_hist_vec.length; kk++) {
+			for (let kk=0; kk < cpi_hist_vec[evt_idx].length; kk++) {
 				cpi_hist_lkup.push(kk);
 			}
 			function sortHist(a, b) {
-				return cpi_hist_vec[a].cpi - cpi_hist_vec[b].cpi;
+				return cpi_hist_vec[evt_idx][a].cpi - cpi_hist_vec[evt_idx][b].cpi;
 			}
-			cpi_hist_lkup.sort(sortHist);
-			for (let kk=0; kk < cpi_hist_vec.length; kk++) {
-				cpi_map_hi_2_rnk[cpi_hist_lkup[kk]] = kk;
+			function sortHistDesc(a, b) {
+				return cpi_hist_vec[evt_idx][b].cpi - cpi_hist_vec[evt_idx][a].cpi;
 			}
-			let chv_sz = cpi_hist_vec.length;
+			if (evt == "CPI") {
+				cpi_hist_lkup.sort(sortHist);
+			} else if (evt == "GIPS") {
+				cpi_hist_lkup.sort(sortHistDesc);
+			}
+			for (let kk=0; kk < cpi_hist_vec[evt_idx].length; kk++) {
+				cpi_map_hi_2_rnk[evt_idx][cpi_hist_lkup[kk]] = kk;
+			}
+			let chv_sz = cpi_hist_vec[evt_idx].length;
 			for (let kk=0; kk <= 255; kk++) {
 				let str = vsprintf("#ff%02x00", [kk]);
 				rgb_clr.push(str);
@@ -1784,28 +1849,30 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				rgb_clr.push(str);
 			}
 
+			/*
 			console.log("__cpi_tm_tot_= "+(1.0e-9 * dbg_cpi_tm_tot)+
-					",cpi_hist_vec.len= "+cpi_hist_vec.length+
-					",cpi_min= "+cpi_hist_vec[cpi_hist_lkup[1]].cpi+
-					",cpi_max= "+cpi_hist_vec[cpi_hist_lkup[cpi_hist_vec.length-1]].cpi);
-			if (cpi_hist_vec.length > 0) {
-				cpi_map_factor = 1024.0/cpi_hist_vec.length;
+					",cpi_hist_vec.len= "+cpi_hist_vec[evt_idx].length+
+					",cpi_min= "+cpi_hist_vec[evt_idx][cpi_hist_lkup[1]].cpi+
+					",cpi_max= "+cpi_hist_vec[evt_idx][cpi_hist_lkup[cpi_hist_vec[evt_idx].length-1]].cpi);
+					*/
+			if (cpi_hist_vec[evt_idx].length > 0) {
+				cpi_map_factor[evt_idx] = 1024.0/cpi_hist_vec[evt_idx].length;
 			}
 			let cnvs_wd = mycanvas3.width - xPadding;
 			let blk_wd = cnvs_wd / 1024;
 			if (blk_wd < 1) { blk_wd = 1; }
 			//abcd
-			cpi_gradient_shape = {x0:0, x1:0, y0:0, y1:0};
-			for (let kk=0; kk <  cpi_hist_vec.length; kk++) {
+			cpi_gradient_shape[evt_idx] = {x0:0, x1:0, y0:0, y1:0};
+			for (let kk=0; kk <  cpi_hist_vec[evt_idx].length; kk++) {
 				ctx3.beginPath();
-				let nkk = Math.floor(kk * cpi_map_factor);
+				let nkk = Math.floor(kk * cpi_map_factor[evt_idx]);
 				ctx3.fillStyle = rgb_clr[nkk];
 				let x0= kk*blk_wd;
 				ctx3.fillRect(x0, 0, blk_wd, 25);
-				let cpi0 = cpi_hist_vec[cpi_hist_lkup[kk]].cpi;
-				cpi_gradient.push({idx:kk, x0:x0, x1:(x0+blk_wd), y0:0, y1:25, cpi0:cpi0, cpi1:(cpi0+0.01)});
-				cpi_gradient_shape.x1 = x0+blk_wd;
-				cpi_gradient_shape.y1 = 25;
+				let cpi0 = cpi_hist_vec[evt_idx][cpi_hist_lkup[kk]].cpi;
+				cpi_gradient[evt_idx].push({idx:kk, x0:x0, x1:(x0+blk_wd), y0:0, y1:25, cpi0:cpi0, cpi1:(cpi0+0.01)});
+				cpi_gradient_shape[evt_idx].x1 = x0+blk_wd;
+				cpi_gradient_shape[evt_idx].y1 = 25;
 
 				//ctx3.strokeStyle = 'black';
 				//ctx3.strokeRect(bg0[0], bg0[1], wd, hi);
@@ -1828,8 +1895,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				y_max = fl_ymx;
 			}
 			let got_y_max = 0.0;
-			if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
-				build_cpi_gradient();
+			let evt_nm = g_fl_arr[file_tag_idx][cs_idx].event;
+			let evt_idx = -1;
+			if (evt_nm == "CPI" || evt_nm == "GIPS") {
+				evt_idx = evt_idx_hash[evt_nm];
+				build_cpi_gradient(evt_nm);
 			}
 			for (let i=0; i < fl_lkup.length; i++) {
 				for (let j=0; j < fl_lkup[i].length; j++) {
@@ -1867,17 +1937,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							let wd = bg1[0] - bg0[0];
 							let hi = bg1[1] - bg0[1];
 							ctx3.beginPath();
-							if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
+							if (evt_nm != "CPI" && evt_nm != "GIPS") {
 								ctx3.fillStyle = fl_lkup[i][j].fl_obj.sib_arr[k].color;
 							} else {
-								let h_i = fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx;
-								if (cpi_hist_vec[h_i].cpi == 0.0) {
+								let h_i = fl_lkup[i][j].fl_obj.sib_arr[k].cpi_idx[evt_idx];
+								if (cpi_hist_vec[evt_idx][h_i].cpi == 0.0) {
 									ctx3.fillStyle = 'white';
 								} else {
-									let clr_idx = cpi_map_hi_2_rnk[h_i];
+									let clr_idx = cpi_map_hi_2_rnk[evt_idx][h_i];
 									//clr_idx *= cpi_map_factor;
 									//clr_idx = Math.floor(clr_idx);
-									let nkk = Math.floor(clr_idx * cpi_map_factor);
+									let nkk = Math.floor(clr_idx * cpi_map_factor[evt_idx]);
 									ctx3.fillStyle = rgb_clr[nkk];
 								}
 							}
@@ -1922,15 +1992,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								//let tm = 1.0e-9 * fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum;
 								let tm = fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum;
 								let tm_str;
-								if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
-									tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
-								} else {
+								if (evt_nm == "CPI" || evt_nm == "GIPS") {
 									tm_str = tm_diff_str(tm, 3, cpi_str.time_unit);
+								} else {
+									tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
 								}
 								let tstr = fl_lkup[i][j].fl_obj.sib_arr[k].key + ", val= "+tm_str;
-								if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
-									tstr += get_CPI_str(fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum1,
-											fl_lkup[i][j].fl_obj.sib_arr[k].lvl_sum2);
+								if (evt_nm == "CPI" || evt_nm == "GIPS") {
+									tstr += get_CPI_str(evt_nm, fl_lkup[i][j].fl_obj.sib_arr[k]);
 								}
 								let sz = ctx.measureText(tstr).width;
 								ctx3.textAlign = "left";
@@ -1956,17 +2025,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				//str += "<br>fl_lkup lvl["+i+"]: sum2= "+(1.0e-9 * sum2)+", sum2b= "+(1.0e-9 * sum2b)+", sum_sib= "+(1.0e-9*sum_sib)+", kids= "+kids;
 			}
 			let lvl0_str;
-			if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
-				lvl0_str = tm_diff_str(g_fl_arr[file_tag_idx][cs_idx].level0_tot, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
-			} else {
+			if (evt_nm == "CPI" || evt_nm == "GIPS") {
 				lvl0_str = tm_diff_str(g_fl_arr[file_tag_idx][cs_idx].level0_tot, 3, cpi_str.time_unit);
+			} else {
+				lvl0_str = tm_diff_str(g_fl_arr[file_tag_idx][cs_idx].level0_tot, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
 			}
 			let zoom_str = "";
 			if (g_fl_arr[file_tag_idx][cs_idx].level0_tot != lvl0_sum) {
-				if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
-					zoom_str = ", zoomed to "+tm_diff_str(lvl0_sum, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
-				} else {
+				if (evt_nm == "CPI" || evt_nm == "GIPS") {
 					zoom_str = ", zoomed to "+tm_diff_str(lvl0_sum, 3, cpi_str.time_unit);
+				} else {
+					zoom_str = ", zoomed to "+tm_diff_str(lvl0_sum, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
 				}
 			}
 			let file_tag = chart_data.file_tag;
@@ -2001,6 +2070,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		fl_redraw(cs_idx, ctx3_range, true);
 
 		function fl_lkup_func(x, y, x_px, y_px, xm1, xp1) {
+			let evt_nm = g_fl_arr[file_tag_idx][cs_idx].event;
 			for (let i=0; i < fl_lkup.length; i++) {
 				if (y < i || y > (1.0 + i)) {
 					continue;
@@ -2020,15 +2090,15 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						let tms = 0;
 						let tm = f_o.lvl_sum;
 						let tm_str;
-						if (g_fl_arr[file_tag_idx][cs_idx].event != "CPI") {
-							tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
-						} else {
+						if (evt_nm == "CPI" || evt_nm == "GIPS") {
 							tm_str = tm_diff_str(tm, 3, cpi_str.time_unit);
+						} else {
+							tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
 						}
 						//abcd
 						let cs_str3 = "x= "+x+", val= "+tm_str;
-						if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
-							cs_str3 += get_CPI_str(f_o.lvl_sum1, f_o.lvl_sum2);
+						if (evt_nm == "CPI" || evt_nm == "GIPS") {
+							cs_str3 += get_CPI_str(evt_nm, f_o);
 						}
 						while (true) {
 							if (f_o.dad == null) {break;}
@@ -2049,13 +2119,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 				//str += "<br>fl_lkup lvl["+i+"]: sum2= "+(1.0e-9 * sum2)+", sum2b= "+(1.0e-9 * sum2b)+", sum_sib= "+(1.0e-9*sum_sib)+", kids= "+kids;
 			}
-			if (g_fl_arr[file_tag_idx][cs_idx].event == "CPI") {
+			if (evt_nm == "CPI" || evt_nm == "GIPS") {
+				let evt_idx = evt_idx_hash[evt_nm];
 				//console.log("x= "+x+",x_px= "+x_px);
-				if (x_px >= cpi_gradient_shape.x0 && x_px <= cpi_gradient_shape.x1 &&
-					y_px >= cpi_gradient_shape.y0 && y_px <= cpi_gradient_shape.y1) {
-					for (let kk=0; kk < cpi_gradient.length; kk++) {
-						if (cpi_gradient[kk].x0 <= x_px && x_px <= cpi_gradient[kk].x1) {
-							let str= "CPI= "+cpi_gradient[kk].cpi0 + " - " +cpi_gradient[kk].cpi1.toFixed(2);
+				if (x_px >= cpi_gradient_shape[evt_idx].x0 && x_px <= cpi_gradient_shape[evt_idx].x1 &&
+					y_px >= cpi_gradient_shape[evt_idx].y0 && y_px <= cpi_gradient_shape[evt_idx].y1) {
+					for (let kk=0; kk < cpi_gradient[evt_idx].length; kk++) {
+						if (cpi_gradient[evt_idx][kk].x0 <= x_px && x_px <= cpi_gradient[evt_idx][kk].x1) {
+							let str= evt_nm+"= "+cpi_gradient[evt_idx][kk].cpi0 + " - " +cpi_gradient[evt_idx][kk].cpi1.toFixed(2);
 							setTooltipText(mytooltip3, mycanvas3, str, x_px, y_px);
 							return "";
 						}
@@ -2539,8 +2610,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							}
 							period *= 1e9;
 							unit = 'nsecs'; // see tm_diff_str() for supported units
-						}
-						if (ev == "SampledProfile") {
+						} else if (ev == "SampledProfile") {
 							// the default SampledProfile interval seems to 1 millisec. convert secs to nanaosecs.
 							// The other events (like cycles and instructions) have about 1e9 occurences/sec so
 							// using ns for time gives a similar 'occurences/sec'.
@@ -2549,6 +2619,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							period *= 1e9; // and then to nsecs
 							//unit = 'msecs'; // see tm_diff_str() for supported units
 							unit = 'nsecs'; // see tm_diff_str() for supported units
+						} else {
+							period = chart_data.myshapes[i].ival[IVAL_PERIOD];
 						}
 						if (ev == 'cpu-clock' || ev == 'task-clock') {
 							unit = 'nsecs'; // see tm_diff_str() for supported units
@@ -2590,6 +2662,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 									cpi_str.instructions_unit = unit;
 								}
 								build_flame("CPI", unit, cs_ret.arr, period, hvr_clr, cs_clr, event_list[fe_2].event);
+							}
+							if (has_gips && (
+								event_list[fe_2].event == cpi_str.time ||
+								event_list[fe_2].event == cpi_str.instructions)
+								) {
+								if (event_list[fe_2].event == cpi_str.time) {
+									cpi_str.time_unit = unit;
+								} else if (event_list[fe_2].event == cpi_str.instructions) {
+									cpi_str.instructions_unit = unit;
+								}
+								build_flame("GIPS", unit, cs_ret.arr, period, hvr_clr, cs_clr, event_list[fe_2].event);
 							}
 							/*if (build_flame_rpt_timeout != null) {
 								clearTimeout(build_flame_rpt_timeout);
