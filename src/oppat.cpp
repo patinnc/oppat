@@ -1347,6 +1347,7 @@ static std::string build_flnm_evt_string(uint32_t file_grp, int evt_idx, std::ve
 			", \"idx\":"+std::to_string(i)+
 			", \"file_tag_idx\":"+std::to_string(file_tag_idx)+
 			", \"prf_obj_idx\":"+std::to_string(flnm_evt_vec[file_tag_idx][i].prf_obj_idx)+
+			", \"has_callstacks\":"+std::to_string(flnm_evt_vec[file_tag_idx][i].has_callstacks)+
 			", \"total\":"+std::to_string(flnm_evt_vec[file_tag_idx][i].total)+"}";
 		did_line = 1;
 	}
@@ -3090,6 +3091,9 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			prf_obj.samples[i].fe_idx = fe_idx;
 			flnm_evt_vec[file_tag_idx][fe_idx].total++;
+			if (prf_obj.samples[i].callstack.size() > 0) {
+				flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
+			}
 			if (prf_obj.samples[i].evt_idx != prf_idx) {
 				continue;
 			}
@@ -3184,6 +3188,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				exit(1);
 			}
 			flnm_evt_vec[file_tag_idx][fe_idx].total++;
+			//abcd
+			if (prf_obj.etw_evts_set[prf_idx][i].cs_idx_beg != UINT32_M1) {
+				flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
+			}
 		}
 		std::string strx = comm + " " + std::to_string(pid) + "/" + std::to_string(tid);
 		if (pid == -1 && tid == -1 && (prf_obj.file_type == FILE_TYP_ETW) && comm_pid_idx != UINT32_M1) {
