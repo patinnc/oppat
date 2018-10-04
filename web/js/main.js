@@ -2620,7 +2620,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							//unit = 'msecs'; // see tm_diff_str() for supported units
 							unit = 'nsecs'; // see tm_diff_str() for supported units
 						} else {
-							period = chart_data.myshapes[i].ival[IVAL_PERIOD];
+							if (!(chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE")) {
+								period = chart_data.myshapes[i].ival[IVAL_PERIOD];
+							}
 						}
 						if (ev == 'cpu-clock' || ev == 'task-clock') {
 							unit = 'nsecs'; // see tm_diff_str() for supported units
