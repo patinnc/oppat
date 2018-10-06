@@ -81,7 +81,8 @@ static int load_long_opt_val(const char *opt_name, const char *ck_str, std::stri
 	if (slen < slen1) {
 		slen = slen1;
 	}
-	if (strncmp(opt_name, ck_str, slen) == 0) {
+	//printf("opt_name= '%s', ck_str= '%s' at %s %d\n", opt_name, ck_str, __FILE__, __LINE__);
+	if (strcmp(opt_name, ck_str) == 0 || strncmp(opt_name, ck_str, slen) == 0) {
 		if (!optarg) {
 			fprintf(stderr, "you must enter an arg for the --%s option. bye at %s %d\n",
 			   opt_name,	__FILE__, __LINE__);
@@ -268,7 +269,7 @@ get_opt_main (int argc, char **argv)
 		   "   You can either read the perf/xperf/trace-cmd data files and create the web page\n"
 		   "   or you can --load a replay file and create the web_file.\n"
 		},
-		{"web_file_quit",    required_argument,   0, 0, "same as web_file option above but quit after making html file\n"
+		{"web_fl_quit",    required_argument,   0, 0, "same as web_file option above but quit after making html file\n"
 		   "   Default is don't quit after generating web_file and enter the 'wait for browser' loop.\n"
 		},
 		{0, 0, 0, 0}
@@ -326,11 +327,11 @@ get_opt_main (int argc, char **argv)
 			if (load_long_opt_val(long_options[option_index].name, "tc_txt", options.tc_txt, optarg) > 0) {
 				break;
 			}
-			if (load_long_opt_val(long_options[option_index].name, "web_file_quit", options.web_file, optarg) > 0) {
-				options.web_file_quit = true;
+			if (load_long_opt_val(long_options[option_index].name, "web_file", options.web_file, optarg) > 0) {
 				break;
 			}
-			if (load_long_opt_val(long_options[option_index].name, "web_file", options.web_file, optarg) > 0) {
+			if (load_long_opt_val(long_options[option_index].name, "web_fl_quit", options.web_file, optarg) > 0) {
+				options.web_file_quit = true;
 				break;
 			}
 			/* If this option set a flag, do nothing else now. */
@@ -444,9 +445,14 @@ get_opt_main (int argc, char **argv)
 					long_options[i].has_arg, __FILE__, __LINE__);
 				exit(1);
 			}
-			printf("--%s\t-%c, requires_arg? %s\n\t%s\n",
-					long_options[i].name,
-					long_options[i].val,
+			std::string str = "";
+			if (long_options[i].val > 0) {
+				char cstr[10];
+				snprintf(cstr, sizeof(cstr), "%c", long_options[i].val);
+				str = "-" + std::string(cstr) + ",";
+			}
+			printf("--%s\t%s requires_arg? %s\n\t%s\n",
+					long_options[i].name, str.c_str(),
 					args[long_options[i].has_arg-1].c_str(),
 					long_options[i].help);
 			i++;
@@ -4622,7 +4628,7 @@ int main(int argc, char **argv)
 	if (options.web_file.size() > 0) {
 		create_web_file(options.verbose);
 		if (options.web_file_quit) {
-			fprintf(stderr, "quitting after creating web_file %s due to using web_file_quit option. Bye at %s %d\n",
+			fprintf(stderr, "quitting after creating web_file %s due to using web_fl_quit option. Bye at %s %d\n",
 					options.web_file.c_str(), __FILE__, __LINE__);
 			exit(1);
 		}
