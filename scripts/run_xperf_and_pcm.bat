@@ -41,9 +41,9 @@ xperf -on PROC_THREAD+LOADER+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk 
 
 %BIN_DIR%\spin.exe 4 mem_bw > %ODIR%\spin.txt
 @rem xperf -stop usersession -stop -d %ODIR%\etw_trace.etl
-xperf -stop -d %ODIR%\etw_trace.etl
 %BIN_DIR%\win_send_signal.exe %pid%
 taskkill /im pcm.exe
+xperf -stop -d %ODIR%\etw_trace.etl
 xperf -i %ODIR%\etw_trace.etl -o %ODIR%\etw_trace.txt -symbols verbose -tle -tti -a dumper -stacktimeshifting 
 del %WAIT_FILE%
 
@@ -51,7 +51,7 @@ del %WAIT_FILE%
 @echo    {"cur_dir":"%%root_dir%%/oppat_data/%PFX%/%SFX%"}, >> %ODIR%/file_list.json
 @echo    {"cur_tag":"%PFX%_%SFX%"}, >> %ODIR%/file_list.json
 @echo    {"txt_file":"etw_trace.txt", "tag":"%%cur_tag%%", "type":"ETW"}, >> %ODIR%/file_list.json
-@echo    {"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%%cur_tag%%", "type":"LUA"} >> %ODIR%/file_list.json
+@echo    {"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%%cur_tag%%", "type":"LUA"}, >> %ODIR%/file_list.json
 @echo    {"bin_file":"pcm.csv", "txt_file":"", "wait_file":"", "tag":"%cur_tag%", "type":"LUA", "lua_file":"pcm.lua", "lua_rtn":"read_pcm"} >> %ODIR%/file_list.json
 
 @echo   ]} >> %ODIR%/file_list.json
