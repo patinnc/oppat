@@ -71,8 +71,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"RUN_QUEUE", "chart_type":"line",
-			"use_chart":"d"}
+			"chart_tag":"RUN_QUEUE", "chart_type":"line", "y_label":"wait_time (secs)", "use_chart":"d"}
 		]
 	}
   },
@@ -332,8 +331,7 @@
 			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line",
 			"use_chart":"d"},
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"RUN_QUEUE", "chart_type":"line",
-			"use_chart":"d"}
+			"chart_tag":"RUN_QUEUE", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -347,13 +345,14 @@
 		{"name":"proc",  "lkup": "", "lkup_typ": "TYP_COMM_PID_TID|TYP_STR"},
 		{"name":"pid",   "lkup": "", "lkup_typ": "TYP_PID|TYP_INT"},
 		{"name":"dura",  "lkup": "ElapsedTime", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]},
-		{"name":"Disk KB/s", "lkup": "IOSize", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_HEX_IN|TYP_DBL",  "actions":[{"oper":"mult", "val":0.001}]}
+		{"name":"Disk MB/s", "lkup": "IOSize", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_HEX_IN|TYP_DBL",  "actions":[{"oper":"mult", "val":1.0e-6}]}
 		],
 	"charts": [
-		{"category":"Disk", "title":"Disk read BW (KB/sec) by Process",  "var_name":"Disk KB/s", "by_var": "comm_pid", "chart_tag":"DISK_KBPS_READ", "chart_type":"stacked",
-			"use_chart":"d"},
+		{"category":"Disk", "title":"Disk read BW (MiB/sec) by Process",  "var_name":"Disk MB/s",
+			"by_var": "comm_pid", "chart_tag":"DISK_MBPS_READ", "chart_type":"stacked",
+			"use_chart":"d", "y_label":"MiB/sec"},
 		{"category":"Disk", "title":"Disk read svc time by Process",  "var_name":"dura", "by_var": "comm_pid", "chart_tag":"DISK_RD_SVCTM", "chart_type":"stacked",
-			"use_chart":"d"}
+			"use_chart":"d", "y_label":"SVC time (secs)"}
 		]
 	}
   },
@@ -367,13 +366,14 @@
 		{"name":"proc",  "lkup": "", "lkup_typ": "TYP_COMM_PID_TID|TYP_STR"},
 		{"name":"pid",   "lkup": "", "lkup_typ": "TYP_PID|TYP_INT"},
 		{"name":"dura",  "lkup": "ElapsedTime", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]},
-		{"name":"Disk KB/s", "lkup": "IOSize", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_HEX_IN|TYP_DBL",  "actions":[{"oper":"mult", "val":0.001}]}
+		{"name":"Disk MB/s", "lkup": "IOSize", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_HEX_IN|TYP_DBL",  "actions":[{"oper":"mult", "val":1.0e-6}]}
 		],
 	"charts": [
-		{"category":"Disk", "title":"Disk write BW (KB/sec) by Process",  "var_name":"Disk KB/s", "by_var": "comm_pid", "chart_tag":"DISK_KBPS_WRITE", "chart_type":"stacked",
-			"use_chart":"d"},
-		{"category":"Disk", "title":"Disk write svc time by Process",  "var_name":"dura", "by_var": "comm_pid", "chart_tag":"DISK_WR_SVCTM", "chart_type":"stacked",
-			"use_chart":"d"}
+		{"category":"Disk", "title":"Disk write BW (MiB/sec) by Process",  "var_name":"Disk MB/s",
+			"by_var": "comm_pid", "chart_tag":"DISK_MBPS_WRITE", "y_label":"MiB/sec", "chart_type":"stacked", "use_chart":"d"},
+		{"category":"Disk", "title":"Disk write svc time by Process",  "var_name":"dura",
+			"by_var": "comm_pid", "chart_tag":"DISK_WR_SVCTM", "chart_type":"stacked",
+			"use_chart":"d", "y_label":"SVC time (secs)"}
 		]
 	}
   },
@@ -500,40 +500,40 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"PCM MPI",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_MPI", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*MPI)"}]}
+			"use_chart":"y", "y_label":"MPI", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*MPI)"}]}
 		,
 		{"category":"CPU", "title":"PCM FREQs",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_FREQ", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*FREQ.*)"}]}
+			"use_chart":"y", "y_label":"Freq GHz", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*FREQ.*)"}]}
 		,
 		{"category":"CPU", "title":"PCM Memory READ/WRITE (GB/sec)",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_READ_WRITE", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*READ|.*WRITE)"}]}
+			"use_chart":"y", "y_label":"GB/sec", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*READ|.*WRITE)"}]}
 		,
-		{"category":"CPU", "title":"PCM MISS/HIT",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_MISS_HIT", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*MISS|.*HIT)"}]}
+		{"category":"CPU", "title":"PCM MISSes and HITs",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_MISS_HIT", "chart_type":"line",
+			"use_chart":"y", "y_label":"Misses, Hits", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*MISS|.*HIT)"}]}
 		,
 		{"category":"CPU", "title":"PCM INST/ACYC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_INST_ACYC", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*INST|.*ACYC)"}]}
+			"use_chart":"y", "y_label":"INST/ACYC", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*INST|.*ACYC)"}]}
 		,
 		{"category":"CPU", "title":"PCM PhysIPC% INSTnom%",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PhysIPCpct_INSTnomPct", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC%|.*INSTnom%)"}]}
+			"use_chart":"y", "y_label":"IPC%", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC%|.*INSTnom%)"}]}
 		,
 		{"category":"CPU", "title":"PCM PhysIPC INSTnom",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PhysIPC_INSTnom", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC|.*INSTnom)"}]}
+			"use_chart":"y", "y_label":"IPC", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC|.*INSTnom)"}]}
 		,
-		{"category":"CPU", "title":"PCM EXEC (instructions per nominal CPU cycle) and IPC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_EXEC_IPC", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*EXEC|.*IPC)"}]}
+		{"category":"CPU", "title":"PCM EXEC (instr/nominal CPU cycle) and IPC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_EXEC_IPC", "chart_type":"line",
+			"use_chart":"y", "y_label":"IPC", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*EXEC|.*IPC)"}]}
 		,
 		{"category":"CPU", "title":"PCM TEMP deg C below Tjmax",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_TEMP", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*TEMP)"}]}
+			"use_chart":"y", "y_label":"deg C below TJmax", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*TEMP)"}]}
 		,
-		{"category":"power", "title":"PCM CORE_CSTATES",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_CORE_CSTATES", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Core C-States.*)"}]}
+		{"category":"power", "title":"PCM CORE_CSTATES %resident",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_CORE_CSTATES", "chart_type":"line",
+			"use_chart":"y", "y_label":"%resident", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Core C-States.*)"}]}
 		,
-		{"category":"power", "title":"PCM PKG C-States",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_CSTATES", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Pack C-States.*%)"}]}
+		{"category":"power", "title":"PCM PKG C-States %resident",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_CSTATES", "chart_type":"line",
+			"use_chart":"y", "y_label":"%resident", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Pack C-States.*%)"}]}
 		,
 		{"category":"power", "title":"PCM PKG Watts",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_ENERGY", "chart_type":"line",
-			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*Proc Energy .Joules..*)"}]}
+			"use_chart":"y", "y_label":"PKG Watts", "y_fmt":"%.2fW", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*Proc Energy .Joules..*)"}]}
 		]
 	}
   }
