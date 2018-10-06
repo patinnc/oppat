@@ -28,6 +28,7 @@
 #endif
 #include <sstream>
 #include <iomanip>
+#include <regex>
 #include <signal.h>
 #include "perf_event_subset.h"
 #include "rd_json2.h"
@@ -1475,6 +1476,27 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			var_pid_idx = (int)j;
 		}
 	}
+	bool have_filter_regex = false;
+	for (uint32_t i=0; i < event_table[evt_idx].charts[chrt].actions.size(); i++) {
+		if (event_table[evt_idx].charts[chrt].actions[i].oper == "filter_regex") {
+			event_table[evt_idx].charts[chrt].actions[i].regex_fld_idx = UINT32_M1;
+			for (uint32_t j=0; j < fsz; j++) {
+				if (event_table[evt_idx].flds[j].name == event_table[evt_idx].charts[chrt].actions[i].str) {
+					event_table[evt_idx].charts[chrt].actions[i].regex_fld_idx = j;
+					event_table[evt_idx].charts[chrt].actions[i].regx =
+						std::regex(event_table[evt_idx].charts[chrt].actions[i].str1);
+					break;
+				}
+			}
+			if (event_table[evt_idx].charts[chrt].actions[i].regex_fld_idx == UINT32_M1) {
+				fprintf(stderr, "didn't find regex evt_flds.name= %s in chart.json for chart title= '%s'. bye at %s %d\n", 
+					event_table[evt_idx].charts[chrt].actions[i].str.c_str(),
+					event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			have_filter_regex = true;
+		}
+	}
 	double ts0 = prf_obj.tm_beg;
 	ch_lines.tm_beg_offset_due_to_clip = prf_obj.tm_beg_offset_due_to_clip;
 	ch_lines.prf_obj = &prf_obj;
@@ -1688,6 +1710,33 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			dura = event_table[evt_idx].data.ts[i].duration;
 			fx1 = event_table[evt_idx].data.ts[i].ts - ts0;
 			fx0 = fx1 - dura;
+			if (have_filter_regex) {
+				bool skip = false;
+				for (uint32_t ii=0; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
+					if (event_table[evt_idx].charts[chrt].actions[ii].oper == "filter_regex") {
+						uint32_t fld_idx = event_table[evt_idx].charts[chrt].actions[ii].regex_fld_idx;
+						uint32_t val = event_table[evt_idx].data.vals[i][fld_idx];
+						std::string str = event_table[evt_idx].vec_str[val-1];
+						if (std::regex_match( str, event_table[evt_idx].charts[chrt].actions[ii].regx)) {
+							skip = false;
+						} else {
+							skip = true;
+						}
+						if (verbose > 0)
+							printf("regex expr= %s in str= %s rc= %d val= %d at %s %d\n",
+								event_table[evt_idx].charts[chrt].actions[ii].str1.c_str(),
+								str.c_str(), skip, val, __FILE__, __LINE__);
+						if (skip) {
+							break;
+						}
+					}
+				}
+				if (skip) {
+					cur_idx--;
+					continue;
+				}
+			}
+
 			if (chart_type != CHART_TYPE_STACKED) {
 				double used_so_far = 0.0;
 				if (overlaps_idx_used[i] > -1) {

@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <cstddef>
 #include <string>
+#include <regex>
 
 #include "utils2.h"
 #include "utils.h"
@@ -121,7 +122,8 @@ static bool is_action_oper_valid(std::string oper)
 {
 	if (oper == "drop_if_gt" || oper == "cap" || oper == "set" || oper == "mult" ||
 		oper == "diff_ts_last_by_val" ||
-		oper == "div" || oper == "add" || oper == "replace" || oper == "replace_any") {
+		oper == "div" || oper == "add" || oper == "replace" || oper == "replace_any" ||
+		oper == "filter_regex") {
 		return true;
 	}
 	return false;
@@ -524,8 +526,11 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				for (uint32_t m=0; m < asz; m++) {
 					action_str as;
 					as.oper = jact[m]["oper"];
-					as.val  = jact[m]["val"];
 					cs.actions.push_back(as);
+					try {
+						as.val  = jact[m]["val"];
+						cs.actions.back().val = as.val;
+					} catch (...) { }
 					if (verbose > 0) {
 						printf("oper= %s, val= %f %g\n", as.oper.c_str(), as.val, as.val);
 					}
@@ -537,6 +542,17 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 						as.val  = jact[m]["val1"];
 						cs.actions.back().val1 = as.val;
 					} catch (...) { }
+					try {
+						as.str  = jact[m]["str"];
+						cs.actions.back().str = as.str;
+					} catch (...) { }
+					try {
+						as.str1  = jact[m]["str1"];
+						cs.actions.back().str1 = as.str1;
+					} catch (...) { }
+					if (as.oper == "filter_regex" && cs.actions.back().str1.size() > 0) {
+						cs.actions.back().regx = std::regex(cs.actions.back().str1);
+					}
 				}
 				} catch (...) { }
 				try {

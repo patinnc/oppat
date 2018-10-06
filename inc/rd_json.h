@@ -2,6 +2,7 @@
  *
  * License http://opensource.org/licenses/mit-license.php MIT License
  */
+#include <regex>
 
 enum {
 	FILE_MODE_FIRST = 0x01,
@@ -23,6 +24,9 @@ struct flnm_evt_str {
 struct action_str {
 	std::string oper;
 	double val, val1;
+	std::string str, str1;
+	uint32_t regex_fld_idx;
+	std::regex regx;
 };
 struct comm_tid_str {
 	std::string comm, tid;
