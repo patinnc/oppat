@@ -546,7 +546,10 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	parse_etw_cfg_xml(WinSAT_SystemConfig[3], prf_obj, verbose);
 
 	uint32_t SampledProfile_idx = prf_obj.etw_evts_hsh["SampledProfile"] -1;
-	uint32_t SampledProfile_cols = prf_obj.events[SampledProfile_idx].etw_cols.size();
+	uint32_t SampledProfile_cols = UINT32_M1;
+	if (SampledProfile_idx != UINT32_M1) {
+		SampledProfile_cols = prf_obj.events[SampledProfile_idx].etw_cols.size();
+	}
 	for (uint32_t i=0; i < prf_obj.etw_evts_set.size(); i++) {
 		double tot_cols = 0.0, count = 0.0;
 		for (uint32_t j=0; j < prf_obj.etw_evts_set[i].size(); j++) {
