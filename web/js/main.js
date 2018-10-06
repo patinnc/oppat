@@ -2274,7 +2274,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let umaxy = maxy;
 		if (ch_type == "line" || ch_type == "stacked") {
 			let tminy=null, tmaxy=null;
-			if (chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE") {
+			if (chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+					chart_data.chart_tag == "RUN_QUEUE" ||
+					chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
 				g_fl_obj[file_tag_idx]= {};
 				g_fl_obj_rt[file_tag_idx] = {};
 			}
@@ -2565,10 +2567,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					}
 				}
 				if ((do_proc && ch_type == "block") || (do_event &&
-						(chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE"))) {
+						(chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+						 chart_data.chart_tag == "RUN_QUEUE" ||
+						 chart_data.chart_tag == "RUN_QUEUE_BY_CPU"))) {
 					let tm_0 = performance.now();
 
-					if (chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE") {
+					if (chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+							chart_data.chart_tag == "RUN_QUEUE" ||
+							chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
 						fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 					}
 					let fe_2 = event_lkup[fe_idx];
@@ -2593,10 +2599,16 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							}
 						}
 						let unit = ev;
-						if (chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE") {
+						if (chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+								chart_data.chart_tag == "RUN_QUEUE") {
 							operiod = y1;
 							operiod *= 1e9;
 							unit = 'nsecs';
+						}
+						if ( chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
+							operiod = y1;
+							//operiod *= 1e9;
+							unit = 'pct';
 						}
 						let period = operiod;
 
@@ -2620,7 +2632,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							//unit = 'msecs'; // see tm_diff_str() for supported units
 							unit = 'nsecs'; // see tm_diff_str() for supported units
 						} else {
-							if (!(chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE")) {
+							if (!(chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+										chart_data.chart_tag == "RUN_QUEUE" ||
+										chart_data.chart_tag == "RUN_QUEUE_BY_CPU")) {
 								period = chart_data.myshapes[i].ival[IVAL_PERIOD];
 							}
 						}
@@ -2689,7 +2703,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								build_flame_rpt_timeout = null;
 							}*/
 						}
-						if ((chart_data.chart_tag == "RUN_QUEUE")) {
+						if ((chart_data.chart_tag == "RUN_QUEUE" || chart_data.chart_tag == "RUN_QUEUE_BY_CPU")) {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(context_switch_event+"_runqueue", unit, cs_ret.arr, period, hvr_clr, clr, null);
 							/*if (build_flame_rpt_timeout != null) {
@@ -2827,13 +2841,18 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		//console.log("chart_redraw took "+flt_dec(tm_here_04b - tm_here_04a, 4)+" ms");
 		//console.log("cs_str_period= "+ (1.0e-9*cs_str_period));
 		if ((ch_type == "block" && chart_data.chart_tag == "PCT_BUSY_BY_CPU") ||
-			chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE") {
+			chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+			chart_data.chart_tag == "RUN_QUEUE" ||
+			chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
 			let input_evt = "";
 			if (chart_data.chart_tag == "WAIT_TIME_BY_proc") {
 				input_evt = context_switch_event+"_offcpu";
 			}
 			if (chart_data.chart_tag == "RUN_QUEUE") {
 				input_evt = context_switch_event+"_runqueue";
+			}
+			if (chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
+				input_evt = context_switch_event+"_runqueue_by_cpu";
 			}
 			//let tm_here = performance.now();
 			//console.log("build_flame_rpt: before:");
@@ -3304,7 +3323,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								let nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
 								let use_e;
 								let use_s;
-							if (chart_data.chart_tag == "WAIT_TIME_BY_proc" || chart_data.chart_tag == "RUN_QUEUE") {
+							if (chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+									chart_data.chart_tag == "RUN_QUEUE" ||
+									chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
 								use_e = row;
 								use_s = row;
 							} else {
