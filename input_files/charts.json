@@ -526,13 +526,13 @@
 		{"category":"CPU", "title":"PCM TEMP deg C below Tjmax",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_TEMP", "chart_type":"line",
 			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*TEMP)"}]}
 		,
-		{"category":"POWER", "title":"PCM CORE_CSTATES",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_CORE_CSTATES", "chart_type":"line",
+		{"category":"power", "title":"PCM CORE_CSTATES",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_CORE_CSTATES", "chart_type":"line",
 			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Core C-States.*)"}]}
 		,
-		{"category":"POWER", "title":"PCM PKG C-States",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_CSTATES", "chart_type":"line",
+		{"category":"power", "title":"PCM PKG C-States",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_CSTATES", "chart_type":"line",
 			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Pack C-States.*%)"}]}
 		,
-		{"category":"POWER", "title":"PCM PKG Watts",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_ENERGY", "chart_type":"line",
+		{"category":"power", "title":"PCM PKG Watts",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_ENERGY", "chart_type":"line",
 			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*Proc Energy .Joules..*)"}]}
 		]
 	}
