@@ -559,6 +559,9 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					cs.chart_tag = j["event_array"][i]["event"]["charts"][k]["chart_tag"];
 				} catch (...) { }
 				try {
+					cs.y_label = j["event_array"][i]["event"]["charts"][k]["y_label"];
+				} catch (...) { }
+				try {
 					cs.chart_category = j["event_array"][i]["event"]["charts"][k]["category"];
 				} catch (...) { }
 				try {

@@ -1885,22 +1885,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					// interval is > 0 and tx interval is not out of range
 					new_val = var_val * (x1 - x0) / (fx1 - sx0);
 				}
-#if 0
-					if (prf_obj.file_type == FILE_TYP_ETW) {
-			    		uint32_t cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
-						if (event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE" &&
-							comm_pid_tid_vec[cpt_idx].pid == 4 && comm_pid_tid_vec[cpt_idx].tid == 60) {
-						printf("ckproc= %s, pid= %d, tid= %d, ts= %f, relTS= %f new_val= %f, var_val= %f, x1= %f, x0= %f, fx1= %f, sx0= %f dura2= %f at %s %d\n",
-								comm_pid_tid_vec[cpt_idx].comm.c_str(),
-								comm_pid_tid_vec[cpt_idx].pid,
-								comm_pid_tid_vec[cpt_idx].tid,
-								event_table[evt_idx].data.ts[i].ts,
-								event_table[evt_idx].data.ts[i].ts - ts0,
-								new_val, var_val, x1, x0, fx1, sx0, dura2,
-								__FILE__, __LINE__);
-						}
-					}
-#endif
 				if (new_val < 0.0 && var_val >= 0.0 && ((x1 - x0) < 0.0 || (fx1 - sx0) < 0.0)) {
 					printf("screw up here, new_val= %f, var_val= %f, x0= %f, x1= %f, dff= %f ts0= %f, tx1= %f, sx0= %f, fx0= %f fx1= %f dff= %f at %s %d\n",
 						new_val, var_val, x0, x1, (x1 - x0), tx0, tx1, sx0, fx0, fx1, (fx1 - sx0), __FILE__, __LINE__);
@@ -2005,6 +1989,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				ls0p->pid     = (int)prf_obj.samples[prf_idx].tid;
 				ls0p->callstack_str_idxs.resize(0);
 				if (event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE" ||
+					event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE_BY_CPU" ||
 					event_table[evt_idx].charts[chrt].chart_tag == "WAIT_TIME_BY_proc") {
 					std::vector <std::string> prefx;
 					bool got_ready = true;
@@ -2039,7 +2024,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						if (val1 > 0) {
 							str = event_table[evt_idx].vec_str[val1 - 1];
 							//printf("ck Run state= %s, at %s %d\n", str.c_str(), __FILE__, __LINE__);
-							if (event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE" &&
+							if ((event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE" ||
+								event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE_BY_CPU") &&
 								str != "R" && str != "R+") {
 								got_ready = false;
 								//printf("got Run state= %s, at %s %d\n", str.c_str(), __FILE__, __LINE__);
@@ -2095,7 +2081,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			        ls0p->cpu    = -1;
 				}
 				if (event_table[evt_idx].charts[chrt].chart_tag == "WAIT_TIME_BY_proc" ||
-					event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE") {
+					event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE" ||
+					event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE_BY_CPU") {
 					if (ls0p->pid == 0) {
 						//printf("skip idle run_q at %s %d\n", __FILE__, __LINE__);
 						cur_idx--;
@@ -2128,7 +2115,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					ls0p->callstack_str_idxs = callstacks;
 					//last_by_var_callstacks[by_var_idx_val] = callstacks;
 				}
-				if (event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE") {
+				if (event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE" ||
+					event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE_BY_CPU") {
 					std::vector <std::string> prefx;
 					bool got_ready = false;
 					if (lag_reason_idx != -1 || lag_state_idx != -1) {
@@ -2713,7 +2701,11 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	json += ", \"pixels_high\": "+ std::to_string(event_table[evt_idx].charts[chrt].pixels_high);
 	json += ", \"file_tag\": \"" + file_tag + "\"";
 	json += ", \"chart_tag\": \"" + event_table[evt_idx].charts[chrt].chart_tag + "\"";
-	json += ", \"y_label\": \"" + event_table[evt_idx].flds[var_idx].name + "\"";
+	if (event_table[evt_idx].charts[chrt].y_label.size() == 0) {
+		json += ", \"y_label\": \"" + event_table[evt_idx].flds[var_idx].name + "\"";
+	} else {
+		json += ", \"y_label\": \"" + event_table[evt_idx].charts[chrt].y_label + "\"";
+	}
 	json += ", \"file_tag_idx\": " + std::to_string(event_table[evt_idx].file_tag_idx);
 	json += ", \"prf_obj_idx\": " + std::to_string(event_table[evt_idx].prf_obj_idx);
 	json += ", \"chart_type\": \"" + event_table[evt_idx].charts[chrt].chart_type + "\"";

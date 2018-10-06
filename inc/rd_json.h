@@ -65,7 +65,7 @@ struct lag_str {
 };
 struct chart_str {
 	std::string title, var_name, by_var, chart_tag, chart_category, chart_type,
-		y_fmt, by_val_ts, by_val_dura;
+		y_fmt, by_val_ts, by_val_dura, y_label;
 	bool use_chart;
 	uint32_t var_idx, by_var_idx;
 	int32_t pixels_high;
