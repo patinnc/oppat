@@ -299,7 +299,7 @@ function read_pcm(flnm_pcm, flnm_energy2, flnm_wait, verbose)
 			end
 			t[col.dura] = dura
 			t[col.event] = evt_str
-			t[col.area]  = cur_hdr0 .. hdrs[2][c]
+			t[col.area]  = cur_hdr0 .. " " .. hdrs[2][c]
 			local b, e = string.find(t[col.area], "Joules")
 			if b ~= nil and dura > 0.0 then
 				t[col.val] = t[col.val] / dura
