@@ -3901,7 +3901,7 @@ function bootside_menu_setup(div_nm, which_side) {
 	  // width
 	  //width: "25%",
 	  //width: "25%",
-	width: '300px',
+	width: '350px',
 
 	  // icons
 	  icons: {
