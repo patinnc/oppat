@@ -491,6 +491,55 @@
 	,
   {"event":
 	{
+	"evt_name": "lua:pcm_event", "evt_type": "lua", "comment":"read PCM csv file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"val",     "lkup":"val",         "lkup_typ": "TYP_DBL"},
+		{"name":"area",     "lkup":"area",       "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"PCM MPI",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_MPI", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*MPI)"}]}
+		,
+		{"category":"CPU", "title":"PCM FREQs",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_FREQ", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*FREQ.*)"}]}
+		,
+		{"category":"CPU", "title":"PCM Memory READ/WRITE (GB/sec)",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_READ_WRITE", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*READ|.*WRITE)"}]}
+		,
+		{"category":"CPU", "title":"PCM MISS/HIT",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_MISS_HIT", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*MISS|.*HIT)"}]}
+		,
+		{"category":"CPU", "title":"PCM INST/ACYC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_INST_ACYC", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*INST|.*ACYC)"}]}
+		,
+		{"category":"CPU", "title":"PCM PhysIPC% INSTnom%",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PhysIPCpct_INSTnomPct", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC%|.*INSTnom%)"}]}
+		,
+		{"category":"CPU", "title":"PCM PhysIPC INSTnom",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PhysIPC_INSTnom", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC|.*INSTnom)"}]}
+		,
+		{"category":"CPU", "title":"PCM EXEC (instructions per nominal CPU cycle) and IPC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_EXEC_IPC", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*EXEC|.*IPC)"}]}
+		,
+		{"category":"CPU", "title":"PCM TEMP deg C below Tjmax",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_TEMP", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*TEMP)"}]}
+		,
+		{"category":"POWER", "title":"PCM CORE_CSTATES",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_CORE_CSTATES", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Core C-States.*)"}]}
+		,
+		{"category":"POWER", "title":"PCM PKG C-States",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_CSTATES", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Pack C-States.*%)"}]}
+		,
+		{"category":"POWER", "title":"PCM PKG Watts",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_ENERGY", "chart_type":"line",
+			"use_chart":"y", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*Proc Energy .Joules..*)"}]}
+		]
+	}
+  }
+	,
+  {"event":
+	{
 	"evt_name": "lua:gen_line1", "evt_type": "lua", "comment":"read perf stat file for rapl energy MSRs",
 	"evt_flds": [
 		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
