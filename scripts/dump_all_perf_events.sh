@@ -1,8 +1,13 @@
 #!/bin/bash
 
 SCR_DIR=`dirname "$(readlink -f "$0")"`
-SAV_DIR=$SCR_DIR/../input_files/
 echo "scr_dir= '$SCR_DIR'"
+
+if [ "x$1" == "x" ]; then
+  SAV_DIR=$SCR_DIR/../input_files/
+else
+  SAV_DIR=$1
+fi
 
 rm $SAV_DIR/perf_event_list_dump.txt
 

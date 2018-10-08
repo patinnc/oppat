@@ -2935,6 +2935,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			(event_table.event_name_w_area == "sched:sched_switch" || event_table.event_name == "CSwitch")) {
 		// just want to do the 'doing sched_switch' logic once for the event...
 		// might need to revisit if multiple file in same file group have sched_switch... then which sched_switch do we use?
+		printf("doing sched_switch at %s %d\n", __FILE__, __LINE__);
 		doing_SCHED_SWITCH = 1;
 	}
 	event_table.prf_ts_initial = ts_0;
@@ -4273,11 +4274,17 @@ int main(int argc, char **argv)
 	// read the list of perf events and their format.
 	// Create perf_event_list_dump.txt with dump_all_perf_events.sh (on linux of course).
 	base_file = "perf_event_list_dump.txt";
-	rc = search_for_file(base_file, flnm, tried_names, __FILE__, __LINE__, verbose);
-	if (rc != 0) {
-		search_for_file(base_file, flnm, tried_names, __FILE__, __LINE__, 1);
-		fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
-		exit(1);
+	if (options.root_data_dirs.size() > 0) {
+		flnm = options.root_data_dirs[0] + DIR_SEP + base_file;
+		rc = ck_filename_exists(flnm.c_str(), __FILE__, __LINE__, options.verbose);
+		if (rc != 0) {
+			rc = search_for_file(base_file, flnm, tried_names, __FILE__, __LINE__, verbose);
+			if (rc != 0) {
+				search_for_file(base_file, flnm, tried_names, __FILE__, __LINE__, 1);
+				fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+			}
+		}
 	}
 	printf("found file %s using filename= %s at %s %d\n", base_file.c_str(), flnm.c_str(), __FILE__, __LINE__);
 
