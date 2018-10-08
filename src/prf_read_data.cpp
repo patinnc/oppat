@@ -74,7 +74,13 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	std::vector <nms_str> nms;
 	prf_obj.tm_beg = 1.0e-9 * (double)prf_obj.samples[0].ts;
 	prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
+	std::vector <std::string> cpu_strs;
 
+	for (uint32_t i=0; i < prf_obj.features_nr_cpus_online; i++) {
+		char cstr[32];
+		snprintf(cstr, sizeof(cstr), " [%03d] ", i);
+		cpu_strs.push_back(std::string(cstr));
+	}
 	for (uint32_t i=0; i < prf_obj.features_event_desc.size(); i++) {
 		struct nms_str ns;
 		ns.str = " " + prf_obj.features_event_desc[i].event_string + ": ";
@@ -194,7 +200,13 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			}
 #endif
 			int mtch=-1, nxt=-1;
+			if (s_idx == -1 && i_beg == 0) {
+				printf("line[0].tm= %s at %s %d\n", prf_obj.samples[0].tm_str.c_str(), __FILE__, __LINE__);
+			}
 			for (int i=i_beg; i < sz; i++) {
+				if (line[0] == '\t') {
+					continue;
+				}
 				if (line.find(prf_obj.samples[i].tm_str) != std::string::npos) {
 					s_idx = i;
 					nxt = i+1;
@@ -208,6 +220,28 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					//printf("ck tm[%d]= %s, line= %s\n", i, prf_obj.samples[i].tm_str.c_str(), line.c_str());
 					break;
 				}
+#if 1
+				//printf("lkfor event= '%s' line= %s at %s %d\n", prf_obj.samples[i].event.c_str(), line.c_str(), __FILE__, __LINE__);
+				if (line.find(prf_obj.samples[i].event) != std::string::npos) {
+					uint32_t cpu = prf_obj.samples[i].cpu;
+					//printf("lkfor cpu= '%s' at %s %d\n", cpu_strs[cpu].c_str(), __FILE__, __LINE__);
+					if (cpu < cpu_strs.size()) {
+						if (line.find(cpu_strs[cpu]) != std::string::npos) {
+							s_idx = i;
+							nxt = i+1;
+							store_callstack_idx = i;
+							mtch = i;
+							if (extra_str.size() > 0) {
+								prf_obj.samples[i].extra_str = extra_str;
+							}
+							prf_obj.samples[i].line_num = line_num;
+							prf_obj.samples[i].evt_idx = evt;
+							break;
+						}
+					}
+				}
+#endif
+				printf("missed line= '%s' at %s %d\n", line.c_str(), __FILE__, __LINE__);
 			}
 			if (mtch == -1 && options.tm_clip_beg_valid) {
 				continue;
@@ -696,6 +730,9 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			}
 			tm_accum(tmi, __LINE__);
 			double tm = 1.e-9 * (double)time;
+			if (orig_order == 0) {
+				printf("1st timestamp= %" PRIu64 " at %s %d\n", time, __FILE__, __LINE__);
+			}
 			if (pid != (u32)-1 && tid != (u32)-1 && pid > 0 && tid == 0) {
 				// why is this needed? There are lines like:
 	// swapper  8451/0     [003] 15524.509388277:          1   sched:sched_switch:               prev_comm=spin.x prev_pid=8455 prev_prio=120 prev_state=x ==> next_comm=swapper/3 next_pid=0 next_prio=120
