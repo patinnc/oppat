@@ -95,9 +95,10 @@ void replace_substr(std::string &base_str, std::string lkfor_str, std::string re
 
 
 /* search for oppat files
- * 1) try base file name in cur dir
- * 2) try oppat_bindir/base_file
- * 3) try oppat_bindir/../base_file  # for files like lua_src or web
+ * 0) try base_file name in cur dir
+ * 1) try oppat/bin/base_file
+ * 2) try oppat/bin/../input_files/base_file
+ * 3) try oppat/bin/../base_file   # for files like lua_src or web
  * put each tried name int tried_filenames
  * return 0 if found it. put found name in found_file
  *        not zero if found

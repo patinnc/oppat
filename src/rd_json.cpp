@@ -225,7 +225,7 @@ int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbo
 
 uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose)
 {
-	if (verbose > 0)
+	if (verbose > 1)
 		std::cout << str << std::endl;
 	uint32_t sz = (int)str.size();
 	bool use_charts_default = true;
@@ -279,7 +279,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			if (want_evt_num != UINT32_M1 && i != want_evt_num) {
 				continue;
 			}
-			if (verbose > 0) {
+			if (verbose > 1) {
 				std::cout << j["event_array"][i]["event"].dump() << std::endl;
 				fflush(NULL);
 			}
@@ -295,13 +295,14 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					}
 				} else {
 					if (verbose > 0) {
-						printf("do_json: skip evt_nm= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+						printf("do_json: skip lkfor_evt= %s, evt_nm= %s at %s %d\n",
+								lkfor_evt_name.c_str(), evt_nm.c_str(), __FILE__, __LINE__);
 					}
 					continue;
 				}
 			}
 			if (verbose > 0) {
-				std::cout << j["event_array"][i]["event"]["flds"].dump() << std::endl;
+				std::cout << j["event_array"][i]["event"]["evt_flds"].dump() << std::endl;
 			}
 			struct evt_str es;
 			es.event_name = evt_nm;
