@@ -24,7 +24,6 @@ if [ ! -f $BIN_DIR/spin.x ]; then
   exit
 fi
 
-$SCR_DIR/dump_all_perf_events.sh $ODIR
 
 if [ "$EUID" -ne 0 ]
   then echo "Please run as root or sudo"
@@ -113,6 +112,8 @@ $PRF_CMD script -I --header -f $hwFopts $trcFopts -D -i $ODIR/prf_trace.data > $
 rm $WAIT_FILE
 rm $ODIR/prf_*.data.old
 
+$SCR_DIR/dump_all_perf_events.sh $ODIR
+
 echo "{\"file_list\":[" > $ODIR/file_list.json
 echo "   {\"cur_dir\":\"%root_dir%/oppat_data/$PFX/$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"cur_tag\":\"${PFX}_$BASE\"}," >> $ODIR/file_list.json
@@ -120,6 +121,7 @@ echo "   {\"bin_file\":\"prf_trace.data\", \"txt_file\":\"prf_trace.txt\", \"tag
 #echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}" >> $ODIR/file_list.json
 echo "  ]} " >> $ODIR/file_list.json
+
 
 chmod a+rw $ODIR/*
 

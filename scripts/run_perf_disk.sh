@@ -123,6 +123,8 @@ $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
 rm $WAIT_FILE
 rm $ODIR/prf_*.data.old
 
+$SCR_DIR/dump_all_perf_events.sh $ODIR
+
 echo "{\"file_list\":[" > $ODIR/file_list.json
 echo "   {\"cur_dir\":\"%root_dir%/oppat_data/$PFX/$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"cur_tag\":\"${PFX}_$BASE\"}," >> $ODIR/file_list.json
