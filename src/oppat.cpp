@@ -347,7 +347,7 @@ get_opt_main (int argc, char **argv)
         case 'b':
           printf ("option -b with value `%s'\n", optarg);
 		  options.tm_clip_beg = atof(optarg);
-		  options.tm_clip_beg_valid = true;
+		  options.tm_clip_beg_valid++;
           break;
 
         case 'c':
@@ -363,7 +363,7 @@ get_opt_main (int argc, char **argv)
         case 'e':
           printf ("option -e with value `%s'\n", optarg);
 		  options.tm_clip_end = atof(optarg);
-		  options.tm_clip_end_valid = true;
+		  options.tm_clip_end_valid++;
           break;
 
         case 'h':
@@ -1716,6 +1716,14 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			dura = event_table[evt_idx].data.ts[i].duration;
 			fx1 = event_table[evt_idx].data.ts[i].ts - ts0;
 			fx0 = fx1 - dura;
+			if (options.tm_clip_beg_valid == 2 && (fx1+ts0) < options.tm_clip_beg) {
+				cur_idx--;
+				continue;
+			}
+			if (options.tm_clip_end_valid == 2 && (fx0+ts0) > options.tm_clip_end) {
+				cur_idx--;
+				continue;
+			}
 			if (have_filter_regex) {
 				bool skip = false;
 				for (uint32_t ii=0; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
@@ -2319,6 +2327,12 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 		}
 		x = event_table[evt_idx].data.ts[i].ts - dura - ts0;
+		if (options.tm_clip_beg_valid == 2 && (x+dura+ts0) < options.tm_clip_beg) {
+			continue;
+		}
+		if (options.tm_clip_end_valid == 2 && (x+ts0) > options.tm_clip_end) {
+			continue;
+		}
 		y = lo;
 		if (var_comm_idx > -1) {
 			double var_comm_val = event_table[evt_idx].data.vals[i][var_comm_idx];
@@ -2498,6 +2512,12 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			//shape_str ss;
 			double cpu = prf_obj.samples[i].cpu;
 			double ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
+			if (options.tm_clip_beg_valid == 2 && (ts+ts0) < options.tm_clip_beg) {
+				continue;
+			}
+			if (options.tm_clip_end_valid == 2 && (ts+ts0) > options.tm_clip_end) {
+				continue;
+			}
 			ls0.x[0] = ts - ts0;
 			ls0.y[0] = cpu + delta;
 			ls0.x[1] = ls0.x[0];
@@ -3314,6 +3334,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		}
 		std::vector <int> div_by_interval_idx;
 		bool use_u64 = false;
+		bool try_skipping_record = false;
 		for (uint32_t j=0; j < fsz; j++) {
 			did_actions_already[j] = false;
 			uint64_t flg = event_table.flds[j].flags;
@@ -3561,18 +3582,25 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				continue;
 			}
 			if (flg & FLD_TYP_TRC_FLD_PFX) {
+				static int pfx_errs = 0;
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
 				if (prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx < 0) {
 					printf("lst_ft_fmt_idx should be >= 0. Bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
 				}
 				if (prf_obj.samples[i].extra_str.size() == 0) {
-					printf("extra_str.size()== 0 for TYP_TRC_FLD_PFX for event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s. bye at %s %d\n",
+					printf("extra_str.size()== 0 for TYP_TRC_FLD_PFX for event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s at %s %d\n",
 						prf_obj.events[prf_evt_idx2].event_name.c_str(), event_table.flds[j].name.c_str(),
 						event_table.flds[j].lkup.c_str(),
 						prf_obj.samples[i].tm_str.c_str(), i,
 						flnm.c_str(), __FILE__, __LINE__);
-					exit(1);
+					if (pfx_errs++ > 100) {
+						printf("Got above err %d times. bye at %s %d\n", pfx_errs, __FILE__, __LINE__);
+						exit(1);
+					} else {
+						try_skipping_record = true;
+						break;
+					}
 				}
 				int lst_ft_fmt_idx = prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx;
 				std::string extracted;
@@ -3779,6 +3807,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				dv.push_back(idx);
 				continue;
 			}
+		}
+		if (try_skipping_record) {
+			try_skipping_record = false;
+			continue;
 		}
 		if (dv.size() != fsz) {
 			printf("mismatch dv.size()= %d, fsz= %d at %s %d\n", (int)dv.size(), (int)fsz, __FILE__, __LINE__);

@@ -243,7 +243,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 #endif
 				printf("missed line= '%s' at %s %d\n", line.c_str(), __FILE__, __LINE__);
 			}
-			if (mtch == -1 && options.tm_clip_beg_valid) {
+			if (mtch == -1 && options.tm_clip_beg_valid == 1) {
 				continue;
 			}
 			if (mtch == -1) {
@@ -826,10 +826,10 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			pss.ts     = time;
 			pss.orig_order = orig_order++;
 			//printf("ts= %f at %s %d\n", tm, __FILE__, __LINE__);
-			if (options.tm_clip_beg_valid && tm < options.tm_clip_beg) {
+			if (options.tm_clip_beg_valid == 1 && tm < options.tm_clip_beg) {
 				break;
 			}
-			if (options.tm_clip_end_valid && tm > options.tm_clip_end) {
+			if (options.tm_clip_end_valid == 1 && tm > options.tm_clip_end) {
 				break;
 			}
 			pss.period = period;
