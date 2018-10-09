@@ -35,13 +35,13 @@
 #include <iomanip>
 #include <signal.h>
 #include "perf_event_subset.h"
+#include "rd_json.h"
 #include "rd_json2.h"
 #include "printf.h"
 #include "oppat.h"
 #include "prf_read_data.h"
 #include "lua_rtns.h"
 #include "utils.h"
-#include "rd_json.h"
 #include "ck_nesting.h"
 #include "web_api.h"
 #include "MemoryMapped.h"
@@ -94,7 +94,8 @@ static char *tc_decode_evt_hdr_typ(uint32_t eh_typ)
 }
 
 static int tc_read_evt(long max_pos, int cpu, long page_sz, const unsigned char *mm_buf,
-		long &pos, uint64_t &ts, int line, prf_obj_str &prf_obj, int verbose, prf_obj_str *prf_obj_prev)
+		long &pos, uint64_t &ts, int line, prf_obj_str &prf_obj, int verbose,
+		prf_obj_str *prf_obj_prev, file_list_str &file_list)
 {
 	static int orig_order=0;
 	int evt_len = 0;
@@ -203,8 +204,9 @@ do_page_hdr:
 				if (prf_obj.events[ck_evt_idx].pea.type == PERF_TYPE_TRACEPOINT &&
 					prf_obj.events[ck_evt_idx].lst_ft_fmt_idx == -2) {
 					prf_obj.events[ck_evt_idx].lst_ft_fmt_idx = -1;
-					for (uint32_t i=0; i < lst_ft_fmt_vec.size(); i++) {
-						if (lst_ft_fmt_vec[i].event == evt_nm && lst_ft_fmt_vec[i].area == prf_obj.events[ck_evt_idx].event_area) {
+					for (uint32_t i=0; i < file_list.lst_ft_fmt_vec.size(); i++) {
+						if (file_list.lst_ft_fmt_vec[i].event == evt_nm &&
+								file_list.lst_ft_fmt_vec[i].area == prf_obj.events[ck_evt_idx].event_area) {
 							printf("got lst_ft_fmt: match on trace-cmd event= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
 							prf_obj.events[ck_evt_idx].lst_ft_fmt_idx = (int)i;
 							break;
@@ -477,7 +479,8 @@ static int tc_parse_pid_buf(int buf_sz, char *buf_in, prf_obj_str &prf_obj, doub
 	return 0;
 }
 
-int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg_in, prf_obj_str *prf_obj_prev)
+int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg_in,
+		prf_obj_str *prf_obj_prev, file_list_str &file_list)
 {
 	long pos = 0;
 
@@ -786,7 +789,8 @@ read_opt_again:
 		long evt_data_read = 0;
 		uint64_t ts = 0;
 		while (evt_data_read < tc_cpu_data[j].len) {
-			evt_data_read += tc_read_evt(tc_cpu_data[j].len+tc_cpu_data[j].off, (int)j, page_sz, mm_buf, pos, ts, __LINE__, prf_obj, verbose, prf_obj_prev);
+			evt_data_read += tc_read_evt(tc_cpu_data[j].len+tc_cpu_data[j].off, (int)j, page_sz, mm_buf, pos, ts,
+					__LINE__, prf_obj, verbose, prf_obj_prev, file_list);
 		}
 	}
 	std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
@@ -795,7 +799,7 @@ read_opt_again:
 	return 0;
 }
 
-int tp_read_event_formats(std::string flnm, int verbose)
+int tp_read_event_formats(file_list_str &file_list, std::string flnm, int verbose)
 {
 	std::ifstream file;
 	//file.open(flnm, std::ifstream::in);
@@ -844,8 +848,8 @@ int tp_read_event_formats(std::string flnm, int verbose)
 			tes.id = ffs.id;
 			tes.area = ffs.area;
 			tes.event = ffs.event;
-			tp_events.push_back(tes);
-			tp_id_2_event_indxp1[ffs.id] = (int)tp_events.size();
+			file_list.tp_events.push_back(tes);
+			file_list.tp_id_2_event_indxp1[ffs.id] = (int)file_list.tp_events.size();
 		}
 		size_t j = str.find("\tfield:");
 		if (doing_common == 1 && j == std::string::npos) {
@@ -961,8 +965,7 @@ int tp_read_event_formats(std::string flnm, int verbose)
 				if (verbose > 0)
 				printf("fld[%d].prefix= '%s', flgs= %s\n", i, ffs.per_fld[i].prefix.c_str(), flgs.c_str());
 			}
-			lst_ft_fmt_vec.push_back(ffs);
-
+			file_list.lst_ft_fmt_vec.push_back(ffs);
 		}
 	}
 	file.close();

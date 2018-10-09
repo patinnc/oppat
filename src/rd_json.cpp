@@ -828,6 +828,8 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 		}
 		file_list_str fls;
 		std::string use_dir = cur_dir;
+		fls.path = cur_dir;
+		printf("use file_list.path= %s at %s %d\n", fls.path.c_str(), __FILE__, __LINE__);
 		if (vals[0].size() > 0) {
 			fls.file_bin  = use_dir+vals[0];
 		}

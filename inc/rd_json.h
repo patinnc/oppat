@@ -3,6 +3,7 @@
  * License http://opensource.org/licenses/mit-license.php MIT License
  */
 #include <regex>
+#include <unordered_map>
 
 enum {
 	FILE_MODE_FIRST = 0x01,
@@ -158,10 +159,35 @@ enum {
 	FILE_TYP_ETW,
 };
 
+struct lst_fld_str {
+	std::string name, typ;
+	uint32_t size, offset, sgned, arr_sz, common;
+};
+
+struct lst_ft_per_fld_str {
+	uint32_t flags;
+	std::string prefix, fld_nm, typ;
+};
+
+struct lst_ft_fmt_str {
+	int id;
+	std::string area, event, fmt;
+	std::vector <lst_ft_per_fld_str> per_fld;
+	std::vector <lst_fld_str> fields;
+};
+
+struct tp_event_str {
+	std::string area, event;
+	int id;
+};
+
 struct file_list_str {
-	std::string file_bin, file_txt, wait_txt, file_tag, lua_file, lua_rtn;
-	int typ, grp;
-	file_list_str(): typ(-1), grp(-1) {}
+	std::string file_bin, file_txt, wait_txt, file_tag, lua_file, lua_rtn, perf_event_list_dump, path;
+	std::vector <lst_ft_fmt_str> lst_ft_fmt_vec;
+	std::vector <tp_event_str> tp_events;
+	std::unordered_map<int, int> tp_id_2_event_indxp1;
+	int typ, grp, idx;
+	file_list_str(): typ(-1), grp(-1), idx(-1) {}
 };
 
 #pragma once

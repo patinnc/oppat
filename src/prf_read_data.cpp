@@ -38,11 +38,11 @@
 #include <signal.h>
 #include "perf_event_subset.h"
 #include "rd_json2.h"
+#include "rd_json.h"
 #include "printf.h"
 #include "oppat.h"
 #include "lua_rtns.h"
 #include "utils.h"
-#include "rd_json.h"
 #include "ck_nesting.h"
 #include "web_api.h"
 #include "MemoryMapped.h"
@@ -533,7 +533,8 @@ static void tm_print(void)
 	
 }
 
-static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, int disp, prf_obj_str &prf_obj, double tm_beg_in)
+static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, int disp,
+		prf_obj_str &prf_obj, double tm_beg_in, file_list_str &file_list)
 {
 	int verbose = 0;
 	static int orig_order= 0;
@@ -646,7 +647,8 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				//sample_rec_fmt_len = prf_decode_read_format(decoded_sample_fmt, (uint64_t)pfa->attr.read_format);
 				uint64_t nr=0;
 				int grp=0, tm_ena=0, tm_run=0, id3=0;
-				int len = prf_decode_read_format_len((uint64_t)prf_obj.events[whch_evt].pea.read_format, grp, tm_ena, tm_run, id3);
+				int len = prf_decode_read_format_len((uint64_t)prf_obj.events[whch_evt].pea.read_format, grp,
+						tm_ena, tm_run, id3);
 				if (!grp) {
 					len++;
 					len *= sizeof(u64);
@@ -715,9 +717,10 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			if (prf_obj.events[whch_evt].pea.type == PERF_TYPE_TRACEPOINT &&
 				prf_obj.events[whch_evt].lst_ft_fmt_idx == -2) {
 				prf_obj.events[whch_evt].lst_ft_fmt_idx = -1;
-				for (uint32_t i=0; i < lst_ft_fmt_vec.size(); i++) {
-					if ((lst_ft_fmt_vec[i].event == evt_nm && lst_ft_fmt_vec[i].area == prf_obj.events[whch_evt].event_area) ||
-						lst_ft_fmt_vec[i].area+":"+lst_ft_fmt_vec[i].event == evt_nm) {
+				for (uint32_t i=0; i < file_list.lst_ft_fmt_vec.size(); i++) {
+					if ((file_list.lst_ft_fmt_vec[i].event == evt_nm &&
+							file_list.lst_ft_fmt_vec[i].area == prf_obj.events[whch_evt].event_area) ||
+							(file_list.lst_ft_fmt_vec[i].area+":"+file_list.lst_ft_fmt_vec[i].event) == evt_nm) {
 						printf("got lst_ft_fmt: match on prf event= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
 						prf_obj.events[whch_evt].lst_ft_fmt_idx = (int)i;
 						break;
@@ -1024,7 +1027,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 	return 0;
 }
 
-static std::string prf_get_evt_name(uint64_t typ, uint64_t config)
+static std::string prf_get_evt_name(uint64_t typ, uint64_t config, file_list_str &file_list)
 {
 	std::string nm;
 	if (typ == PERF_TYPE_HARDWARE) {
@@ -1098,13 +1101,15 @@ static std::string prf_get_evt_name(uint64_t typ, uint64_t config)
 			break;
 		}
 	} else if (typ == PERF_TYPE_TRACEPOINT) {
-		int indx = tp_id_2_event_indxp1[(int)config];
+		int indx = file_list.tp_id_2_event_indxp1[(int)config];
 		if (indx == 0) {
-			printf("missed trace event lookup for event id (config)= %" PRIu64 ", 0x%" PRIx64 " at %s %d\n", config, config, __FILE__, __LINE__);
+			printf("missed trace event lookup for event id (config)= %" PRIu64 ", 0x%" PRIx64 " sz= %d idx= %d at %s %d\n",
+					config, config, (int)file_list.tp_id_2_event_indxp1.size(),
+					file_list.idx, __FILE__, __LINE__);
 			exit(1);
 		}
 		indx--;
-		return tp_events[indx].area + ":" + tp_events[indx].event;
+		return file_list.tp_events[indx].area + ":" + file_list.tp_events[indx].event;
 	}
 	return nm;
 }
@@ -1387,7 +1392,7 @@ static int prf_prt_sample_time(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 	return 0;
 }
 
-int prf_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg)
+int prf_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg, file_list_str &file_list)
 {
 	std::ifstream file;
 	long pos = 0;
@@ -1476,7 +1481,7 @@ int prf_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, doubl
 		std::string decoded_sample_str, decoded_sample_fmt;
 		sample_rec_flds    = prf_decode_sample_type(decoded_sample_str, (uint64_t)pfa->attr.sample_type);
 		sample_rec_fmt_len = prf_decode_read_format(decoded_sample_fmt, (uint64_t)pfa->attr.read_format);
-		std::string evt_name = prf_get_evt_name(pfa->attr.type, (uint64_t)pfa->attr.config);
+		std::string evt_name = prf_get_evt_name(pfa->attr.type, (uint64_t)pfa->attr.config, file_list);
 		//std::string dec_st = decode_sample_type( (uint64_t)pfa->attr.sample_type);
 		printf("event_attr[%d].type= %d, config= %" PRIu64 ", name= %s, sample_id_all= %" PRIu64 ", sample_type= 0x%" PRIx64 ", st_decode= %s, typ_flds= %d, fmt_flds= %d, fmt_str= %s\n",
 			i, pfa->attr.type, 
@@ -1713,7 +1718,7 @@ assigned by the linker to an executable.
 			mm_read_n_bytes(mm_buf, pos, sz_nxt, __LINE__, buf, BUF_MAX);
 			double tm_rd3 = dclock();
 			tm_in_rd += tm_rd3 - tm_rd2;
-			prf_decode_perf_record(pos_rec, evt_hdr.type, buf, 1, prf_obj, tm_beg);
+			prf_decode_perf_record(pos_rec, evt_hdr.type, buf, 1, prf_obj, tm_beg, file_list);
 			double tm_rd4 = dclock();
 			tm_in_dec += tm_rd4 - tm_rd3;
 			sz_tot += sz_nxt;

@@ -197,28 +197,10 @@ struct comm_pid_tid_str {
 //EXTERN2 std::unordered_map<std::string, int> comm_pid_tid_hash;
 //EXTERN2 std::vector <comm_pid_tid_str> comm_pid_tid_vec;
 
-struct lst_fld_str {
-	std::string name, typ;
-	uint32_t size, offset, sgned, arr_sz, common;
-};
-
-struct lst_ft_fmt_str {
-	int id;
-	std::string area, event, fmt;
-	std::vector <lst_ft_per_fld_str> per_fld;
-	std::vector <lst_fld_str> fields;
-};
-
-struct tp_event_str {
-	std::string area, event;
-	int id;
-};
-EXTERN2 std::vector <tp_event_str> tp_events;
-EXTERN2 std::unordered_map<int, int> tp_id_2_event_indxp1;
 EXTERN2 std::vector <MemoryMapped *> mm_vec;
 EXTERN2 struct options_str options;
 
-EXTERN2 std::vector <lst_ft_fmt_str> lst_ft_fmt_vec;
+//EXTERN2 std::vector <lst_ft_fmt_str> lst_ft_fmt_vec;
 
 void prf_add_ids(uint32_t id, int evt_idx, prf_obj_str &prf_obj);
 //char *get_root_dir_of_exe(void);

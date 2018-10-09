@@ -15,8 +15,9 @@
 #define EXTERN_STR extern
 #endif
 
-EXTERN_STR int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg_in, prf_obj_str *prf_obj_prev);
-EXTERN_STR int tp_read_event_formats(std::string flnm, int verbose);
+EXTERN_STR int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg_in,
+		prf_obj_str *prf_obj_prev, file_list_str &file_list);
+EXTERN_STR int tp_read_event_formats(file_list_str &file_list, std::string flnm, int verbose);
 EXTERN_STR int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose, std::vector <evt_str> &evt_tbl2);
 EXTERN_STR void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 		std::vector <evts_derived_str> &evts_derived, int verbose);

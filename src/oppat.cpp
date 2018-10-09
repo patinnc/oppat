@@ -31,6 +31,7 @@
 #include <regex>
 #include <signal.h>
 #include "perf_event_subset.h"
+#include "rd_json.h"
 #include "rd_json2.h"
 #include "printf.h"
 #define OPPAT_CPP
@@ -40,7 +41,6 @@
 #include "lua_rtns.h"
 #include "utils2.h"
 #include "utils.h"
-#include "rd_json.h"
 #include "ck_nesting.h"
 #include "web_api.h"
 #include "MemoryMapped.h"
@@ -119,6 +119,7 @@ static uint32_t ck_if_root_points_to_file_list(std::vector <std::string> root_di
 				pfs.path = root_dir[i];
 				pfs.file = def_flnm;
 				vec.push_back(pfs);
+				printf("got file_list.json filename: %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 			}
 		}
 	}
@@ -464,6 +465,7 @@ get_opt_main (int argc, char **argv)
 	ck_if_root_points_to_file_list(options.root_data_dirs, "file_list.json", options.file_list);
 
 	if (options.file_list.size() > 0) {
+		// everything in this routine below this point should be for just filling in list of files
 		return 0;
 	}
 
@@ -518,8 +520,6 @@ get_opt_main (int argc, char **argv)
 
 	return 0;
 }
-
-//std::vector <lst_ft_fmt_str> lst_ft_fmt_vec;
 
 std::unordered_map<std::string, uint32_t> file_tag_hash;
 std::vector <std::string> file_tag_vec;
@@ -2908,7 +2908,8 @@ static void add_basic_typ(uint32_t flg, std::string str, evt_str &event_table, s
 	}
 }
 
-static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_idx, prf_obj_str &prf_obj, evt_str &event_table, int verbose)
+static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_idx, prf_obj_str &prf_obj,
+		evt_str &event_table, file_list_str &file_list, int verbose)
 {
 	std::vector <double> ts_cpu, state_prev_cpu, ts_by_var;
 	std::vector <int> state_prev_cpu_initd;
@@ -3583,17 +3584,17 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					continue;
 				}
 				if (event_table.flds[j].lst_ft_fmt_fld_idx == -2) {
-					for(uint32_t f=0; f < lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld.size(); f++) {
-						if (lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld[f].prefix == event_table.flds[j].lkup) {
+					for(uint32_t f=0; f < file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld.size(); f++) {
+						if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld[f].prefix == event_table.flds[j].lkup) {
 							printf("got match on trc_fld_pfx lkup field= %s extra_str.sz= %d at %s %d\n",
 								event_table.flds[j].lkup.c_str(),
 								(int)prf_obj.samples[i].extra_str.size(),
 								__FILE__, __LINE__);
 							event_table.flds[j].lst_ft_fmt_fld_idx = (int)f;
-							if ((f+1) >= lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld.size()) {
+							if ((f+1) >= file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld.size()) {
 								event_table.flds[j].lkup_dlm_str = "__EOL__";
 							} else {
-								event_table.flds[j].lkup_dlm_str = lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld[f+1].prefix;
+								event_table.flds[j].lkup_dlm_str = file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].per_fld[f+1].prefix;
 							}
 						}
 					}
@@ -3617,8 +3618,14 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				int lst_ft_fmt_idx = prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx;
 				if (event_table.flds[j].lst_ft_fmt_fld_idx == -2) {
-					for(uint32_t f=0; f < lst_ft_fmt_vec[lst_ft_fmt_idx].fields.size(); f++) {
-						if (lst_ft_fmt_vec[lst_ft_fmt_idx].fields[f].name == event_table.flds[j].lkup) {
+					if (lst_ft_fmt_idx < 0 || lst_ft_fmt_idx >= file_list.lst_ft_fmt_vec.size()) {
+						printf("lst_ft_fmt_idx= %d, file_list.lst_ft_fmt_vec.size()= %d, file_list.idx= %d at %s %d\n", 
+							lst_ft_fmt_idx, (int)file_list.lst_ft_fmt_vec.size(), file_list.idx, __FILE__, __LINE__);
+						fflush(NULL);
+						exit(1);
+					}
+					for(uint32_t f=0; f < file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields.size(); f++) {
+						if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[f].name == event_table.flds[j].lkup) {
 							if (verbose)
 								printf("got match on trc_bin_lkup field= %s at %s %d\n",
 										event_table.flds[j].lkup.c_str(), __FILE__, __LINE__);
@@ -3638,50 +3645,50 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					printf("mm_buf is null at %s %d\n", __FILE__, __LINE__);
 					exit(1);
 				}
-				long mm_off = prf_obj.samples[i].mm_off + (long)lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].offset;
+				long mm_off = prf_obj.samples[i].mm_off + (long)file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].offset;
 				if (mm_off < 0) {
 					printf("mm_off is %ld, must be >= 0. Bye at %s %d\n", mm_off, __FILE__, __LINE__);
 					exit(1);
 				}
 				double v=0;
-				if (lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size == 4) {
+				if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size == 4) {
 #if 0
 					printf("bef trc_bin offset= %d, name= %s, evt_nm= %s, lkup_value= %f mm_off= %ld po_off= %ld at %s %d\n",
-						lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].offset,
-						lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
+						file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].offset,
+						file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
 						prf_obj.samples[i].event.c_str(),
 						v, mm_off, prf_obj.samples[i].mm_off, __FILE__, __LINE__);
 					fflush(NULL);
 #endif
-					if (lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].sgned == 1) {
+					if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].sgned == 1) {
 						v = (double)*(int32_t *)(mm_buf+mm_off);
 					} else {
 						v = (double)*(uint32_t *)(mm_buf+mm_off);
 					}
 #if 0
 					printf("trc_bin offset= %d, name= %s, evt_nm= %s, lkup_value= %f at %s %d\n",
-						lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].offset,
-						lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
+						file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].offset,
+						file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
 						prf_obj.samples[i].event.c_str(),
 						v, __FILE__, __LINE__);
 #endif
-				} else if (lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size == 8) {
-					if (lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].sgned == 1) {
+				} else if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size == 8) {
+					if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].sgned == 1) {
 						v = (double)*(int64_t *)(mm_buf+mm_off);
 					} else {
 						v = (double)*(uint64_t *)(mm_buf+mm_off);
 					}
 				} else {
-					if (lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ == "char") {
+					if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ == "char") {
 						if (!(flg & FLD_TYP_STR)) {
 							printf("prf bin fld typ is char but evt_fld def isn't TYP_STR for name= %s, typ= %s at %s %d\n",
-							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
-							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ.c_str(),
+							file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
+							file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ.c_str(),
 							__FILE__, __LINE__);
 							exit(1);
 						}
 						std::string str;
-						for(uint32_t kk=0; kk < lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size; kk++) {
+						for(uint32_t kk=0; kk < file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size; kk++) {
 							if (*(char *)(mm_buf+mm_off+kk) == 0) {
 								break;
 							}
@@ -3693,9 +3700,9 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 						continue;
 					} else {
 						printf("don't yet handle size= %d name= %s, typ= %s at %s %d\n",
-							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size,
-							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
-							lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ.c_str(),
+							file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size,
+							file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
+							file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ.c_str(),
 							__FILE__, __LINE__);
 						exit(1);
 					}
@@ -4092,6 +4099,23 @@ void do_load_replay(int verbose)
 			(int)bin_map.size(), (int)chrts_json.size(), options.replay_filename.c_str(), __FILE__, __LINE__);
 }
 
+int read_perf_event_list_dump(file_list_str &file_list)
+{
+	// read the list of perf events and their format.
+	// Create perf_event_list_dump.txt with dump_all_perf_events.sh (on linux of course).
+	std::string base_file = "perf_event_list_dump.txt";
+	std::string flnm = file_list.path + DIR_SEP + base_file;
+	int rc = ck_filename_exists(flnm.c_str(), __FILE__, __LINE__, options.verbose);
+	if (rc != 0) {
+		fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	printf("found file %s using filename= %s at %s %d\n", base_file.c_str(), flnm.c_str(), __FILE__, __LINE__);
+
+	tp_read_event_formats(file_list, flnm, options.verbose);
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	std::vector <std::vector <evt_str>> event_table, evt_tbl2;
@@ -4155,6 +4179,8 @@ int main(int argc, char **argv)
 			printf("try reading file_list[%d]= %s at %s %d\n", fls, flnm.c_str(), __FILE__, __LINE__);
 			read_file_list_json(flnm, file_list, dummy_file_tags,
 					file_mode, options.file_list[fls].path, verbose);
+			printf("aft reading: file_list.sz()= %d path= %s at %s %d\n", (int)file_list.size(),
+					options.file_list[fls].path.c_str(), __FILE__, __LINE__);
 		}
 	} else if (options.perf_bin.size() == 0 && options.tc_bin.size() == 0 && options.lua_wait.size() == 0 &&
 			options.etw_txt.size() == 0) {
@@ -4175,6 +4201,7 @@ int main(int argc, char **argv)
 		}
 		read_file_list_json(data_files, file_list, use_file_tags, options.file_mode, use_root, verbose);
 	} else {
+		// this is the case where each file is entered on the command line
 		if (options.perf_bin.size() > 0) {
 			file_list_str fls;
 			fls.file_bin = options.perf_bin;
@@ -4217,6 +4244,9 @@ int main(int argc, char **argv)
 		}
 	}
 
+	for (uint32_t ii=0; ii < file_list.size(); ii++) {
+		file_list[ii].idx = ii;
+	}
 	if (options.chart_file.size() > 0) {
 		chart_file = options.chart_file;
 	}
@@ -4249,6 +4279,7 @@ int main(int argc, char **argv)
 	int grps = 0;
 	int prv_grp = -2, grp_min, grp_max;
 	std::vector <int> grp_list;
+	printf("file_list.sz= %d at %s %d\n", (int)file_list.size(), __FILE__, __LINE__);
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		if (i==0) {
 			grp_min = file_list[i].grp;
@@ -4271,6 +4302,7 @@ int main(int argc, char **argv)
 
 	std::string json_evt_chrt_str = rd_json(chart_file);
 
+#if 0
 	// read the list of perf events and their format.
 	// Create perf_event_list_dump.txt with dump_all_perf_events.sh (on linux of course).
 	base_file = "perf_event_list_dump.txt";
@@ -4289,6 +4321,7 @@ int main(int argc, char **argv)
 	printf("found file %s using filename= %s at %s %d\n", base_file.c_str(), flnm.c_str(), __FILE__, __LINE__);
 
 	tp_read_event_formats(flnm, options.verbose);
+#endif
 
 	prf_obj.resize(file_list.size());
 
@@ -4315,6 +4348,8 @@ int main(int argc, char **argv)
 		}
 	}
 
+	std::vector <int> file_list_1st;
+	uint32_t file_tag_idx_prev = UINT32_M1, use_i=0;
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		int v_tmp = 0;
 		std::string file_tag = file_list[i].file_tag;
@@ -4324,7 +4359,14 @@ int main(int argc, char **argv)
 			flnm_evt_vec.resize(file_tag_idx+1);
 			comm_pid_tid_hash.resize(file_tag_idx+1);
 			comm_pid_tid_vec.resize(file_tag_idx+1);
+			read_perf_event_list_dump(file_list[i]);
+			printf("read_perf_event_list_dump(file_list[%d]) at %s %d\n", file_tag_idx, __FILE__, __LINE__);
 		}
+		if (file_tag_idx_prev != file_tag_idx) {
+			file_tag_idx_prev = file_tag_idx;
+			use_i = i;
+		}
+		file_list_1st.push_back(use_i);
 		prf_obj[i].file_type = file_list[i].typ;
 		prf_obj[i].file_tag_idx = file_tag_idx;
 		if (file_list[i].file_bin.size() > 0) {
@@ -4336,20 +4378,22 @@ int main(int argc, char **argv)
 		if (file_list[i].wait_txt.size() > 0) {
 			replace_substr(file_list[i].wait_txt, "\\", "/", verbose);
 		}
+
 		if (file_list[i].typ == FILE_TYP_TRC_CMD) {
-			tc_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, prf_obj_prv);
+			tc_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, prf_obj_prv, file_list[file_list_1st[i]]);
 			tc_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
 			printf("\nafter tc_read_data_bin(%s) at %s %d\n", file_list[i].file_bin.c_str(), __FILE__, __LINE__);
 		}
 		else if (file_list[i].typ == FILE_TYP_PERF) {
 			if (verbose)
 				fprintf(stderr, "begin prf_read_data_bin(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
-			prf_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg);
+			prf_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, file_list[file_list_1st[i]]);
 			prf_obj_prv = &prf_obj[i];
 			if (verbose)
 				fprintf(stderr, "begin prf_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 			prf_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
-			fprintf(stderr, "after prf_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
+			fprintf(stderr, "after prf_parse_text(i=%d) elap= %f flnm= %s at %s %d\n",
+					i, dclock()-tm_beg, file_list[i].file_bin.c_str(), __FILE__, __LINE__);
 		}
 		else if (file_list[i].typ == FILE_TYP_LUA) {
 			if (verbose)
@@ -4376,7 +4420,7 @@ int main(int argc, char **argv)
 
 	event_table.resize(grp_list.size());
 
-	printf("\nbefore fill_data_table:\n");
+	printf("\nbefore fill_data_table: grp_list.size()= %d at %s %d\n", (int)grp_list.size(), __FILE__, __LINE__);
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t k=0; k < file_list.size(); k++) {
 			if (verbose)
@@ -4435,7 +4479,7 @@ int main(int argc, char **argv)
 						if (verbose)
 							printf("file_grp= %d, match prf_feat[%d] and event_table[%d][%d] %s\n",
 								k, j, grp_list[g], i, event_table[grp_list[g]][i].event_name.c_str());
-						fill_data_table(j, i, k, prf_obj[k], event_table[grp_list[g]][i], verbose);
+						fill_data_table(j, i, k, prf_obj[k], event_table[grp_list[g]][i], file_list[file_list_1st[k]], verbose);
 						if (verbose)
 							printf("after fill_data_table: evt= %s, event_table[%d][%d].data.vals.size()= %d at %s %d\n",
 								event_table[grp_list[g]][i].event_name.c_str(),
