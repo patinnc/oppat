@@ -123,8 +123,8 @@
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"power", "title":"power:cpu_idle by cpu",  "var_name": "cpu_idle state", "by_var": "cpu", "chart_tag":"CPU_IDLE_BY_CPU", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"power", "title":"power:cpu_idle by cpu",  "var_name": "cpu_idle state", "by_var": "cpu",
+			"chart_tag":"CPU_IDLE_BY_CPU", "chart_type":"line", "y_fmt":"%d", "use_chart":"d"}
 		]
 	}
   },
