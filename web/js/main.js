@@ -410,7 +410,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let xd0 = 0.5 * (maxx - minx);
 			let xd1 = minx + xd0;
 			let xd2 = xd1 / xd;
-			draw_mini(xd2);
+			if (isNaN(xd2)) {
+				console.log("cd.xr.mx= "+chart_data.x_range.max+", mn="+chart_data.x_range.min);
+			} else {
+				draw_mini(xd2);
+			}
 		}
 	}
 
@@ -424,7 +428,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		addElement ('div', hvr_clr+'_bottom', 'chart_anchor', 'before');
 		//console.log("set sldr_cur= "+sldr_cur);
 		myhvr_clr = document.getElementById(hvr_clr);
-		let str ='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas_nm_title+'"></div></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide-2)+'" height="'+(px_high-4)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div><canvas id="canvas2_'+hvr_clr+'" width="'+(px_wide-2)+'" height="25px" style="border:1px solid #000000;"></canvas><div style="display:inline-block"><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_top_20\');" />Legend top20</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_all\');" />Legend all</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'hide_all\');" />Legend hide</button><span id="'+hvr_clr+'_legend" style="display:inline-block;height:200px;word-wrap: break-word;overflow-y: auto;"></span><button id="but_' + hvr_clr +'" class="clrTxtButton" style="display:inline-block;visibility:hidden" onclick="clearHoverInfo(\''+hvr_clr+'_txt\', \''+hvr_clr+'\');" />Clear_text</button><span id="'+hvr_clr+'_txt" style="margin-left:0px;" clrd="n" ></span></div><span id="'+hvr_clr+'_canspan"></span><hr>';
+		let str ='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas_nm_title+'"></div></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide-2)+'" height="'+(px_high-4)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div><canvas id="canvas2_'+hvr_clr+'" width="'+(px_wide-2)+'" height="25px" style="border:1px solid #000000;"></canvas><div id="after_canvas_'+hvr_clr+'" style="display:inline-block"><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_top_20\');" />Legend top20</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_all\');" />Legend all</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'hide_all\');" />Legend hide</button><span id="'+hvr_clr+'_legend" style="display:inline-block;height:200px;word-wrap: break-word;overflow-y: auto;"></span><button id="but_' + hvr_clr +'" class="clrTxtButton" style="display:inline-block;visibility:hidden" onclick="clearHoverInfo(\''+hvr_clr+'_txt\', \''+hvr_clr+'\');" />Clear_text</button><span id="'+hvr_clr+'_txt" style="margin-left:0px;" clrd="n" ></span></div><span id="'+hvr_clr+'_canspan"></span><hr>';
 		//console.log("create hvr_clr butn str= "+str);
 		myhvr_clr.innerHTML = str;
 	}
@@ -443,6 +447,19 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 	let canvas3_px_high = mycanvas.height;
 	let mycanvas2 = document.getElementById('canvas2_'+hvr_clr);
+	if (chart_data.x_range.max == 0 && chart_data.x_range.min == 0) {
+		mycanvas_title.innerHTML = ch_title + "<br> no data for chart";
+		mycanvas.height = 0;
+		mycanvas2.height = 0;
+		let myaftercanvas = document.getElementById('after_canvas_'+hvr_clr);
+		myaftercanvas.style.display = "none";
+		mycanvas.style.display = "none";
+		mycanvas2.style.display = "none";
+		mytooltip.style.display = "none";
+		let mycanspan = document.getElementById(hvr_clr+'_canspan');
+		mycanspan.style.display = "none";
+		return;
+	}
 	let mylegend  = document.getElementById(hvr_clr+'_legend');
 	let tm_here_01 = performance.now();
 	let proc_select = {};
@@ -2187,7 +2204,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let nx1 = +minx+(xdiff1 * (maxx - minx));
 				console.log("x_px_diff= "+(x - ms_dn_pos[0])+", nd1= "+xdiff0+", xd1= "+xdiff1+", xdff="+(xdiff1-xdiff0));
 				if (Math.abs(x - ms_dn_pos[0]) <= 3) {
-					console.log("Click "+", btn= "+evt.button);
+					console.log("Click_2 "+", btn= "+evt.button);
 					nx0_prev = nx0;
 				can_shape.hvr_prv_x = x;
 				can_shape.hvr_prv_y = y;
@@ -2907,6 +2924,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	function draw_mini(zero_to_one)
 	{
+		if (isNaN(zero_to_one)) {
+			return;
+		}
 		if ( typeof draw_mini.x_prev == 'undefined' ) {
 			draw_mini.x_prev = -1;
 			draw_mini.image_rdy = 0;
@@ -2928,6 +2948,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//console.log("__draw_mini return");
 			return;
 		}
+		//console.log("draw_mini.x_prev= "+draw_mini.x_prev+", x_int= "+x_int+", z21= "+zero_to_one);
 		draw_mini.x_prev = x_int;
 		mycanvas2_ctx.clearRect(0, 0, mycanvas2.width, mycanvas2.height);
 		mycanvas2_ctx.drawImage(draw_mini.image, 0, 0, mycanvas2.width, mycanvas2.height);
@@ -3101,6 +3122,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let rect = this.getBoundingClientRect(),
 			x = Math.trunc(e.clientX - rect.left - xPadding),
 			y = Math.trunc(e.clientY - rect.top);
+		if (x < xPadding) {
+			return;
+		}
 	   	ms_dn_pos = [x, y];
 	   	mycanvas.onmouseup = function (evt) {
 			let rect = this.getBoundingClientRect(),
@@ -3115,7 +3139,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let nx1 = +minx+(xdiff1 * (maxx - minx));
 			console.log("xdiff= "+(x - ms_dn_pos[0])+", nx0= "+nx0+", nx1= "+nx1);
 			if (Math.abs(x - ms_dn_pos[0]) <= 3) {
-				console.log("Click "+", btn= "+evt.button);
+				console.log("Click_1 "+", btn= "+evt.button);
 				let str2 = "";
 				if (nx0_prev != -1) {
 					let diff2 = nx0 - nx0_prev;
