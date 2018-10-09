@@ -82,10 +82,12 @@ static const char *pf_flag_strs[] = {
 extern "C" {
 #endif
 
+#if 0
 struct lst_ft_per_fld_str {
 	uint32_t flags;
 	std::string prefix, fld_nm, typ;
 };
+#endif
 
 
 /**

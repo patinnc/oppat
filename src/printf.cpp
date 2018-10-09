@@ -34,7 +34,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <vector>
+#include <unordered_map>
 #include <string>
+#include "rd_json.h"
 #include "printf.h"
 
 
