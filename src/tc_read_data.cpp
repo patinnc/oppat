@@ -93,6 +93,48 @@ static char *tc_decode_evt_hdr_typ(uint32_t eh_typ)
 	return "unknown";
 }
 
+static uint32_t lkup_id_from_perf_event_list(prf_obj_str &prf_obj, uint32_t id, int line)
+{
+	uint32_t ck_idx = prf_obj.ids_2_evt_indxp1[id];
+	if (ck_idx == 0) {
+		printf("didn't find event num: tc_evt_num= %u from line= %d at %s %d\n",
+			id, line, __FILE__, __LINE__);
+		exit(1);
+	}
+	return ck_idx;
+}
+
+static uint32_t find_id_in_perf_event_list_from_evt_idx(
+						prf_obj_str &prf_obj, file_list_str &file_list, uint32_t evt_idx, int line)
+{
+	uint32_t idx = UINT32_M1;
+	if (prf_obj.events[evt_idx].pea.type == PERF_TYPE_TRACEPOINT) {
+		if (prf_obj.events[evt_idx].lst_ft_fmt_idx == -2) {
+			prf_obj.events[evt_idx].lst_ft_fmt_idx = -1;
+			for (uint32_t i=0; i < file_list.lst_ft_fmt_vec.size(); i++) {
+				if (file_list.lst_ft_fmt_vec[i].event == prf_obj.events[evt_idx].event_name &&
+					file_list.lst_ft_fmt_vec[i].area == prf_obj.events[evt_idx].event_area) {
+					printf("got lst_ft_fmt: match on trace-cmd event= %s at %s %d\n",
+						prf_obj.events[evt_idx].event_name.c_str(), __FILE__, __LINE__);
+					prf_obj.events[evt_idx].lst_ft_fmt_idx = (int)i;
+					idx = i;
+					break;
+				}
+			}
+		} else {
+			idx = prf_obj.events[evt_idx].lst_ft_fmt_idx;
+		}
+	}
+	if (idx == UINT32_M1) {
+		printf("missed lookup for evt= %s area= %s from line %d at %s %d\n",
+			prf_obj.events[evt_idx].event_name.c_str(),
+			prf_obj.events[evt_idx].event_area.c_str(),
+			line, __FILE__, __LINE__);
+		exit(1);
+	}
+	return idx;
+}
+
 static int tc_read_evt(long max_pos, int cpu, long page_sz, const unsigned char *mm_buf,
 		long &pos, uint64_t &ts, int line, prf_obj_str &prf_obj, int verbose,
 		prf_obj_str *prf_obj_prev, file_list_str &file_list)
@@ -109,18 +151,22 @@ do_page_hdr:
 		return evt_len;
 	}
 
+#if 1
 	if ((pos % page_sz) == 0) {
 		int sz = 16;
 		//read_n_bytes(file, pos, sz, __LINE__);
 		mm_read_n_bytes(mm_buf, pos, sz, __LINE__, buf, BUF_MAX);
+		//hex_dump_n_bytes_from_buf(buf, 16, "hex pg_top len=16:", __LINE__);
 		ts = *(buf_uint64_ptr(buf, 0));
 		if (verbose)
 			printf("cpu[%d] ts= %" PRIu64 "\n", cpu, ts);
 		evt_len += sz;
 	}
+#endif
 	long pos_sv = pos;
 	//read_n_bytes(file, pos, 4, __LINE__);
 	mm_read_n_bytes(mm_buf, pos, 4, __LINE__, buf, BUF_MAX);
+	//hex_dump_n_bytes_from_buf(buf, 4, "hex evt top, len=4:", __LINE__);
 	evt_len += 4;
 	uint32_t evt_hdr = *(buf_uint32_ptr(buf, 0));
 	uint32_t evt_hdr_typ = (0x1f & evt_hdr);
@@ -148,10 +194,27 @@ do_page_hdr:
 			evt_len += len;
 		}
 	} else if (evt_hdr_typ <= tc_eh_typ_data_len_max) {
+		// see https://elixir.bootlin.com/linux/v3.8/source/include/linux/ring_buffer.h
+#pragma pack(push, 1)
+				struct cmn_hdr_str {
+					uint16_t type;
+					uint8_t flags;
+					uint8_t preempt_count;
+					int32_t pid;
+				} *cmn_hdr;
+#pragma pack(pop)
+		bool evt_handled, did_read_cmn_hdr, do_part2;
+		uint64_t mm_off = (uint64_t)pos;
+		evt_handled = false;
+		did_read_cmn_hdr = false;
+		do_part2 = false;
 		if (evt_hdr_typ == 0) {
 			//read_n_bytes(file, pos, 4, __LINE__);
+			evt_handled = true;
 			mm_read_n_bytes(mm_buf, pos, 4, __LINE__, buf, BUF_MAX);
+			//hex_dump_n_bytes_from_buf(buf, 4, "hex evt_hdr_typ==0, len:", __LINE__);
 			evt_len += 4;
+			ts += evt_hdr_tm_delta;
 			uint32_t len = *(buf_uint32_ptr(buf, 0));
 			if (len == 0 && (pos % page_sz) == 0) {
 				goto do_page_hdr;
@@ -162,45 +225,74 @@ do_page_hdr:
 			}
 			//read_n_bytes(file, pos, len, __LINE__);
 			mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
+			//hex_dump_n_bytes_from_buf(buf, len, "hex evt_hdr_typ==0:", __LINE__);
 			evt_len += len;
-			printf("evt_hdr_typ == 0, len= %d, tot_len= %d, pos_sv= %ld, pos= %ld\n", len, evt_len, pos_sv, pos);
-			ts += evt_hdr_tm_delta;
+			if (len >= 4) {
+				did_read_cmn_hdr = true;
+				cmn_hdr = (cmn_hdr_str *)buf;
+				uint32_t ck_idx = lkup_id_from_perf_event_list(prf_obj, cmn_hdr->type, __LINE__);
+				uint32_t ck_evt_idx = prf_obj.ids_vec[ck_idx-1];
+				std::string evt_nm = prf_obj.events[ck_evt_idx].event_name;
+				uint32_t prf_evt_idx = find_id_in_perf_event_list_from_evt_idx(prf_obj, file_list, ck_evt_idx, __LINE__);
+				uint32_t fsz = 0;
+				for (uint32_t ii=0; ii < file_list.lst_ft_fmt_vec[prf_evt_idx].fields.size(); ii++) {
+					fsz = file_list.lst_ft_fmt_vec[prf_evt_idx].fields[ii].size + 
+						file_list.lst_ft_fmt_vec[prf_evt_idx].fields[ii].offset;
+				}
+				if (verbose > 0)
+					printf("got id evt_nm= %s and fsz= %d, len= %d at %s %d\n", evt_nm.c_str(), fsz, len, __FILE__, __LINE__);
+				evt_len += (fsz - len);
+				len = fsz;
+				pos = mm_off+4;
+				mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
+				cmn_hdr = (cmn_hdr_str *)(buf);
+			}
+			if (verbose )
+				printf("evt_hdr_typ == 0, len= %d, tot_len= %d, pos_sv= %ld, pos= %ld, at %s %d\n",
+					len, evt_len, pos_sv, pos, __FILE__, __LINE__);
+			if (len == 0) {
+				do_part2 = false;
+			} else {
+				do_part2 = true;
+			}
+			// abcd
 		} else {
-			uint32_t len = evt_hdr_typ << 2;
-			//read_n_bytes(file, pos, len, __LINE__);
-			uint64_t mm_off = (uint64_t)pos;
-			mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
-			evt_len += len;
-			ts += evt_hdr_tm_delta;
-			//char *hdr_typ_str = tc_decode_evt_hdr_typ(evt_hdr_typ);
-			//printf("evt_hdr_typ == 0x%x(%s), len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
-			//	evt_hdr_typ, hdr_typ_str, len, evt_len, pos_sv, pos, __FILE__, __LINE__);
+			do_part2 = true;
+			did_read_cmn_hdr = false;
+		}
+		if (do_part2) {
+			evt_handled = true;
+			uint32_t len = 4;
+			if (!did_read_cmn_hdr) {
+				ts += evt_hdr_tm_delta;
+				len = evt_hdr_typ << 2;
+				//mm_off = (uint64_t)pos;
+				mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
+				evt_len += len;
+			}
+			char *hdr_typ_str = tc_decode_evt_hdr_typ(evt_hdr_typ);
+			if (verbose > 0)
+				printf("evt_hdr_typ == 0x%x(%s), len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
+					evt_hdr_typ, hdr_typ_str, len, evt_len, pos_sv, pos, __FILE__, __LINE__);
 			if (evt_hdr_typ < tc_eh_typ_data_len_max) {
-			//if (evt_hdr_typ == 0x10 || evt_hdr_typ == 0x4 || evt_hdr_typ == 0x8)
-#pragma pack(push, 1)
-				struct cmn_hdr_str {
-					uint16_t type;
-					uint8_t flags;
-					uint8_t preempt_count;
-					int32_t pid;
-				} *cmn_hdr;
-#pragma pack(pop)
 				prf_samples_str pss;
 				cmn_hdr = (cmn_hdr_str *)buf;
 				pss.mm_off = (long)mm_off;
 				double tsn = 1.e-9 * (double)ts;
 				if (verbose > 0)
-					printf("tc_evt_num= %u, flags= 0x%x, prempt= %d, pid= %d, cpu= %d ts= %.9f, off= %ld\n",
-					cmn_hdr->type, cmn_hdr->flags, cmn_hdr->preempt_count, cmn_hdr->pid, cpu, tsn, pss.mm_off);
+					printf("tc_evt_num= %u, flags= 0x%x, prempt= %d, pid= %d, cpu= %d ts= %.9f, off= %ld at %s %d\n",
+					cmn_hdr->type, cmn_hdr->flags, cmn_hdr->preempt_count, cmn_hdr->pid, cpu, tsn, pss.mm_off, __FILE__, __LINE__);
 				if (pss.mm_off == 5030836) {
 					printf("ckck: tc_evt_num= %u, flags= 0x%x, prempt= %d, pid= %d, cpu= %d ts= %.9f, off= %ld, len= %d at %s %d\n",
 					cmn_hdr->type, cmn_hdr->flags, cmn_hdr->preempt_count, cmn_hdr->pid, cpu, tsn, pss.mm_off, len, __FILE__, __LINE__);
 				}
 
-				uint32_t ck_idx = prf_obj.ids_2_evt_indxp1[cmn_hdr->type];
+				uint32_t ck_idx = lkup_id_from_perf_event_list(prf_obj, cmn_hdr->type, __LINE__);
 				uint32_t ck_evt_idx = prf_obj.ids_vec[ck_idx-1];
 				std::string evt_nm = prf_obj.events[ck_evt_idx].event_name;
 
+				uint32_t perf_evt_idx = find_id_in_perf_event_list_from_evt_idx(prf_obj, file_list, ck_evt_idx, __LINE__);
+#if 0
 				if (prf_obj.events[ck_evt_idx].pea.type == PERF_TYPE_TRACEPOINT &&
 					prf_obj.events[ck_evt_idx].lst_ft_fmt_idx == -2) {
 					prf_obj.events[ck_evt_idx].lst_ft_fmt_idx = -1;
@@ -213,6 +305,7 @@ do_page_hdr:
 						}
 					}
 				}
+#endif
 				int pid = cmn_hdr->pid;
 #if 1
 				int pid_indx = (int)prf_obj.tid_2_comm_indxp1[(uint32_t)pid];
@@ -311,19 +404,22 @@ do_page_hdr:
 					prf_obj.samples.push_back(pss);
 				}
 #endif
-			} else {
+			}
+			if (!evt_handled) {
 				char *hdr_typ_str = tc_decode_evt_hdr_typ(evt_hdr_typ);
 				printf("unhandled evt_hdr_typ == 0x%x(%s), len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
 					evt_hdr_typ, hdr_typ_str, len, evt_len, pos_sv, pos, __FILE__, __LINE__);
 				exit(1);
 			}
+read_part2_end:
+			;
 		}
 	}
 	char *hdr_typ_str = tc_decode_evt_hdr_typ(evt_hdr_typ);
 	if (verbose > 0) {
-	printf("pos_sv= %ld, pos= %ld, evt_hdr typ= 0x%x(%s) rest= 0x%x, evt_len= %d, ts= %" PRIu64 " at %s %d\n",
-		pos_sv, pos, evt_hdr_typ, hdr_typ_str,
-		(evt_hdr - evt_hdr_typ), evt_len, ts, __FILE__, __LINE__);
+		printf("pos_sv= %ld, pos= %ld, evt_hdr typ= 0x%x(%s) rest= 0x%x, evt_len= %d, ts= %" PRIu64 " at %s %d\n",
+			pos_sv, pos, evt_hdr_typ, hdr_typ_str,
+			(evt_hdr - evt_hdr_typ), evt_len, ts, __FILE__, __LINE__);
 	}
 
 #if 1
@@ -738,6 +834,14 @@ read_opt_again:
 				*/
 				prf_obj.features_cpudesc = prf_obj.features_arch = prf_obj.features_hostname = tos.str;
 				printf("tc: prf_obj hostname= '%s'\n", tos.str.c_str());
+			}
+			if (cur_opt == 2) {
+				size_t mpos = tos.str.find("now ts: ");
+				if (mpos != std::string::npos) {
+					double last_ts = atof(tos.str.substr(mpos+8, tos.str.size()).c_str());
+					printf("trace-cmd last ts= %f at %s %d\n", last_ts, __FILE__, __LINE__);
+					prf_obj.tm_end = last_ts;
+				}
 			}
 			tc_opts.push_back(tos);
 			goto read_opt_again;
@@ -1166,7 +1270,9 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 	ck_evts_derived(prf_obj, evt_tbl2, evts_derived, verbose);
 
 	prf_obj.tm_beg = 1.0e-9 * (double)prf_obj.samples[0].ts;
-	prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
+	if (prf_obj.tm_end == 0) {
+		prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
+	}
 	prf_obj.filename_text = flnm;
 	int store_callstack_idx = -1;
 	double tm_beg = dclock();
@@ -1186,6 +1292,8 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 		line_num++;
 		int sz = line.size();
 		if (sz > 5 && line.substr(0, 5) == "cpus=") {
+			//lines_comments++;
+		} else if (sz > 13 && line.substr(0, 4) == "CPU " && line.find(" is empty") != std::string::npos) {
 			//lines_comments++;
 		} else if (sz > 0 && line[0] == '#') {
 			lines_comments++;
