@@ -64,6 +64,16 @@ struct prf_comm_str {
 	prf_comm_str(): pid(-1), tid(-1), tm_defined(0.0) {}
 };
 
+struct pe_group_str {
+	uint64_t grp, tm_run, tm_ena, period;
+	struct pe_vals_str {
+		uint64_t val, id, off;
+		pe_vals_str(): val(0), id(-1) {}
+	};
+	std::vector <pe_vals_str> pe_vals;
+	pe_group_str(): grp(-1), tm_run(0), tm_ena(0) {}
+};
+
 struct prf_events_str {
 	struct perf_event_attr pea;
 	std::vector <uint64_t> ids;
@@ -74,6 +84,7 @@ struct prf_events_str {
 	std::string event_name;
 	std::string event_name_w_area;
 	int lst_ft_fmt_idx;
+	struct pe_group_str pe_grp;
 	prf_events_str(): lst_ft_fmt_idx(-2) {}
 };
 struct prf_callstack_str {

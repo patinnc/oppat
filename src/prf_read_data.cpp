@@ -576,17 +576,6 @@ static int get_evt_from_id(prf_obj_str &prf_obj, uint64_t id, std::string &evt_n
 	return whch_evt;
 }
 
-struct pe_group_str {
-	uint64_t grp, tm_run, tm_ena, period;
-	struct pe_vals_str {
-		uint64_t val, id;
-		pe_vals_str(): val(0), id(-1) {}
-	};
-	std::vector <pe_vals_str> pe_vals;
-	pe_group_str(): grp(-1), tm_run(0), tm_ena(0) {}
-};
-
-
 static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, int disp,
 		prf_obj_str &prf_obj, double tm_beg_in, file_list_str &file_list)
 {
@@ -647,6 +636,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				(prf_obj.def_sample_flags & PERF_SAMPLE_TIME)) {
 				time = *(u64 *)(buf + off);
 				off += sizeof(time);
+				//printf("time= %" PRIu64 " at %s %d\n", time, __FILE__, __LINE__);
 			}
 		 //	{ u64			addr;     } && PERF_SAMPLE_ADDR
 			if ((whch_evt > -1 && prf_obj.events[whch_evt].pea.sample_type & PERF_SAMPLE_ADDR) ||
@@ -698,6 +688,9 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 					pe_grp.period = period;
 					pe_grp.grp = stream_id;
 					pe_grp.pe_vals.resize(nr);
+					if (prf_obj.events[whch_evt].pe_grp.pe_vals.size() < nr) {
+						prf_obj.events[whch_evt].pe_grp.pe_vals.resize(nr);
+					}
 					if (tm_ena) {
 						pe_grp.tm_ena = *(u64 *)(buf + off + xoff);
 						xoff += sizeof(u64);
@@ -710,9 +703,11 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 					//		pe_grp.grp, pe_grp.tm_ena, pe_grp.tm_run);
 					for (uint32_t ii=0; ii < nr; ii++) {
 						pe_grp.pe_vals[ii].val = *(u64 *)(buf + off + xoff);
+						pe_grp.pe_vals[ii].off = off + xoff;
 						xoff += sizeof(u64);
 						if (id3) {
 							pe_grp.pe_vals[ii].id = *(u64 *)(buf + off + xoff);
+							pe_grp.pe_vals[ii].off = off + xoff;
 							xoff += sizeof(u64);
 						}
 						//printf("\tPERF_SAMPLE_READ: val[%d]= %" PRIu64 " id= %" PRIu64 "\n",
@@ -911,6 +906,10 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				exit(1);
 			}
 			pss.tm_str = std::string(num_buf);
+			if (pe_grp.pe_vals.size() > 0) {
+				pss.period = pe_grp.pe_vals[0].val - prf_obj.events[whch_evt].pe_grp.pe_vals[0].val;
+				prf_obj.events[whch_evt].pe_grp.pe_vals[0].val = pe_grp.pe_vals[0].val;
+			}
 			if (verbose > 0) 
 				printf("hdr:[%d] %-16.16s %d/%d [%.3d]%s %" PRIu64 " %s:\n",
 					++smples, (indx > 0 ?  prf_obj.comm[indx-1].comm.c_str() : ""), pid, tid, cpu, pss.tm_str.c_str(), period, evt_nm.c_str());
@@ -922,11 +921,14 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			++smples;
 			for (uint32_t ii=1; ii < pe_grp.pe_vals.size(); ii++) {
 				std::string evt_nm2;
-				whch_evt = get_evt_from_id(prf_obj, pe_grp.pe_vals[ii].id, evt_nm2, __LINE__, verbose);
+				uint32_t whch_evt2 = get_evt_from_id(prf_obj, pe_grp.pe_vals[ii].id, evt_nm2, __LINE__, verbose);
 				pss.event  = evt_nm2;
-				pss.evt_idx = (uint32_t)whch_evt;
+				pss.evt_idx = (uint32_t)whch_evt2;
 				pss.orig_order = orig_order++;
-				pss.period = pe_grp.pe_vals[ii].val;
+				pss.period = pe_grp.pe_vals[ii].val - prf_obj.events[whch_evt].pe_grp.pe_vals[ii].val;
+				prf_obj.events[whch_evt].pe_grp.pe_vals[ii].val = pe_grp.pe_vals[ii].val;
+				pss.mm_off = -1;
+				//pss.mm_off = pe_grp.vals[ii].off;
 				prf_obj.samples.push_back(pss);
 				++smples;
 			}
