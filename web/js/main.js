@@ -3340,7 +3340,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							let shape_idx= lk[4];
 							let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
 							let use_it = true;
-							if (cpt >= 0) {
+							if (cpt >= 0 && typeof chart_data.proc_arr[cpt] != 'undefined') {
 								let nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
 								let use_e;
 								let use_s;
