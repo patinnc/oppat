@@ -3122,9 +3122,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let rect = this.getBoundingClientRect(),
 			x = Math.trunc(e.clientX - rect.left - xPadding),
 			y = Math.trunc(e.clientY - rect.top);
-		if (x < xPadding) {
-			return;
-		}
 	   	ms_dn_pos = [x, y];
 	   	mycanvas.onmouseup = function (evt) {
 			let rect = this.getBoundingClientRect(),
@@ -3190,7 +3187,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				reset_minx_maxx(gcanvas_args[idx][6], gcanvas_args[idx][7], gcanvas_args[idx][8], gcanvas_args[idx][9]);
 				chart_redraw("cnvs_mouseup");
 			}
-			mycanvas.offmouseup = null;
+			//mycanvas.offmouseup = null;
 		};
 	};
 
@@ -3343,7 +3340,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							let shape_idx= lk[4];
 							let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
 							let use_it = true;
-							if (cpt >= 0) {
+							if (cpt >= 0 && typeof chart_data.proc_arr[cpt] != 'undefined') {
 								let nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
 								let use_e;
 								let use_s;

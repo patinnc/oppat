@@ -64,6 +64,16 @@ struct prf_comm_str {
 	prf_comm_str(): pid(-1), tid(-1), tm_defined(0.0) {}
 };
 
+struct pe_group_str {
+	uint64_t grp, tm_run, tm_ena, period;
+	struct pe_vals_str {
+		uint64_t val, id, off;
+		pe_vals_str(): val(0), id(-1) {}
+	};
+	std::vector <pe_vals_str> pe_vals;
+	pe_group_str(): grp(-1), tm_run(0), tm_ena(0) {}
+};
+
 struct prf_events_str {
 	struct perf_event_attr pea;
 	std::vector <uint64_t> ids;
@@ -74,6 +84,7 @@ struct prf_events_str {
 	std::string event_name;
 	std::string event_name_w_area;
 	int lst_ft_fmt_idx;
+	struct pe_group_str pe_grp;
 	prf_events_str(): lst_ft_fmt_idx(-2) {}
 };
 struct prf_callstack_str {
@@ -168,24 +179,15 @@ struct prf_obj_str {
 	double tm_beg, tm_end, tm_beg_offset_due_to_clip;
 
 	std::vector <prf_samples_str> samples;
-	//int sample_id_all = 1;
-	//bool has_ids = false;
 	int sample_id_all;
 	int file_tag_idx;
 	bool has_ids;
+	uint32_t def_sample_flags;
 	prf_obj_str(): file_type(-1), mm_buf(0), mm_idx(-1), tm_beg(0), tm_end(0),
-		tm_beg_offset_due_to_clip(0.0), sample_id_all(1), has_ids(false), 
-   		file_tag_idx(-1)	{};
+		tm_beg_offset_due_to_clip(0.0), sample_id_all(1),
+		file_tag_idx(-1), has_ids(false), def_sample_flags(0) {};
 };
 
-#if 0
-struct comm_pid_tid_str {
-	std::string comm;
-	int pid, tid;
-	double total;
-	comm_pid_tid_str(): pid(-1), tid(-1), total(0.0) {}
-};
-#endif
 #ifdef EXTERN2
 #undef EXTERN2
 #endif
@@ -195,17 +197,11 @@ struct comm_pid_tid_str {
 #define EXTERN2 extern
 #endif
 #pragma once
-//EXTERN2 std::unordered_map<std::string, int> comm_pid_tid_hash;
-//EXTERN2 std::vector <comm_pid_tid_str> comm_pid_tid_vec;
 
 EXTERN2 std::vector <MemoryMapped *> mm_vec;
 EXTERN2 struct options_str options;
 
-//EXTERN2 std::vector <lst_ft_fmt_str> lst_ft_fmt_vec;
-
 void prf_add_ids(uint32_t id, int evt_idx, prf_obj_str &prf_obj);
-//char *get_root_dir_of_exe(void);
-//uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str);
 void prf_add_comm(uint32_t pid, uint32_t tid, std::string comm, prf_obj_str &prf_obj, double tm);
 uint32_t hash_comm_pid_tid(std::unordered_map<std::string, int> &hsh_str, std::vector <comm_pid_tid_str> &vec_str, std::string comm, int pid, int tid);
 uint32_t hash_uint32(std::unordered_map <uint32_t, uint32_t> &hsh_u32, std::vector <uint32_t> &vec_u32, uint32_t lkup, uint32_t val);
