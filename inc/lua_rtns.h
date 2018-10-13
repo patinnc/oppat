@@ -25,4 +25,6 @@ EXTERN2 double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::s
 
 EXTERN2 double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string &evt_nm,
 		struct prf_samples_str &samples,
-		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals, int verbose);
+		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals,
+		uint32_t &emit_var,
+		int verbose);

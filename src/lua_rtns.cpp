@@ -410,9 +410,11 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 
 double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string &evt_nm,
 		struct prf_samples_str &samples,
-		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals, int verbose)
+		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals,
+		uint32_t &emit_var, int verbose)
 {
 	int lua_idx = (int)hash_string(lua_state_hash, lua_state_vec, lua_file) - 1;
+	static uint32_t emit_idx = UINT32_M1;
 	if (lua_idx >= lua_states.size()) {
 		printf("create lua state for lua_idx= %d lua_file= %s at %s %d\n", lua_idx, lua_file.c_str(), __FILE__, __LINE__);
 		mylua_str* mls;
@@ -478,6 +480,9 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 		lua_states[lua_idx]->lua["data_cols"][++i] = "period";
 		for (i=0; i < (int)new_cols.size(); i++) {
 			lua_states[lua_idx]->lua["new_cols"][i+1] = new_cols[i];
+			if (new_cols[i] == "__EMIT__") {
+				emit_idx = i;
+			}
 		}
 	}
 	lua_states[lua_idx]->script_func = lua_states[lua_idx]->lua[lua_rtn];
@@ -517,10 +522,15 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 				(int)new_cols.size(), (int)new_vals.size(), __FILE__, __LINE__);
 		exit(1);
 	}
+	emit_var = 0;
 	for (uint32_t i=0; i < new_cols.size(); i++) {
 		new_vals[i] = lua_states[lua_idx]->lua["new_vals"][i+1];
+		//printf("new_vals[%d]= %s , hdr= %s at %s %d\n", i, new_vals[i].c_str(), new_cols[i].c_str(), __FILE__, __LINE__);
 		if (verbose > 0) {
 			printf("lua new_val[%d]= %s at %s %d\n", i, new_vals[i].c_str(), __FILE__, __LINE__);
+		}
+		if (i == emit_idx && new_vals[i] == "1") {
+			emit_var = 1;
 		}
 	}
 	return 0;
