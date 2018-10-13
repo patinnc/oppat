@@ -962,9 +962,10 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 	}
 	double ts0 = 0.0, dt_cumu = 0;
 	if (event_table.data.ts.size() == 0) {
-		printf("ummm, why is data.ts size() == 0 for event= %s, chart= %s. maybe charts are marked use_chart=n? at %s %d\n",
+		printf("ummm, why is data.ts size() == 0 for event= %s, chart= %s. maybe charts are marked use_chart=n? Assuming no data for chart and skipping it at %s %d\n",
 			event_table.event_name.c_str(),
 			event_table.charts[chrt].title.c_str(), __FILE__, __LINE__);
+		return 1;
 	} else {
 		/* this may not always be the right 'initial timestamp' to use.
 		 * I'm assuming that the 1st ts in the prf file is the one we want.
@@ -1450,6 +1451,9 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		CHART_TYPE_STACKED,
 	};
 	int chart_type = CHART_TYPE_BLOCK;
+	if (event_table[evt_idx].data.ts.size() == 0) {
+		return 1;
+	}
 	bool skip_idle = false;
 	if (event_table[evt_idx].flds[var_idx].flags & FLD_TYP_EXCL_PID_0) {
 		if (options.verbose)
@@ -1677,8 +1681,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		int lag_state_idx = -1, lag_reason_idx = -1;
 		int cur_state_idx = -1, cur_reason_idx = -1;
 		for (uint32_t i=0; i < event_table[evt_idx].flds.size(); i++) {
-			// yeah... this is quite a hack... if they user changes the evt_fld name in the
-			// input json file, this will break
 			uint64_t flg = event_table[evt_idx].flds[i].flags;
 			if ((flg & FLD_TYP_CSW_STATE) && !(flg & FLD_TYP_LAG)) {
 				cur_state_idx = i;
@@ -1766,7 +1768,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					overlaps_used_sum[i] = used_so_far;
 #endif
 				}
-				fx1 -= used_so_far;
+				//fx1 -= used_so_far;
 			}
 			sx0 = 0.0;
 			if (chart_type == CHART_TYPE_STACKED) {
@@ -3414,8 +3416,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				if ((flg & FLD_TYP_DBL) ||(flg & FLD_TYP_INT)) {
 					double val = atof(prf_obj.samples[i].new_vals[got_it].c_str());
-					//printf("NEW_VAL val= %f at %s %d\n", val, __FILE__, __LINE__);
 					if (flg & FLD_TYP_DURATION_BEF) {
+						//printf("NEW_VAL duration val= %f, ts= %f at %s %d\n", val, ts, __FILE__, __LINE__);
 						dura_idx = j;
 						dura = val;
 					}
@@ -3694,11 +3696,13 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 						v = (double)*(uint32_t *)(mm_buf+mm_off);
 					}
 #if 0
+					if ( prf_obj.samples[i].event.find("cpu_frequency") != std::string::npos) {
 					printf("trc_bin offset= %d, name= %s, evt_nm= %s, lkup_value= %f at %s %d\n",
 						file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].offset,
 						file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
 						prf_obj.samples[i].event.c_str(),
 						v, __FILE__, __LINE__);
+					}
 #endif
 				} else if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].size == 8) {
 					if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].sgned == 1) {
@@ -3863,13 +3867,13 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			if (ti != -1 && ti < comm_pid_tid_vec[file_tag_idx].size()) {
 			    comm_pid_tid_vec[file_tag_idx][ti].total += dura;
 			}
-		} else {
 		}
 
 		if (use_value) {
 			struct ts_str tss;
 			tss.ts = ts;
 			tss.duration = dura;
+			//printf("bot of fill_data_table: got duration= %f, ts= %f at %s %d\n", dura, ts, __FILE__, __LINE__);
 			event_table.data.ts.push_back(tss);
 			event_table.data.vals.push_back(dv);
 			event_table.data.cpt_idx[0].push_back(cpt_idx);
@@ -4560,8 +4564,10 @@ int main(int argc, char **argv)
 					fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
 				}
-				build_chart_data(i, j, event_table[grp_list[g]][i], verbose);
-				report_chart_data(i, j, event_table[grp_list[g]], grp_list[g], verbose);
+				int rc = build_chart_data(i, j, event_table[grp_list[g]][i], verbose);
+				if (rc == 0) {
+					report_chart_data(i, j, event_table[grp_list[g]], grp_list[g], verbose);
+				}
 			}
 		}
 	}
@@ -4593,34 +4599,38 @@ int main(int argc, char **argv)
 					chart_lines_reset();
 					double tt0=0.0, tt1=0.0, tt2=0.0;
 					if (event_table[grp_list[g]][i].charts[j].chart_tag == "PCT_BUSY_BY_CPU") {
-						if (did_chrts > 0) {
-							chrts_json += ", ";
-						}
 						printf("using event_table[%d][%d]= %s at %s %d\n",
 							grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
 						tt0 = dclock();
-						build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
+						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
 						tt1 = dclock();
 						std::string this_chart_json = "";
-						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
-						tt2 = dclock();
-						chrts_json += this_chart_json;
-						did_chrts = 1;
-					} else {
+						if (rc == 0) {
 						if (did_chrts > 0) {
 							chrts_json += ", ";
 						}
+						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
+						did_chrts = 1;
+						}
+						tt2 = dclock();
+						chrts_json += this_chart_json;
+					} else {
 						if (verbose)
 							printf("using event_table[%d][%d]= %s at %s %d\n",
 								grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
 						tt0 = dclock();
-						build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
+						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
 						tt1 = dclock();
 						std::string this_chart_json = "";
+						if (rc == 0) {
+						if (did_chrts > 0) {
+							chrts_json += ", ";
+						}
 						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
+						did_chrts = 1;
+						}
 						tt2 = dclock();
 						chrts_json += this_chart_json;
-						did_chrts = 1;
 					}
 					fprintf(stderr, "tm build_chart_lines(): %f, build_shapes_json: %f title= %s at %s %d\n",
 							tt1-tt0, tt2-tt1,
