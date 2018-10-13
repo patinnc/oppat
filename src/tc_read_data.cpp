@@ -243,7 +243,8 @@ do_page_hdr:
 					printf("got id evt_nm= %s and fsz= %d, len= %d at %s %d\n", evt_nm.c_str(), fsz, len, __FILE__, __LINE__);
 				evt_len += (fsz - len);
 				len = fsz;
-				pos = mm_off+4;
+				mm_off += 4;
+				pos = mm_off;
 				mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
 				cmn_hdr = (cmn_hdr_str *)(buf);
 			}
@@ -863,13 +864,16 @@ read_opt_again:
 			//i = read_n_bytes(file, pos, 8, __LINE__);
 			i = mm_read_n_bytes(mm_buf, pos, 8, __LINE__, buf, BUF_MAX);
 			long cpu_len = *(buf_long_ptr(buf, 0));
-			if (verbose)
+			//if (verbose)
 				printf("cpu[%d] offset= %ld, len= %ld\n", j, cpu_off, cpu_len);
 			tcds.off = cpu_off;
 			tcds.len = cpu_len;
-			tc_cpu_data.push_back(tcds);
+			if (cpu_len > 0) {
+				tc_cpu_data.push_back(tcds);
+			}
 		}
 	}
+	fflush(NULL);
 
 	if (verbose)
 		printf("hdr_page=\n%s\n", hdr_page.c_str());
@@ -1152,11 +1156,17 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 			}
 			uint32_t trgr_idx = UINT32_M1;
 			if (okay) {
-				trgr_idx = ck_got_evts_derived_dependents(prf_obj,  evt_tbl2[i], true, eds, verbose);
-				if (trgr_idx == UINT32_M1) {
-					okay = false;
+				if (evt_tbl2[i].evt_derived.evt_trigger != "__EMIT__") {
+					trgr_idx = ck_got_evts_derived_dependents(prf_obj,  evt_tbl2[i], true, eds, verbose);
+					if (trgr_idx == UINT32_M1) {
+						okay = false;
+					}
+					printf("derived_evt got trigger idx= %d at %s %d\n", trgr_idx, __FILE__, __LINE__);
+				} else {
+					printf("derived_evt got trigger %s at %s %d\n", 
+							evt_tbl2[i].evt_derived.evt_trigger.c_str(), __FILE__, __LINE__);
+					trgr_idx = UINT32_M2;
 				}
-				printf("derived_evt got trigger idx= %d at %s %d\n", trgr_idx, __FILE__, __LINE__);
 			}
 			if (okay) {
 				std::string new_nm  = evt_tbl2[i].event_name;
@@ -1208,11 +1218,12 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 				new_vals.resize(new_sz);
 
 				double tm_beg = dclock();
+				uint32_t emit_var;
 				lua_derived_tc_prf(lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
-						evts_derived[j].new_cols, new_vals, verbose);
+						evts_derived[j].new_cols, new_vals, emit_var, verbose);
 				double tm_end = dclock();
 				tm_lua_derived += tm_end - tm_beg;
-				if (trig_idx == evt_idx) {
+				if (trig_idx == evt_idx || (trig_idx == UINT32_M2 && emit_var == 1)) {
 #if 1
 					samples.push_back(prf_obj.samples[mtch]);
 					samples.back().event      = prf_obj.events[new_idx].event_name;
@@ -1223,7 +1234,7 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 #endif
 #if 0
 					for (uint32_t kk=0; kk < new_sz; kk++) {
-						printf("new_vals[%d]= '%s' at %s %d\n",
+						printf("__EMIT__ new_vals[%d]= '%s' at %s %d\n",
 							kk, samples.back().new_vals[kk].c_str(), __FILE__, __LINE__);
 					}
 #endif
