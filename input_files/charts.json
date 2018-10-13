@@ -98,7 +98,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus accesses (Bi/s) from r19 bus_access event by cpu",  "var_name": "bus_accesses",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"y"}
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -112,7 +112,29 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Load stall cycles (Bi/s) from re7 load_stall_cycles event by cpu",  "var_name": "stall_cycles",
-			"by_var": "cpu", "chart_tag":"LOAD_STALL_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"y"}
+			"by_var": "cpu", "chart_tag":"LOAD_STALL_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "load_stalls", "evt_type": "ftrace", "comment":"derived event for pct stalled on loads (ld_stall_cycles/cycles)",
+	"evt_derived":{
+		"evts_used":["re7", "cycles"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["load_stalls", "__EMIT__", "duration", "area"],
+		"lua_file":"prf_load_stalls.lua",
+		"lua_rtn":"load_stalls"
+	},
+	"evt_flds": [
+		{"name":"load_stalls",   "lkup": "load_stalls",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%stalled on loads (ld_stall_cycles/cycles) by CPU",  "var_name": "load_stalls",
+			"by_var": "area", "chart_tag":"LOAD_STALLS_PCT_CHART", "chart_type":"line", "use_chart":"y"}
 		]
 	}
   },
@@ -126,7 +148,55 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc0 ext_mem_req event by cpu",  "var_name": "BW",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_CPU", "chart_type":"line", "use_chart":"y"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "r16", "evt_type": "ftrace", "comment":"hw r16 L2 dcache accesses events",
+	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
+	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L2 accesses (Mill_accesses/s) from r16 L2 dcache accesses by cpu",  "var_name": "freq",
+			"by_var": "cpu", "chart_tag":"L2_ACCESSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "r17", "evt_type": "ftrace", "comment":"hw r17 L2 dcache misses events",
+	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
+	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L2 misses (Mill_misses/s) from r17 L2 dcache refill by cpu",  "var_name": "freq",
+			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "r1d", "evt_type": "ftrace", "comment":"hw r1d events",
+	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
+	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Bus freq (MiHz/s) from r1d bus cycles event by cpu",  "var_name": "freq",
+			"by_var": "cpu", "chart_tag":"BUS_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -148,11 +218,77 @@
 	"evt_name": "instructions", "evt_type": "ftrace", "comment":"hw instruction event",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"GIPS",  "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":20.0}]},
+		{"name":"GIPS",  "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"billion instructions/sec by cpu",  "var_name": "GIPS", "by_var": "cpu", "chart_tag":"INSTR_Per_SEC_BY_CPU", "chart_type":"line"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L2_miss_pct", "evt_type": "ftrace", "comment":"derived event for L2 miss % (L2 misses/L2 accesses)",
+	"evt_derived":{
+		"evts_used":["r16", "r17"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["L2_miss_pct", "__EMIT__", "duration", "area"],
+		"lua_file":"prf_L2_miss_pct.lua",
+		"lua_rtn":"L2_miss_pct"
+	},
+	"evt_flds": [
+		{"name":"L2_miss_pct",   "lkup": "L2_miss_pct",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":200.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L2 %miss (L2_misses/L2_accesses) by CPU",  "var_name": "L2_miss_pct",
+			"by_var": "area", "chart_tag":"L2_MISS_PCT_CHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L2_mpki", "evt_type": "ftrace", "comment":"derived event for L2 MPKI (L2 misses/thousand instructions)",
+	"evt_derived":{
+		"evts_used":["r17", "instructions"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["L2_mpki", "__EMIT__", "duration", "area"],
+		"lua_file":"prf_L2_mpki.lua",
+		"lua_rtn":"L2_mpki"
+	},
+	"evt_flds": [
+		{"name":"L2_mpki",   "lkup": "L2_mpki",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L2_MPKI (L2_misses/thousand_instructions) by CPU",  "var_name": "L2_mpki",
+			"by_var": "area", "chart_tag":"L2_mpki_CHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "CPI", "evt_type": "ftrace", "comment":"derived event for CPI (cycles/instruction)",
+	"evt_derived":{
+		"evts_used":["cycles", "instructions"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["CPI", "__EMIT__", "duration", "area"],
+		"lua_file":"prf_CPI.lua",
+		"lua_rtn":"CPI"
+	},
+	"evt_flds": [
+		{"name":"CPI",   "lkup": "CPI",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"CPI (cycles/instruction) by CPU",  "var_name": "CPI", "by_var": "area", "chart_tag":"CPI_CHART",
+			"chart_type":"line", "use_chart":"y"}
 		]
 	}
   },
