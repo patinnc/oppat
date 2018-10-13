@@ -1280,9 +1280,11 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 	}
 	ck_evts_derived(prf_obj, evt_tbl2, evts_derived, verbose);
 
-	prf_obj.tm_beg = 1.0e-9 * (double)prf_obj.samples[0].ts;
-	if (prf_obj.tm_end == 0) {
-		prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
+	if (prf_obj.samples.size() > 0) {
+		prf_obj.tm_beg = 1.0e-9 * (double)prf_obj.samples[0].ts;
+		if (prf_obj.tm_end == 0) {
+			prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
+		}
 	}
 	prf_obj.filename_text = flnm;
 	int store_callstack_idx = -1;
