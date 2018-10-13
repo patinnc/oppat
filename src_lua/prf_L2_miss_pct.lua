@@ -110,7 +110,7 @@ function L2_miss_pct(verbose)
 			new_vals[area_idx] = cpu
 			new_vals[emit_idx] = 1
 			new_vals[dura_idx] = dura
-			printf("prf_L2_miss_pct.lua: ld_stl= %f, dura= %f, cpu= %d\n", val, dura, cpu)
+			--printf("prf_L2_miss_pct.lua: ld_stl= %f, dura= %f, cpu= %d\n", val, dura, cpu)
 		else
 			new_vals[L2_miss_pct_idx] = 0.0
 		end

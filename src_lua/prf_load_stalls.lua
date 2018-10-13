@@ -110,7 +110,7 @@ function load_stalls(verbose)
 			new_vals[area_idx] = cpu
 			new_vals[emit_idx] = 1
 			new_vals[dura_idx] = dura
-			printf("prf_loads_stalls.lua: ld_stl= %f, dura= %f, cpu= %d\n", ld_stl, dura, cpu)
+			--printf("prf_loads_stalls.lua: ld_stl= %f, dura= %f, cpu= %d\n", ld_stl, dura, cpu)
 		else
 			new_vals[load_stalls_idx] = 0.0
 		end
