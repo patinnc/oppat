@@ -3447,7 +3447,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					let str = "T= "+x0;
 					let nm = "unknown1";
 					let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
-					if (cpt >= 0 && chart_data.proc_arr[cpt].tid > -1) {
+					if (cpt >= 0 && typeof chart_data.proc_arr[cpt] != 'undefined' && chart_data.proc_arr[cpt].tid > -1) {
 						nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
 					}
 					if (nm == "unknown1") {
