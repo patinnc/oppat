@@ -20,6 +20,7 @@ extern "C" { /* Begin "C" */
 
 
 #define UINT32_M1 ~0U
+#define UINT32_M2 ((uint32_t)(-2))
 
 #pragma once
 
