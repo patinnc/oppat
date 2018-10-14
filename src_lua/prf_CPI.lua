@@ -64,7 +64,6 @@ function CPI(verbose)
 		end
 		if type(tbl) ~= "table" then
 			tbl = {}
-			tbl_prev = {}
 			tbl_ts   = {}
 		end
 	end
@@ -76,7 +75,6 @@ function CPI(verbose)
 	tbl_ts[cpu] = ts_num
 	if tbl[cpu] == nil then
 		tbl[cpu] = {0, 0, 0, 0, 0, 0}
-		tbl_prev[cpu] = nil
 	end
 	if evt == 'cycles' then
 		tbl[cpu][2] = tbl[cpu][2] + per
@@ -98,11 +96,12 @@ function CPI(verbose)
 		local ts_cur = tbl[cpu][4]
 		local ts_prv = tbl[cpu][6]
 		local dura = 0.0
+		local cpi = 0.0
 		if ts_prv > 0 then
 			dura = 1.0e-9 * (ts_cur - ts_prv)
 		end
 		if dura > 0.0 and inst > 0.0 then
-			local cpi = cyc / inst
+			cpi = cyc / inst
 			if cpi > 100.0 then
 				cpi = 100.0
 			end
@@ -115,6 +114,6 @@ function CPI(verbose)
 		end
 		tbl[cpu][2] = 0
 		tbl[cpu][3] = 0
-		tbl_prev[cpu] = ts_cur
 	end
+	--printf("prf_CPI.lua: cpu= %d, cycles= %.0f instr= %.0f\n", cpu, tbl[cpu][2], tbl[cpu][3])
 end
