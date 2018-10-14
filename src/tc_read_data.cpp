@@ -1203,11 +1203,14 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 		uint32_t trig_idx = evts_derived[j].trigger_idx;
 		uint32_t new_idx = evts_derived[j].evt_new_idx;
 		uint32_t evt_idx = prf_obj.samples[i].evt_idx;
+		//printf("ck derived evt[%d]= %s at %s %d\n", j, prf_obj.events[new_idx].event_name.c_str(), __FILE__, __LINE__);
 		std::vector <std::string> &cols = prf_obj.events[evt_idx].etw_cols;
 		for (uint32_t k=0; k < evts_derived[j].evts_used.size(); k++) {
-			if (evts_derived[j].evts_used[k] == evt_idx) {
+			uint32_t ckit_idx = evts_derived[j].evts_used[k];
+			//printf("ck cur_evt= %s against derived evt[%d]= %s at %s %d\n",
+			//	prf_obj.samples[i].event.c_str(), k, prf_obj.events[ckit_idx].event_name.c_str(), __FILE__, __LINE__);
+			if (ckit_idx == evt_idx) {
 				std::vector <std::string> tkns;
-				//printf("got derived evt= %s at %s %d\n", prf_obj.samples[i].event.c_str(), __FILE__, __LINE__);
 				uint32_t new_sz = evts_derived[j].new_cols.size();
 				uint32_t old_sz = tkns.size();
 				got_it = true;
@@ -1245,9 +1248,6 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 				//run_heapchk("etw_parse:", __FILE__, __LINE__, 1);
 				break;
 			}
-		}
-		if (got_it) {
-			break;
 		}
 	}
 }
