@@ -574,8 +574,9 @@ struct ch_lines_str {
 	std::vector <std::string> legend;
 	std::vector <lines_str> line;
 	double tm_beg_offset_due_to_clip;
+	double tm_end_offset_due_to_clip;
 	prf_obj_str *prf_obj;
-	ch_lines_str(): tm_beg_offset_due_to_clip(0.0), prf_obj(0) {}
+	ch_lines_str(): tm_beg_offset_due_to_clip(0.0), tm_end_offset_due_to_clip(0.0), prf_obj(0) {}
 };
 
 static ch_lines_str ch_lines;
@@ -1217,6 +1218,7 @@ void chart_lines_reset(void)
 	ch_lines.range.subcat_initd.clear();
 	ch_lines.line.clear();
 	ch_lines.tm_beg_offset_due_to_clip = 0.0;
+	ch_lines.tm_end_offset_due_to_clip = 0.0;
 	ch_lines.prf_obj = 0;
 }
 
@@ -1499,7 +1501,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 			}
 			if (event_table[evt_idx].charts[chrt].actions[i].regex_fld_idx == UINT32_M1) {
-				fprintf(stderr, "didn't find regex evt_flds.name= %s in chart.json for chart title= '%s'. bye at %s %d\n", 
+				fprintf(stderr, "didn't find regex evt_flds.name= %s in chart.json for chart title= '%s'. bye at %s %d\n",
 					event_table[evt_idx].charts[chrt].actions[i].str.c_str(),
 					event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 				exit(1);
@@ -1975,6 +1977,14 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			} else {
 				ls0p->typ  = SHAPE_LINE;
 			}
+			if (options.tm_clip_beg_valid == 2 && (x1+ts0) < options.tm_clip_beg) {
+				cur_idx--;
+				continue;
+			}
+			if (options.tm_clip_end_valid == 2 && (x0+ts0) > options.tm_clip_end) {
+				cur_idx--;
+				continue;
+			}
 			ls0p->text = comm;
 			ls0p->pid  = pid_num;
 			bool use_this_line = true;
@@ -2053,9 +2063,22 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							int prf_idx2 = event_table[evt_idx].data.prf_sample_idx[jj];
 							fx1 = event_table[evt_idx].data.ts[i].ts - ts0;
 							fx0 = event_table[evt_idx].data.ts[jj].ts - ts0;
-							ls0p->x[0] = x0;
-							ls0p->x[1] = x1;
-							y_val[by_var_idx_val] = x1-x0;
+							double ux0=x0, ux1=x1, uclip_beg = 0, uclip_end=0;
+							if (options.tm_clip_beg_valid > 0) {
+								uclip_beg = options.tm_clip_beg - ch_lines.range.ts0;
+							}
+							if (options.tm_clip_end_valid > 0) {
+								uclip_end = options.tm_clip_end - ch_lines.range.ts0;
+							}
+							if (uclip_end != 0.0 && ux0 < uclip_beg && ux1 >= uclip_beg) {
+								ux0 = uclip_beg;
+							}
+							if (uclip_end != 0.0 && ux1 > uclip_end && ux0 <= uclip_end) {
+								ux1 = uclip_end;
+							}
+							ls0p->x[0] = ux0;
+							ls0p->x[1] = ux1;
+							y_val[by_var_idx_val] = ux1-ux0;
 							prf_mk_callstacks(prf_obj, prf_idx2, callstacks, __LINE__, prefx);
 							ls0p->callstack_str_idxs = callstacks;
 #if 0
@@ -2738,9 +2761,17 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	hash_string(chart_categories_hash,chart_categories_vec, cat);
 	json += ", \"chart_category\": \"" + cat + "\"";
 	json += ", \"y_by_var\": \"" + event_table[evt_idx].charts[chrt].by_var + "\"";
+	double uclip_beg= 0, uclip_end= 0;
+	if (options.tm_clip_beg_valid > 0) {
+		uclip_beg = options.tm_clip_beg - ch_lines.range.ts0;
+	}
+	if (options.tm_clip_end_valid > 0) {
+		uclip_end = options.tm_clip_end - ch_lines.range.ts0;
+	}
 	json += ", \"ts_initial\": { \"ts\":" + do_string_with_decimals(ch_lines.range.ts0, 9) +
 		", \"ts0x\":" + do_string_with_decimals(0.0, 9) +
-		", \"tm_beg_offset_due_to_clip\":" + do_string_with_decimals(ch_lines.tm_beg_offset_due_to_clip, 9) + "}";
+		", \"tm_beg_offset_due_to_clip\":" + do_string_with_decimals(uclip_beg, 9) +
+		", \"tm_end_offset_due_to_clip\":" + do_string_with_decimals(uclip_end, 9) + "}";
 	json += ", \"x_range\": { \"min\":" + std::to_string(ch_lines.range.x_range[0]) +
 		", \"max\":" + std::to_string(ch_lines.range.x_range[1]) + "}";
 	json += ", \"y_range\": { \"min\":" + std::to_string(ch_lines.range.y_range[0]) +
@@ -2856,20 +2887,42 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				printf("subcats[%d][%d]= %s at %s %d\n", i, j, ch_lines.subcats[i][j].c_str(), __FILE__, __LINE__);
 			}
 #endif
+			double ux0, ux1;
+			ux0 = ch_lines.range.subcat_rng[i][j].x0;
+			ux1 = ch_lines.range.subcat_rng[i][j].x1;
+			if (options.tm_clip_beg_valid > 0) {
+				double ubeg = options.tm_clip_beg - ch_lines.range.ts0;
+				if (ux1 < ubeg) {
+					continue;
+				}
+				if (ux0 < ubeg) {
+					ux0 = ubeg;
+				}
+			}
+			if (options.tm_clip_end_valid > 0) {
+				double uend = options.tm_clip_end - ch_lines.range.ts0;
+				if (ux0 > uend) {
+					continue;
+				}
+				if (ux1 > uend) {
+					ux1 = uend;
+				}
+			}
 			if (verbose > 0)
 			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s, initd= %d\n", i, j,
-				ch_lines.range.subcat_rng[i][j].x0,
-				ch_lines.range.subcat_rng[i][j].x1,
+				//ch_lines.range.subcat_rng[i][j].x0,
+				//ch_lines.range.subcat_rng[i][j].x1,
+				ux0, ux1,
 				ch_lines.range.subcat_rng[i][j].y0,
 				ch_lines.range.subcat_rng[i][j].y1,
 				ch_lines.range.subcat_rng[i][j].fe_idx,
 				ev.c_str(),
 				ch_lines.range.subcat_rng[i][j].total,
-				(int)i, legnd.c_str(), 
+				(int)i, legnd.c_str(),
 				ch_lines.range.subcat_rng[i][j].initd
 				);
-			json += "{ \"x0\":" + std::to_string(ch_lines.range.subcat_rng[i][j].x0) +
-				", \"x1\":" + std::to_string(ch_lines.range.subcat_rng[i][j].x1) +
+			json += "{ \"x0\":" + std::to_string(ux0) +
+				", \"x1\":" + std::to_string(ux1) +
 				", \"y0\":" + std::to_string(ch_lines.range.subcat_rng[i][j].y0) +
 				", \"y1\":" + std::to_string(ch_lines.range.subcat_rng[i][j].y1) +
 				", \"fe_idx\":" + std::to_string(ch_lines.range.subcat_rng[i][j].fe_idx) +
@@ -3594,8 +3647,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					printf("extra_str.size()== 0 for TYP_TRC_FLD_PFX for event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s at %s %d\n",
 						prf_obj.events[prf_evt_idx2].event_name.c_str(), event_table.flds[j].name.c_str(),
 						event_table.flds[j].lkup.c_str(),
-						prf_obj.samples[i].tm_str.c_str(), i,
-						flnm.c_str(), __FILE__, __LINE__);
+						prf_obj.samples[i].tm_str.c_str(), i, flnm.c_str(), __FILE__, __LINE__);
 					if (pfx_errs++ > 100) {
 						printf("Got above err %d times. bye at %s %d\n", pfx_errs, __FILE__, __LINE__);
 						exit(1);
@@ -3649,7 +3701,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				int lst_ft_fmt_idx = prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx;
 				if (event_table.flds[j].lst_ft_fmt_fld_idx == -2) {
 					if (lst_ft_fmt_idx < 0 || lst_ft_fmt_idx >= file_list.lst_ft_fmt_vec.size()) {
-						printf("lst_ft_fmt_idx= %d, file_list.lst_ft_fmt_vec.size()= %d, file_list.idx= %d at %s %d\n", 
+						printf("lst_ft_fmt_idx= %d, file_list.lst_ft_fmt_vec.size()= %d, file_list.idx= %d at %s %d\n",
 							lst_ft_fmt_idx, (int)file_list.lst_ft_fmt_vec.size(), file_list.idx, __FILE__, __LINE__);
 						fflush(NULL);
 						exit(1);
@@ -4143,7 +4195,7 @@ int read_perf_event_list_dump(file_list_str &file_list)
 	std::string flnm = file_list.path + DIR_SEP + base_file;
 	int rc = ck_filename_exists(flnm.c_str(), __FILE__, __LINE__, options.verbose);
 	if (rc != 0) {
-		fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
+		fprintf(stderr, "Didn't find file %s. bye at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
 	printf("found file %s using filename= %s at %s %d\n", base_file.c_str(), flnm.c_str(), __FILE__, __LINE__);
@@ -4386,6 +4438,15 @@ int main(int argc, char **argv)
 
 	std::vector <int> file_list_1st;
 	uint32_t file_tag_idx_prev = UINT32_M1, use_i=0;
+	bool need_perf_event_list_file = false;
+	for (uint32_t i=0; i < file_list.size(); i++) {
+		if (file_list[i].typ == FILE_TYP_TRC_CMD ||
+			file_list[i].typ == FILE_TYP_PERF) {
+			need_perf_event_list_file = true;
+			break;
+		}
+	}
+
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		int v_tmp = 0;
 		std::string file_tag = file_list[i].file_tag;
@@ -4395,7 +4456,9 @@ int main(int argc, char **argv)
 			flnm_evt_vec.resize(file_tag_idx+1);
 			comm_pid_tid_hash.resize(file_tag_idx+1);
 			comm_pid_tid_vec.resize(file_tag_idx+1);
+			if (need_perf_event_list_file) {
 			read_perf_event_list_dump(file_list[i]);
+			}
 			printf("read_perf_event_list_dump(file_list[%d]) at %s %d\n", file_tag_idx, __FILE__, __LINE__);
 		}
 		if (file_tag_idx_prev != file_tag_idx) {
