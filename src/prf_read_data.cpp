@@ -165,10 +165,12 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			unknown_mod = "";
 			int evt = -1;
 			std::string extra_str;
+			size_t pos = std::string::npos, pos2 = std::string::npos;
 			for (uint32_t i=0; i < nms.size(); i++) {
-				size_t pos = line.find(nms[i].str);
+				pos = line.find(nms[i].str);
 				if (pos != std::string::npos) {
-					size_t pos2 = line.substr(pos + nms[i].len).find_first_not_of(' ');
+					printf("got evt= %s, extr_str= %s at %s %d\n", nms[i].str.c_str(), extra_str.c_str(), __FILE__, __LINE__);
+					pos2 = line.substr(pos + nms[i].len).find_first_not_of(' ');
 					if (pos2 != std::string::npos) {
 						nms[i].ext_strs++;
 						extra_str = line.substr(pos + nms[i].len + pos2);
@@ -182,6 +184,25 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 				printf("missed event lookup for line= %s at %s %d\n",
 					line.c_str(), __FILE__, __LINE__);
 				exit(1);
+			}
+			static bool need_1st_time_tm_beg_clip = true;
+			if (options.tm_clip_beg_valid == 1 && need_1st_time_tm_beg_clip && pos != std::string::npos) {
+				// this logic assumes the order is like below:
+				// spin.x  3190 [002]   359.000788360:     250000            cpu-clock:
+				// so find the event, assume cpu is before it like '[xxx] '
+				// then the field after the cpu number is the time
+				pos = line.rfind("] ");
+				if (pos != std::string::npos) {
+					pos = line.find_first_not_of(" ", pos+2);
+					if (pos != std::string::npos) {
+						double xx = atof(line.substr(pos).c_str());
+						//printf("tm= %f at %s %d\n", xx, __FILE__, __LINE__);
+						if (xx < options.tm_clip_beg) {
+							continue;
+						}
+						need_1st_time_tm_beg_clip = false;
+					}
+				}
 			}
 			int i_beg = s_idx, sz = prf_obj.samples.size();
 			if (i_beg < 0) {
