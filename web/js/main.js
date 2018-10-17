@@ -404,16 +404,25 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		} else {
 			maxy = chart_data.y_range.max;
 		}
-		//console.log("__draw_mini: mnx="+minx+",mxx= "+maxx+", chmn= "+chart_data.x_range.min+", chmx= "+chart_data.x_range.max);
 		if (mycanvas2_ctx != null) {
+			/*
 			let xd = (chart_data.x_range.max - chart_data.x_range.min);
 			let xd0 = 0.5 * (maxx - minx);
 			let xd1 = minx + xd0;
-			let xd2 = xd1 / xd;
+			let xd2 = (xd1) / xd;
+			*/
+			let clp_beg = chart_data.ts_initial.tm_beg_offset_due_to_clip;
+			let xd = (chart_data.x_range.max - clp_beg);
+			let xd0 = 0.5 * (maxx - minx);
+			let xd1 = minx - clp_beg + xd0;
+			let xd2 = (xd1) / xd;
+			//let xtxt = "__draw_mini: mnx="+minx+",mxx= "+maxx+", chmn= "+chart_data.x_range.min+", chmx= "+chart_data.x_range.max+", xd2= "+xd2+", xd0= "+xd0+", num= "+xd1+", den= "+xd+", mxx-mnx= "+(maxx-minx)+"<br>(minx + (0.5 * (maxx-minx))) / (chart_data.x_range.max - chart_data.x_range.min)<br>("+minx+" + (0.5 * ("+maxx+ " - " +minx+"))) / ("+chart_data.x_range.max+ " - " + chart_data.x_range.min+")<br>("+minx+" + (0.5 * ("+(maxx-minx)+"))) / ("+(chart_data.x_range.max-chart_data.x_range.min)+")";
+			//set_chart_text(myhvr_clr_txt, myhvr_clr_txt_btn, xtxt);
+			//console.log("__draw_mini: mnx="+minx+",mxx= "+maxx+", chmn= "+chart_data.x_range.min+", chmx= "+chart_data.x_range.max+", xd2= "+xd2+", xd0= "+xd0+", num= "+xd1+", den= "+xd+", mxx-mnx= "+(maxx-minx));
 			if (isNaN(xd2)) {
 				console.log("cd.xr.mx= "+chart_data.x_range.max+", mn="+chart_data.x_range.min);
 			} else {
-				draw_mini(xd2);
+				draw_mini(xd2, "a");
 			}
 		}
 	}
@@ -434,6 +443,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 	let mytooltip      = document.getElementById("tooltip_"+hvr_clr);
 	let myhvr_clr_txt = document.getElementById(hvr_clr+'_txt');
+	let myhvr_clr_txt_btn = document.getElementById('but_'+hvr_clr);
 	let mycanvas_title = document.getElementById(mycanvas_nm_title);
 	let ch_title = chart_data.title;
 	let file_tag = chart_data.file_tag;
@@ -1878,7 +1888,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let cnvs_wd = mycanvas3.width - xPadding;
 			let blk_wd = cnvs_wd / 1024;
 			if (blk_wd < 1) { blk_wd = 1; }
-			//abcd
 			cpi_gradient_shape[evt_idx] = {x0:0, x1:0, y0:0, y1:0};
 			for (let kk=0; kk <  cpi_hist_vec[evt_idx].length; kk++) {
 				ctx3.beginPath();
@@ -2112,7 +2121,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						} else {
 							tm_str = tm_diff_str(tm, 3, g_fl_arr[file_tag_idx][cs_idx].unit);
 						}
-						//abcd
 						let cs_str3 = "x= "+x+", val= "+tm_str;
 						if (evt_nm == "CPI" || evt_nm == "GIPS") {
 							cs_str3 += get_CPI_str(evt_nm, f_o);
@@ -2922,11 +2930,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	mycanvas2_ctx = mycanvas2.getContext('2d');
 
-	function draw_mini(zero_to_one)
+	function draw_mini(zero_to_one, arg2)
 	{
 		if (isNaN(zero_to_one)) {
 			return;
 		}
+		console.log("draw_mini("+zero_to_one+", arg= "+arg2+")");
 		if ( typeof draw_mini.x_prev == 'undefined' ) {
 			draw_mini.x_prev = -1;
 			draw_mini.image_rdy = 0;
@@ -2938,7 +2947,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				mycanvas2_ctx.drawImage(draw_mini.image, 0, 0, mycanvas2.width, mycanvas2.height);
 				//console.log("__draw_mini saved image");
 				draw_mini.x_prev = -1;
-				draw_mini(0.5);
+				draw_mini(0.5, "b");
 			};
 			//console.log("__draw_mini save image");
 		}
@@ -2955,6 +2964,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		mycanvas2_ctx.fillStyle = 'rgba(0, 204, 0, 0.5)';
 		let xbeg = xPadding;
 		let xwid = mycanvas2.width - xPadding;
+		console.log("minx= "+minx+", maxx= "+maxx+
+				", chart_data.x_range.max= "+chart_data.x_range.max+
+				", chart_data.x_range.min= "+chart_data.x_range.min);
+		if (maxx == chart_data.x_range.max && minx == chart_data.x_range.min){
+			zero_to_one = 0.5;
+		}
 		let xmid = zero_to_one * xwid;
 		let wd = 16;
 		let x0 = xbeg + xmid  - 0.5*wd;
@@ -2968,10 +2983,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		mycanvas2_ctx.strokeRect(x0, y0, wd, y1);
 		mycanvas2_ctx.stroke();
 		draw_mini_box = {x0:x0, x1:x1, y0:y0, y1:y1, rx0:rx0, rx1:rx1};
+		let clp_beg = chart_data.ts_initial.tm_beg_offset_due_to_clip;
 		let xdiff = +0.5 * (maxx - minx);
-		let xn = zero_to_one * (chart_data.x_range.max - chart_data.x_range.min) ;
+		let xn = clp_beg + zero_to_one * (chart_data.x_range.max - clp_beg);
 		x0 = +xn - xdiff;
 		x1 = +xn + xdiff;
+		//console.log("__xn= "+xn+", z2one= "+zero_to_one+", xdff= "+xdiff+", x0= "+x0+", x1= "+x1);
 		zoom_to_new_xrange(x0, x1, true);
 	}
 	if (chart_did_image[chrt_idx] == null || copy_canvas == true) {
@@ -2989,7 +3006,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				gsync_zoom_active_now = true;
 				draw_mini_cursor_prev = mycanvas2.style.cursor;
 				mycanvas2.style.cursor = 'pointer';
-				draw_mini(xn);
+				draw_mini(xn, "c");
 			} else {
 				//console.log("zoom inactive");
 			}
@@ -3004,12 +3021,18 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			gsync_zoom_active_now = false;
 			console.log("zoom inactive");
 		}
-		draw_mini(0.5);
+		draw_mini(0.5, "d");
 	}
 	for (let i=0; i < lkup.length; i++) {
 		lkup[i].sort(sortFunction);
 	}
 
+	function set_chart_text(ele_txt,clr_button, txt_str)
+	{
+		ele_txt.innerHTML = txt_str;
+		//let clr_button = document.getElementById(btn_ele_nm);
+	    clr_button.style.visibility = 'visible';
+	}
 
 	function sortRow(a, b) {
 		return a[0]-b[0];
@@ -3155,9 +3178,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					str4 = "<br>abs.T= "+intrvl_x0+ " - " + intrvl_x1;
 				}
 				let rel_nx0 = nx0 + chart_data.ts_initial.tm_beg_offset_due_to_clip;
-				myhvr_clr_txt.innerHTML = "x= " + x + ", rel.T= "+rel_nx0+", T= "+(nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x)+str4+str2+str3;
-				let clr_button = document.getElementById("but_"+hvr_clr);
-	    			clr_button.style.visibility = 'visible';
+				set_chart_text(myhvr_clr_txt, myhvr_clr_txt_btn, "x= " + x + ", rel.T= "+rel_nx0+", T= "+(nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x)+str4+str2+str3);
 				nx0_prev = nx0;
 			} else {
 				let idx = chrt_idx;
