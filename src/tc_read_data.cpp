@@ -1135,6 +1135,11 @@ static uint32_t ck_got_evts_derived_dependents(prf_obj_str &prf_obj,  evt_str &e
 			return UINT32_M1;
 		}
 		eds.evts_used.push_back(hsh_ck);
+		if (evt_tbl2.evt_derived.evts_tags.size() > 0) {
+			eds.evts_tags.push_back(evt_tbl2.evt_derived.evts_tags[j]);
+		} else {
+			eds.evts_tags.push_back(evt_tbl2.evt_derived.evts_used[j]);
+		}
 	}
 	return hsh_ck;
 }
@@ -1148,6 +1153,7 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 			bool okay= true;
 			evts_derived_str eds;
 			eds.evts_used.resize(0);
+			eds.evts_tags.resize(0);
 			printf("ck derived evt= %s at %s %d\n", evt_tbl2[i].event_name.c_str(), __FILE__, __LINE__);
 			fflush(NULL);
 			uint32_t hsh_ck = ck_got_evts_derived_dependents(prf_obj,  evt_tbl2[i], false, eds, verbose);
@@ -1223,7 +1229,7 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 				double tm_beg = dclock();
 				uint32_t emit_var;
 				lua_derived_tc_prf(lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
-						evts_derived[j].new_cols, new_vals, emit_var, verbose);
+						evts_derived[j].new_cols, new_vals, emit_var, evts_derived[j].evts_tags[k], verbose);
 				double tm_end = dclock();
 				tm_lua_derived += tm_end - tm_beg;
 				if (trig_idx == evt_idx || (trig_idx == UINT32_M2 && emit_var == 1)) {

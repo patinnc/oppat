@@ -310,17 +310,35 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			event_table.push_back(es);
 			uint32_t fsz = 0;
 			try {
+				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_tags"].size();
+				for (uint32_t k=0; k < fsz; k++) {
+					event_table.back().evt_derived.evts_used.push_back(
+							j["event_array"][i]["event"]["evt_derived"]["evts_tags"][k]["evt"]);
+					event_table.back().evt_derived.evts_tags.push_back(
+							j["event_array"][i]["event"]["evt_derived"]["evts_tags"][k]["tag"]);
+				}
+			} catch (...) { }
+			if (fsz == 0) {
+			try {
 				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_used"].size();
 				for (uint32_t k=0; k < fsz; k++) {
-					event_table.back().evt_derived.evts_used.push_back(j["event_array"][i]["event"]["evt_derived"]["evts_used"][k]);
+					event_table.back().evt_derived.evts_used.push_back(
+							j["event_array"][i]["event"]["evt_derived"]["evts_used"][k]);
+					event_table.back().evt_derived.evts_tags.push_back(
+							j["event_array"][i]["event"]["evt_derived"]["evts_used"][k]);
 				}
+			} catch (...) { }
+			}
+			try {
 				fsz = j["event_array"][i]["event"]["evt_derived"]["new_cols"].size();
 				for (uint32_t k=0; k < fsz; k++) {
 					event_table.back().evt_derived.new_cols.push_back(j["event_array"][i]["event"]["evt_derived"]["new_cols"][k]);
 				}
+			} catch (...) { }
+			try {
 				event_table.back().evt_derived.evt_trigger = j["event_array"][i]["event"]["evt_derived"]["evt_trigger"];
-				event_table.back().evt_derived.lua_file = j["event_array"][i]["event"]["evt_derived"]["lua_file"];
-				event_table.back().evt_derived.lua_rtn  = j["event_array"][i]["event"]["evt_derived"]["lua_rtn"];
+				event_table.back().evt_derived.lua_file    = j["event_array"][i]["event"]["evt_derived"]["lua_file"];
+				event_table.back().evt_derived.lua_rtn     = j["event_array"][i]["event"]["evt_derived"]["lua_rtn"];
 			} catch (...) { }
 			//fflush(NULL);
 			try {

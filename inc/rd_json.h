@@ -95,6 +95,7 @@ struct chart_defaults_str {
 
 struct evt_derived_str {
 	std::vector <std::string> evts_used;
+	std::vector <std::string> evts_tags;
 	std::vector <std::string> new_cols;
 	std::string evt_trigger, lua_file, lua_rtn;
 };

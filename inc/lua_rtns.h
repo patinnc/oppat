@@ -27,4 +27,5 @@ EXTERN2 double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std
 		struct prf_samples_str &samples,
 		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals,
 		uint32_t &emit_var,
+		std::string evt_tag,
 		int verbose);

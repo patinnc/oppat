@@ -411,7 +411,7 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string &evt_nm,
 		struct prf_samples_str &samples,
 		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals,
-		uint32_t &emit_var, int verbose)
+		uint32_t &emit_var, std::string evt_tag, int verbose)
 {
 	int lua_idx = (int)hash_string(lua_state_hash, lua_state_vec, lua_file) - 1;
 	static uint32_t emit_idx = UINT32_M1;
@@ -470,6 +470,8 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 		lua_states[lua_idx]->lua["new_cols"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
 		lua_states[lua_idx]->lua["new_vals"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
 		int i = 0;
+		// data_cols are fixed table. The table data_cols[1] = 'event'
+		lua_states[lua_idx]->lua["data_cols"][++i] = "derived_evt";
 		lua_states[lua_idx]->lua["data_cols"][++i] = "event";
 		lua_states[lua_idx]->lua["data_cols"][++i] = "ts";
 		lua_states[lua_idx]->lua["data_cols"][++i] = "extra_str";
@@ -478,11 +480,12 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 		lua_states[lua_idx]->lua["data_cols"][++i] = "tid";
 		lua_states[lua_idx]->lua["data_cols"][++i] = "cpu";
 		lua_states[lua_idx]->lua["data_cols"][++i] = "period";
-		for (i=0; i < (int)new_cols.size(); i++) {
-			lua_states[lua_idx]->lua["new_cols"][i+1] = new_cols[i];
-			if (new_cols[i] == "__EMIT__") {
-				emit_idx = i;
-			}
+		lua_states[lua_idx]->lua["data_cols"][++i] = "evt_tag";
+	}
+	for (int i=0; i < (int)new_cols.size(); i++) {
+		lua_states[lua_idx]->lua["new_cols"][i+1] = new_cols[i];
+		if (new_cols[i] == "__EMIT__") {
+			emit_idx = i;
 		}
 	}
 	lua_states[lua_idx]->script_func = lua_states[lua_idx]->lua[lua_rtn];
@@ -497,6 +500,8 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 	std::vector <std::string> args;
 
 	int i = 0;
+	// the data_vals table indices number must agree with data_cols indices.
+	lua_states[lua_idx]->lua["data_vals"][++i] = evt_nm;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.event;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.ts;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.extra_str;
@@ -505,6 +510,7 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.tid;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.cpu;
 	lua_states[lua_idx]->lua["data_vals"][++i] = samples.period;
+	lua_states[lua_idx]->lua["data_vals"][++i] = evt_tag;
 
 	//printf("lua extra_str= %s at %s %d\n", samples.extra_str.c_str(), __FILE__, __LINE__);
 

@@ -107,6 +107,7 @@ struct lua_data_str {
 struct evts_derived_str {
 	uint32_t evt_tbl2_idx, trigger_idx, evt_new_idx;
 	std::vector <uint32_t> evts_used;
+	std::vector <std::string> evts_tags;
 	std::vector <std::string> new_cols;
 	std::vector <std::string> new_vals;
 };

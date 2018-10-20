@@ -93,12 +93,32 @@
 	"evt_name": "r19", "evt_type": "ftrace", "comment":"hw r19 bus-access events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"bus_accesses",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
+		{"name":"bus_accesses",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":1000.0}]},
+		{"name":"MB/sec",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":8.0e-6}, {"oper":"drop_if_gt", "val":10.0}]},
 		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"Bus accesses (Bi/s) from r19 bus_access event by cpu",  "var_name": "bus_accesses",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		{"category":"CPU", "title":"Bus accesses (Mi/s) from r19 bus_access event by cpu",  "var_name": "bus_accesses",
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"d"},
+		{"category":"CPU", "title":"Bus accesses BW (MB/sec) from r19 bus_access event by cpu",  "var_name": "MB/sec",
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BW_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "r60", "evt_type": "ftrace", "comment":"hw r60 Load bus-access events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"bus_accesses",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":1000.0}]},
+		{"name":"MB/sec",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":8.0e-6}, {"oper":"drop_if_gt", "val":10.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Bus accesses (Mi/s) from r60 load bus_access event by cpu",  "var_name": "bus_accesses",
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BY_CPU", "chart_type":"line", "use_chart":"d"},
+		{"category":"CPU", "title":"Bus accesses BW (MB/sec) from r60 load bus_access event by cpu",  "var_name": "MB/sec",
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BW_BY_CPU", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -120,21 +140,21 @@
 	{
 	"evt_name": "load_stalls", "evt_type": "ftrace", "comment":"derived event for pct stalled on loads (ld_stall_cycles/cycles)",
 	"evt_derived":{
-		"evts_used":["re7", "cycles"],
+		"evts_tags":[{"evt":"re7", "tag":"num"}, {"evt":"cycles", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["load_stalls", "__EMIT__", "duration", "area"],
-		"lua_file":"prf_load_stalls.lua",
-		"lua_rtn":"load_stalls"
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
 	},
 	"evt_flds": [
-		{"name":"load_stalls",   "lkup": "load_stalls",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":120}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"%stalled on loads (ld_stall_cycles/cycles) by CPU",  "var_name": "load_stalls",
-			"by_var": "area", "chart_tag":"LOAD_STALLS_PCT_CHART", "chart_type":"line", "use_chart":"d"}
+		{"category":"CPU", "title":"%stalled on loads (ld_stall_cycles/cycles) by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"LOAD_STALLS_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"%Ld_stalls/cycles"}
 		]
 	}
   },
@@ -149,6 +169,34 @@
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc0 ext_mem_req event by cpu",  "var_name": "BW",
 			"by_var": "cpu", "chart_tag":"MEM_BW_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "rc2", "evt_type": "ftrace", "comment":"hw rc2 linefill due to prefetch events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Mem BW (GiB/s) from rc2 linefill due to prefetch event by cpu",  "var_name": "BW",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_PREFETCH_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "rc4", "evt_type": "ftrace", "comment":"hw rc4 entering read allocate mode",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Mem BW (GiB/s) from rc4 entering read allocate mode event by cpu",  "var_name": "BW",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_RD_ALLOC_BY_CPU", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -176,11 +224,14 @@
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"bytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
 		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 misses (Mill_misses/s) from r17 L2 dcache refill by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"},
+		{"category":"CPU", "title":"Mem BW MiB/sec from r17 L2 dcache refill by cpu",  "var_name": "bytes",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_L2_MISSES_BY_CPU", "chart_type":"line", "y_label":"MiB/sec", "use_chart":"d"}
 		]
 	}
   },
@@ -192,11 +243,36 @@
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"MiB/sec", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":32.0e-6}, {"oper":"drop_if_gt", "val":4000.0}]},
 		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus freq (MiHz/s) from r1d bus cycles event by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"BUS_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"BUS_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"},
+		{"category":"CPU", "title":"Bus BW (MiB/sec) from r1d bus cycles event by cpu",  "var_name": "MiB/sec",
+			"by_var": "cpu", "chart_tag":"BUS_BW_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "arm_bus_util", "evt_type": "ftrace", "comment":"hw derived arm_bus_util events",
+	"evt_derived":{
+		"evts_tags":[{"evt":"r19", "tag":"num"}, {"evt":"r1d", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",  "lkup": "val", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":200.0}]},
+		{"name":"emit", "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura", "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area", "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%arm_bus_utilization (bus_accesses/bus_cycles) by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"ARM_BUS_UTIL_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"arm_bus_%util"}
 		]
 	}
   },
@@ -230,21 +306,21 @@
 	{
 	"evt_name": "L2_miss_pct", "evt_type": "ftrace", "comment":"derived event for L2 miss % (L2 misses/L2 accesses)",
 	"evt_derived":{
-		"evts_used":["r16", "r17"],
+		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"r16", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["L2_miss_pct", "__EMIT__", "duration", "area"],
-		"lua_file":"prf_L2_miss_pct.lua",
-		"lua_rtn":"L2_miss_pct"
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
 	},
 	"evt_flds": [
-		{"name":"L2_miss_pct",   "lkup": "L2_miss_pct",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":200.0}]},
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"L2 %miss (L2_misses/L2_accesses) by CPU",  "var_name": "L2_miss_pct",
-			"by_var": "area", "chart_tag":"L2_MISS_PCT_CHART", "chart_type":"line", "use_chart":"d"}
+		{"category":"CPU", "title":"L2 %miss (L2_misses/L2_accesses) by CPU",  "var_name":"val",
+			"by_var": "area", "chart_tag":"L2_MISS_PCT_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%L2_miss"}
 		]
 	}
   },
@@ -252,21 +328,21 @@
 	{
 	"evt_name": "L2_mpki", "evt_type": "ftrace", "comment":"derived event for L2 MPKI (L2 misses/thousand instructions)",
 	"evt_derived":{
-		"evts_used":["r17", "instructions"],
+		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"instructions", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["L2_mpki", "__EMIT__", "duration", "area"],
-		"lua_file":"prf_L2_mpki.lua",
-		"lua_rtn":"L2_mpki"
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
 	},
 	"evt_flds": [
-		{"name":"L2_mpki",   "lkup": "L2_mpki",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1000.0}, {"oper":"drop_if_gt", "val":2000.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"L2_MPKI (L2_misses/thousand_instructions) by CPU",  "var_name": "L2_mpki",
-			"by_var": "area", "chart_tag":"L2_mpki_CHART", "chart_type":"line", "use_chart":"d"}
+		{"category":"CPU", "title":"L2_MPKI (L2_misses/thousand_instructions) by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"L2_mpki_CHART", "chart_type":"line", "use_chart":"d", "y_label":"L2_MPKI"}
 		]
 	}
   },
@@ -274,21 +350,21 @@
 	{
 	"evt_name": "CPI", "evt_type": "ftrace", "comment":"derived event for CPI (cycles/instruction)",
 	"evt_derived":{
-		"evts_used":["cycles", "instructions"],
+		"evts_tags":[{"evt":"cycles", "tag":"num"}, {"evt":"instructions", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["CPI", "__EMIT__", "duration", "area"],
-		"lua_file":"prf_CPI.lua",
-		"lua_rtn":"CPI"
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
 	},
 	"evt_flds": [
-		{"name":"CPI",   "lkup": "CPI",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":100.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"CPI (cycles/instruction) by CPU",  "var_name": "CPI", "by_var": "area",
-			"chart_tag":"CPI_CHART", "chart_type":"line", "use_chart":"y"}
+		{"category":"CPU", "title":"CPI (cycles/instruction) by CPU",  "var_name": "val", "by_var": "area",
+			"chart_tag":"CPI_CHART", "chart_type":"line", "use_chart":"y", "y_label":"CPI"}
 		]
 	}
   },

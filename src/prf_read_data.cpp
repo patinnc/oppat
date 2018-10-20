@@ -169,7 +169,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			for (uint32_t i=0; i < nms.size(); i++) {
 				pos = line.find(nms[i].str);
 				if (pos != std::string::npos) {
-					printf("got evt= %s, extr_str= %s at %s %d\n", nms[i].str.c_str(), extra_str.c_str(), __FILE__, __LINE__);
+					//printf("got evt= %s, extr_str= %s at %s %d\n", nms[i].str.c_str(), extra_str.c_str(), __FILE__, __LINE__);
 					pos2 = line.substr(pos + nms[i].len).find_first_not_of(' ');
 					if (pos2 != std::string::npos) {
 						nms[i].ext_strs++;
