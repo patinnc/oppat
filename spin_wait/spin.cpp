@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 #include <fcntl.h>
+#include <string.h>
 #include <sys/stat.h>
 //#include <arm_neon.h>
 #include <ctime>
@@ -94,7 +95,9 @@ struct args_str {
 	unsigned long rezult, loops, adder;
 	double tm_beg, tm_end;
 	int id, wrk_typ;
-	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0), tm_beg(0.0), tm_end(0.0), id(-1), wrk_typ(-1) {}
+	char *loops_str, *adder_str;
+	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0), tm_beg(0.0), tm_end(0.0), id(-1),
+		wrk_typ(-1), loops_str(0), adder_str(0) {}
 };
 
 uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t adder, uint64_t &ops)
@@ -367,6 +370,7 @@ float disk_all(unsigned int i)
 
 float mem_bw(unsigned int i)
 {
+	char *buf;
 	double tm_to_run = args[i].spin_tm;
 	int cpu =  args[i].id;
 	//unsigned int i;
@@ -374,10 +378,18 @@ float mem_bw(unsigned int i)
 	uint64_t j, loops;
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, bytes=0.0;
-	loops = args[i].loops;
-	uint64_t adder = args[i].adder;
-	char *buf;
-	int strd=64, arr_sz = 80*1024*1024;
+	int strd = (int)args[i].loops;
+	int arr_sz = (int)args[i].adder;
+	if (args[i].adder_str && (strstr(args[i].adder_str, "k") || strstr(args[i].adder_str, "K"))) {
+		arr_sz *= 1024;
+	}
+	if (args[i].adder_str && (strstr(args[i].adder_str, "m") || strstr(args[i].adder_str, "M"))) {
+		arr_sz *= 1024*1024;
+	}
+	if (i==0) {
+		printf("strd= %d, arr_sz= %d, %d KB, %.4f MB\n",
+			strd, arr_sz, arr_sz/1024, (double)(arr_sz)/(1024.0*1024.0));
+	}
 	buf = (char *)malloc(arr_sz);
 	array_write(buf, arr_sz, strd);
 	tm_end = tm_beg = dclock();
@@ -451,6 +463,7 @@ float dispatch_work(int  i)
 int main(int argc, char **argv)
 {
 
+	char *loops_str=NULL, *adder_str= NULL;
 	double t_first = dclock();
 	unsigned num_cpus = std::thread::hardware_concurrency();
 	double spin_tm = 2.0;
@@ -467,6 +480,9 @@ int main(int argc, char **argv)
 	double t_start, t_end;
 	time_t c_start, c_end;
 	unsigned long adder=1, loops = 0xffffff;
+	printf("usage: %s tm_secs [work_type [ arg3 [ arg4 ]]]\n", argv[0]);
+	printf("\twork_type: spin|mem_bw|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
+	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 
 	int i=1;
 	if (argc > i) {
@@ -496,14 +512,22 @@ int main(int argc, char **argv)
 			doing_disk = true;
 			loops = 100;
 		}
+		if (wrk_typ == WRK_MEM_BW) {
+			loops = 64;
+			adder = 80*1024*1024;
+		}
 	}
 	i++; //3
 	if (argc > i) {
 		loops = atoi(argv[i]);
+		loops_str = argv[i];
+		printf("arg3 is %s\n", loops_str);
 	}
 	i++; //4
 	if (argc > i) {
 		adder = atoi(argv[i]);
+		adder_str = argv[i];
+		printf("arg4 is %s\n", adder_str);
 	}
 
 	args.resize(num_cpus);
@@ -512,6 +536,8 @@ int main(int argc, char **argv)
 		args[i].id = i;
 		args[i].loops = loops;
 		args[i].adder = adder;
+		args[i].loops_str = loops_str;
+		args[i].adder_str = adder_str;
 		args[i].work = work;
 		args[i].wrk_typ = wrk_typ;
 	}

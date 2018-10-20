@@ -2,7 +2,7 @@
 
 TRC_CMD=/home/pi/ppat/oppat/bin/trace-cmd
 PRF_CMD=/usr/bin/perf_4.9
-BASE=mem_bw4_pi5
+BASE=mem_bw4_pi_32_mem
 PFX=arm
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_DIR=`dirname "$(readlink -f "$0")"`
@@ -98,13 +98,25 @@ done
 
 # check if /proc/sys/kernel/nmi_watchdog is 1 which indicates kernel might be using an event 
 # events below from DDI0500J_cortex_a53_trm.pdf
-# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss
-$PRF_CMD record -a -k monotonic -F 997 -e "{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S" -o $ODIR/prf_trace2.data  &
+#
+# r16=L2 dcache access, 
+# r17=L2 dcache refill,
+# r19=bus access,
+# r1d=bus cycles,
+# r60=BUS_ACCESS_LD,
+# r61=BUS_ACCESS_ST,
+# rC0=External memory request.
+# rc1=Non-cacheable external memory request.
+# rc2=Linefill because of prefetch.
+# rc4=entering read allocate mode
+# re7=stall cycle due to load miss
+#$PRF_CMD record -a -k monotonic -F 997 -e "{cpu-clock,cycles,instructions,r16,r17,r19,r1d,r60}:S" -o $ODIR/prf_trace2.data  &
+$PRF_CMD record -a -k monotonic -F 997 -e "{cpu-clock,cycles,instructions,r16,r17,rc0,rc2,re7}:S" -o $ODIR/prf_trace2.data  &
 PRF_CMD_PID2=$!
 
 #$PRF_CMD record -a -k monotonic -e power:powernv_throttle/call-graph=no/ -e power:cpu_frequency/call-graph=no/ -e clk:clk_set_rate_complete/call-graph=no/  -e "{r19/call-graph=no,freq=10000/,re7,rc0}:S"  -e thermal:thermal_temperature/call-graph=no/ -e power:cpu_idle/call-graph=no/ -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
 #$PRF_CMD record -a -k monotonic  -g -e sched:sched_switch  -e "{cpu-clock,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
-$PRF_CMD record -a -k monotonic  -g -e sched:sched_switch,cpu-clock  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
+$PRF_CMD record -a -k monotonic  -g -e sched:sched_switch,cpu-clock  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw 32 20m > $ODIR/spin.txt
 
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
