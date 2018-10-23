@@ -33,8 +33,9 @@ else
   #CC     = $(CXX)
   # The command used to delete file.
   RM     = rm -f
-  ZLIB   = zlib-1.2.11/zlib.lib
-  ZLIB_CMD = cd zlib-1.2.11; make
+  ZLIB   = zlib-1.2.11/libz.a
+  #ZLIB_CMD = $(shell cd zlib-1.2.11 && make && cd ..)
+  ZLIB_CMD = $(shell cd zlib-1.2.11; $(MAKE);)
   GCC_ARGS = -std=c++14 -Wno-write-strings
   MY_LIBS   = -lpthread -lz -ldl
   MY_LIBS   = -lpthread -ldl
@@ -45,6 +46,7 @@ else
   OFILE = -o
   OEXE = -o
   PLAT_LDFLAGS = -static
+  #SUBDIRS := zlib-1.2.11
 
 endif
 
