@@ -4195,23 +4195,9 @@ void create_web_file(int verbose)
 				if (doing_main_js) {
 					pos = line2.find(openSocket);
 					if (pos != std::string::npos) {
-						//ofile << "  let st_pool='" << bin_map2 << "';" << std::endl;
-						//ofile << "  let ch_data='" << chrts_json2 << "';" << std::endl;
-						ofile << "  setTimeout(function(){ " << std::endl;
 						ofile << "    let sp_data2='" << std::string((const char *)sp_b64) << "';" << std::endl;
-						ofile << "    let st_pool = decompress_str('str_pool', sp_data2);" << std::endl;
-						ofile << "  setTimeout(function(){ " << std::endl;
-						ofile << "    parse_str_pool(st_pool);" << std::endl;
 						ofile << "    let ch_data2='" << std::string((const char *)cd_b64) << "';" << std::endl;
-						ofile << "    let ch_data = decompress_str('chrt_data', ch_data2);" << std::endl;
-						ofile << "  setTimeout(function(){ " << std::endl;
-						ofile << "    parse_chart_data(ch_data);" << std::endl;
-						ofile << "  setTimeout(function(){ " << std::endl;
-						ofile << "    start_charts();" << std::endl;
-						ofile << "  }, 1000); " << std::endl;
-						ofile << "  }, 1000); " << std::endl;
-						ofile << "  }, 1000); " << std::endl;
-						ofile << "  }, 1000); " << std::endl;
+						ofile << "    standalong(sp_data2, ch_data2);" << std::endl;
 						doing_main_js = false;
 						continue;
 					}
