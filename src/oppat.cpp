@@ -46,6 +46,8 @@
 #include "MemoryMapped.h"
 #include "mygetopt.h"
 #include "dump.hpp"
+#include "base64.h"
+#include "zlib.h"
 #include "tc_read_data.h"
 
 #pragma comment(lib, "Setupapi.lib")
@@ -85,7 +87,7 @@ static int load_long_opt_val(const char *opt_name, const char *ck_str, std::stri
 	if (strcmp(opt_name, ck_str) == 0 || strncmp(opt_name, ck_str, slen) == 0) {
 		if (!optarg) {
 			fprintf(stderr, "you must enter an arg for the --%s option. bye at %s %d\n",
-			   opt_name,	__FILE__, __LINE__);
+				opt_name,	__FILE__, __LINE__);
 			exit(1);
 		}
 		sv_to_str = std::string(optarg);
@@ -159,18 +161,18 @@ get_opt_main (int argc, char **argv)
 	{
 		/* These options set a flag. */
 		{"verbose",     no_argument,       0, 'v', "set verbose mode"
-		   "   Specify '-v' multiple times to increase the verbosity level.\n"
+			"   Specify '-v' multiple times to increase the verbosity level.\n"
 		},
 		{"help",        no_argument,       &help_flag, 'h', "display help and exit"},
 		{"show_json",   no_argument,        0, 's', "show json data sent to client on stdout. Can be 100s of MBs.\n"
-		   "   Level 1 shows 'per chart' json data. Level 2 adds the aggregated data actually sent to the client\n"
-		   "   Specify '-s' multiple times to increase the level.\n"
+			"   Level 1 shows 'per chart' json data. Level 2 adds the aggregated data actually sent to the client\n"
+			"   Specify '-s' multiple times to increase the level.\n"
 		},
 		{"debug",  no_argument,   0, 0, "on windows, if the 1st arg is '--debug' then oppat will try to attach the\n"
 			"   debugger to the oppat process\n"
 		},
 		/* These options don’t set a flag.
-		 We distinguish them by their indices. */
+			We distinguish them by their indices. */
 		{"beg_tm",      required_argument,   0, 'b', "begin time (absolute) to clip"},
 		{"charts",      required_argument,   0, 'c', "json list of charts"},
 		{"data_files",  required_argument,   0, 'd', "json list of data files\n"
@@ -277,12 +279,11 @@ get_opt_main (int argc, char **argv)
 	};
 
 	while (1)
-    {
+	{
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = mygetopt_long(argc, argv, "b:c:d:e:hm:pr:su:v",
-                       long_options, &option_index);
+		c = mygetopt_long(argc, argv, "b:c:d:e:hm:pr:su:v", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -290,7 +291,7 @@ get_opt_main (int argc, char **argv)
 
 		switch (c)
 		{
-        case 0:
+		case 0:
 			if (load_long_opt_val(long_options[option_index].name, "etw_txt", options.etw_txt, optarg) > 0) {
 				break;
 			}
@@ -301,7 +302,7 @@ get_opt_main (int argc, char **argv)
 							optarg, __FILE__, __LINE__);
 					exit(1);
 				}
-   				options.load_replay_file = true;
+				options.load_replay_file = true;
 				break;
 			}
 			if (load_long_opt_val(long_options[option_index].name, "lua_bin", options.lua_energy, optarg) > 0) {
@@ -344,81 +345,81 @@ get_opt_main (int argc, char **argv)
 			printf ("\n");
 			break;
 
-        case 'b':
-          printf ("option -b with value `%s'\n", optarg);
-		  options.tm_clip_beg = atof(optarg);
-		  options.tm_clip_beg_valid++;
-          break;
+		case 'b':
+			printf ("option -b with value `%s'\n", optarg);
+			options.tm_clip_beg = atof(optarg);
+			options.tm_clip_beg_valid++;
+			break;
 
-        case 'c':
-          printf ("option -c with value `%s'\n", optarg);
-		  options.chart_file = optarg;
-          break;
+		case 'c':
+			printf ("option -c with value `%s'\n", optarg);
+			options.chart_file = optarg;
+			break;
 
-        case 'd':
-          printf ("option -d with value `%s'\n", optarg);
-		  options.data_file = optarg;
-          break;
+		case 'd':
+			printf ("option -d with value `%s'\n", optarg);
+			options.data_file = optarg;
+			break;
 
-        case 'e':
-          printf ("option -e with value `%s'\n", optarg);
-		  options.tm_clip_end = atof(optarg);
-		  options.tm_clip_end_valid++;
-          break;
+		case 'e':
+			printf ("option -e with value `%s'\n", optarg);
+			options.tm_clip_end = atof(optarg);
+			options.tm_clip_end_valid++;
+			break;
 
-        case 'h':
-          printf ("option -h set\n");
-		  help_flag++;
-          break;
+		case 'h':
+			printf ("option -h set\n");
+			help_flag++;
+			break;
 
-        case 'm':
-          printf ("option -m with value `%s'\n", optarg);
-		  if (strcmp(optarg, "first") == 0) {
-			  options.file_mode = FILE_MODE_FIRST;
-		  } else if (strcmp(optarg, "last") == 0) {
-			  options.file_mode = FILE_MODE_LAST;
-		  } else if (strcmp(optarg, "all") == 0) {
-			  options.file_mode = FILE_MODE_ALL;
-		  } else {
-			  printf("got invalid option '-m %s\n", optarg);
-			  printf("valid args to -m (--mode_for_files) are: 'first', 'last', 'all'. Bye at %s %d\n", __FILE__, __LINE__);
-			  exit(1);
-		  }
-          break;
+		case 'm':
+			printf ("option -m with value `%s'\n", optarg);
+			if (strcmp(optarg, "first") == 0) {
+				options.file_mode = FILE_MODE_FIRST;
+			} else if (strcmp(optarg, "last") == 0) {
+				options.file_mode = FILE_MODE_LAST;
+			} else if (strcmp(optarg, "all") == 0) {
+				options.file_mode = FILE_MODE_ALL;
+			} else {
+				printf("got invalid option '-m %s\n", optarg);
+				printf("valid args to -m (--mode_for_files) are: 'first', 'last', 'all'. Bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+			}
+			break;
 
-        case 'p':
-          printf ("option -p with value `%s'\n", optarg);
-		  options.web_port = atoi(optarg);
-          break;
+		case 'p':
+			printf ("option -p with value `%s'\n", optarg);
+			options.web_port = atoi(optarg);
+			break;
 
-        case 'r':
-          printf ("option -r with value `%s'\n", optarg);
-		  options.root_data_dirs.push_back(std::string(optarg));
-          break;
+		case 'r':
+			printf ("option -r with value `%s'\n", optarg);
+			options.root_data_dirs.push_back(std::string(optarg));
+			break;
 
-        case 's':
-		  options.show_json++;
-          printf ("option -s set to %d\n", options.show_json);
-          break;
+		case 's':
+			options.show_json++;
+			printf ("option -s set to %d\n", options.show_json);
+			break;
 
-        case 'u':
-          printf ("option -u with value `%s'\n", optarg);
-		  options.file_tag_vec.push_back(optarg);
-          break;
+		case 'u':
+			printf ("option -u with value `%s'\n", optarg);
+			options.file_tag_vec.push_back(optarg);
+			break;
 
-        case 'v':
-		  options.verbose++;
-          printf ("option -v set to %d\n", options.verbose);
-          break;
+		case 'v':
+			options.verbose++;
+			printf ("option -v set to %d\n", options.verbose);
+			break;
 
-        case '?':
-          /* getopt_long already printed an error message. */
-          break;
+		case '?':
+			/* getopt_long already printed an error message. */
+			break;
 
-        default:
-          abort ();
-        }
-    }
+		default:
+			abort ();
+		}
+	}
 	printf("help_flag = %d at %s %d\n", help_flag, __FILE__, __LINE__);
 
 	/* Print any remaining command line arguments (not options). */
@@ -757,7 +758,7 @@ int hex_dump_bytes(std::ifstream &file, long &pos_in, long sz, std::string pref,
 
 void _putchar(char character)
 {
-   	putc((int)character, stdout);
+	putc((int)character, stdout);
 }
 
 static std::unordered_map<std::string, uint32_t> callstack_hash;
@@ -1373,13 +1374,17 @@ static uint64_t callstack_sz = 0;
 void prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 		std::vector <int> &callstacks, int line, std::vector <std::string> prefx)
 {
-	std::string cs_new, cs_prv;
+	std::string mod_new, cs_new, cs_prv;
 	for (uint32_t k=0; k < prf_obj.samples[prf_idx].callstack.size(); k++) {
 		if (prf_obj.samples[prf_idx].callstack[k].mod == "[unknown]" &&
 				prf_obj.samples[prf_idx].callstack[k].rtn == "[unknown]") {
 			continue;
 		}
-		cs_new = prf_obj.samples[prf_idx].callstack[k].mod + " " + prf_obj.samples[prf_idx].callstack[k].rtn;
+		mod_new = prf_obj.samples[prf_idx].callstack[k].mod;
+		if (mod_new == "[kernel.kallsyms]") {
+			mod_new = "[krnl]";
+		}
+		cs_new = mod_new + " " + prf_obj.samples[prf_idx].callstack[k].rtn;
 		if (cs_new == cs_prv) {
 			continue;
 		}
@@ -1461,7 +1466,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		if (options.verbose)
 			fprintf(stdout, "skip idle= true, var_idx= %d at %s %d\n", var_idx, __FILE__, __LINE__);
 		skip_idle = true;
-	}	
+	}
 	if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
 		doing_pct_busy_by_cpu = 1;
 	}
@@ -1940,7 +1945,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			overlaps_sum.resize(overlaps_sz);
 			std::string comm, legnd;
 			i = cur_idx;
-			
+
 			var_val = event_table[evt_idx].data.vals[i][var_idx];
 			by_var_idx_val = lst_by_var[cur_idx];
 			idle_pid = false;
@@ -2337,12 +2342,12 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		} else {
 			event_table[evt_idx].charts[chrt].by_var_sub_tots[0] += var_val;
 		}
-		
+
 		if (chart_type == CHART_TYPE_BLOCK && var_cpu_idx > -1) {
 			lo = event_table[evt_idx].data.vals[i][var_cpu_idx];
 			hi = lo + delta;
 		}
-		
+
 		double dura = event_table[evt_idx].data.ts[i].duration;
 		idle_pid = false;
 		if (var_pid_idx > -1) {
@@ -2405,7 +2410,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (prf_obj.file_type != FILE_TYP_ETW) {
 				std::string ostr;
 				prf_sample_to_string(prf_idx, ostr, prf_obj);
-				ls1.text = ostr;
+				//ls1.text = ostr;
+				ls1.text = "_P_";
 				ls1.text += "<br>" + prf_obj.samples[prf_idx].extra_str;
 				if (prf_obj.samples[prf_idx].args.size() > 0) {
 					ls1.text += "<br>";
@@ -2560,7 +2566,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.typ     = SHAPE_LINE;
 			std::string ostr;
 			prf_sample_to_string(i, ostr, prf_obj);
-			ls0.text = ostr;
+			//ls0.text = ostr;
+			ls0.text = "_P_";
 			if (prf_obj.samples[i].args.size() > 0) {
 				ls0.text += "<br>";
 				for (uint32_t k=0; k < prf_obj.samples[i].args.size(); k++) {
@@ -2736,6 +2743,28 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 static std::unordered_map<std::string, uint32_t> chart_categories_hash;
 static std::vector <std::string> chart_categories_vec;
 
+static std::string drop_trailing_zeroes(std::string str)
+{
+	size_t pos = str.find(".");
+	if (pos == std::string::npos) {
+		return str;
+	}
+	std::string nstr = str;
+	size_t len = str.size();
+	for (uint32_t i= len-1; i >= pos; i--) {
+		if (nstr.substr(i) == ".") {
+			nstr.pop_back();
+			return nstr;
+		}
+		if (nstr.substr(i) == "0") {
+			nstr.pop_back();
+		} else {
+			break;
+		}
+	}
+	return nstr;
+}
+
 static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_t evt_idx, uint32_t chrt, std::vector <evt_str> event_table, int verbose)
 {
 	int var_idx = (int)event_table[evt_idx].charts[chrt].var_idx;
@@ -2807,19 +2836,30 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
 		if (i > 0) { json += ", "; }
 		// order of ival array values must agree with IVAL_* variables in main.js
-		json += std::string("{\"ival\":[") + std::to_string(ch_lines.line[i].typ) +
-				"," + std::to_string(ch_lines.line[i].cpt_idx) +
-				"," + std::to_string(ch_lines.line[i].fe_idx) +
-				"," + std::to_string(ch_lines.line[i].cat) +
-				"," + std::to_string(ch_lines.line[i].subcat) +
-				"," + std::to_string(ch_lines.line[i].period) +
-				"," + std::to_string(ch_lines.line[i].cpu) +
-				"],\"pts\":[" + std::to_string(ch_lines.line[i].x[0]) +
-				"," + (ch_lines.line[i].y[0] == 0.0 ? zero : std::to_string(ch_lines.line[i].y[0])) +
-				"," + std::to_string(ch_lines.line[i].x[1]) +
-				"," + (ch_lines.line[i].y[1] == 0.0 ? zero : std::to_string(ch_lines.line[i].y[1])) +
-				"]" +
-				",\"text\":\"" + ch_lines.line[i].text + "\"";
+		json += std::string("{\"ival\":[") +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].typ)) +
+				"," +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].cpt_idx)) +
+				"," +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].fe_idx)) +
+				"," +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].cat)) +
+				"," +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].subcat)) +
+				"," +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].period)) +
+				"," +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].cpu)) +
+				"],\"pts\":[" +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[0])) +
+				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[0])) +
+				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[1])) +
+				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[1])) +
+				"]";
+		if (ch_lines.line[i].text.size() > 0) {
+			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
+			json += ",\"txtidx\":" + std::to_string(txt_idx);
+		}
 		std::string cs_txt;
 		for (uint32_t j=0; j < ch_lines.line[i].callstack_str_idxs.size(); j++) {
 			if (j > 0) {
@@ -2942,7 +2982,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	if (options.show_json > 0) {
 		printf("did build_chart_json(): '%s'\n", json.c_str());
 	}
-	
+
 	return json;
 }
 
@@ -3362,7 +3402,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				exit(1);
 			}
 			lua_col_map.resize(fsz, -1);
-				
+
 			for (uint32_t j=0; j < fsz; j++) {
 				uint32_t k;
 				for (k=0; k < prf_obj.lua_data.col_names[evt_idx].size(); k++) {
@@ -3882,7 +3922,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					dv[div_by_interval_idx[k]] /= dv[dura_idx];
 				}
 			}
-			
+
 		}
 #if 0
 		if (prf_obj.file_type == FILE_TYP_ETW) {
@@ -3961,7 +4001,7 @@ static void web_srvr_start(Queue<std::string>& q_from_srvr, Queue<std::string>& 
 }
 
 static void web_push_from_srvr_to_clnt(Queue<std::string>& q, unsigned int id) {
-  	for (int i = 1; i <= 4; ++i) {
+	for (int i = 1; i <= 4; ++i) {
 		std::ostringstream tmp;
 		tmp << "from server item --> " << i << " id= " << id;
 		std::cout << tmp.str() << std::endl;
@@ -3999,6 +4039,41 @@ static int start_web_server_threads(Queue<std::string>& q_from_srvr_to_clnt,
 static std::string bin_map, bin_map2;
 static std::string chrts_json, chrts_json2;
 
+static int compress_string(unsigned char *dst, unsigned char *src, size_t sz)
+{
+	z_stream defstream;
+	defstream.zalloc = Z_NULL;
+	defstream.zfree = Z_NULL;
+	defstream.opaque = Z_NULL;
+	defstream.avail_in = (uint32_t)(sz); // src sz, string + terminator
+	defstream.next_in = (unsigned char *)src;
+	defstream.avail_out = (uint32_t)sz; // dst sz
+	defstream.next_out = (unsigned char *)dst;
+
+	deflateInit(&defstream, Z_BEST_COMPRESSION);
+	deflate(&defstream, Z_FINISH);
+	deflateEnd(&defstream);
+
+	int len = (int)(defstream.next_out - dst);
+	fprintf(stderr, "len_in= %d, Compressed size is: %d\n", (int)sz, len);
+	return len;
+}
+
+
+static int str_2_base64(uint8_t *dst, uint8_t *src, int isz)
+{
+	unsigned char str[]= "abcdegh1234567890";
+	unsigned char *out;
+	int i, len, olen, ilen;
+
+	ilen = isz;
+	len = Base64encode_len(ilen);
+	printf("str_2_base64: ilen= %d, exp_len= %d\n", ilen, len);
+	olen = Base64encode((char *)dst, (char *)src, ilen);
+	printf("str_2_base64: olen= %d, strlen(dst)= %d\n", olen, (int)strlen((char *)dst));
+	return olen;
+}
+
 void create_web_file(int verbose)
 {
 	double tm_beg = dclock();
@@ -4013,9 +4088,65 @@ void create_web_file(int verbose)
 		printf("messed up open of web_file flnm= %s at %s %d\n", options.web_file.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
-  	//file << bin_map << std::endl;
-  	//file << "," << std::endl;
-  	//file << chrts_json << std::endl;
+
+	bin_map2 = bin_map;
+	replace_substr(bin_map2, "'", "\\'", verbose);
+	chrts_json2 = chrts_json;
+	replace_substr(chrts_json2, "'", "\\'", verbose);
+
+	if (chrts_json2.size() == 0) {
+		fprintf(stderr, "chrts_json2.size() == 0. Bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	if (bin_map2.size() == 0) {
+		fprintf(stderr, "bin_map2.size() == 0. Bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+
+	unsigned char *src, *dst, *cd_b64, *sp_b64;
+	src = (uint8_t *)malloc(chrts_json2.size());
+	dst = (uint8_t *)malloc(chrts_json2.size());
+	memcpy(src, chrts_json2.c_str(), chrts_json2.size());
+	int cd_cmp_len = compress_string(dst, src, chrts_json2.size());
+
+#if 0
+	std::string wb_tmp = options.web_file+".dat";
+	std::ofstream ofile2;
+	ofile2.open (wb_tmp.c_str(), std::ios::out|std::ofstream::binary);
+	if (!ofile2.is_open()) {
+		printf("messed up open of web_file tmp flnm= %s at %s %d\n", wb_tmp.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	ofile2.write((const char *)dst, cd_cmp_len);
+	ofile2.close();
+#endif
+
+	int cd_b64_len = Base64encode_len(cd_cmp_len);
+	cd_b64 = (uint8_t *)malloc(cd_b64_len);
+	int cd_ob64_len = str_2_base64(cd_b64, dst, cd_cmp_len);
+	free(src);
+	free(dst);
+
+	src = (uint8_t *)malloc(bin_map2.size());
+	dst = (uint8_t *)malloc(bin_map2.size());
+	memcpy(src, bin_map2.c_str(), bin_map2.size());
+	int sp_cmp_len = compress_string(dst, src, bin_map2.size());
+	int sp_b64_len = Base64encode_len(sp_cmp_len);
+	sp_b64 = (uint8_t *)malloc(sp_b64_len);
+	int sp_ob64_len = str_2_base64(sp_b64, dst, sp_cmp_len);
+	free(src);
+	free(dst);
+
+#if 0
+	wb_tmp = options.web_file+".b64";
+	ofile2.open (wb_tmp.c_str(), std::ios::out);
+	if (!ofile2.is_open()) {
+		printf("messed up open of web_file tmp flnm= %s at %s %d\n", wb_tmp.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	ofile2.write((const char *)b64, ob64_len);
+	ofile2.close();
+#endif
 
 	file.open (in_file.c_str(), std::ios::in);
 	if (!file.is_open()) {
@@ -4028,10 +4159,6 @@ void create_web_file(int verbose)
 	std::string style = "<link rel=\"stylesheet\" href=";
 	std::string openSocket = "openSocket(window.location.port);";
 	bool write_it, first_style=true;
-	bin_map2 = bin_map;
-	replace_substr(bin_map2, "'", "\\'", verbose);
-	chrts_json2 = chrts_json;
-	replace_substr(chrts_json, "'", "\\'", verbose);
 
 	while(!file.eof()){
 		std::getline (file, line);
@@ -4055,7 +4182,7 @@ void create_web_file(int verbose)
 			if (nm.find("main.js") != std::string::npos) {
 				doing_main_js = true;
 			}
-  			ofile << "<script>" << std::endl;
+			ofile << "<script>" << std::endl;
 			ofile << "/* inlined file: '" << nm << "' below: */" << std::endl;
 			file2.open (nm.c_str(), std::ios::in);
 			if (!file2.is_open()) {
@@ -4068,19 +4195,31 @@ void create_web_file(int verbose)
 				if (doing_main_js) {
 					pos = line2.find(openSocket);
 					if (pos != std::string::npos) {
-						ofile << "  let st_pool='" << bin_map2 << "';" << std::endl;
-						ofile << "  let ch_data='" << chrts_json << "';" << std::endl;
-						ofile << "  parse_str_pool(st_pool);" << std::endl;
-						ofile << "  parse_chart_data(ch_data);" << std::endl;
-						ofile << "  start_charts();" << std::endl;
+						//ofile << "  let st_pool='" << bin_map2 << "';" << std::endl;
+						//ofile << "  let ch_data='" << chrts_json2 << "';" << std::endl;
+						ofile << "  setTimeout(function(){ " << std::endl;
+						ofile << "    let sp_data2='" << std::string((const char *)sp_b64) << "';" << std::endl;
+						ofile << "    let st_pool = decompress_str('str_pool', sp_data2);" << std::endl;
+						ofile << "  setTimeout(function(){ " << std::endl;
+						ofile << "    parse_str_pool(st_pool);" << std::endl;
+						ofile << "    let ch_data2='" << std::string((const char *)cd_b64) << "';" << std::endl;
+						ofile << "    let ch_data = decompress_str('chrt_data', ch_data2);" << std::endl;
+						ofile << "  setTimeout(function(){ " << std::endl;
+						ofile << "    parse_chart_data(ch_data);" << std::endl;
+						ofile << "  setTimeout(function(){ " << std::endl;
+						ofile << "    start_charts();" << std::endl;
+						ofile << "  }, 1000); " << std::endl;
+						ofile << "  }, 1000); " << std::endl;
+						ofile << "  }, 1000); " << std::endl;
+						ofile << "  }, 1000); " << std::endl;
 						doing_main_js = false;
 						continue;
 					}
 				}
-  				ofile << line2 << std::endl;
+				ofile << line2 << std::endl;
 			}
 			file2.close();
-  			ofile << "</script>" << std::endl;
+			ofile << "</script>" << std::endl;
 			continue;
 		}
 		pos = line.find(style);
@@ -4118,7 +4257,7 @@ void create_web_file(int verbose)
 			std::string nm = web_dir + ds + scr;
 			replace_substr(nm, "\\", "/", verbose);
 			replace_substr(nm, "//", "/", verbose);
-  			ofile << "<style>" << std::endl;
+			ofile << "<style>" << std::endl;
 			ofile << "/* inlined file: '" << nm << "' below: */" << std::endl;
 			file2.open (nm.c_str(), std::ios::in);
 			if (!file2.is_open()) {
@@ -4128,18 +4267,18 @@ void create_web_file(int verbose)
 			std::string line2;
 			while(!file2.eof()){
 				std::getline (file2, line2);
-  				ofile << line2 << std::endl;
+				ofile << line2 << std::endl;
 			}
 			file2.close();
-  			ofile << "</style>" << std::endl;
+			ofile << "</style>" << std::endl;
 			continue;
 		}
 		if (write_it) {
-  			ofile << line << std::endl;
+			ofile << line << std::endl;
 		}
 	}
-  	file.close();
-  	ofile.close();
+	file.close();
+	ofile.close();
 	bin_map2.clear();
 	chrts_json2.clear();
 	//printf("bye at %s %d\n", __FILE__, __LINE__);
@@ -4178,7 +4317,7 @@ void do_load_replay(int verbose)
 		}
 		i++;
 	}
-  	file.close();
+	file.close();
 	if (verbose > 1) {
 		printf("read bin_map from file:\n%s\n", bin_map.c_str());
 		printf("read chrts_json from file:\n%s\n", chrts_json.c_str());
@@ -4661,6 +4800,7 @@ int main(int argc, char **argv)
 					}
 					chart_lines_reset();
 					double tt0=0.0, tt1=0.0, tt2=0.0;
+					double js_sz = 0;
 					if (event_table[grp_list[g]][i].charts[j].chart_tag == "PCT_BUSY_BY_CPU") {
 						printf("using event_table[%d][%d]= %s at %s %d\n",
 							grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
@@ -4673,6 +4813,7 @@ int main(int argc, char **argv)
 							chrts_json += ", ";
 						}
 						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
+						js_sz = this_chart_json.size();
 						did_chrts = 1;
 						}
 						tt2 = dclock();
@@ -4690,13 +4831,14 @@ int main(int argc, char **argv)
 							chrts_json += ", ";
 						}
 						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
+						js_sz = this_chart_json.size();
 						did_chrts = 1;
 						}
 						tt2 = dclock();
 						chrts_json += this_chart_json;
 					}
-					fprintf(stderr, "tm build_chart_lines(): %f, build_shapes_json: %f title= %s at %s %d\n",
-							tt1-tt0, tt2-tt1,
+					fprintf(stderr, "tm build_chart_lines(): %f, build_shapes_json: %f str_sz= %.3f MBs, title= %s at %s %d\n",
+							tt1-tt0, tt2-tt1, 1.0e-6 * js_sz,
 							event_table[grp_list[g]][i].charts[j].title.c_str(),
 							__FILE__, __LINE__);
 				}
@@ -4761,15 +4903,15 @@ int main(int argc, char **argv)
 			printf("messed up fopen of flnm= %s at %s %d\n", options.replay_filename.c_str(), __FILE__, __LINE__);
 			exit(1);
 		}
-  		file << bin_map << std::endl;
-  		file << "," << std::endl;
-  		file << chrts_json << std::endl;
-  		file.close();
+		file << bin_map << std::endl;
+		file << "," << std::endl;
+		file << chrts_json << std::endl;
+		file.close();
 		printf("wrote str_pool and chrts_json to file: %s at %s %d\n", options.replay_filename.c_str(), __FILE__, __LINE__);
 	}
 
 	}
-	
+
 	ck_json(bin_map, "check for valid json in str_pool", __FILE__, __LINE__, options.verbose);
 	ck_json(chrts_json, "check for valid json in chrts_json", __FILE__, __LINE__, options.verbose);
 
