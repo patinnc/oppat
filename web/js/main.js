@@ -4,6 +4,8 @@
  * License http://opensource.org/licenses/mit-license.php MIT License
  */
 
+
+
 var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
@@ -96,6 +98,43 @@ function myBarMove(cur_val, max_val) {
   }
   */
 }
+
+function decompress_str(typ_data, str)
+{
+    update_status("websocket opened. ck tab title for status msgs");
+	let txt = "inflate "+typ_data;
+	document.title = txt;
+	mymodal.style.display = "none";
+	mymodal_span_text.innerHTML = document.title;
+	let tm_now = performance.now();
+	update_status(txt);
+	mymodal.style.display = "block";
+	console.log(txt);
+	let tm_beg = performance.now();
+
+	let ostr = JXG.decompress(str);
+	let tm_end = performance.now();
+	let tm_str = tm_diff_str(0.001*(tm_end-tm_beg), 3, "secs");
+	txt = "inflated "+typ_data+" tm= "+tm_str;
+	if (typ_data == 'str_pool') {
+		txt += ", now start decompressing chart_data. This can take 1-30 seconds.";
+	} else {
+		txt += ", now start parsing chart_data, see tab title for updates";
+	}
+	console.log(txt);
+	mymodal.style.display = "none";
+	document.title = txt;
+	update_status(txt);
+	mymodal_span_text.innerHTML = document.title;
+	mymodal.style.display = "block";
+
+	console.log("decompress len= "+ostr.length);
+	if (ostr.length > 20) {
+		console.log("nw_str= "+ostr.substr(0, 20));
+	}
+	return ostr;
+}
+
 
 function update_status(txt)
 {
@@ -1209,11 +1248,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let i = ele.rank;
 		let typ = ele.typ_legend;
 		let proc_idx = ele.proc_idx;
-		if (typ == 'event') {
+		if (1==20 && typ == 'event') {
 			console.log("__legend_mouse_enter id= "+evt.target.parentNode.id+", rank= "+i+", proc_idx= "+
 				proc_idx+", typ= "+typ+",nm="+event_list[i].event);
 		}
-		console.log("__legend_mouse_enter ele= "+ele_nm);
+		if (1==20) {
+			console.log("__legend_mouse_enter ele= "+ele_nm);
+		}
 		// this is a delay so we don't redraw a bunch when all we are doing is passing over the legend entries.
 		last_legend_timeout = setTimeout(legend_hover, 400, evt);
 		return;
@@ -1243,8 +1284,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			cur_state = event_select[proc_idx][1];
 			event_select[proc_idx] = [i, cur_state];
 		}
-		console.log("legend_mouse_out: cur_state= "+cur_state);
-		console.log("legend exit id= "+ele_nm+", rank= "+i+", proc_idx= "+proc_idx+", typ= "+typ);
+		if (1==20) {
+			console.log("legend_mouse_out: cur_state= "+cur_state);
+			console.log("legend exit id= "+ele_nm+", rank= "+i+", proc_idx= "+proc_idx+", typ= "+typ);
+		}
 		chart_redraw("lgnd_mouseout");
 	}
 	let subcats = [];
@@ -2935,7 +2978,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (isNaN(zero_to_one)) {
 			return;
 		}
-		console.log("draw_mini("+zero_to_one+", arg= "+arg2+")");
+		//console.log("draw_mini("+zero_to_one+", arg= "+arg2+")");
 		if ( typeof draw_mini.x_prev == 'undefined' ) {
 			draw_mini.x_prev = -1;
 			draw_mini.image_rdy = 0;
@@ -2964,9 +3007,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		mycanvas2_ctx.fillStyle = 'rgba(0, 204, 0, 0.5)';
 		let xbeg = xPadding;
 		let xwid = mycanvas2.width - xPadding;
+		/*
 		console.log("minx= "+minx+", maxx= "+maxx+
 				", chart_data.x_range.max= "+chart_data.x_range.max+
 				", chart_data.x_range.min= "+chart_data.x_range.min);
+		*/
 		if (maxx == chart_data.x_range.max && minx == chart_data.x_range.min){
 			zero_to_one = 0.5;
 		}
@@ -3581,7 +3626,26 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						str += ", proc= "+nm+", cpu= "+cpu+"<br>evt= "+ev_str;
 					}
 					current_tooltip_shape = shape_idx;
-					current_tooltip_text = str + "<br>"+chart_data.myshapes[shape_idx].text;
+					current_tooltip_text = str;
+					if (typeof chart_data.myshapes[shape_idx].txtidx != 'undefined') {
+						let tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
+						let n = tstr.indexOf("_P_");
+						if (n == 0) {
+							//abcd
+							let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
+							if (cpt > -1) {
+								let cpu_str = sprintf("[%03d] ", cpu);
+								let tm_str = sprintf("%.9f: ", (chart_data.ts_initial.ts +chart_data.myshapes[shape_idx].pts[PTS_X1]));
+								let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
+								let ph_str = chart_data.proc_arr[cpt].comm+" "+
+									chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid+" "+ 
+									cpu_str + tm_str + chart_data.myshapes[shape_idx].ival[IVAL_PERIOD] + " " +
+									chart_data.flnm_evt[fe_idx].event;
+								tstr = tstr.replace("_P_", ph_str);
+							}
+						}
+						current_tooltip_text += "<br>"+tstr;
+					}
 					let cs_ret = get_cs_str(shape_idx, nm);
 					current_tooltip_text += cs_ret.txt;
 	    				mytooltip.style.borderWidth = '1px';
@@ -3977,6 +4041,48 @@ function bootside_menu_setup(div_nm, which_side) {
 
 	});
 }
+function init_mymodal()
+{
+	if (mymodal == null) {
+		mymodal = document.getElementById("mymodal");
+		mymodal_span = document.getElementById("mymodal_close_span");
+		mymodal_span_text = document.getElementById("mymodal_span_text");
+		//    modal.style.display = "block";
+
+		// When the user clicks on <span> (x), close the modal
+		mymodal_span.onclick = function() {
+			mymodal.style.display = "none";
+		}
+
+		// When the user clicks anywhere outside of the modal, close it
+		window.onclick = function(event) {
+			if (event.target == mymodal) {
+				mymodal.style.display = "none";
+			}
+		}
+	}
+}
+
+function standalone(sp_data2, ch_data2)
+{
+	// these setTimeouts give some time between workloads so that
+	// the syste can update the screen. Otherwise no msgs appear
+	// during the decompress and parse
+	setTimeout(function(){
+		let st_pool = decompress_str('str_pool', sp_data2);
+		setTimeout(function(){
+			parse_str_pool(st_pool);
+			let ch_data = decompress_str('chrt_data', ch_data2);
+			setTimeout(function(){
+				parse_chart_data(ch_data);
+				setTimeout(function(){
+					start_charts();
+				}, 1000);
+			}, 1000);
+		}, 1000);
+	}, 1000);
+}
+
 window.onload = function() {
 	update_status("page loaded");
 	//  Create an anchor element (note: no need to append this element to the document)
@@ -3984,28 +4090,14 @@ window.onload = function() {
 	console.log("window.location.origin= "+window.location.origin);
 	console.log("window.location.port= "+window.location.port);
 
+	init_mymodal();
+
 	// Get the <span> element that closes the modal
-	mymodal = document.getElementById("mymodal");
-	mymodal_span = document.getElementById("mymodal_close_span");
-	mymodal_span_text = document.getElementById("mymodal_span_text");
-	//    modal.style.display = "block";
-
-	// When the user clicks on <span> (x), close the modal
-	mymodal_span.onclick = function() {
-    	mymodal.style.display = "none";
-	}
-
-// When the user clicks anywhere outside of the modal, close it
-window.onclick = function(event) {
-    if (event.target == mymodal) {
-        mymodal.style.display = "none";
-    }
-}
 	setup_resize_handler();
 	bootside_menu_setup('lhs_menu', 'left');
 	//bootside_menu_setup('rhs_menu', 'right');
-	openSocket(window.location.port);
 	$('#lhs_menu').BootSideMenu.close();
+	openSocket(window.location.port);  // this string is looked for in oppat.cpp
 	//$('#rhs_menu').BootSideMenu.close();
 
 }
