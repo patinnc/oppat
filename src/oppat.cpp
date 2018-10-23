@@ -4197,7 +4197,7 @@ void create_web_file(int verbose)
 					if (pos != std::string::npos) {
 						ofile << "    let sp_data2='" << std::string((const char *)sp_b64) << "';" << std::endl;
 						ofile << "    let ch_data2='" << std::string((const char *)cd_b64) << "';" << std::endl;
-						ofile << "    standalong(sp_data2, ch_data2);" << std::endl;
+						ofile << "    standalone(sp_data2, ch_data2);" << std::endl;
 						doing_main_js = false;
 						continue;
 					}
