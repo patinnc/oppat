@@ -3631,7 +3631,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						let tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
 						let n = tstr.indexOf("_P_");
 						if (n == 0) {
-							//abcd
 							let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
 							if (cpt > -1) {
 								let cpu_str = sprintf("[%03d] ", cpu);
@@ -3693,13 +3692,83 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		console.log("cs time= "+tm_dff.toFixed(2));
 	}
 	return;
-	}
+}
 /*
 }());
 */
 
-function start_charts() {
-	//console.log(gjson);
+function standaloneJob(i, sp_data2, ch_data2, tm_beg)
+{
+	if ( typeof standaloneJob.data == 'undefined' ) {
+		standaloneJob.data = null;
+	}
+  return new Promise(resolve => {
+  	//console.log('Start: ' + i);
+	let tm_bef = performance.now();
+	//abcd
+	let wrk_arr = ["decompress string pool", "parse string pool", "decompress chart data", "parse chart data", "gen charts"];
+	let wrk = wrk_arr[i];
+	mymodal_span_text.innerHTML = "start " + wrk;
+	if (i == 0) {
+		let st_pool = decompress_str('str_pool', sp_data2);
+		standaloneJob.data = st_pool;
+	}
+	if (i == 1) {
+		parse_str_pool(standaloneJob.data);
+	}
+	if (i == 2) {
+		let ch_data = decompress_str('chrt_data', ch_data2);
+		standaloneJob.data = ch_data;
+	}
+	if (i == 3) {
+		parse_chart_data(standaloneJob.data);
+	}
+	if (i == 4) {
+		start_charts();
+	}
+	let tm_now = performance.now();
+	//alert("chart "+ chrts_started);
+	let elap_tm_tot = tm_diff_str(0.001*(tm_now-g_tm_beg), 2, "secs");
+	let elap_tm     = tm_diff_str(0.001*(tm_now-tm_bef), 2, "secs");
+	let wrk_nxt = "";
+	if (i < 4) {
+		wrk_nxt = "<br>starting "+wrk_arr[i+1];
+		if (i == 1) {
+			let sz_str = sprintf("%.3f MB,", [1.0e-6 * (ch_data2.length)]);
+			wrk_nxt += " (input is "+sz_str+" please be patient...a 10 MB file can take ~20 seconds)"
+		}
+	}
+	mymodal_span_text.innerHTML = "finished work "+wrk+", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm+wrk_nxt;
+    setTimeout(() => {
+		//console.log('End: ' + i);
+		resolve(i);
+    }, 100);
+  });
+}
+
+function doJob(i, grf, chrts_started_max, tm_beg)
+{
+  return new Promise(resolve => {
+  	//console.log('Start: ' + i);
+	//gcanvas_args[i] = [ i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
+	//can_shape(i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1);
+	let tm_bef = performance.now();
+	can_shape(i, gcanvas_args[i][1], gcanvas_args[i][2], gcanvas_args[i][3], gcanvas_args[i][4],
+		gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
+	let tm_now = performance.now();
+	//alert("chart "+ chrts_started);
+	let elap_tm_tot = tm_diff_str(0.001*(tm_now-g_tm_beg), 2, "secs");
+	let elap_tm     = tm_diff_str(0.001*(tm_now-tm_bef), 2, "secs");
+	mymodal_span_text.innerHTML = "finished chart "+grf+" of "+chrts_started_max+
+	  ", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm;
+    setTimeout(() => {
+		//console.log('End: ' + i);
+		resolve(i);
+    }, 100);
+  });
+}
+
+async function start_charts() {
 	let tm_beg = performance.now();
 	let tm_now = performance.now();
 	console.log("can_shape beg. elap ms= " + (tm_now-tm_beg));
@@ -3777,8 +3846,8 @@ function start_charts() {
 				//update_status("started graph["+chrts_started+"]");
 				tm_now = performance.now();
 				//alert("chart "+ chrts_started);
-				document.title = "grf "+chrts_started+"/"+chrts_started_max+",tm="+tm_diff_str(0.001*(tm_now-g_tm_beg), 1, "secs");
-				mymodal_span_text.innerHTML = document.title;
+				//document.title = "grf "+chrts_started+"/"+chrts_started_max+",tm="+tm_diff_str(0.001*(tm_now-g_tm_beg), 1, "secs");
+				//mymodal_span_text.innerHTML = document.title;
 				if ((tm_now - tm_top) > 2000.0) {
 					//update_status("started graph "+chrts_started);
 					tm_top = tm_now;
@@ -3798,7 +3867,8 @@ function start_charts() {
 
 				//console.log("zoom_x0= " + zoom_x0 + ", zoom_x1= " + zoom_x1);
 				gcanvas_args[i] = [ i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
-				can_shape(i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1);
+				//can_shape(i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1);
+				let result = await doJob(i, chrts_started, chrts_started_max, tm_beg);
 			}
 		}
 	}
@@ -3981,9 +4051,18 @@ function openSocket(port_num) {
 		ckln = ck_cmd(event.data, sln, '{"chart_data":');
 		if (ckln > 0) {
 
-			parse_chart_data(event.data);
+			let tm_beg = performance.now();
+			mymodal_span_text.innerHTML = "start parse_chart_data";
+			setTimeout(function(){
+				parse_chart_data(event.data);
+				let tm_end = performance.now();
+				let elap_tm     = tm_diff_str(0.001*(tm_end-tm_beg), 2, "secs");
+				mymodal_span_text.innerHTML = "finished parse_chart_data, "+elap_tm;
+			}, 100);
+			setTimeout(function(){
+				start_charts();
+			}, 100);
 
-			start_charts();
 
 			return;
 		}
@@ -4063,8 +4142,13 @@ function init_mymodal()
 	}
 }
 
-function standalone(sp_data2, ch_data2)
+async function standalone(sp_data2, ch_data2)
 {
+	let tm_beg = performance.now();
+	for (let i=0; i <= 4; i++) {
+		let result = await standaloneJob(i, sp_data2, ch_data2, tm_beg);
+	}
+	/*
 	// these setTimeouts give some time between workloads so that
 	// the syste can update the screen. Otherwise no msgs appear
 	// during the decompress and parse
@@ -4081,6 +4165,7 @@ function standalone(sp_data2, ch_data2)
 			}, 1000);
 		}, 1000);
 	}, 1000);
+	*/
 }
 
 window.onload = function() {
