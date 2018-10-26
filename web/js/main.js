@@ -13,7 +13,7 @@ var gcanvas_args = [];
 var gmsg_span = null;
 var gpixels_high_default = 250;
 var doc_title_def = "OPPAT: Open Power/Performance Analysis Tool";
-var gjson;
+var gjson = {};
 var gjson_str_pool = null;
 var did_c10_colors = 0;
 // the SHAPE_* variable values must agree with the SPARE_* enum in main.cpp
@@ -3697,13 +3697,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 }());
 */
 
-function standaloneJob(i, sp_data2, ch_data2, tm_beg)
+function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 {
 	if ( typeof standaloneJob.data == 'undefined' ) {
 		standaloneJob.data = null;
+		standaloneJob.chdata = [];
 	}
   return new Promise(resolve => {
-  	//console.log('Start: ' + i);
+  	console.log('Start standaloneJob: i= ' + i + ", j= "+j);
 	let tm_bef = performance.now();
 	//abcd
 	let wrk_arr = ["decompress string pool", "parse string pool", "decompress chart data", "parse chart data", "gen charts"];
@@ -3716,14 +3717,21 @@ function standaloneJob(i, sp_data2, ch_data2, tm_beg)
 	if (i == 1) {
 		parse_str_pool(standaloneJob.data);
 	}
-	if (i == 2) {
-		let ch_data = decompress_str('chrt_data', ch_data2);
-		standaloneJob.data = ch_data;
+	if (i == 2 && j > -1 && j < ch_data2.length) {
+		standaloneJob.chdata.push(decompress_str('chrt_data', ch_data2[j]));
+		//standaloneJob.data = ch_data;
 	}
-	if (i == 3) {
-		parse_chart_data(standaloneJob.data);
+	let ch_len = 0;
+	if (i == 3 && j > -1 && j < standaloneJob.chdata.length) {
+		if (j == 0) {
+			gjson.chart_data = [];
+		}
+		ch_len = standaloneJob.chdata[j].length;
+		console.log("try parse_chart_data j="+j+", sz= "+ch_len);
+		parse_chart_data(standaloneJob.chdata[j]);
 	}
 	if (i == 4) {
+		standaloneJob.chdata = [];
 		start_charts();
 	}
 	let tm_now = performance.now();
@@ -3731,18 +3739,27 @@ function standaloneJob(i, sp_data2, ch_data2, tm_beg)
 	let elap_tm_tot = tm_diff_str(0.001*(tm_now-g_tm_beg), 2, "secs");
 	let elap_tm     = tm_diff_str(0.001*(tm_now-tm_bef), 2, "secs");
 	let wrk_nxt = "";
+	let n_of_m = "";
 	if (i < 4) {
-		wrk_nxt = "<br>starting "+wrk_arr[i+1];
-		if (i == 1) {
-			let sz_str = sprintf("%.3f MB,", [1.0e-6 * (ch_data2.length)]);
+		//wrk_nxt = "<br>starting "+wrk_arr[i+1];
+		if (i == 2) {
+			wrk_nxt = "<br>";
+			let sz_str = sprintf(" chdata["+j+"] is %.3f MB,", [1.0e-6 * (ch_data2[j].length)]);
 			wrk_nxt += " (input is "+sz_str+" please be patient...a 10 MB file can take ~20 seconds)"
+			n_of_m = ", file "+j+ " of "+ch_data2.length;
+		}
+		if (i == 3) {
+			wrk_nxt = "<br>";
+			let sz_str = sprintf(" chdata["+j+"] is %.3f MB,", [1.0e-6 * ch_len]);
+			wrk_nxt += " input is "+sz_str;
+			n_of_m = ", file "+j+ " of "+ch_data2.length;
 		}
 	}
-	mymodal_span_text.innerHTML = "finished work "+wrk+", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm+wrk_nxt;
+	mymodal_span_text.innerHTML = "finished work "+wrk+n_of_m+", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm+wrk_nxt;
     setTimeout(() => {
 		//console.log('End: ' + i);
 		resolve(i);
-    }, 100);
+    }, 50);
   });
 }
 
@@ -3757,14 +3774,14 @@ function doJob(i, grf, chrts_started_max, tm_beg)
 		gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
 	let tm_now = performance.now();
 	//alert("chart "+ chrts_started);
-	let elap_tm_tot = tm_diff_str(0.001*(tm_now-g_tm_beg), 2, "secs");
 	let elap_tm     = tm_diff_str(0.001*(tm_now-tm_bef), 2, "secs");
+	let elap_tm_tot = tm_diff_str(0.001*(tm_now-g_tm_beg), 2, "secs");
 	mymodal_span_text.innerHTML = "finished chart "+grf+" of "+chrts_started_max+
-	  ", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm;
+	  ", tm_this_chrt= "+elap_tm + ", tot_elap_tm= "+elap_tm_tot;
     setTimeout(() => {
 		//console.log('End: ' + i);
 		resolve(i);
-    }, 100);
+    }, 50);
   });
 }
 
@@ -3971,7 +3988,7 @@ function parse_chart_data(ch_data_str)
 	let str = vsprintf("%.1f MBs", [ch_data_str.length/(1024.0*1024.0)]);
 	var tm_beg = performance.now();
 	document.title = "bef JSON "+str+",tm="+tm_diff_str(0.001*(tm_beg-g_tm_beg), 1, "secs");
-	gjson = JSON.parse(ch_data_str);
+	gjson.chart_data.push(JSON.parse(ch_data_str));
 	let tm_now = performance.now();
 	document.title = "aft JSON "+str+",tm="+tm_diff_str(0.001*(tm_now-g_tm_beg), 1, "secs");
 	console.log("parse chart_data end. elap ms= "+ (tm_now-tm_beg)+", tm_btwn_frst_this_msg= "+(tm_beg - g_tm_beg));
@@ -4048,19 +4065,34 @@ function openSocket(port_num) {
 			}
 			return;
 		}
-		ckln = ck_cmd(event.data, sln, '{"chart_data":');
+		ckln = ck_cmd(event.data, sln, 'chrts_json_sz= ');
 		if (ckln > 0) {
-
+			gjson.chrt_data_sz = parseInt(event.data.substring(ckln));
+			//if (typeof gjson.chart_data != 'undefined') {
+			//	gjson.chart_data.length = 0;
+			//}
+			gjson.chart_data = [];
+			return;
+		}
+		ckln = ck_cmd(event.data, sln, 'chrt_cats= ');
+		if (ckln > 0) {
+			gjson = JSON.parse(event.data.substring(ckln));
+			return;
+		}
+		ckln = ck_cmd(event.data, sln, '{ "title":');
+		if (ckln > 0) {
 			let tm_beg = performance.now();
-			mymodal_span_text.innerHTML = "start parse_chart_data";
+			//mymodal_span_text.innerHTML = "start parse_chart_data";
 			setTimeout(function(){
 				parse_chart_data(event.data);
 				let tm_end = performance.now();
 				let elap_tm     = tm_diff_str(0.001*(tm_end-tm_beg), 2, "secs");
-				mymodal_span_text.innerHTML = "finished parse_chart_data, "+elap_tm;
-			}, 100);
-			setTimeout(function(){
-				start_charts();
+				let elap_tm_tot = tm_diff_str(0.001*(tm_end-g_tm_beg), 2, "secs");
+				mymodal_span_text.innerHTML = "finished parse_chart_data["+
+					gjson.chart_data.length+"] of "+gjson.chrt_data_sz+", "+elap_tm+", tot_elap_tm= "+elap_tm_tot;
+				if (gjson.chart_data.length == gjson.chrt_data_sz) {
+					setTimeout(function(){ start_charts(); }, 100);
+				}
 			}, 100);
 
 
@@ -4146,7 +4178,13 @@ async function standalone(sp_data2, ch_data2)
 {
 	let tm_beg = performance.now();
 	for (let i=0; i <= 4; i++) {
-		let result = await standaloneJob(i, sp_data2, ch_data2, tm_beg);
+		if (i != 2 && i != 3) {
+			let result = await standaloneJob(i, -1, sp_data2, ch_data2, tm_beg);
+		} else {
+			for (let j=0; j < ch_data2.length; j++) {
+				let result = await standaloneJob(i, j, sp_data2, ch_data2, tm_beg);
+			}
+		}
 	}
 	/*
 	// these setTimeouts give some time between workloads so that
