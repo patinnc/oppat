@@ -2768,6 +2768,7 @@ static std::string drop_trailing_zeroes(std::string str)
 static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_t evt_idx, uint32_t chrt, std::vector <evt_str> event_table, int verbose)
 {
 	int var_idx = (int)event_table[evt_idx].charts[chrt].var_idx;
+	// main.js looks for '{ "title":' so be careful changing this string
 	std::string json = "{ ";
 	json += "\"title\": \"" + event_table[evt_idx].charts[chrt].title + "\"";
 	json += ", \"x_label\": \"Time(secs)\"";
@@ -4036,8 +4037,8 @@ static int start_web_server_threads(Queue<std::string>& q_from_srvr_to_clnt,
 	return thrd_status;
 }
 
-static std::string bin_map, bin_map2;
-static std::string chrts_json, chrts_json2;
+static std::string bin_map, bin_map2, chrts_cats;
+static std::vector <std::string> chrts_json, chrts_json2;
 
 static int compress_string(unsigned char *dst, unsigned char *src, size_t sz)
 {
@@ -4090,24 +4091,36 @@ void create_web_file(int verbose)
 	}
 
 	bin_map2 = bin_map;
-	replace_substr(bin_map2, "'", "\\'", verbose);
 	chrts_json2 = chrts_json;
-	replace_substr(chrts_json2, "'", "\\'", verbose);
-
 	if (chrts_json2.size() == 0) {
 		fprintf(stderr, "chrts_json2.size() == 0. Bye at %s %d\n", __FILE__, __LINE__);
 		exit(1);
 	}
+	replace_substr(bin_map2, "'", "\\'", verbose);
 	if (bin_map2.size() == 0) {
 		fprintf(stderr, "bin_map2.size() == 0. Bye at %s %d\n", __FILE__, __LINE__);
 		exit(1);
 	}
 
+	for (uint32_t i=0; i < chrts_json.size(); i++) {
+		replace_substr(chrts_json2[i], "'", "\\'", verbose);
+	}
+
+	std::vector <std::string> cd_str;
 	unsigned char *src, *dst, *cd_b64, *sp_b64;
-	src = (uint8_t *)malloc(chrts_json2.size());
-	dst = (uint8_t *)malloc(chrts_json2.size());
-	memcpy(src, chrts_json2.c_str(), chrts_json2.size());
-	int cd_cmp_len = compress_string(dst, src, chrts_json2.size());
+	for (uint32_t i=0; i < chrts_json.size(); i++) {
+		src = (uint8_t *)malloc(chrts_json2[i].size());
+		dst = (uint8_t *)malloc(chrts_json2[i].size());
+		memcpy(src, chrts_json2[i].c_str(), chrts_json2[i].size());
+		int cd_cmp_len = compress_string(dst, src, chrts_json2[i].size());
+		int cd_b64_len = Base64encode_len(cd_cmp_len);
+		cd_b64 = (uint8_t *)malloc(cd_b64_len);
+		int cd_ob64_len = str_2_base64(cd_b64, dst, cd_cmp_len);
+		cd_str.push_back(std::string((const char *)cd_b64));
+		free(src);
+		free(dst);
+		free(cd_b64);
+	}
 
 #if 0
 	std::string wb_tmp = options.web_file+".dat";
@@ -4120,12 +4133,6 @@ void create_web_file(int verbose)
 	ofile2.write((const char *)dst, cd_cmp_len);
 	ofile2.close();
 #endif
-
-	int cd_b64_len = Base64encode_len(cd_cmp_len);
-	cd_b64 = (uint8_t *)malloc(cd_b64_len);
-	int cd_ob64_len = str_2_base64(cd_b64, dst, cd_cmp_len);
-	free(src);
-	free(dst);
 
 	src = (uint8_t *)malloc(bin_map2.size());
 	dst = (uint8_t *)malloc(bin_map2.size());
@@ -4196,7 +4203,12 @@ void create_web_file(int verbose)
 					pos = line2.find(openSocket);
 					if (pos != std::string::npos) {
 						ofile << "    let sp_data2='" << std::string((const char *)sp_b64) << "';" << std::endl;
-						ofile << "    let ch_data2='" << std::string((const char *)cd_b64) << "';" << std::endl;
+						ofile << "    let ch_data2=[];" << std::endl;
+						ofile << "    gjson = JSON.parse('" << chrts_cats << "');" << std::endl;
+						ofile << "    gjson.chrt_data_sz = " << std::to_string(cd_str.size()) << ";" << std::endl;
+						for (uint32_t i=0; i < cd_str.size(); i++) {
+							ofile << "    ch_data2.push('" << cd_str[i] << "');" << std::endl;
+						}
 						ofile << "    standalone(sp_data2, ch_data2);" << std::endl;
 						doing_main_js = false;
 						continue;
@@ -4297,8 +4309,13 @@ void do_load_replay(int verbose)
 			std::getline (file, line);
 		}
 		if (i == 2) {
-			std::getline (file, chrts_json);
-			//chrts_json = line;
+			std::getline (file, line);
+			chrts_cats = line;
+			break;
+		}
+		if (i > 2) {
+			std::getline (file, line);
+			chrts_json.push_back(line);
 			break;
 		}
 		i++;
@@ -4306,7 +4323,10 @@ void do_load_replay(int verbose)
 	file.close();
 	if (verbose > 1) {
 		printf("read bin_map from file:\n%s\n", bin_map.c_str());
-		printf("read chrts_json from file:\n%s\n", chrts_json.c_str());
+		for (uint32_t i=0; i < chrts_json.size(); i++) {
+			printf("read chrts_json[%d]: len= %d at %s %d. data:\n%s\n",
+					i, (int)chrts_json[i].size(), __FILE__, __LINE__, chrts_json[i].c_str());
+		}
 	}
 	fprintf(stderr, "read str_pool.sz= %d and chrts_json.sz= %d from file: %s at %s %d\n",
 			(int)bin_map.size(), (int)chrts_json.size(), options.replay_filename.c_str(), __FILE__, __LINE__);
@@ -4762,7 +4782,8 @@ int main(int argc, char **argv)
 	printf("\nafter  report_chart_data\n");
 
 	int chrt_num = 0;
-	chrts_json = "{\"chart_data\":[";
+	//chrts_json = "{\"chart_data\":[";
+	//std::string chrts_json = "{\"chart_data\":[";
 	std::string report;
 	int did_chrts = 0;
 	for (uint32_t g=0; g < grp_list.size(); g++) {
@@ -4796,14 +4817,15 @@ int main(int argc, char **argv)
 						std::string this_chart_json = "";
 						if (rc == 0) {
 						if (did_chrts > 0) {
-							chrts_json += ", ";
+							//chrts_json += ", ";
 						}
 						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
 						js_sz = this_chart_json.size();
 						did_chrts = 1;
+						chrts_json.push_back(this_chart_json);
+						printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
 						}
 						tt2 = dclock();
-						chrts_json += this_chart_json;
 					} else {
 						if (verbose)
 							printf("using event_table[%d][%d]= %s at %s %d\n",
@@ -4814,14 +4836,15 @@ int main(int argc, char **argv)
 						std::string this_chart_json = "";
 						if (rc == 0) {
 						if (did_chrts > 0) {
-							chrts_json += ", ";
+							//chrts_json += ", ";
 						}
 						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
 						js_sz = this_chart_json.size();
 						did_chrts = 1;
+						chrts_json.push_back(this_chart_json);
+						printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
 						}
 						tt2 = dclock();
-						chrts_json += this_chart_json;
 					}
 					fprintf(stderr, "tm build_chart_lines(): %f, build_shapes_json: %f str_sz= %.3f MBs, title= %s at %s %d\n",
 							tt1-tt0, tt2-tt1, 1.0e-6 * js_sz,
@@ -4837,7 +4860,7 @@ int main(int argc, char **argv)
 			printf("ch_lines.range.subcat[%d].size()= %d\n", (int)i, (int)ch_lines.range.subcat_rng[i].size());
 		}
 	}
-	std::string cats = ", \"categories\":[";
+	std::string cats = "{ \"categories\":[";
 	for (uint32_t i=0; i < chart_categories_vec.size(); i++) {
 		int priority;
 		priority = 0;
@@ -4853,9 +4876,14 @@ int main(int argc, char **argv)
 	cats += "]";
 	printf("categories str= %s at %s %d\n", cats.c_str(), __FILE__, __LINE__);
 	cats += ", \"pixels_high_default\":" + std::to_string(chart_defaults.pixels_high_default);
-	chrts_json += "]" + cats + "}";
+	cats += "}";
+	chrts_cats = cats;
+	//chrts_json += "]" + cats + "}";
+	printf("chrts_cats=\n%s\n at %s %d\n", chrts_cats.c_str(), __FILE__, __LINE__);
 	if (options.show_json > 1) {
-		printf("chrts_json=\n%s\n at %s %d\n", chrts_json.c_str(), __FILE__, __LINE__);
+		for (uint32_t i=0; i < chrts_json.size(); i++) {
+			printf("chrts_json[%d]=\n%s\n at %s %d\n", i, chrts_json[i].c_str(), __FILE__, __LINE__);
+		}
 	}
 	fflush(NULL);
 	chrt_num++;
@@ -4891,7 +4919,10 @@ int main(int argc, char **argv)
 		}
 		file << bin_map << std::endl;
 		file << "," << std::endl;
-		file << chrts_json << std::endl;
+		file << chrts_cats << std::endl;
+		for (uint32_t i=0; i < chrts_json.size(); i++) {
+			file << chrts_json[i] << std::endl;
+		}
 		file.close();
 		printf("wrote str_pool and chrts_json to file: %s at %s %d\n", options.replay_filename.c_str(), __FILE__, __LINE__);
 	}
@@ -4899,7 +4930,11 @@ int main(int argc, char **argv)
 	}
 
 	ck_json(bin_map, "check for valid json in str_pool", __FILE__, __LINE__, options.verbose);
-	ck_json(chrts_json, "check for valid json in chrts_json", __FILE__, __LINE__, options.verbose);
+	ck_json(chrts_cats, "check for valid json in chrts_cats", __FILE__, __LINE__, options.verbose);
+	for (uint32_t i=0; i < chrts_json.size(); i++) {
+		std::string hdr = "check for valid json in chrts_json[" + std::to_string(i) + "]";
+		ck_json(chrts_json[i], hdr.c_str(), __FILE__, __LINE__, options.verbose);
+	}
 
 	if (options.web_file.size() > 0) {
 		create_web_file(options.verbose);
@@ -4913,7 +4948,11 @@ int main(int argc, char **argv)
 			options.web_port);
 
 	{
+		static std::string sz_str;
+		static std::string str_cats;
 		int i=0;
+		sz_str = "chrts_json_sz= "+ std::to_string(chrts_json.size());
+		str_cats = "chrt_cats= " + chrts_cats;
 		while(thrd_status == THRD_RUNNING && get_signal() == 0) {
 			if (!q_from_clnt_to_srvr.is_empty()) {
 				std::string j = q_from_clnt_to_srvr.pop();
@@ -4922,8 +4961,11 @@ int main(int argc, char **argv)
 				if (j == "Ready") {
 					double tm_bef = dclock();
 					q_from_srvr_to_clnt.push(bin_map);
-					//q_bin_from_srvr_to_clnt.push(bin_str);
-					q_from_srvr_to_clnt.push(chrts_json);
+					q_from_srvr_to_clnt.push(str_cats);
+					q_from_srvr_to_clnt.push(sz_str);
+					for (uint32_t j=0; j < chrts_json.size(); j++) {
+						q_from_srvr_to_clnt.push(chrts_json[j]);
+					}
 					double tm_aft = dclock();
 					fprintf(stderr, "q_from_srvr_to_clnt.push(chrts_json) size= %d txt_sz= %d push_tm= %f at %s %d\n",
 						(int)chrts_json.size(), (int)callstack_sz, tm_aft-tm_bef, __FILE__, __LINE__);
