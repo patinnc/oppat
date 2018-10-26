@@ -4823,7 +4823,7 @@ int main(int argc, char **argv)
 						js_sz = this_chart_json.size();
 						did_chrts = 1;
 						chrts_json.push_back(this_chart_json);
-						printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
+						//printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
 						}
 						tt2 = dclock();
 					} else {
@@ -4842,7 +4842,7 @@ int main(int argc, char **argv)
 						js_sz = this_chart_json.size();
 						did_chrts = 1;
 						chrts_json.push_back(this_chart_json);
-						printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
+						//printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
 						}
 						tt2 = dclock();
 					}
