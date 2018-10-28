@@ -1,5 +1,6 @@
 obj/CivetServer.$(OBJ_EXT): src/CivetServer.cpp  inc/CivetServer.h
 obj/MemoryMapped.$(OBJ_EXT): src/MemoryMapped.cpp  inc/MemoryMapped.h
+obj/base64.$(OBJ_EXT): src/base64.c  inc/base64.h
 obj/civetweb.$(OBJ_EXT): src/civetweb.c  inc/civetweb.h
 obj/civetweb.$(OBJ_EXT): src/civetweb.c  src/handle_form.inl
 obj/civetweb.$(OBJ_EXT): src/civetweb.c  src/md5.inl
@@ -337,6 +338,7 @@ obj/lua_rtns.$(OBJ_EXT): src/lua_rtns.cpp  inc/utils.h
 obj/lua_rtns.$(OBJ_EXT): src/lua_rtns.cpp  inc/utils2.h
 obj/mygetopt.$(OBJ_EXT): src/mygetopt.c  inc/mygetopt.h
 obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/MemoryMapped.h
+obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/base64.h
 obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/ck_nesting.h
 obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/dump.hpp
 obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/etw_parse.h
@@ -367,6 +369,7 @@ obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/tc_read_data.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/utils.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/web_api.h
 obj/printf.$(OBJ_EXT): src/printf.cpp  inc/printf.h
+obj/printf.$(OBJ_EXT): src/printf.cpp  inc/rd_json.h
 obj/pugixml.$(OBJ_EXT): src/pugixml.cpp  inc/pugixml.hpp
 obj/rd_json.$(OBJ_EXT): src/rd_json.cpp  inc/json.hpp
 obj/rd_json.$(OBJ_EXT): src/rd_json.cpp  inc/rd_json.h
