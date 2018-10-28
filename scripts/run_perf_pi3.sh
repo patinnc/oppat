@@ -166,7 +166,9 @@ echo "   {\"cur_tag\":\"${PFX}_$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_trace.data\", \"txt_file\":\"prf_trace.txt\", \"tag\":\"%cur_tag%\", \"type\":\"PERF\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_trace2.data\", \"txt_file\":\"prf_trace2.txt\", \"tag\":\"%cur_tag%\", \"type\":\"PERF\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}" >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"} " >> $ODIR/file_list.json
+
 echo "  ]} " >> $ODIR/file_list.json
 
 
