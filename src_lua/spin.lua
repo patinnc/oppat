@@ -160,26 +160,26 @@ function spin(flnm_spin, flnm_energy2, flnm_wait, verbose)
 	rows = 0
 	for k,t in ipairs(tdata) do
 		for k1,v1 in ipairs(tdata[k]) do
-			printf("data[%s][%s]= %s\n", k, k1, v1);
+			--printf("data[%s][%s]= %s\n", k, k1, v1);
 			if k1 == 1 then
 				local b1, e1 = string.find(v1, "cpu%[")
 				local b2, e2 = string.find(v1, "]")
 				cpu = string.sub(v1, b1+4, b2-1)
-				printf("cpu= %s\n", cpu)
+				--printf("cpu= %s\n", cpu)
 			end
 			if k1 == 3 then
 				ts_cur = tonumber(v1)
-				printf("ts_cur= %s\n", ts_cur)
+				--printf("ts_cur= %s\n", ts_cur)
 			end
 			if k1 == 4 then
 				local b, e = string.find(v1, "dura= ")
 				dura = tonumber(string.sub(v1, b+6))
-				printf("dura= %s\n", dura)
+				--printf("dura= %s\n", dura)
 			end
 			if k1 == 6 then
 				local b, e = string.find(v1, "GB/sec= ")
 				perf = tonumber(string.sub(v1, b+8))
-				printf("perf= %s\n", perf)
+				--printf("perf= %s\n", perf)
 				tm_end = ts_cur
 				tm_beg = tm_end - dura
 				if ts0 == -1 then
