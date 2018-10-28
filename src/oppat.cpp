@@ -2773,6 +2773,14 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	json += "\"title\": \"" + event_table[evt_idx].charts[chrt].title + "\"";
 	json += ", \"x_label\": \"Time(secs)\"";
 	json += ", \"y_fmt\": \""+ event_table[evt_idx].charts[chrt].y_fmt + "\"";
+	if (event_table[evt_idx].charts[chrt].tot_line.size() > 0) {
+		json += ", \"tot_line\": \""+ event_table[evt_idx].charts[chrt].tot_line + "\"";
+	} else {
+		json += ", \"tot_line\": \"\"";
+	}
+	printf("tot_line= %s for title= %s at %s %d\n", 
+		event_table[evt_idx].charts[chrt].tot_line.c_str(), 
+		event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 	json += ", \"pixels_high\": "+ std::to_string(event_table[evt_idx].charts[chrt].pixels_high);
 	json += ", \"file_tag\": \"" + file_tag + "\"";
 	json += ", \"chart_tag\": \"" + event_table[evt_idx].charts[chrt].chart_tag + "\"";
@@ -3353,7 +3361,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				exit(1);
 			}
 			flnm_evt_vec[file_tag_idx][fe_idx].total++;
-			//abcd
 			if (prf_obj.etw_evts_set[prf_idx][i].cs_idx_beg != UINT32_M1) {
 				flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
 			}
@@ -4063,7 +4070,6 @@ static int compress_string(unsigned char *dst, unsigned char *src, size_t sz)
 
 static int str_2_base64(uint8_t *dst, uint8_t *src, int isz)
 {
-	unsigned char str[]= "abcdegh1234567890";
 	unsigned char *out;
 	int i, len, olen, ilen;
 
@@ -4816,9 +4822,6 @@ int main(int argc, char **argv)
 						tt1 = dclock();
 						std::string this_chart_json = "";
 						if (rc == 0) {
-						if (did_chrts > 0) {
-							//chrts_json += ", ";
-						}
 						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
 						js_sz = this_chart_json.size();
 						did_chrts = 1;
@@ -4835,9 +4838,6 @@ int main(int argc, char **argv)
 						tt1 = dclock();
 						std::string this_chart_json = "";
 						if (rc == 0) {
-						if (did_chrts > 0) {
-							//chrts_json += ", ";
-						}
 						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
 						js_sz = this_chart_json.size();
 						did_chrts = 1;

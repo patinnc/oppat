@@ -2,6 +2,7 @@
   "chart_use_default":"y",
   "pixels_high_default":250,
   "chart_category_priority":[
+	{"name":"PERF",    "priority":0},
 	{"name":"UI",      "priority":100},
 	{"name":"power",   "priority":200},
 	{"name":"CPU",     "priority":300},
@@ -22,13 +23,14 @@
 		{"name":"pid",   "lkup": "", "lkup_typ": "TYP_PID|TYP_INT"},
 		{"name":"dura",      "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"},
 		{"name":"cpu_busy",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DBL"},
-		{"name":"%busy_sys", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DIV_BY_INTERVAL|TYP_EXCL_PID_0|TYP_DBL", "actions":[{"oper":"mult", "val":100.0}]}
+		{"name":"%busy_sys", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DIV_BY_INTERVAL|TYP_EXCL_PID_0|TYP_DBL",
+			"actions":[{"oper":"mult", "val":100.0}]}
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU",
-			"chart_type":"block", "use_chart":"y"},
-		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"proc", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
-			"use_chart":"d", "y_fmt":"%.1f%%"}
+			"chart_type":"block", "use_chart":"d"},
+		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"proc", "chart_tag":"PCT_BUSY_BY_SYSTEM",
+			"chart_type":"stacked", "use_chart":"d", "y_fmt":"%.1f%%", "tot_line":"__total__"}
 		]
 	}
   },
@@ -49,8 +51,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"wait time by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line",
-			"use_chart":"d"}
+			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -71,7 +72,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"RUN_QUEUE", "chart_type":"line", "y_label":"wait_time (secs)", "use_chart":"d"}
+			"chart_tag":"RUN_QUEUE", "chart_type":"line", "y_label":"wait_time (secs)", "use_chart":"y", "tot_line":"__total__"}
 		]
 	}
   },
@@ -84,7 +85,8 @@
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"freq from cycles (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu", "chart_tag":"FREQ_BY_CPU", "chart_type":"line"}
+		{"category":"CPU", "title":"freq from cycles (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu",
+			"chart_tag":"FREQ_BY_CPU", "chart_type":"line"}
 		]
 	}
   },
@@ -99,9 +101,9 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus accesses (Mi/s) from r19 bus_access event by cpu",  "var_name": "bus_accesses",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"d"},
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
 		{"category":"CPU", "title":"Bus accesses BW (MB/sec) from r19 bus_access event by cpu",  "var_name": "MB/sec",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BW_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -116,9 +118,9 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus accesses (Mi/s) from r60 load bus_access event by cpu",  "var_name": "bus_accesses",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BY_CPU", "chart_type":"line", "use_chart":"d"},
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
 		{"category":"CPU", "title":"Bus accesses BW (MB/sec) from r60 load bus_access event by cpu",  "var_name": "MB/sec",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BW_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -132,7 +134,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Load stall cycles (Bi/s) from re7 load_stall_cycles event by cpu",  "var_name": "stall_cycles",
-			"by_var": "cpu", "chart_tag":"LOAD_STALL_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"LOAD_STALL_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -154,7 +156,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"%stalled on loads (ld_stall_cycles/cycles) by CPU",  "var_name": "val",
-			"by_var": "area", "chart_tag":"LOAD_STALLS_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"%Ld_stalls/cycles"}
+			"by_var": "area", "chart_tag":"LOAD_STALLS_PCT_CHART", "chart_type":"line", "use_chart":"d",
+			"y_label":"%Ld_stalls/cycles", "tot_line":"__total__"}
 		]
 	}
   },
@@ -168,7 +171,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc0 ext_mem_req event by cpu",  "var_name": "BW",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -182,7 +185,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc2 linefill due to prefetch event by cpu",  "var_name": "BW",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_PREFETCH_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_PREFETCH_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -196,7 +199,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc4 entering read allocate mode event by cpu",  "var_name": "BW",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_RD_ALLOC_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_RD_ALLOC_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -212,7 +215,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 accesses (Mill_accesses/s) from r16 L2 dcache accesses by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"L2_ACCESSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"L2_ACCESSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -229,9 +232,10 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 misses (Mill_misses/s) from r17 L2 dcache refill by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"},
+			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
 		{"category":"CPU", "title":"Mem BW MiB/sec from r17 L2 dcache refill by cpu",  "var_name": "bytes",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_L2_MISSES_BY_CPU", "chart_type":"line", "y_label":"MiB/sec", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_L2_MISSES_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
+			"use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -248,9 +252,9 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus freq (MiHz/s) from r1d bus cycles event by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"BUS_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"},
+			"by_var": "cpu", "chart_tag":"BUS_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
 		{"category":"CPU", "title":"Bus BW (MiB/sec) from r1d bus cycles event by cpu",  "var_name": "MiB/sec",
-			"by_var": "cpu", "chart_tag":"BUS_BW_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d"}
+			"by_var": "cpu", "chart_tag":"BUS_BW_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -272,7 +276,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"%arm_bus_utilization (bus_accesses/bus_cycles) by CPU",  "var_name": "val",
-			"by_var": "area", "chart_tag":"ARM_BUS_UTIL_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"arm_bus_%util"}
+			"by_var": "area", "chart_tag":"ARM_BUS_UTIL_PCT_CHART", "chart_type":"line", "use_chart":"d",
+			"y_label":"arm_bus_%util"}
 		]
 	}
   },
@@ -285,7 +290,8 @@
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"ref-freq (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu", "chart_tag":"REF_FREQ_BY_CPU", "chart_type":"line"}
+		{"category":"CPU", "title":"ref-freq (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu", "chart_tag":"REF_FREQ_BY_CPU",
+			"chart_type":"line"}
 		]
 	}
   },
@@ -298,7 +304,7 @@
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"billion instructions/sec by cpu",  "var_name": "GIPS", "by_var": "cpu", "chart_tag":"INSTR_Per_SEC_BY_CPU", "chart_type":"line"}
+		{"category":"CPU", "title":"billion instructions/sec by cpu",  "var_name": "GIPS", "by_var": "cpu", "chart_tag":"INSTR_Per_SEC_BY_CPU", "chart_type":"line", "tot_line":"__total__"}
 		]
 	}
   },
@@ -342,7 +348,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2_MPKI (L2_misses/thousand_instructions) by CPU",  "var_name": "val",
-			"by_var": "area", "chart_tag":"L2_mpki_CHART", "chart_type":"line", "use_chart":"d", "y_label":"L2_MPKI"}
+			"by_var": "area", "chart_tag":"L2_mpki_CHART", "chart_type":"line", "use_chart":"d", "y_label":"L2_MPKI", "tot_line":"__total__"}
 		]
 	}
   },
@@ -392,8 +398,8 @@
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"power", "title":"power:cpu_frequency by cpu",  "var_name": "freq(GHz)", "by_var": "cpu", "chart_tag":"CPU_FREQ_BY_CPU", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"power", "title":"power:cpu_frequency by cpu",  "var_name": "freq(GHz)", "by_var": "cpu",
+			"chart_tag":"CPU_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -407,8 +413,8 @@
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"power", "title":"RAPL power (Watts) by area",  "var_name": "power (W)", "by_var": "area", "chart_tag":"RAPL_POWER_BY_AREA", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"power", "title":"RAPL power (Watts) by area",  "var_name": "power (W)", "by_var": "area",
+			"chart_tag":"RAPL_POWER_BY_AREA", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -423,8 +429,8 @@
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"DRAM", "title":"cbox freq (GHz)",  "var_name": "freq", "by_var": "area", "chart_tag":"CBOX_FREQ_BY_AREA", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"DRAM", "title":"cbox freq (GHz)",  "var_name": "freq", "by_var": "area",
+			"chart_tag":"CBOX_FREQ_BY_AREA", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -439,8 +445,8 @@
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"DRAM", "title":"imc BW (MB/sec)",  "var_name": "BW", "by_var": "area", "chart_tag":"BW_BY_TYPE", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"DRAM", "title":"imc BW (MB/sec)",  "var_name": "BW", "by_var": "area", "chart_tag":"BW_BY_TYPE",
+			"chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -455,8 +461,8 @@
 		{"name":"zone", "lkup": "id",  "lkup_typ": "TYP_TRC_BIN|TYP_INT"}
 		],
 	"charts": [
-		{"category":"thermal", "title":"Temperature(C) by zone",  "var_name": "Temp(C)", "by_var": "thermal_zone", "chart_tag":"TEMPERATURE_BY_ZONE", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"thermal", "title":"Temperature(C) by zone",  "var_name": "Temp(C)", "by_var": "thermal_zone",
+			"chart_tag":"TEMPERATURE_BY_ZONE", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -480,8 +486,7 @@
 		],
 	"charts": [
 		{"category":"Disk", "title":"Disk BW MiB/sec ext4_da_write",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW",
-			"chart_type":"line",
-			"use_chart":"d"}
+			"chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -505,9 +510,8 @@
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"Disk", "title":"Disk BW MiB/sec ext4_direct_IO",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW_DIRECT",
-			"chart_type":"line",
-			"use_chart":"d"}
+		{"category":"Disk", "title":"Disk BW MiB/sec ext4_direct_IO",  "var_name": "MiB/s", "by_var": "area",
+			"chart_tag":"DISK_BW_DIRECT", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -521,8 +525,8 @@
 		{"name":"plane", "lkup": "plane", "lkup_typ": "TYP_TRC_BIN|TYP_DURATION_PREV_TS_SAME_BY_VAL|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"GPU", "title":"frames per sec",  "var_name": "frames", "by_var": "plane", "chart_tag":"FRAMES_PER_SEC", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"GPU", "title":"frames per sec",  "var_name": "frames", "by_var": "plane", "chart_tag":"FRAMES_PER_SEC",
+			"chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -535,8 +539,8 @@
 		{"name":"gpu", "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT", "actions":[{"oper":"replace_any", "val":0.0}]}
 		],
 	"charts": [
-		{"category":"GPU", "title":"i915 gpu freq (MHz)",  "var_name": "freq", "by_var":"gpu", "chart_tag":"GPU_FREQ", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"GPU", "title":"i915 gpu freq (MHz)",  "var_name": "freq", "by_var":"gpu", "chart_tag":"GPU_FREQ",
+			"chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -555,11 +559,12 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
-			"use_chart":"y"},
-		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM", "chart_type":"stacked",
-			"use_chart":"d", "y_fmt":"%.1f%%"},
-		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc", "chart_type":"stacked",
-			"use_chart":"d", "y_fmt":"%.1f%%", "comment":"if you use type=stacked then this chart can use a lot of memory"}
+			"use_chart":"n"},
+		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM",
+			"chart_type":"stacked", "use_chart":"d", "y_fmt":"%.1f%%", "tot_line":"__total__"},
+		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc",
+			"chart_type":"stacked", "tot_line":"__total__",
+			"use_chart":"y", "y_fmt":"%.1f%%", "comment":"if you use type=stacked then this chart can use a lot of memory"}
 		]
 	}
   },
@@ -583,10 +588,9 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"wait time by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line",
-			"use_chart":"d"},
+			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line", "use_chart":"d"},
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"RUN_QUEUE", "chart_type":"line", "use_chart":"d"}
+			"chart_tag":"RUN_QUEUE", "chart_type":"line", "use_chart":"y", "tot_line":"__total__"}
 		]
 	}
   },
@@ -605,9 +609,9 @@
 	"charts": [
 		{"category":"Disk", "title":"Disk read BW (MiB/sec) by Process",  "var_name":"Disk MB/s",
 			"by_var": "comm_pid", "chart_tag":"DISK_MBPS_READ", "chart_type":"stacked",
-			"use_chart":"d", "y_label":"MiB/sec"},
-		{"category":"Disk", "title":"Disk read svc time by Process",  "var_name":"dura", "by_var": "comm_pid", "chart_tag":"DISK_RD_SVCTM", "chart_type":"stacked",
-			"use_chart":"d", "y_label":"SVC time (secs)"}
+			"use_chart":"y", "y_label":"MiB/sec", "tot_line":"__total__"},
+		{"category":"Disk", "title":"Disk read svc time by Process",  "var_name":"dura", "by_var": "comm_pid",
+			"chart_tag":"DISK_RD_SVCTM", "chart_type":"stacked", "use_chart":"d", "y_label":"SVC time (secs)", "tot_line":"__total__"}
 		]
 	}
   },
@@ -625,10 +629,11 @@
 		],
 	"charts": [
 		{"category":"Disk", "title":"Disk write BW (MiB/sec) by Process",  "var_name":"Disk MB/s",
-			"by_var": "comm_pid", "chart_tag":"DISK_MBPS_WRITE", "y_label":"MiB/sec", "chart_type":"stacked", "use_chart":"d"},
+			"by_var": "comm_pid", "chart_tag":"DISK_MBPS_WRITE", "y_label":"MiB/sec", "chart_type":"stacked",
+			"use_chart":"d", "tot_line":"__total__"},
 		{"category":"Disk", "title":"Disk write svc time by Process",  "var_name":"dura",
 			"by_var": "comm_pid", "chart_tag":"DISK_WR_SVCTM", "chart_type":"stacked",
-			"use_chart":"d", "y_label":"SVC time (secs)"}
+			"use_chart":"d", "y_label":"SVC time (secs)", "tot_line":"__total__"}
 		]
 	}
   },
@@ -644,8 +649,9 @@
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_DURATION_BEF|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"add", "val":0.001}]}
 		],
 	"charts": [
-		{"category":"CPU", "title":"%Busy sampledProfile by Process",  "var_name":"dura", "by_var": "comm_pid", "chart_tag":"DISK_BUSY_SMPLD", "chart_type":"stacked",
-			"use_chart":"d", "y_fmt":"%.1f%%", "actions":[{"oper":"mult", "val":100.0}]}
+		{"category":"CPU", "title":"%Busy sampledProfile by Process",  "var_name":"dura", "by_var": "comm_pid",
+			"chart_tag":"DISK_BUSY_SMPLD", "chart_type":"stacked",
+			"use_chart":"d", "y_fmt":"%.1f%%", "actions":[{"oper":"mult", "val":100.0}], "tot_line":"__total__"}
 		]
 	}
   }
@@ -663,8 +669,8 @@
 		{"name":"delay",  "lkup": "DelayTimeMs", "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":0.001}]}
 		],
 	"charts": [
-		{"category":"UI", "title":"GUI thread delay by Process",  "var_name":"delay", "by_var": "proc", "chart_tag":"UI_MSG_CK_DELAY", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"UI", "title":"GUI thread delay by Process",  "var_name":"delay", "by_var": "proc",
+			"chart_tag":"UI_MSG_CK_DELAY", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   }
@@ -690,8 +696,8 @@
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]}
 		],
 	"charts": [
-		{"category":"UI", "title":"GUI InputDeviceRead by Process",  "var_name":"dura", "by_var": "proc", "chart_tag":"UI_INPUT_READ", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"UI", "title":"GUI InputDeviceRead by Process",  "var_name":"dura", "by_var": "proc",
+			"chart_tag":"UI_INPUT_READ", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   }
@@ -711,8 +717,8 @@
 		{"name":"duration",  "lkup": "duration", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]}
 		],
 	"charts": [
-		{"category":"UI", "title":"FocusChange by Process",  "var_name": "duration", "by_var": "comm_pid", "chart_tag":"FOCUS_CHG_BY_PROC", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"UI", "title":"FocusChange by Process",  "var_name": "duration", "by_var": "comm_pid",
+			"chart_tag":"FOCUS_CHG_BY_PROC", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   }
@@ -738,8 +744,24 @@
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]}
 		],
 	"charts": [
-		{"category":"UI", "title":"GUI GUIThread by Process",  "var_name":"dura", "by_var": "proc", "chart_tag":"UI_INPUT_READ", "chart_type":"line",
-			"use_chart":"d"}
+		{"category":"UI", "title":"GUI GUIThread by Process",  "var_name":"dura", "by_var": "proc",
+			"chart_tag":"UI_INPUT_READ", "chart_type":"line", "use_chart":"d"}
+		]
+	}
+  }
+	,
+  {"event":
+	{
+	"evt_name": "lua:mem_bw", "evt_type": "lua", "comment":"read spin.txt file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"val",     "lkup":"val",         "lkup_typ": "TYP_DBL"},
+		{"name":"area",     "lkup":"area",       "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"PERF", "title":"spin mem bw",  "var_name": "val", "by_var":"area", "chart_tag":"SPIN_MEM_BW",
+			"chart_type":"line", "use_chart":"d", "y_label":"GB/sec", "tot_line":"__total__"}
 		]
 	}
   }
@@ -760,35 +782,49 @@
 		{"category":"CPU", "title":"PCM FREQs",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_FREQ", "chart_type":"line",
 			"use_chart":"y", "y_label":"Freq GHz", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*FREQ.*)"}]}
 		,
-		{"category":"CPU", "title":"PCM Memory READ/WRITE (GB/sec)",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_READ_WRITE", "chart_type":"line",
+		{"category":"CPU", "title":"PCM Memory READ/WRITE (GB/sec)",  "var_name": "val", "by_var":"area",
+			"chart_tag":"PCM_READ_WRITE", "chart_type":"line",
 			"use_chart":"y", "y_label":"GB/sec", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*READ|.*WRITE)"}]}
 		,
-		{"category":"CPU", "title":"PCM MISSes and HITs",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_MISS_HIT", "chart_type":"line",
+		{"category":"CPU", "title":"PCM MISSes and HITs",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_MISS_HIT",
+			"chart_type":"line",
 			"use_chart":"y", "y_label":"Misses, Hits", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*MISS|.*HIT)"}]}
 		,
-		{"category":"CPU", "title":"PCM INST/ACYC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_INST_ACYC", "chart_type":"line",
+		{"category":"CPU", "title":"PCM INST/ACYC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_INST_ACYC",
+			"chart_type":"line",
 			"use_chart":"y", "y_label":"INST/ACYC", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*INST|.*ACYC)"}]}
 		,
-		{"category":"CPU", "title":"PCM PhysIPC% INSTnom%",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PhysIPCpct_INSTnomPct", "chart_type":"line",
-			"use_chart":"y", "y_label":"IPC%", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC%|.*INSTnom%)"}]}
+		{"category":"CPU", "title":"PCM PhysIPC% INSTnom%",  "var_name": "val", "by_var":"area",
+			"chart_tag":"PCM_PhysIPCpct_INSTnomPct", "chart_type":"line",
+			"use_chart":"y", "y_label":"IPC%", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area",
+				"str1":"(.*PhysIPC%|.*INSTnom%)"}]}
 		,
-		{"category":"CPU", "title":"PCM PhysIPC INSTnom",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PhysIPC_INSTnom", "chart_type":"line",
+		{"category":"CPU", "title":"PCM PhysIPC INSTnom",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PhysIPC_INSTnom",
+			"chart_type":"line",
 			"use_chart":"y", "y_label":"IPC", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*PhysIPC|.*INSTnom)"}]}
 		,
-		{"category":"CPU", "title":"PCM EXEC (instr/nominal CPU cycle) and IPC",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_EXEC_IPC", "chart_type":"line",
+		{"category":"CPU", "title":"PCM EXEC (instr/nominal CPU cycle) and IPC",  "var_name": "val", "by_var":"area",
+			"chart_tag":"PCM_EXEC_IPC", "chart_type":"line",
 			"use_chart":"y", "y_label":"IPC", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*EXEC|.*IPC)"}]}
 		,
-		{"category":"CPU", "title":"PCM TEMP deg C below Tjmax",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_TEMP", "chart_type":"line",
+		{"category":"CPU", "title":"PCM TEMP deg C below Tjmax",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_TEMP",
+			"chart_type":"line",
 			"use_chart":"y", "y_label":"deg C below TJmax", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*TEMP)"}]}
 		,
-		{"category":"power", "title":"PCM CORE_CSTATES %resident",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_CORE_CSTATES", "chart_type":"line",
-			"use_chart":"y", "y_label":"%resident", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Core C-States.*)"}]}
+		{"category":"power", "title":"PCM CORE_CSTATES %resident",  "var_name": "val", "by_var":"area",
+			"chart_tag":"PCM_CORE_CSTATES", "chart_type":"line",
+			"use_chart":"y", "y_label":"%resident", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area",
+				"str1":"(.*System Core C-States.*)"}]}
 		,
-		{"category":"power", "title":"PCM PKG C-States %resident",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_CSTATES", "chart_type":"line",
-			"use_chart":"y", "y_label":"%resident", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*System Pack C-States.*%)"}]}
+		{"category":"power", "title":"PCM PKG C-States %resident",  "var_name": "val", "by_var":"area",
+			"chart_tag":"PCM_PKG_CSTATES", "chart_type":"line",
+			"use_chart":"y", "y_label":"%resident", "y_fmt":"%.1f%%", "actions":[{"oper":"filter_regex", "str":"area",
+				"str1":"(.*System Pack C-States.*%)"}]}
 		,
-		{"category":"power", "title":"PCM PKG Watts",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_ENERGY", "chart_type":"line",
-			"use_chart":"y", "y_label":"PKG Watts", "y_fmt":"%.2fW", "actions":[{"oper":"filter_regex", "str":"area", "str1":"(.*Proc Energy .Joules..*)"}]}
+		{"category":"power", "title":"PCM PKG Watts",  "var_name": "val", "by_var":"area", "chart_tag":"PCM_PKG_ENERGY",
+			"chart_type":"line",
+			"use_chart":"y", "y_label":"PKG Watts", "y_fmt":"%.2fW", "actions":[{"oper":"filter_regex", "str":"area",
+			"str1":"(.*Proc Energy .Joules..*)"}]}
 		]
 	}
   }

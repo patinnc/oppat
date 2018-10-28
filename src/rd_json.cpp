@@ -502,7 +502,11 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					}
 				} catch (...) { }
 				cs.use_chart = use_chart;
-				std::string y_fmt, by_val_ts, by_val_dura;
+				std::string tot_line, y_fmt, by_val_ts, by_val_dura;
+				try {
+					tot_line = j["event_array"][i]["event"]["charts"][k]["tot_line"];
+				} catch (...) { }
+				cs.tot_line = tot_line;
 				try {
 					y_fmt = j["event_array"][i]["event"]["charts"][k]["y_fmt"];
 				} catch (...) { }
