@@ -1,5 +1,6 @@
 obj/CivetServer.o: src/CivetServer.cpp  inc/CivetServer.h
 obj/MemoryMapped.o: src/MemoryMapped.cpp  inc/MemoryMapped.h
+obj/base64.o: src/base64.c  inc/base64.h
 obj/civetweb.o: src/civetweb.c  inc/civetweb.h
 obj/civetweb.o: src/civetweb.c  src/handle_form.inl
 obj/civetweb.o: src/civetweb.c  src/md5.inl
@@ -337,6 +338,7 @@ obj/lua_rtns.o: src/lua_rtns.cpp  inc/utils.h
 obj/lua_rtns.o: src/lua_rtns.cpp  inc/utils2.h
 obj/mygetopt.o: src/mygetopt.c  inc/mygetopt.h
 obj/oppat.o: src/oppat.cpp  inc/MemoryMapped.h
+obj/oppat.o: src/oppat.cpp  inc/base64.h
 obj/oppat.o: src/oppat.cpp  inc/ck_nesting.h
 obj/oppat.o: src/oppat.cpp  inc/dump.hpp
 obj/oppat.o: src/oppat.cpp  inc/etw_parse.h
@@ -367,6 +369,7 @@ obj/prf_read_data.o: src/prf_read_data.cpp  inc/tc_read_data.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/utils.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/web_api.h
 obj/printf.o: src/printf.cpp  inc/printf.h
+obj/printf.o: src/printf.cpp  inc/rd_json.h
 obj/pugixml.o: src/pugixml.cpp  inc/pugixml.hpp
 obj/rd_json.o: src/rd_json.cpp  inc/json.hpp
 obj/rd_json.o: src/rd_json.cpp  inc/rd_json.h
