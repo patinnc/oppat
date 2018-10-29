@@ -1,8 +1,9 @@
 #!/bin/bash
 
 TRC_CMD=/home/pi/ppat/oppat/bin/trace-cmd
+PRF_CMD=/home/pi/bin/perf
 PRF_CMD=/usr/bin/perf_4.9
-BASE=mem_bw4_pi_32_mem
+BASE=mem_bw5_pi_32_mem
 PFX=arm
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_DIR=`dirname "$(readlink -f "$0")"`
@@ -111,6 +112,7 @@ done
 # rc4=entering read allocate mode
 # re7=stall cycle due to load miss
 #$PRF_CMD record -a -k monotonic -F 997 -e "{cpu-clock,cycles,instructions,r16,r17,r19,r1d,r60}:S" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k monotonic -F 997 -e "{cpu-clock/freq=997/,cycles,instructions,r16,r17,rc0,rc2,re7}:S" -o $ODIR/prf_trace2.data  &
 $PRF_CMD record -a -k monotonic -F 997 -e "{cpu-clock,cycles,instructions,r16,r17,rc0,rc2,re7}:S" -o $ODIR/prf_trace2.data  &
 PRF_CMD_PID2=$!
 
@@ -136,18 +138,24 @@ trcFopts=" -F trace:comm,tid,pid,time,cpu,period,event,sym,dso,symoff,trace,brst
 trcFopts=" -F trace:comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,brstack,brstacksym,flags,bpf-output,callindent"
 rawFopts="     -F raw:comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,flags "
 swFopts="     -F sw:comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,flags,callindent "
+Fopts="     -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,flags,callindent "
+Fopts=" -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,flags,callindent"
 #trcFopts=
 
 echo $PRF_CMD script -I --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data  
 #$PRF_CMD script -I --header  -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
 echo do prf_trace
-$PRF_CMD script -I --header -f $swFopts $trcFopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
+echo $PRF_CMD script -I --header -f $Fopts -i $ODIR/prf_trace.data  _ $ODIR/prf_trace.txt
+#$PRF_CMD script -I --header -f $swFopts $trcFopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
+$PRF_CMD script -I --header -f $Fopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
 #$PRF_CMD script -I --header  -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
 #echo do prf_trace1
 #$PRF_CMD script -I --header -f $trcFopts -i $ODIR/prf_trace1.data  > $ODIR/prf_trace1.txt
 echo do prf_trace2
 #$PRF_CMD script -I --header  -i $ODIR/prf_trace2.data  > $ODIR/prf_trace2.txt
-$PRF_CMD script -I --header -f $swFopts $rawFopts  -i $ODIR/prf_trace2.data  > $ODIR/prf_trace2.txt
+echo $PRF_CMD script -I --header -f $Fopts -i $ODIR/prf_trace2.data  _ $ODIR/prf_trace2.txt
+#$PRF_CMD script -I --header -f $swFopts $rawFopts  -i $ODIR/prf_trace2.data  > $ODIR/prf_trace2.txt
+$PRF_CMD script -I --header -f $Fopts  -i $ODIR/prf_trace2.data  > $ODIR/prf_trace2.txt
 #$PRF_CMD script -I --header -f $hwFopts $trcFopts -D -i $ODIR/prf_trace.data > $ODIR/prf_d.txt
 #$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data > $ODIR/prf_trace.txt
 #$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -D -i $ODIR/prf_trace.data > $ODIR/prf_d.txt
