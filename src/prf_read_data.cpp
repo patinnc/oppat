@@ -30,6 +30,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <thread>
+#include <regex>
 #ifdef __linux__
 #include <unistd.h>
 #endif
@@ -224,11 +225,50 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			if (s_idx == -1 && i_beg == 0) {
 				printf("line[0].tm= %s at %s %d\n", prf_obj.samples[0].tm_str.c_str(), __FILE__, __LINE__);
 			}
+			enum {USE_UNK, USE_USEC, USE_NSEC};
+			static int did_ck_for_ns = USE_UNK;
+			if (did_ck_for_ns == USE_UNK) {
+				const std::regex regx(".* \\[[0-9][0-9][0-9]\\]\\s+(\\d+).(\\d+): .*");
+			    std::smatch matches;
+
+				if(std::regex_search(line, matches, regx)) {
+        			//std::cout << "Match found\n" << std::endl;
+					if (matches.size() > 2) {
+						if (matches[2].str().size() == 9) {
+							did_ck_for_ns = USE_NSEC;
+						} else if (matches[2].str().size() == 6) {
+							did_ck_for_ns = USE_USEC;
+						}
+					}
+    			}
+#if 0
+				if (std::regex_match( line, regx)) {
+					fprintf(stderr, "__got regex line= %s at %s %d\n", line.c_str(), __FILE__, __LINE__);
+					did_ck_for_ns = 0;
+				}
+#endif
+			}
+			std::string use_tm_str;
 			for (int i=i_beg; i < sz; i++) {
 				if (line[0] == '\t') {
 					continue;
 				}
-				if (line.find(prf_obj.samples[i].tm_str) != std::string::npos) {
+				if (did_ck_for_ns == USE_USEC) {
+					char num_buf[256];
+					uint64_t itm = prf_obj.samples[i].ts / 1000;
+					itm *= 1000;
+					double tm = 1.0e-9 * (double)(itm);
+					int slen = snprintf(num_buf, sizeof(num_buf), " %.6f: ", tm);
+					if (slen == sizeof(num_buf)) {
+						printf("overflow for tm= %.6f at %s %d\n", tm, __FILE__, __LINE__);
+						exit(1);
+					}
+					use_tm_str = std::string(num_buf);
+					//printf("try tm_str= %s at %s %d\n", use_tm_str.c_str(), __FILE__, __LINE__);
+				} else {
+					use_tm_str = prf_obj.samples[i].tm_str;
+				}
+				if (line.find(use_tm_str) != std::string::npos) {
 					s_idx = i;
 					nxt = i+1;
 					store_callstack_idx = i;
@@ -238,7 +278,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					}
 					prf_obj.samples[i].line_num = line_num;
 					prf_obj.samples[i].evt_idx = evt;
-					//printf("ck tm[%d]= %s, line= %s\n", i, prf_obj.samples[i].tm_str.c_str(), line.c_str());
+					//printf("ck tm[%d]= %s, line= %s\n", i, use_tm_str.c_str(), line.c_str());
 					break;
 				}
 #if 1
