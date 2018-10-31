@@ -17,7 +17,7 @@
 --------------------------------------------------------------------------------
 ## Introduction
 Open Power/Performance Analysis Tool (OPPAT) is a cross-OS, cross-architecture Power and Performance Analysis Tool.
-- cross-OS: supports Windows ETW and Linux/Android perf/trace-cmd trace files
+- cross-OS: supports Windows ETW trace files and Linux/Android perf/trace-cmd trace files
 - cross-architecture: supports Intel and ARM chips hardware events (using perf and/or PCM)
 
 The project web page is [https://patinnc.github.io](https://patinnc.github.io)
