@@ -3391,8 +3391,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (typeof comm != 'undefined' && comm != null && comm != "") {
 			arr.push(comm);
 		}
-		txt += "<br>all";
-		arr.push("all");
+		//txt += "<br>all";
+		//arr.push("all");
 		return {txt: txt, arr: arr.reverse()};
 	}
 
