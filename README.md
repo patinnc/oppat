@@ -50,7 +50,7 @@ Some of the above files are ~2 second intervals extracted from ~8 second long ru
 
 --------------------------------------------------------------------------------
 ## OPPAT visualization
-For sample visualzation files, download [windows sample html file](sample_html_files/win_mem_bw4.html) or [this Linux sample html file](sample_html_files/lnx_mem_bw4.html) and load them in your browser. These are standalone web files created by OPPAT which could be, for example, emailed to others or (as here) posted on a web server.
+Here are some full sample visualzation html files: [windows sample html file](sample_html_files/win_mem_bw4.html) or [this Linux sample html file](sample_html_files/lnx_mem_bw4.html). If you are on the repo (not the github.io project website) you will have to download the file and then load it into your browser. These are standalone web files created by OPPAT which could be, for example, emailed to others or (as here) posted on a web server.
 
 OPPAT viz works better in Chrome than Firefox primarily because the zoom using touchpad 2 finger scrolling works better on Chrome.
 
