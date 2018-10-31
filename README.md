@@ -22,17 +22,17 @@ The project web page is [https://patinnc.github.io](https://patinnc.github.io)
 
 The source code repo is [https://github.com/patinnc/oppat](https://github.com/patinnc/oppat)
 
-Below is one of the OPPAT charts. The 'cpu_busy' chart shows what is running on each CPU and the events that happen on each cpu. For example, the green circle shows a spin.x thread running on CPU 1. The red circle shows some of the events occurring on CPU1. This chart is modeled after trace-cmd's kernelshark chart. More info on the cpu_busy chart is in [chart-types section](#chart-types)
+Below is one of the OPPAT charts. The 'cpu_busy' chart shows what is running on each CPU and the events that happen on each cpu. For example, the green circle shows a spin.x thread running on CPU 1. The red circle shows some of the events occurring on CPU1. This chart is modeled after trace-cmd's kernelshark chart. More info on the cpu_busy chart is in [chart-types section](#chart-types). The callout box shows the event data (including callstack (if any)) for the event under the cursor. Unfortunately windows screenshot doesn't capture the cursor.
 ![a screen shot of the cpu busy chart](images/cpu_busy.png)
 
-Full (but covering a shorter interval of ~2 second) visualzation files, see:
+Here are some sample html files. Most of the files are for a shorter ~2 interval but some are 'full' 8 second runs. The files won't load directly from the repo but they will load from the project web page: [https://patinnc.github.io](https://patinnc.github.io)
 - [Intel 4-CPU chip, Linux OS, html file](sample_html_files/lnx_mem_bw4.html).
 - [Intel 4-CPU chip, Windows OS, html file](sample_html_files/win_mem_bw4.html) or
 - [ARM (Broadcom A53) chip, Raspberry Pi3 Linux html file with 7 hw events (for CPI, L2 misses, mem BW)](sample_html_files/arm_mem_bw4_pi4.html).
 - [11 MB, full version of ARM (Broadcom A53) chip, Raspberry Pi3 Linux html file with 7 hw events (for CPI, L2 misses, mem BW)](sample_html_files/arm_mem_bw4_pi4_full.html).
 - [ARM (Broadcom A53) chip, Raspberry Pi3 Linux html file](sample_html_files/arm_mem_bw4_pi2.html).
 
-The above files are ~2 second intervals extracted from ~8 second long runs. See:
+Some of the above files are ~2 second intervals extracted from ~8 second long runs. Here is the full 8 second run:
 - [the full 8 second Linux run sample html compressed file here](sample_html_files/lnx_mem_bw4_full.html) for a more complete file. The file does a javascript zlib decompress of the chart data so you will see messages asking you to wait (about 20 secs) during the decompress.
 
 --------------------------------------------------------------------------------
