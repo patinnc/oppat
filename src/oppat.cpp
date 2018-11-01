@@ -4096,20 +4096,22 @@ void create_web_file(int verbose)
 		exit(1);
 	}
 
-	bin_map2 = bin_map;
 	chrts_json2 = chrts_json;
 	if (chrts_json2.size() == 0) {
 		fprintf(stderr, "chrts_json2.size() == 0. Bye at %s %d\n", __FILE__, __LINE__);
 		exit(1);
 	}
-	replace_substr(bin_map2, "'", "\\'", verbose);
+	bin_map2 = bin_map;
+	replace_substr(bin_map2, "`", "'", verbose);
+	replace_substr(bin_map2, "'", "\\\\'", verbose);
 	if (bin_map2.size() == 0) {
 		fprintf(stderr, "bin_map2.size() == 0. Bye at %s %d\n", __FILE__, __LINE__);
 		exit(1);
 	}
+	//printf("bin_map2 at %s %d:\n%s\n", __FILE__, __LINE__, bin_map2.c_str());
 
 	for (uint32_t i=0; i < chrts_json.size(); i++) {
-		replace_substr(chrts_json2[i], "'", "\\'", verbose);
+		replace_substr(chrts_json2[i], "'", "\\\\'", verbose);
 	}
 
 	std::vector <std::string> cd_str;
