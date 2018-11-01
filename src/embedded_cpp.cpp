@@ -198,7 +198,7 @@ main(int argc, char *argv[])
 
 	while (!exitNow) {
 #ifdef _WIN32
-		Sleep(1000);
+		Sleep(200);
 #else
 		usleep(100*1000);
 #endif

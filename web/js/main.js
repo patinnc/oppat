@@ -6,6 +6,7 @@
 
 
 
+var g_parse_delay = 0; // delay 1 ms between parse_data and decompress steps to allow progress info to update
 var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
@@ -1326,7 +1327,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			console.log("__legend_mouse_enter ele= "+ele_nm);
 		}
 		// this is a delay so we don't redraw a bunch when all we are doing is passing over the legend entries.
-		last_legend_timeout = setTimeout(legend_hover, 400, evt);
+		last_legend_timeout = setTimeout(legend_hover, 200, evt);
 		return;
 
 	}
@@ -4002,7 +4003,7 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
     setTimeout(() => {
 		//console.log('End: ' + i);
 		resolve(i);
-    }, 20);
+    }, g_parse_delay);
   });
 }
 
@@ -4024,7 +4025,7 @@ function doJob(i, grf, chrts_started_max, tm_beg)
     setTimeout(() => {
 		//console.log('End: ' + i);
 		resolve(i);
-    }, 50);
+    }, g_parse_delay);
   });
 }
 
@@ -4334,9 +4335,9 @@ function openSocket(port_num) {
 				mymodal_span_text.innerHTML = "finished parse_chart_data["+
 					gjson.chart_data.length+"] of "+gjson.chrt_data_sz+", "+elap_tm+", tot_elap_tm= "+elap_tm_tot;
 				if (gjson.chart_data.length == gjson.chrt_data_sz) {
-					setTimeout(function(){ start_charts(); }, 10);
+					setTimeout(function(){ start_charts(); }, g_parse_delay);
 				}
-			}, 10);
+			}, g_parse_delay);
 
 
 			return;
