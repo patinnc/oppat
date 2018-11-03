@@ -32,6 +32,7 @@
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #endif
 
+#include "trace_marker.h"
 #include "utils.h"
 
 enum { // below enum has to be in same order as wrk_typs
@@ -438,8 +439,10 @@ float simd_dot0(unsigned int i)
 float dispatch_work(int  i)
 {
 	float res=0.0;
+	int wrk = args[i].wrk_typ;
 
-	switch(args[i].wrk_typ) {
+	trace_marker_write("Begin "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
+	switch(wrk) {
 		case WRK_SPIN:
 			res = simd_dot0(i);
 			break;
@@ -457,6 +460,7 @@ float dispatch_work(int  i)
 		default:
 			break;
 	}
+	trace_marker_write("End "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
 	return res;
 }
 
