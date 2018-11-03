@@ -27,7 +27,6 @@
 #define UTILS2_CPP
 #include "utils2.h"
 
-
 static void my_str_trim(const std::string& str_in, std::string &str_out, const std::string& space_chars = " \t")
 {
 	size_t beg = str_in.find_first_not_of(space_chars);
