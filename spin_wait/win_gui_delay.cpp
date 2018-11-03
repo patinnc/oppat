@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <string>
 
+#include "trace_marker.h"
+
 #pragma comment(lib, "Setupapi.lib")
 #pragma comment(lib, "Advapi32.lib")
 #pragma comment(lib, "User32.lib")
@@ -125,6 +127,7 @@ LRESULT CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
               */
               //do whatever you want to do here when button is pressed
 			  int i=0;
+			  trace_marker_write("Begin spin loop");
 			  SetWindowText(hWndButton, "spinning");
 			  DWORD ms_cur, ms_beg;
 			  ms_beg = GetTickCount();
@@ -133,6 +136,7 @@ LRESULT CALLBACK WndProc (HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 			  printf("i= %d, interval ms= %d\n", i, ms_cur - ms_beg);
 			  SetWindowText(hWndButton, "done");
 			  std::string msg = "Spun for "+std::to_string(SPIN_MS)+" msecs";
+			  trace_marker_write("Ended spin loop, "+msg);
 			  //MessageBox(0, msg.c_str(), "done", MB_OK);
 			  //exit(1);
           break;
