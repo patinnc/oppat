@@ -1,6 +1,6 @@
 
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
-set SFX=mem_bw4
+set SFX=mem_bw2
 set PFX=win
 set ODIR=..\oppat_data\%PFX%\%SFX%
 set SCR_DIR=%~dp0
@@ -36,7 +36,9 @@ for /f "delims=" %%x in (%WAIT_FILE%) do set pid=%%x
 
 
 @rem xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile -start usersession -on Microsoft-Windows-Win32k
-xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile 
+@rem xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile -start usersession -on my_event_provider
+xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile
+if %errorlevel% == -2147023892 goto :got_err
 
 
 %BIN_DIR%\spin.exe 4 > %ODIR%\spin.txt
@@ -51,6 +53,11 @@ del %WAIT_FILE%
 @echo    {"cur_dir":"%%root_dir%%/oppat_data/%PFX%/%SFX%"}, >> %ODIR%/file_list.json
 @echo    {"cur_tag":"%PFX%_%SFX%"}, >> %ODIR%/file_list.json
 @echo    {"txt_file":"etw_trace.txt", "tag":"%%cur_tag%%", "type":"ETW"}, >> %ODIR%/file_list.json
-@echo    {"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%%cur_tag%%", "type":"LUA"} >> %ODIR%/file_list.json
+@echo    {"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%%cur_tag%%", "type":"LUA"}, >> %ODIR%/file_list.json
+@echo    {"bin_file":"spin.txt", "txt_file":"", "wait_file":"", "tag":"%cur_tag%", "type":"LUA", "lua_file":"spin.lua", "lua_rtn":"spin"} >> %ODIR%/file_list.json
 @echo   ]} >> %ODIR%/file_list.json
 
+goto :EOF
+
+:got_err
+echo got err
