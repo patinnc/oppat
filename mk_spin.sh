@@ -1,6 +1,6 @@
 #!/bin/bash
 
-g++ -std=c++11 -Iinc -O4 -g spin_wait/spin.cpp src/utils.cpp -o bin/spin.x -lpthread
+g++ -std=c++11 -Iinc -O4 -g spin_wait/spin.cpp src/utils.cpp spin_wait/trace_marker.cpp -o bin/spin.x -lpthread
 ls -l bin/spin.x
 
 g++ -std=c++11 -Iinc -O3 -g spin_wait/wait.cpp src/utils.cpp -o bin/wait.x
