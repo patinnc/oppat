@@ -66,7 +66,8 @@ struct lag_str {
 };
 struct chart_str {
 	std::string title, var_name, by_var, chart_tag, chart_category, chart_type,
-		y_fmt, by_val_ts, by_val_dura, y_label, tot_line;
+		y_fmt, by_val_ts, by_val_dura, y_label, tot_line,
+		marker_type, marker_size, marker_connect;
 	bool use_chart;
 	uint32_t var_idx, by_var_idx;
 	int32_t pixels_high;
@@ -115,11 +116,12 @@ struct evt_str {
 };
 
 struct fld_typ_str {
-	uint32_t flag;
+	uint64_t flag;
 	std::string str;
 };
 
-enum fld_typ_enums {
+//enum class fld_typ_enums : uint64_t {
+enum class fte_enum : uint64_t {
 	FLD_TYP_INT           = (1ULL << 0),
 	FLD_TYP_DBL           = (1ULL << 1),
 	FLD_TYP_STR           = (1ULL << 2),
@@ -151,6 +153,7 @@ enum fld_typ_enums {
 	FLD_TYP_CSW_REASON    = (1ULL << 28),
 	FLD_TYP_LAG           = (1ULL << 29),
 	FLD_TYP_NEW_VAL       = (1ULL << 30),
+	FLD_TYP_ADD_2_EXTRA   = (1ULL << 31),
 };
 
 enum {

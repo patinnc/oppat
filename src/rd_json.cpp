@@ -464,7 +464,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					int got_var1 = 0;
 					for (uint32_t m=0; m < fsz; m++) {
 						uint64_t flg2 = event_table.back().flds[m].flags;
-						if (flg2 & FLD_TYP_BY_VAR1) {
+						if (flg2 & (uint64_t)fte_enum::FLD_TYP_BY_VAR1) {
 							got_var1++;
 						}
 					}
@@ -533,7 +533,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				} catch (...) { }
 				for (uint32_t m=0; m < event_table.back().flds.size(); m++) {
 					uint64_t flg = event_table.back().flds[m].flags;
-					if ((flg & FLD_TYP_BY_VAR0) && event_table.back().flds[m].name != cs.by_var) {
+					if ((flg & (uint64_t)fte_enum::FLD_TYP_BY_VAR0) && event_table.back().flds[m].name != cs.by_var) {
 						printf("Error: you have evt_fld flag TYP_VAR_BY_VAR0 on field name= %s but you can only use this flag on the field used in the chart 'by_var'= %s.\n", 
 							event_table.back().flds[m].name.c_str(), cs.by_var.c_str());
 						printf("this is for event= %s, chart= %s. Bye at %s %d\n",
@@ -580,6 +580,43 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				} catch (...) { }
 				try {
 					cs.chart_tag = j["event_array"][i]["event"]["charts"][k]["chart_tag"];
+				} catch (...) { }
+				try {
+					cs.marker_type = j["event_array"][i]["event"]["charts"][k]["marker"]["type"];
+					if (cs.marker_type != "square" && cs.marker_type != "none") {
+						fprintf(stderr, "only support \"marker\":{\"type\":\"square\" or \"none\"}. Got %s. bye at %s %d\n",
+								cs.marker_type.c_str(), __FILE__, __LINE__);
+						exit(1);
+					}
+				} catch (...) { }
+				try {
+					cs.marker_size = j["event_array"][i]["event"]["charts"][k]["marker"]["size"];
+					int sz = atoi(cs.marker_size.c_str());
+					if (sz <= 0) {
+						fprintf(stderr, "Got support \"marker\":{\"size\":\"%s\"} which is <= 0. bye at %s %d\n",
+								cs.marker_size.c_str(), __FILE__, __LINE__);
+						exit(1);
+					}
+				} catch (...) { }
+				try {
+					cs.marker_connect = j["event_array"][i]["event"]["charts"][k]["marker"]["connect"];
+					int got=-1;
+					if (cs.marker_connect == "y" || cs.marker_type == "Y" || cs.marker_connect == "1") {
+						got = 1;
+					}
+					if (cs.marker_connect == "n" || cs.marker_type == "N" || cs.marker_connect == "0") {
+						got = 0;
+					}
+					if (got == -1) {
+						fprintf(stderr, "only support \"marker\":{\"connect\":\"y|Y|1|n|N|0\"}. Got %s. bye at %s %d\n",
+								cs.marker_connect.c_str(), __FILE__, __LINE__);
+						exit(1);
+					}
+					if (got == 1) {
+						cs.marker_connect = "y";
+					} else {
+						cs.marker_connect = "n";
+					}
 				} catch (...) { }
 				try {
 					cs.y_label = j["event_array"][i]["event"]["charts"][k]["y_label"];
@@ -643,37 +680,38 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 
 static void bld_fld_typ(void)
 {
-	fld_typ_strs.push_back({FLD_TYP_INT,           "TYP_INT"});
-	fld_typ_strs.push_back({FLD_TYP_DBL,           "TYP_DBL"});
-	fld_typ_strs.push_back({FLD_TYP_STR,           "TYP_STR"});
-	fld_typ_strs.push_back({FLD_TYP_SYS_CPU,       "TYP_SYS_CPU"});
-	fld_typ_strs.push_back({FLD_TYP_TM_CHG_BY_CPU, "TYP_TM_CHG_BY_CPU"});
-	fld_typ_strs.push_back({FLD_TYP_PERIOD,        "TYP_PERIOD"});
-	fld_typ_strs.push_back({FLD_TYP_PID,           "TYP_PID"});
-	fld_typ_strs.push_back({FLD_TYP_TID,           "TYP_TID"});
-	fld_typ_strs.push_back({FLD_TYP_TIMESTAMP,     "TYP_TIMESTAMP"});
-	fld_typ_strs.push_back({FLD_TYP_COMM,          "TYP_COMM"});
-	fld_typ_strs.push_back({FLD_TYP_COMM_PID,      "TYP_COMM_PID"});
-	fld_typ_strs.push_back({FLD_TYP_COMM_PID_TID,  "TYP_COMM_PID_TID"});
-	fld_typ_strs.push_back({FLD_TYP_EXCL_PID_0,    "TYP_EXCL_PID_0"});
-	fld_typ_strs.push_back({FLD_TYP_DURATION_BEF,  "TYP_DURATION_BEF"});
-	fld_typ_strs.push_back({FLD_TYP_DIV_BY_INTERVAL,  "TYP_DIV_BY_INTERVAL"});
-	fld_typ_strs.push_back({FLD_TYP_TRC_BIN,       "TYP_TRC_BIN"});
-	fld_typ_strs.push_back({FLD_TYP_STATE_AFTER,   "TYP_STATE_AFTER"});
-	fld_typ_strs.push_back({FLD_TYP_DURATION_PREV_TS_SAME_BY_VAL,   "TYP_DURATION_PREV_TS_SAME_BY_VAL"});
-	fld_typ_strs.push_back({FLD_TYP_DIV_BY_INTERVAL2,  "TYP_DIV_BY_INTERVAL2"});
-	fld_typ_strs.push_back({FLD_TYP_TRC_FLD_PFX,   "TYP_TRC_FLD_PFX"});
-	fld_typ_strs.push_back({FLD_TYP_ETW_COMM_PID,  "TYP_ETW_COMM_PID"});
-	fld_typ_strs.push_back({FLD_TYP_HEX_IN,        "TYP_HEX_IN"});
-	fld_typ_strs.push_back({FLD_TYP_BY_VAR0,       "TYP_BY_VAR0"});
-	fld_typ_strs.push_back({FLD_TYP_BY_VAR1,       "TYP_BY_VAR1"});
-	fld_typ_strs.push_back({FLD_TYP_ETW_COMM_PID2, "TYP_ETW_COMM_PID2"});
-	fld_typ_strs.push_back({FLD_TYP_COMM_PID_TID2, "TYP_COMM_PID_TID2"});
-	fld_typ_strs.push_back({FLD_TYP_TID2,          "TYP_TID2"});
-	fld_typ_strs.push_back({FLD_TYP_CSW_STATE,     "TYP_CSW_STATE"});
-	fld_typ_strs.push_back({FLD_TYP_CSW_REASON,    "TYP_CSW_REASON"});
-	fld_typ_strs.push_back({FLD_TYP_LAG,           "TYP_LAG"});
-	fld_typ_strs.push_back({FLD_TYP_NEW_VAL,       "TYP_NEW_VAL"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_INT,           "TYP_INT"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DBL,           "TYP_DBL"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_STR,           "TYP_STR"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_SYS_CPU,       "TYP_SYS_CPU"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU, "TYP_TM_CHG_BY_CPU"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_PERIOD,        "TYP_PERIOD"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_PID,           "TYP_PID"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TID,           "TYP_TID"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TIMESTAMP,     "TYP_TIMESTAMP"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_COMM,          "TYP_COMM"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_COMM_PID,      "TYP_COMM_PID"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_COMM_PID_TID,  "TYP_COMM_PID_TID"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_EXCL_PID_0,    "TYP_EXCL_PID_0"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DURATION_BEF,  "TYP_DURATION_BEF"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DIV_BY_INTERVAL,  "TYP_DIV_BY_INTERVAL"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TRC_BIN,       "TYP_TRC_BIN"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_STATE_AFTER,   "TYP_STATE_AFTER"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DURATION_PREV_TS_SAME_BY_VAL,   "TYP_DURATION_PREV_TS_SAME_BY_VAL"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DIV_BY_INTERVAL2,  "TYP_DIV_BY_INTERVAL2"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TRC_FLD_PFX,   "TYP_TRC_FLD_PFX"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_ETW_COMM_PID,  "TYP_ETW_COMM_PID"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_HEX_IN,        "TYP_HEX_IN"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_BY_VAR0,       "TYP_BY_VAR0"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_BY_VAR1,       "TYP_BY_VAR1"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_ETW_COMM_PID2, "TYP_ETW_COMM_PID2"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_COMM_PID_TID2, "TYP_COMM_PID_TID2"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TID2,          "TYP_TID2"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_CSW_STATE,     "TYP_CSW_STATE"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_CSW_REASON,    "TYP_CSW_REASON"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_LAG,           "TYP_LAG"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_NEW_VAL,       "TYP_NEW_VAL"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA,   "TYP_ADD_2_EXTRA"});
 }
 
 std::string rd_json(std::string flnm)
