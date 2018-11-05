@@ -596,6 +596,20 @@
   },
   {"event":
 	{
+	"evt_name": "Mark", "evt_type": "ETW",
+	"evt_flds": [
+		{"name":"marker",  "lkup": "Mark", "lkup_typ": "TYP_ADD_2_EXTRA|TYP_STR"},
+		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"replace_any", "val":1.0e-6}]}
+		],
+	"charts": [
+		{"category":"PERF", "title":"Markers",  "var_name":"marker",
+			"chart_tag":"MARKERS", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"n"},
+			"use_chart":"y", "y_label":"markers"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "DiskRead", "evt_type": "ETW",
 	"evt_flds": [
 		{"name":"comm_pid",  "lkup": "Process Name ( PID)", "lkup_typ": "TYP_ETW_COMM_PID|TYP_STR"},
