@@ -40,6 +40,7 @@ var g_fl_arr= [];
 var g_fl_obj= [];
 var g_fl_obj_rt = [];
 var g_do_step = true; // connect line chart 'horizontal dashes' with vertical lines if < 3 pixels between end of 1st dash and start of 2nd dash
+var g_do_step_changed = false; // set if user overrides default
 var FLAMEGRAPH_BASE_CPT = 0; // comm, pid, tid
 var FLAMEGRAPH_BASE_CP  = 1; // comm, pid
 var FLAMEGRAPH_BASE_C   = 2; // comm
@@ -289,6 +290,7 @@ function lhs_menu_change(cb, menu_idx, nm_idx)
 	if (nm_idx == -2) {
 		console.log("clicked connect lines state= "+ ckd + ", ind= "+ind);
 		g_do_step = ckd;
+		g_do_step_changed = true;
 		return;
 	}
 	if (nm_idx == -1) {
@@ -870,7 +872,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//mx_fe_idx++;
 			chart_data.subcat_rng.push({x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:mx_fe_idx, event:tot_line.evt_str, total:big_val,
 					cat:mx_cat, subcat:0, cat_text:tot_line.evt_str});
-			console.log("tot_line: fe_idx= "+mx_fe_idx+", mx_cat= "+mx_cat);
+			//console.log("tot_line: fe_idx= "+mx_fe_idx+", mx_cat= "+mx_cat);
 			tot_line.subcat_rng_idx = chart_data.subcat_rng.length-1;
 		} else {
 			tot_line.subcat_rng_idx = -1;
@@ -899,7 +901,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (event_list[j].total == big_val) {
 					event_list[j].total = 1.0e-6; // can't set it all the way to zero or else it will get dropped later
 					tot_line.event_list_idx = j;
-					console.log("zero out total for mx_cat= "+mx_cat+",j= "+j+",idx= "+event_list[j].idx);
+					//console.log("zero out total for mx_cat= "+mx_cat+",j= "+j+",idx= "+event_list[j].idx);
 					break;
 				}
 			}
@@ -990,7 +992,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					ftxt = fentr.filename_text;
 					fevt = fentr.event;
 				} else {
-					console.log("__null fbin for evt= "+nm);
+					//console.log("__null fbin for evt= "+nm);
 				}
 				flnm = "bin:"+fbin + ", txt:"+ftxt + ", event:"+fevt;
 			}
@@ -1431,6 +1433,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	let tm_here_04 = performance.now();
 	let lkup = [];
+	let lkup_use_linearSearch = [];
 	let flm_obj = {};
 	let fl_end_sum = 0;
 	let fl_end_sum1 = 0;
@@ -2461,6 +2464,35 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		return maxy_new;
 	}
 
+	function draw_rect(ctx_in, x, y, wd, hi, clr, yPxlzero, do_highlight)
+	{
+		//ctx_in.rect(x-wd/2, y-wd/2, wd, hi);
+		ctx_in.fillStyle = clr;
+		let hi2 = y+hi;
+		let diff = 0;
+		if (hi2 > yPxlzero) {
+			diff = 0.5*(hi2 - yPxlzero);
+		}
+		let x0=x-wd/2;
+		let y0=y-hi/2;
+		let x1=x0+wd;
+		let y1=y0+hi-diff;
+		//ctx_in.fillRect(x-wd/2, y-hi/2, wd, hi-diff);
+		ctx_in.fillRect(x0, y0, x1-x0, y1-y0);
+		let rct = {x0:x0, y0:y0, x1:x1, y1:y1};
+		if (do_highlight) {
+			let str_style = ctx_in.strokeStyle;
+			let str_lw    = ctx_in.lineWidth;
+			ctx_in.strokeStyle = 'black';
+			ctx_in.lineWidth=2;
+			ctx_in.strokeRect(x0, y0, x1-x0, y1-y0);
+			ctx_in.strokeStyle = str_style;
+			ctx_in.lineWidth   = str_lw;
+		}
+		//console.log(rct);
+		return rct;
+	}
+
 	function chart_redraw(from_where) {
 		let maxy_new = tot_line_get_values();
 		redo_ylkup(ctx);
@@ -2937,6 +2969,16 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					fl_tm_bld += tm_1 - tm_0;
 				}
 				if (ch_type == "stacked") {
+					let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
+						//fe_idx = chart_data.myshapes[i].ival[IVAL_FE];
+					let do_event_highlight = false;
+					if (fe_idx == -1 || (typeof event_select[fe_idx] != 'undefined' &&
+						(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
+						if (fe_idx != -1 && event_select[fe_idx][1] == 'highlight') {
+							do_event_highlight = true;
+							//console.log("stk hghlight");
+						}
+					}
 					if (do_proc||do_event) {
 						// the line_done array is 1 if we've already drawn a line at this pixel. Don't need to overwrite it.
 						let wd = end[0] - beg[0];
@@ -2951,6 +2993,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						ctx.beginPath();
 						ctx.fillStyle = clr;
 						ctx.fillRect(beg[0], beg[1], wd, hi);
+						if (do_event_highlight) {
+							ctx.strokeStyle = 'black';
+							ctx.lineWidth = 2;
+							ctx.strokeRect(beg[0], beg[1], wd, hi);
+							ctx.lineWidth = 1;
+						}
 						if (1==20) {
 						ctx.beginPath();
 						ctx.strokeStyle = 'black';
@@ -2987,38 +3035,57 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						if (ch_type != "line") {
 							do_step = false;
 						}
-						if (do_step) {
-							let yPxlzero = canvas_px_high(null) - yPadding;
-							if (do_event_highlight) {
-								ctx.lineWidth = 5;
+						let connect_lines = true;
+						if (typeof chart_data.marker_connect != undefined && !g_do_step_changed) {
+							if (chart_data.marker_connect == "y") {
+								do_step = true;
 							}
-							if (step[subcat_idx][0] > -1 && step[subcat_idx][0] == beg[0]) {
-								// case where next value begins where prev value ends
-								ctx.moveTo(step[subcat_idx][0], step[subcat_idx][1]);
-								ctx.lineTo(beg[0], beg[1]);
-							} else if (step[subcat_idx][0] > -1) {
-								ctx.moveTo(step[subcat_idx][0], step[subcat_idx][1]);
-								ctx.lineTo(step[subcat_idx][0], yPxlzero);
-								//ctx.stroke();
-								// don't just overdraw lines... slows things down and no extra info
-								// so don't draw 2nd part of line up vertical unless it is visibly diff from down vertical
-								// As we zoom in then the lines will get drawn anyway (since separation btwn up/down vert will be > 2)
-								if (Math.abs(beg[0] - step[subcat_idx][0]) >= 0) {
-									ctx.lineTo(beg[0], yPxlzero);
-									lkup[subcat_idx].push([step[subcat_idx][0], yPxlzero, beg[0], yPxlzero, i, 0, step[subcat_idx][2], x0]);
+							if (chart_data.marker_connect == "n") {
+								do_step = false;
+								connect_lines = false;
+							}
+						}
+						let draw_marker = false;
+						if (typeof chart_data.marker_type != undefined && typeof chart_data.marker_size != undefined) {
+							if (chart_data.marker_type == "square") {
+								draw_marker = true;
+							}
+						}
+						let yPxlzero = canvas_px_high(null) - yPadding;
+						if (connect_lines) {
+							if (do_step) {
+								if (do_event_highlight) {
+									ctx.lineWidth = 5;
+								}
+								if (step[subcat_idx][0] > -1 && step[subcat_idx][0] == beg[0]) {
+									// case where next value begins where prev value ends
+									ctx.moveTo(step[subcat_idx][0], step[subcat_idx][1]);
 									ctx.lineTo(beg[0], beg[1]);
+								} else if (step[subcat_idx][0] > -1) {
+									ctx.moveTo(step[subcat_idx][0], step[subcat_idx][1]);
+									ctx.lineTo(step[subcat_idx][0], yPxlzero);
 									//ctx.stroke();
+									// don't just overdraw lines... slows things down and no extra info
+									// so don't draw 2nd part of line up vertical unless it is visibly diff from down vertical
+									// As we zoom in then the lines will get drawn anyway (since separation btwn up/down vert will be > 2)
+									if (Math.abs(beg[0] - step[subcat_idx][0]) >= 0) {
+										ctx.lineTo(beg[0], yPxlzero);
+										lkup[subcat_idx].push([step[subcat_idx][0], yPxlzero, beg[0], yPxlzero, i, 0, step[subcat_idx][2], x0]);
+										ctx.lineTo(beg[0], beg[1]);
+										//ctx.stroke();
+									} else {
+										ctx.moveTo(beg[0], beg[1]);
+									}
 								} else {
 									ctx.moveTo(beg[0], beg[1]);
 								}
 							} else {
 								ctx.moveTo(beg[0], beg[1]);
 							}
-						} else {
-							ctx.moveTo(beg[0], beg[1]);
+							ctx.lineTo(end[0], end[1]);
+							ctx.stroke();
+							drew_this_shape = true;
 						}
-						ctx.lineTo(end[0], end[1]);
-						ctx.stroke();
 						step[subcat_idx][0] = end[0];
 						step[subcat_idx][1] = end[1];
 						step[subcat_idx][2] = x1;
@@ -3040,7 +3107,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						drew_lns++;
 						ctx.lineWidth = 1;
 						line_done[subcat_idx][beg[0]] = 1;
-						drew_this_shape = true;
+						if (draw_marker && chart_data.marker_type == "square") {
+							let sz = +chart_data.marker_size;
+							let rct = draw_rect(ctx, end[0], end[1], sz, sz, clr, yPxlzero, do_event_highlight);
+							lkup[subcat_idx].push([rct.x0, rct.y0, rct.x1, rct.y1, i]);
+							//lkup[subcat_idx].push([end[0]-sz/2, end[1]-sz/2, end[0]+sz/2, end[1]+sz/2, i]);
+						}
 					}
 				} else {
 					skipped++;
@@ -3057,7 +3129,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//chart_data.subcat_rng[sc_idx].{x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:mx_fe_idx, event:tot_line.evt_str, total:0.001,
 			//	cat:mx_cat, subcat:0, cat_text:tot_line.evt_str});
 			let fe_idx = event_list[tot_line.event_list_idx].idx;
-			console.log("tot_line: sc_idx= "+sc_idx+", yarr= "+tot_line.yarray.length+", ch_title="+chart_data.title+", fe_idx= "+fe_idx);
+			//console.log("tot_line: sc_idx= "+sc_idx+", yarr= "+tot_line.yarray.length+", ch_title="+chart_data.title+", fe_idx= "+fe_idx);
 			//abcd
 			let cat = chart_data.subcat_rng[sc_idx].cat;
 			let subcat = chart_data.subcat_rng[sc_idx].subcat;
@@ -3065,7 +3137,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let clr = event_list[tot_line.event_list_idx].color;
 			//console.log("tot_line: sc_idx= "+sc_idx+", fe_idx= "+fe_idx+", fe_rnk= "+fe_rnk+", clr= "+clr+", subcat_idx= "+subcat_idx);
 			let do_event_highlight = false;
-			console.log("ev_lst_idx= "+tot_line.event_list_idx+", fe_idx= "+fe_idx);
+			//console.log("ev_lst_idx= "+tot_line.event_list_idx+", fe_idx= "+fe_idx);
 			if (fe_idx != -1 && 
 					typeof event_select[fe_idx] != 'undefined' &&
 					event_select[fe_idx][1] == 'highlight') {
@@ -3111,9 +3183,22 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			ctx.stroke();
 		}
 		ctx.lineWidth = 1;
+		lkup_use_linearSearch = [];
 		for (let ii=0; ii < lkup.length; ii++) {
 			if (lkup[ii].length > 0) {
 				lkup[ii].sort(sortFunction);
+			}
+			//abcd
+
+			lkup_use_linearSearch.push(false);
+			for (let jj=1; jj < lkup[ii].length; jj++) {
+				if (lkup[ii][jj-1][2] <=  lkup[ii][jj][0] &&
+					lkup[ii][jj][0] != lkup[ii][jj][2]) {
+					continue;
+				}
+				lkup_use_linearSearch[ii] = true;
+				//console.log(sprintf("__lkup_lnrsrc[%d]= %s for %s", ii, lkup_use_linearSearch[ii], chart_data.title));
+				break;
 			}
 		}
 
@@ -3304,19 +3389,28 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			return a[0] - b[0];
 	    }
 	}
+	function linearSearch(ar, elx, ely, compare_fn) {
+		for (let k=0; k < ar.length; k++) {
+			let cmp = compare_fn(elx, ely, ar[k]);
+			if (cmp == 0) {
+				return k; 
+			}
+		}
+		return -1;
+	}
 	function binarySearch(ar, elx, ely, compare_fn) {
 	    let m = 0;
 	    let n = ar.length - 1;
 	    while (m <= n) {
-		let k = (n + m) >> 1;
-		let cmp = compare_fn(elx, ely, ar[k]);
-		if (cmp > 0) {
-		    m = k + 1;
-		} else if(cmp < 0) {
-		    n = k - 1;
-		} else {
-		    return k;
-		}
+			let k = (n + m) >> 1;
+			let cmp = compare_fn(elx, ely, ar[k]);
+			if (cmp > 0) {
+				m = k + 1;
+			} else if(cmp < 0) {
+				n = k - 1;
+			} else {
+				return k;
+			}
 	    }
 	    return -m - 1;
 	}
@@ -3342,10 +3436,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		//return a - b;
 	}
 	function compare_in_box(x, y, b) {
-		if (x  < b[0]) {
+		if (x  < (b[0]-2)) {
 			return -1;
 		}
-		if (x  > b[2]) {
+		if (x  > (b[2]+2)) {
 			return 1;
 		}
 		if (y  < (b[1]-2)) {
@@ -3392,8 +3486,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (typeof comm != 'undefined' && comm != null && comm != "") {
 			arr.push(comm);
 		}
-		//txt += "<br>all";
-		//arr.push("all");
+		txt += "<br>all"; // this is for the last (lowest) 'all' layer of the flamegraph
+		arr.push("all");
 		return {txt: txt, arr: arr.reverse()};
 	}
 
@@ -3604,14 +3698,22 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		  let rect = this.getBoundingClientRect(),
 			x = Math.trunc(e.clientX - rect.left),
 			y = Math.trunc(e.clientY - rect.top);
-			if (x != can_shape.hvr_prv_x || y != can_shape.hvr_prv_y) {
+			//x = (e.clientX - rect.left),
+			//y = (e.clientY - rect.top);
+			if ((x != can_shape.hvr_prv_x || y != can_shape.hvr_prv_y)) {
 				let mtch = -1;
 				let rw = -1, row = -1;
 				let fnd = -1;
 				let fnd_list = [];
 				if (ch_type == "line") {
 					for (let i = 0; i < lkup.length; i++) {
-						fnd = binarySearch(lkup[i], x, y, compare_in_box);
+						if (lkup_use_linearSearch[i]) {
+							fnd = linearSearch(lkup[i], x, y, compare_in_box);
+						} else {
+							fnd = binarySearch(lkup[i], x, y, compare_in_box);
+						}
+						//let xs = sprintf("row= %d, x= %f, y= %f, fnd= %s, bx= %s", i, x, y, fnd, (fnd < 0 ? "" : lkup[i][fnd]));
+						//console.log(xs);
 						if (fnd >= 0) {
 							row = i;
 							if (tot_line.evt_str != "" && row == tot_line.subcat_rng_idx) {
