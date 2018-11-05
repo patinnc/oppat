@@ -190,11 +190,11 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			printf("lua data_shape[\"col_name\"][%d][%d]= '%s' at %s %d\n", ev, j+1, str.c_str(), __FILE__, __LINE__);
 			str = lua_st[lua_idx].lua["data_shape"]["col_types"][ev][j+1];
 			if (str == "str") {
-				cols_typ.push_back(FLD_TYP_STR);
+				cols_typ.push_back((int)fte_enum::FLD_TYP_STR);
 			} else if (str == "dbl") {
-				cols_typ.push_back(FLD_TYP_DBL);
+				cols_typ.push_back((int)fte_enum::FLD_TYP_DBL);
 			} else if (str == "int") {
-				cols_typ.push_back(FLD_TYP_INT);
+				cols_typ.push_back((int)fte_enum::FLD_TYP_INT);
 			} else {
 				printf("invalid col_type[%d]= '%s' at %s %d\n", j, str.c_str(), __FILE__, __LINE__);
 				exit(1);
@@ -248,17 +248,17 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 		for (uint32_t j=0; j < col_names[evt_idx].size(); j++) {
 			lua_data_val_str ldvs;
 			std::string col = col_names[evt_idx][j];
-			if (col_typ[evt_idx][j] & FLD_TYP_STR) {
+			if (col_typ[evt_idx][j] & (int)fte_enum::FLD_TYP_STR) {
 				std::string str = lua_st[lua_idx].lua["data_table"][i][col];
 				if (verbose)
 					printf(", %s=%s, ", col.c_str(), str.c_str());
 				ldvs.str = str;
-			} else if (col_typ[evt_idx][j] & FLD_TYP_DBL) {
+			} else if (col_typ[evt_idx][j] & (int)fte_enum::FLD_TYP_DBL) {
 				double x = lua_st[lua_idx].lua["data_table"][i][col];
 				if (verbose)
 					printf(", %s=%.9f, ", col.c_str(), x);
 				ldvs.dval = x;
-			} else if (col_typ[evt_idx][j] & FLD_TYP_INT) {
+			} else if (col_typ[evt_idx][j] & (int)fte_enum::FLD_TYP_INT) {
 				double x = lua_st[lua_idx].lua["data_table"][i][col];
 				if (verbose)
 					printf(", %s=%.0f, ", col.c_str(), x);
