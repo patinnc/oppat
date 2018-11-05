@@ -938,7 +938,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 	}
 	for (uint32_t j=0; j < fsz; j++) {
 		uint64_t flg = event_table.flds[j].flags;
-		if (flg & FLD_TYP_DURATION_PREV_TS_SAME_BY_VAL) {
+		if (flg & (uint64_t)(fte_enum::FLD_TYP_DURATION_PREV_TS_SAME_BY_VAL)) {
 			if (prv_ts_idx != (uint32_t)-1) {
 				printf("can only handle 1 TYP_DURATION_PREV_TS_SAME_BY_VAL attribute in evt_flds. fld= %s event= %s, Chart= %s. bye at %s %d\n",
 					event_table.flds[j].name.c_str(),
@@ -948,17 +948,17 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 			}
 			prv_ts_idx = j;
 		}
-		if (flg & FLD_TYP_DIV_BY_INTERVAL2) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_DIV_BY_INTERVAL2) {
 			prv_ts_div_req_idx = j;
 		}
 		if (event_table.flds[j].next_for_name_idx != -1 &&
 			event_table.flds[j].next_for_name_idx == var_idx) {
 			next_idx = j;
 		}
-		if (flg & FLD_TYP_STATE_AFTER) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_STATE_AFTER) {
 			after_idx = j;
 		}
-		if (flg & FLD_TYP_DURATION_BEF) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF) {
 			dura_idx = j;
 		}
 	}
@@ -1004,7 +1004,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 			idx = 0;
 			byvv = 0;
 		}
-		if (idx >= (int)last_val_for_by_var_idx.size()) {
+		if (by_var_idx >= 0 && idx >= (int)last_val_for_by_var_idx.size()) {
 			printf("screw up here at idx= %d, sz= %d, event= %s, title= %s at %s %d\n",
 				idx, (int)last_val_for_by_var_idx.size(),
 				event_table.event_name_w_area.c_str(),
@@ -1073,7 +1073,9 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 #endif
 			event_table.charts[chrt].lag_vec[kk][widx] = event_table.data.vals[i][fld_from];
 		}
-		last_val_for_by_var_idx[idx] = i;
+		if (by_var_idx >= 0) {
+			last_val_for_by_var_idx[idx] = i;
+		}
 		if (prv_ts_idx != (uint32_t)-1) {
 			if (idx >= (int)event_table.charts[chrt].dura_prev_ts.size()) {
 				event_table.charts[chrt].dura_prev_ts.resize(idx+1, ts0);
@@ -1169,11 +1171,11 @@ static int report_chart_data(uint32_t evt_idx, uint32_t chrt, std::vector <evt_s
 	for (uint32_t i=0; i < event_table[evt_idx].charts[chrt].by_var_vals.size(); i++) {
 		if (by_var_idx >= 0) {
 			double by_var_val = event_table[evt_idx].charts[chrt].by_var_vals[i];
-			if (by_var_flags & FLD_TYP_STR) {
+			if (by_var_flags & (uint64_t)fte_enum::FLD_TYP_STR) {
 				by_var_str = event_table[evt_idx].vec_str[(uint32_t)(by_var_val-1)];
-			} else if (by_var_flags & FLD_TYP_INT) {
+			} else if (by_var_flags & (uint64_t)fte_enum::FLD_TYP_INT) {
 				by_var_str = std::to_string((int)by_var_val);
-			} else if (by_var_flags & FLD_TYP_DBL) {
+			} else if (by_var_flags & (uint64_t)fte_enum::FLD_TYP_DBL) {
 				by_var_str = std::to_string(by_var_val);
 			}
 			uint32_t by_var_idx_val = get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, by_var_val, __LINE__);
@@ -1462,7 +1464,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		return 1;
 	}
 	bool skip_idle = false;
-	if (event_table[evt_idx].flds[var_idx].flags & FLD_TYP_EXCL_PID_0) {
+	if (event_table[evt_idx].flds[var_idx].flags & (uint64_t)fte_enum::FLD_TYP_EXCL_PID_0) {
 		if (options.verbose)
 			fprintf(stdout, "skip idle= true, var_idx= %d at %s %d\n", var_idx, __FILE__, __LINE__);
 		skip_idle = true;
@@ -1477,20 +1479,24 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		chart_type = CHART_TYPE_STACKED;
 	}
 	//uint32_t wait_ts_idx= UINT32_M1, wait_dura_idx= UINT32_M1;
+	std::vector <uint32_t> add_2_extra;
 	for (uint32_t j=0; j < fsz; j++) {
 		uint64_t flg = event_table[evt_idx].flds[j].flags;
 		//fprintf(stderr, "fld[%d] flgs= 0x%x, name= %s at %s %d\n", j, flg, event_table[evt_idx].flds[j].name.c_str(), __FILE__, __LINE__);
-		if (flg & FLD_TYP_EXCL_PID_0 && verbose) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_EXCL_PID_0 && verbose) {
 			fprintf(stderr, "skip idle= true, var_idx= %d j= %d at %s %d\n", var_idx, j, __FILE__, __LINE__);
 		}
-		if (flg & FLD_TYP_SYS_CPU) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_SYS_CPU) {
 			var_cpu_idx = (int)j;
 		}
-		if (flg & FLD_TYP_COMM_PID_TID) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_COMM_PID_TID) {
 			var_comm_idx = (int)j;
 		}
-		if (flg & FLD_TYP_PID) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_PID) {
 			var_pid_idx = (int)j;
+		}
+		if (flg & (uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA) {
+			add_2_extra.push_back(j);
 		}
 	}
 	bool have_filter_regex = false;
@@ -1689,16 +1695,16 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		int cur_state_idx = -1, cur_reason_idx = -1;
 		for (uint32_t i=0; i < event_table[evt_idx].flds.size(); i++) {
 			uint64_t flg = event_table[evt_idx].flds[i].flags;
-			if ((flg & FLD_TYP_CSW_STATE) && !(flg & FLD_TYP_LAG)) {
+			if ((flg & (uint64_t)fte_enum::FLD_TYP_CSW_STATE) && !(flg & (uint64_t)fte_enum::FLD_TYP_LAG)) {
 				cur_state_idx = i;
 			}
-			if ((flg & FLD_TYP_CSW_REASON) && !(flg & FLD_TYP_LAG)) {
+			if ((flg & (uint64_t)fte_enum::FLD_TYP_CSW_REASON) && !(flg & (uint64_t)fte_enum::FLD_TYP_LAG)) {
 				cur_reason_idx = i;
 			}
-			if ((flg & FLD_TYP_CSW_STATE) && (flg & FLD_TYP_LAG)) {
+			if ((flg & (uint64_t)fte_enum::FLD_TYP_CSW_STATE) && (flg & (uint64_t)fte_enum::FLD_TYP_LAG)) {
 				lag_state_idx = i;
 			}
-			if ((flg & FLD_TYP_CSW_REASON) && (flg & FLD_TYP_LAG)) {
+			if ((flg & (uint64_t)fte_enum::FLD_TYP_CSW_REASON) && (flg & (uint64_t)fte_enum::FLD_TYP_LAG)) {
 				lag_reason_idx = i;
 			}
 		}
@@ -1713,6 +1719,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		overlaps_idx_used.resize(beg_idx+1, -1);
 #if 1
 		bool line_ck_overlap;
+		lines_str *ls0p;
 		while (cur_idx >=0) {
 			double fx0, fx1, sx0;
 			i = cur_idx;
@@ -1967,7 +1974,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			double x0, x1, ycumu;
 			x1 = fx1;
 			x0 = fx0;
-			lines_str *ls0p = &last_by_var_lines_str[by_var_idx_val].ls0;
+
+			ls0p = &last_by_var_lines_str[by_var_idx_val].ls0;
 			last_by_var_lines_str[by_var_idx_val].x0 = x0; // last_by_val_lines_str..x1 - x0 is the true duration
 			last_by_var_lines_str[by_var_idx_val].x1 = x1;
 			if (i > 0) {
@@ -2103,7 +2111,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						}
 					}
 				}
-			} else {
+			} else if (prf_obj.file_type == FILE_TYP_ETW) {
 			    //cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
 			    cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
 			    uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
@@ -2228,6 +2236,21 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 
 			last_by_var_lines_str_initd[by_var_idx_val] = true;
 
+			if (prf_obj.file_type == FILE_TYP_ETW) {
+				i = cur_idx;
+				uint32_t prf_evt_idx = event_table[evt_idx].event_idx_in_file;
+				ls0p->text += "<br>line " + std::to_string(prf_obj.etw_evts_set[prf_evt_idx][i].txt_idx);
+				if (add_2_extra.size() > 0) {
+					uint32_t data_idx = prf_obj.etw_evts_set[prf_evt_idx][i].data_idx;
+					for (uint32_t ii=0; ii < add_2_extra.size(); ii++) {
+						uint32_t fld_idx = add_2_extra[ii];
+						uint32_t str_idx = event_table[evt_idx].data.vals[i][fld_idx];
+						ls0p->text += "<br>" + event_table[evt_idx].vec_str[(uint32_t)(str_idx-1)];
+						printf("add_2_extra: %s, ii= %d, fld_idx= %d, by_var_idx_val= %d by_var_sz= %d at %s %d\n",
+								ls0p->text.c_str(), ii, fld_idx, by_var_idx_val, by_var_sz, __FILE__, __LINE__);
+					}
+				}
+			}
 			if (chart_type != CHART_TYPE_STACKED) {
 				ls0p->y[0] = y_val[by_var_idx_val];
 				ls0p->y[1] = y_val[by_var_idx_val];
@@ -2426,7 +2449,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						prf_mk_callstacks(prf_obj, prf_idx, callstacks, __LINE__, prefx);
 						ls1.callstack_str_idxs = callstacks;
 				}
-			} else if (stk_idx != UINT32_M1) {
+			} else if (stk_idx != UINT32_M1 && prf_obj.file_type == FILE_TYP_ETW) {
 				uint32_t prf_evt_idx = event_table[evt_idx].event_idx_in_file;
 				int jj = prv_nxt[i].prv;
 				if(jj > -1 && prf_obj.etw_evts_set[prf_evt_idx][jj].cs_idx_beg != UINT32_M1) {
@@ -2436,6 +2459,25 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					ls1.callstack_str_idxs = callstacks;
 				}
 				ls1.text = "line " + std::to_string(prf_obj.etw_evts_set[prf_evt_idx][i].txt_idx);
+				if (add_2_extra.size() > 0) {
+					uint32_t data_idx = prf_obj.etw_evts_set[prf_evt_idx][i].data_idx;
+					for (uint32_t ii=0; ii < add_2_extra.size(); ii++) {
+						uint32_t fld_idx = add_2_extra[ii];
+						uint32_t str_idx = event_table[prf_evt_idx].data.vals[i][fld_idx];
+						ls1.text += "<br>" + event_table[prf_evt_idx].vec_str[(uint32_t)(str_idx-1)];
+					}
+				}
+			} else if (stk_idx == UINT32_M1 && prf_obj.file_type == FILE_TYP_ETW) {
+				uint32_t prf_evt_idx = event_table[evt_idx].event_idx_in_file;
+				ls1.text = "line " + std::to_string(prf_obj.etw_evts_set[prf_evt_idx][i].txt_idx);
+				if (add_2_extra.size() > 0) {
+					uint32_t data_idx = prf_obj.etw_evts_set[prf_evt_idx][i].data_idx;
+					for (uint32_t ii=0; ii < add_2_extra.size(); ii++) {
+						uint32_t fld_idx = add_2_extra[ii];
+						uint32_t str_idx = event_table[prf_evt_idx].data.vals[i][fld_idx];
+						ls1.text += "<br>" + event_table[prf_evt_idx].vec_str[(uint32_t)(str_idx-1)];
+					}
+				}
 			}
 			ls1.x[1] = ls1.x[0];
 			ls1.y[1] = ls1.y[0]+delta;
@@ -2486,6 +2528,14 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.period  = 1.0;
 			uint32_t prf_evt_idx = event_table[evt_idx].event_idx_in_file;
 			ls0.text = "line " + std::to_string(prf_obj.etw_evts_set[prf_evt_idx][i].txt_idx);
+			if (add_2_extra.size() > 0) {
+				uint32_t data_idx = prf_obj.etw_evts_set[prf_evt_idx][i].data_idx;
+				for (uint32_t ii=0; ii < add_2_extra.size(); ii++) {
+					uint32_t fld_idx = add_2_extra[ii];
+					uint32_t str_idx = event_table[prf_evt_idx].data.vals[i][fld_idx];
+					ls0.text += "<br>" + event_table[prf_evt_idx].vec_str[(uint32_t)(str_idx-1)];
+				}
+			}
 			ls0.cpt_idx = cpt_idx;
 		}
 		ls0.prf_idx = prf_idx;
@@ -2783,6 +2833,15 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 	json += ", \"pixels_high\": "+ std::to_string(event_table[evt_idx].charts[chrt].pixels_high);
 	json += ", \"file_tag\": \"" + file_tag + "\"";
+	if (event_table[evt_idx].charts[chrt].marker_type.size() > 0) {
+		json += ", \"marker_type\": \"" + event_table[evt_idx].charts[chrt].marker_type + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].marker_size.size() > 0) {
+		json += ", \"marker_size\": \"" + event_table[evt_idx].charts[chrt].marker_size + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].marker_connect.size() > 0) {
+		json += ", \"marker_connect\": \"" + event_table[evt_idx].charts[chrt].marker_connect + "\"";
+	}
 	json += ", \"chart_tag\": \"" + event_table[evt_idx].charts[chrt].chart_tag + "\"";
 	if (event_table[evt_idx].charts[chrt].y_label.size() == 0) {
 		json += ", \"y_label\": \"" + event_table[evt_idx].flds[var_idx].name + "\"";
@@ -2828,7 +2887,12 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		if (i > 0) {
 			var_strs += ", ";
 		}
-		std::string use_str = event_table[evt_idx].charts[chrt].by_var_strs[i];
+		std::string use_str;
+		if (event_table[evt_idx].charts[chrt].by_var_strs.size() == 0) {
+			use_str = event_table[evt_idx].charts[chrt].var_name;
+		} else {
+			use_str = event_table[evt_idx].charts[chrt].by_var_strs[i];
+		}
 		replace_substr(use_str, "\"", "", verbose);
 		var_strs += "\"" + use_str + "\":\"x_" + std::to_string(i) + "\"";
 	}
@@ -2866,6 +2930,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[1])) +
 				"]";
 		if (ch_lines.line[i].text.size() > 0) {
+			//printf("ch_lines.line[%d].text= %s at %s %d\n", i, ch_lines.line[i].text.c_str(), __FILE__, __LINE__);
 			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
 			json += ",\"txtidx\":" + std::to_string(txt_idx);
 		}
@@ -3020,13 +3085,13 @@ static std::string get_str_between_dlms(std::string str_in, std::string lhs, std
 
 static void add_basic_typ(uint32_t flg, std::string str, evt_str &event_table, std::vector <double> &dv)
 {
-	if (flg & FLD_TYP_STR) {
+	if (flg & (uint64_t)fte_enum::FLD_TYP_STR) {
 		uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 		dv.push_back(idx);
-	} else if (flg & FLD_TYP_DBL) {
+	} else if (flg & (uint64_t)fte_enum::FLD_TYP_DBL) {
 		double x = atof(str.c_str());
 		dv.push_back(x);
-	} else if (flg & FLD_TYP_INT) {
+	} else if (flg & (uint64_t)fte_enum::FLD_TYP_INT) {
 		double x = atoi(str.c_str());
 		dv.push_back(x);
 	}
@@ -3127,19 +3192,19 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				exit(1);
 			}
 		}
-		if (flg & FLD_TYP_DURATION_BEF) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF) {
 			dura_idx = (int)j;
 		}
-		if (flg & FLD_TYP_BY_VAR0) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_BY_VAR0) {
 			if (how_many_by_var_flags & 1) {
-				printf("got more than 1 FLD_TYP_BY_VAR0 flags. Bye at %s %d\n", __FILE__, __LINE__);
+				printf("got more than 1 (uint64_t)fte_enum::FLD_TYP_BY_VAR0 flags. Bye at %s %d\n", __FILE__, __LINE__);
 				exit(1);
 			}
 			how_many_by_var_flags |= 1;
 		}
-		if (flg & FLD_TYP_BY_VAR1) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_BY_VAR1) {
 			if (how_many_by_var_flags & 2) {
-				printf("got more than 1 FLD_TYP_BY_VAR1 flags. Bye at %s %d\n", __FILE__, __LINE__);
+				printf("got more than 1 (uint64_t)fte_enum::FLD_TYP_BY_VAR1 flags. Bye at %s %d\n", __FILE__, __LINE__);
 				exit(1);
 			}
 			how_many_by_var_flags |= 2;
@@ -3175,15 +3240,15 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		samples_sz = prf_obj.etw_evts_set[prf_idx].size();
 		for (uint32_t j=0; j < fsz; j++) {
 			uint64_t flg = event_table.flds[j].flags;
-			if ((flg & FLD_TYP_SYS_CPU) && event_table.flds[j].lkup.size() > 0) {
+			if ((flg & (uint64_t)fte_enum::FLD_TYP_SYS_CPU) && event_table.flds[j].lkup.size() > 0) {
 				cpu_idx = j;
-			} else if ((flg & FLD_TYP_TID) && event_table.flds[j].lkup.size() > 0) {
+			} else if ((flg & (uint64_t)fte_enum::FLD_TYP_TID) && event_table.flds[j].lkup.size() > 0) {
 				tid_idx = j;
-			} else if ((flg & FLD_TYP_TID2) && event_table.flds[j].lkup.size() > 0) {
+			} else if ((flg & (uint64_t)fte_enum::FLD_TYP_TID2) && event_table.flds[j].lkup.size() > 0) {
 				tid_idx2 = j;
-			} else if ((flg & FLD_TYP_ETW_COMM_PID) && event_table.flds[j].lkup.size() > 0) {
+			} else if ((flg & (uint64_t)fte_enum::FLD_TYP_ETW_COMM_PID) && event_table.flds[j].lkup.size() > 0) {
 				comm_pid_idx = j;
-			} else if ((flg & FLD_TYP_ETW_COMM_PID2) && event_table.flds[j].lkup.size() > 0) {
+			} else if ((flg & (uint64_t)fte_enum::FLD_TYP_ETW_COMM_PID2) && event_table.flds[j].lkup.size() > 0) {
 				comm_pid_idx2 = j;
 			}
 		}
@@ -3194,8 +3259,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		//printf("fsz= %d, prf_idx= %d cols.sz= %d at %s %d\n",
 		//		fsz, prf_idx, (int)prf_obj.events[prf_idx].etw_cols.size(), __FILE__, __LINE__);
 		for (uint32_t j=0; j < fsz; j++) {
-			uint32_t k;
-			for (k=0; k < prf_obj.events[prf_idx].etw_cols.size(); k++) {
+			uint32_t k=UINT32_M1;
+			for (k=1; k < prf_obj.events[prf_idx].etw_cols.size(); k++) {
 				//printf("ck   etw_col_map[%d](%s) == %d (%s) at %s %d\n", j,
 				 //       event_table.flds[j].lkup.c_str(), k, prf_obj.events[prf_idx].etw_cols[k].c_str(),
 				  //      __FILE__, __LINE__);
@@ -3204,6 +3269,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					etw_col_map[j] = k;
 					break;
 				}
+			}
+			if (k >= prf_obj.events[prf_idx].etw_cols.size() &&
+				event_table.flds[j].lkup == prf_obj.events[prf_idx].etw_cols[0]) {
+					etw_col_map[j] = 0;
 			}
 #if 0
 			if (event_table.flds[j].lkup.size() > 0 && k >= prf_obj.events[evt_idx].etw_cols.size()) {
@@ -3441,9 +3510,9 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		for (uint32_t j=0; j < fsz; j++) {
 			did_actions_already[j] = false;
 			uint64_t flg = event_table.flds[j].flags;
-			if (flg & FLD_TYP_TM_CHG_BY_CPU) {
+			if (flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) {
 				double ts_delta = ts - ts_cpu[cpu];
-				if (flg & FLD_TYP_DURATION_BEF) {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF) {
 					dura = ts_delta;
 					if ((ts - dura) < 0.0) {
 						printf("neg beg: ts= %.9f, dura= %.9f, ts_delta= %.9f, ts_cpu[%d]= %.9f at %s %d\n",
@@ -3485,17 +3554,17 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					uint32_t file_tag_idx = prf_obj.file_tag_idx;
 					uint32_t tcpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 										cmm, prf_obj.comm[pid_i].pid, prf_obj.comm[pid_i].tid) - 1;
-					if (flg & FLD_TYP_BY_VAR0) {
+					if (flg & (uint64_t)fte_enum::FLD_TYP_BY_VAR0) {
 						cpt_idx = tcpt_idx;
 					}
-					if (flg & FLD_TYP_BY_VAR1) {
+					if (flg & (uint64_t)fte_enum::FLD_TYP_BY_VAR1) {
 						cpt_idx2 = tcpt_idx;
 					}
 					dv.push_back(idx);
 					continue;
 				}
 			}
-			if (flg & FLD_TYP_NEW_VAL) {
+			if (flg & (uint64_t)fte_enum::FLD_TYP_NEW_VAL) {
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
 				std::string nd_lkup = event_table.flds[j].lkup;
 				int got_it = -1;
@@ -3515,16 +3584,16 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					printf("bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
 				}
-				if ((flg & FLD_TYP_DBL) ||(flg & FLD_TYP_INT)) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_DBL) ||(flg & (uint64_t)fte_enum::FLD_TYP_INT)) {
 					double val = atof(prf_obj.samples[i].new_vals[got_it].c_str());
-					if (flg & FLD_TYP_DURATION_BEF) {
+					if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF) {
 						//printf("NEW_VAL duration val= %f, ts= %f at %s %d\n", val, ts, __FILE__, __LINE__);
 						dura_idx = j;
 						dura = val;
 					}
 					dv.push_back(val);
 				}
-				if (flg & FLD_TYP_STR) {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_STR) {
 					std::string str = prf_obj.samples[i].new_vals[got_it];
 					//printf("NEW_VAL str= %s at %s %d\n", str.c_str(), __FILE__, __LINE__);
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
@@ -3533,7 +3602,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				continue;
 			}
-			if (flg & FLD_TYP_DIV_BY_INTERVAL) {
+			if (flg & (uint64_t)fte_enum::FLD_TYP_DIV_BY_INTERVAL) {
 				div_by_interval_idx.push_back(j);
 			}
 			if (fld_w_other_by_var_idx == j) {
@@ -3550,10 +3619,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				uint32_t k = etw_col_map[j];
 				uint32_t data_idx = prf_obj.etw_evts_set[prf_idx][i].data_idx;
 
-				if ((flg & FLD_TYP_TM_CHG_BY_CPU) && (flg & FLD_TYP_DURATION_BEF)) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) && (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
 					continue; // already pushed it
 				}
-				if (flg & FLD_TYP_TIMESTAMP || event_table.flds[j].lkup == "_TIMESTAMP_" ||
+				if (flg & (uint64_t)fte_enum::FLD_TYP_TIMESTAMP || event_table.flds[j].lkup == "_TIMESTAMP_" ||
 				    event_table.flds[j].lkup == "TimeStamp") {
 					dv.push_back(ts);
 					continue;
@@ -3563,7 +3632,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				uint64_t hex_u64_val=0;
 				if (k != UINT32_M1) {
 					str = prf_obj.etw_data[data_idx][k];
-					if (flg & FLD_TYP_HEX_IN) {
+					if (flg & (uint64_t)fte_enum::FLD_TYP_HEX_IN) {
 						hex_u64_val = strtoll(str.c_str(), NULL, 16);
 #if 0
 						printf("hex str= '%s', val= %" PRId64 ", hx= %" PRIx64 " at %s %d\n",
@@ -3573,26 +3642,26 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					}
 				}
 #if 0
-				if (flg & FLD_TYP_DURATION_BEF || event_table.flds[j].lkup == "_DURATION_") {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF || event_table.flds[j].lkup == "_DURATION_") {
 					//dura = prf_obj.lua_data.data_rows[i][k].dval;
 					dv.push_back(dura);
 					continue;
 				}
 #endif
-				if ((flg & FLD_TYP_STR) && k != UINT32_M1) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_STR) && k != UINT32_M1) {
 					replace_substr(str, "\"", "", verbose);
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 					dv.push_back(idx);
 					continue;
 				}
-				if ((flg & FLD_TYP_DBL) && k != UINT32_M1) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_DBL) && k != UINT32_M1) {
 					double x;
 					if (use_u64) {
 						x = hex_u64_val;
 					} else {
 				   		x = atof(str.c_str());
 					}
-					if (!(flg & FLD_TYP_TM_CHG_BY_CPU) && (flg & FLD_TYP_DURATION_BEF)) {
+					if (!(flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) && (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
 						if (event_table.flds[j].actions.size() > 0) {
 							did_actions_already[j] = true;
 							run_actions(x, event_table.flds[j].actions, use_value);
@@ -3607,7 +3676,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					dv.push_back(x);
 					continue;
 				}
-				if ((flg & FLD_TYP_DBL) && k == UINT32_M1 && !(flg & FLD_TYP_TM_CHG_BY_CPU) && (flg & FLD_TYP_DURATION_BEF)) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_DBL) && k == UINT32_M1 && !(flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) && (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
 					double x = 0.0;
 					if (event_table.flds[j].actions.size() > 0) {
 						did_actions_already[j] = true;
@@ -3620,7 +3689,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					dv.push_back(x);
 					continue;
 				}
-				if ((flg & FLD_TYP_INT) && k != UINT32_M1) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_INT) && k != UINT32_M1) {
 					double x;
 					if (use_u64) {
 						x = hex_u64_val;
@@ -3628,12 +3697,12 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				   		x = (double)strtoll(str.c_str(), NULL, 0);
 					}
 					dv.push_back(x);
-					if (!(flg & FLD_TYP_TM_CHG_BY_CPU) && (flg & FLD_TYP_DURATION_BEF)) {
+					if (!(flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) && (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
 						dura = x;
 					}
 					continue;
 				}
-				if ((flg & FLD_TYP_SYS_CPU)) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_SYS_CPU)) {
 					if (cpu_idx == UINT32_M1) {
 						printf("event looking for cpu field but it isn't defined for event %s. bye at %s %d\n",
 								prf_obj.events[prf_idx].event_name.c_str(), __FILE__, __LINE__);
@@ -3645,38 +3714,38 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					}
 					dv.push_back(x);
 					continue;
-				} else if (flg & FLD_TYP_PERIOD) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_PERIOD) {
 						printf("event looking for TYP_PERIOD field but it isn't defined for event %s. bye at %s %d\n",
 								prf_obj.events[prf_idx].event_name.c_str(), __FILE__, __LINE__);
 						exit(1);
 					continue;
-				} else if (flg & FLD_TYP_PID) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_PID) {
 					dv.push_back(pid);
 					continue;
-				} else if (flg & FLD_TYP_TID) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_TID) {
 					dv.push_back(tid);
 					continue;
-				} else if (flg & FLD_TYP_TID2) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_TID2) {
 					dv.push_back(tid2);
 					continue;
-				} else if (flg & FLD_TYP_TIMESTAMP) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_TIMESTAMP) {
 					dv.push_back(ts);
 					continue;
-				} else if (flg & FLD_TYP_COMM) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_COMM) {
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, comm);
 					dv.push_back(idx);
 					continue;
-				} else if (flg & FLD_TYP_COMM_PID) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_COMM_PID) {
 					str = comm + " " + std::to_string(pid);
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 					dv.push_back(idx);
 					continue;
-				} else if (flg & FLD_TYP_COMM_PID_TID) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_COMM_PID_TID) {
 					str = comm + " " + std::to_string(pid) + "/" + std::to_string(tid);
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 					dv.push_back(idx);
 					continue;
-				} else if (flg & FLD_TYP_COMM_PID_TID2) {
+				} else if (flg & (uint64_t)fte_enum::FLD_TYP_COMM_PID_TID2) {
 					str = comm2 + " " + std::to_string(pid2) + "/" + std::to_string(tid2);
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 					dv.push_back(idx);
@@ -3684,7 +3753,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				continue;
 			}
-			if (flg & FLD_TYP_TRC_FLD_PFX) {
+			if (flg & (uint64_t)fte_enum::FLD_TYP_TRC_FLD_PFX) {
 				static int pfx_errs = 0;
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
 				if (prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx < 0) {
@@ -3740,7 +3809,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				printf("got fld_pfx str= '%s' at %s %d\n", extracted.c_str(), __FILE__, __LINE__);
 				continue;
 			}
-			if (flg & FLD_TYP_TRC_BIN) {
+			if (flg & (uint64_t)fte_enum::FLD_TYP_TRC_BIN) {
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
 				if (prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx < 0) {
 					printf("lst_ft_fmt_idx should be >= 0. Bye at %s %d\n", __FILE__, __LINE__);
@@ -3812,7 +3881,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					}
 				} else {
 					if (file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ == "char") {
-						if (!(flg & FLD_TYP_STR)) {
+						if (!(flg & (uint64_t)fte_enum::FLD_TYP_STR)) {
 							printf("prf bin fld typ is char but evt_fld def isn't TYP_STR for name= %s, typ= %s at %s %d\n",
 							file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].name.c_str(),
 							file_list.lst_ft_fmt_vec[lst_ft_fmt_idx].fields[ft_idx].typ.c_str(),
@@ -3846,66 +3915,66 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				//uint32_t lua_col = -1, lua_evt;
 				uint32_t k = lua_col_map[j];
 
-				if (flg & FLD_TYP_TIMESTAMP || event_table.flds[j].lkup == "_TIMESTAMP_") {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_TIMESTAMP || event_table.flds[j].lkup == "_TIMESTAMP_") {
 					ts = prf_obj.lua_data.data_rows[i][k].dval; // this is the sec.ns ts already
 					dv.push_back(ts);
 					continue;
 				}
-				if (flg & FLD_TYP_DURATION_BEF || event_table.flds[j].lkup == "_DURATION_") {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF || event_table.flds[j].lkup == "_DURATION_") {
 					dura = prf_obj.lua_data.data_rows[i][k].dval;
 					dv.push_back(dura);
 					continue;
 				}
-				if (flg & FLD_TYP_STR) {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_STR) {
 					str = prf_obj.lua_data.data_rows[i][k].str;
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 					dv.push_back(idx);
 					continue;
 				}
-				if (flg & FLD_TYP_DBL) {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_DBL) {
 					double x = prf_obj.lua_data.data_rows[i][k].dval;
 					dv.push_back(x);
 					continue;
 				}
-				if (flg & FLD_TYP_INT) {
+				if (flg & (uint64_t)fte_enum::FLD_TYP_INT) {
 					double x = prf_obj.lua_data.data_rows[i][k].ival;
 					dv.push_back(x);
 					continue;
 				}
 				continue;
 			}
-			if (flg & FLD_TYP_SYS_CPU) {
+			if (flg & (uint64_t)fte_enum::FLD_TYP_SYS_CPU) {
 				dv.push_back(prf_obj.samples[i].cpu);
 				continue;
-			} else if (flg & FLD_TYP_PERIOD) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_PERIOD) {
 				dv.push_back(prf_obj.samples[i].period);
 				continue;
-			} else if (flg & FLD_TYP_PID) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_PID) {
 				dv.push_back(prf_obj.samples[i].pid);
 				continue;
-			} else if (flg & FLD_TYP_TID) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_TID) {
 				dv.push_back(prf_obj.samples[i].tid);
 				continue;
-			} else if (flg & FLD_TYP_TIMESTAMP) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_TIMESTAMP) {
 				double ts2 = 1.0e-9 * (double)prf_obj.samples[i].ts;
 				dv.push_back(ts2);
 				continue;
-			} else if (flg & FLD_TYP_COMM) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_COMM) {
 				str = prf_obj.samples[i].comm;
 				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 				dv.push_back(idx);
 				continue;
-			} else if (flg & FLD_TYP_COMM_PID) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_COMM_PID) {
 				str = prf_obj.samples[i].comm + " " + std::to_string(prf_obj.samples[i].pid);
 				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 				dv.push_back(idx);
 				continue;
-			} else if (flg & FLD_TYP_COMM_PID_TID) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_COMM_PID_TID) {
 				str = prf_obj.samples[i].comm + " " + std::to_string(prf_obj.samples[i].pid) + "/" + std::to_string(prf_obj.samples[i].tid);
 				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 				dv.push_back(idx);
 				continue;
-			} else if (flg & FLD_TYP_STR) {
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_STR) {
 				str = "unknwn2"; // just a dummy string. value will probably be filled in later.
 				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 				dv.push_back(idx);
@@ -3947,7 +4016,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			run_actions(dv[j], event_table.flds[j].actions, use_value);
 			uint64_t flg = event_table.flds[j].flags;
-			if (flg & FLD_TYP_STATE_AFTER) {
+			if (flg & (uint64_t)fte_enum::FLD_TYP_STATE_AFTER) {
 				if (state_prev_cpu_initd[cpu] == 0) {
 					use_value = false;
 				}
