@@ -23,6 +23,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <thread>
+#include <functional>
 #ifdef __linux__
 #include <unistd.h>
 #endif
@@ -2251,6 +2252,14 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					}
 				}
 			}
+			if (prf_obj.file_type != FILE_TYP_ETW) {
+//abcd
+				if (add_2_extra.size() > 0) {
+					int prf_idx = event_table[evt_idx].data.prf_sample_idx[i];
+					ls0p->text += ", line " + std::to_string(prf_obj.samples[prf_idx].line_num);
+					ls0p->text += "<br>" + prf_obj.samples[prf_idx].extra_str;
+				}
+			}
 			if (chart_type != CHART_TYPE_STACKED) {
 				ls0p->y[0] = y_val[by_var_idx_val];
 				ls0p->y[1] = y_val[by_var_idx_val];
@@ -3753,6 +3762,21 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				continue;
 			}
+			if (prf_obj.file_type != FILE_TYP_ETW &&
+				(flg & (uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA) && 
+				(flg & (uint64_t)fte_enum::FLD_TYP_STR)) {
+				if (prf_obj.samples[i].extra_str.size() == 0) {
+					int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
+					printf("extra_str.size()== 0 for FLD_TYP_ADD_2_EXTRA for event= %s evt_fld.name= %s tm_str= %s i= %d in filename= %s at %s %d\n",
+						prf_obj.events[prf_evt_idx2].event_name.c_str(), event_table.flds[j].name.c_str(),
+						prf_obj.samples[i].tm_str.c_str(), i, flnm.c_str(), __FILE__, __LINE__);
+					exit(1);
+				}
+				printf("add marker extra_str= %s at %s %d\n", prf_obj.samples[i].extra_str.c_str(), __FILE__, __LINE__);
+				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, prf_obj.samples[i].extra_str);
+				dv.push_back(idx);
+				continue;
+			}
 			if (flg & (uint64_t)fte_enum::FLD_TYP_TRC_FLD_PFX) {
 				static int pfx_errs = 0;
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
@@ -3979,6 +4003,27 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
 				dv.push_back(idx);
 				continue;
+			}
+			if ((flg & (uint64_t)fte_enum::FLD_TYP_DBL)) {
+				if ((flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) && (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
+					continue; // already pushed it
+				}
+				double x=0.0;
+				if (!(flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) &&
+					(flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
+					if (event_table.flds[j].actions.size() > 0) {
+						did_actions_already[j] = true;
+						run_actions(x, event_table.flds[j].actions, use_value);
+					}
+					if (dura_idx > -1) {
+						dura = x;
+						if (dura_idx < dv.size()) {
+							dv[dura_idx] = x;
+						}
+					}
+					dv.push_back(x);
+					continue;
+				}
 			}
 		}
 		if (try_skipping_record) {
