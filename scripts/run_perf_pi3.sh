@@ -166,6 +166,7 @@ $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
 rm $WAIT_FILE
 rm $ODIR/prf_*.data.old
 
+chmod a+rwx $SCR_DIR/dump_all_perf_events.sh
 bash $SCR_DIR/dump_all_perf_events.sh $ODIR
 
 echo "{\"file_list\":[" > $ODIR/file_list.json
