@@ -1,0 +1,7 @@
+start "" "win_mem_bw4.html"
+start "" "arm_mem_bw4_pi4.html"
+start "" "arm_mem_bw4_pi4_full.html"
+start "" "lnx_mem_bw4.html"
+start "" "arm_mem_bw4_pi2.html"
+start "" "arm_mem_bw_pi2.html"
+start "" "lnx_mem_bw4_full.html"
