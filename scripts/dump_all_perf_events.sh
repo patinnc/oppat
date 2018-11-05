@@ -9,8 +9,9 @@ else
   SAV_DIR=$1
 fi
 
-chmod +x $SCR_DIR/dump_fmt.sh
+chmod a+rwx $SCR_DIR/dump_fmt.sh
 rm $SAV_DIR/perf_event_list_dump.txt
 
 sudo /usr/bin/find /sys/kernel/debug/tracing/events/ -name format -exec $SCR_DIR/dump_fmt.sh {} \; >> $SAV_DIR/perf_event_list_dump.txt
+
 
