@@ -41,7 +41,7 @@ xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -st
 if %errorlevel% == -2147023892 goto :got_err
 
 
-%BIN_DIR%\spin.exe 4 > %ODIR%\spin.txt
+%BIN_DIR%\spin.exe 4 mem_bw > %ODIR%\spin.txt
 @rem xperf -stop usersession -stop -d %ODIR%\etw_trace.etl
 xperf -stop -d %ODIR%\etw_trace.etl
 %BIN_DIR%\win_send_signal.exe %pid%
