@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
+#include <fstream>
 
 #include "trace_marker.h"
 
@@ -129,6 +130,7 @@ int trace_marker_write(std::string str)
 	}
 	if (open_state == OPEN_WORKED) {
 		ofile2.write((const char *)str.c_str(), str.size());
+		ofile2.flush();
 	}
 	//ofile2.close();
 }
