@@ -108,15 +108,20 @@ static uint32_t find_id_in_perf_event_list_from_evt_idx(
 						prf_obj_str &prf_obj, file_list_str &file_list, uint32_t evt_idx, int line)
 {
 	uint32_t idx = UINT32_M1;
+	std::string area;
 	if (prf_obj.events[evt_idx].pea.type == PERF_TYPE_TRACEPOINT) {
 		if (prf_obj.events[evt_idx].lst_ft_fmt_idx == -2) {
 			prf_obj.events[evt_idx].lst_ft_fmt_idx = -1;
 			for (uint32_t i=0; i < file_list.lst_ft_fmt_vec.size(); i++) {
-				if (file_list.lst_ft_fmt_vec[i].event == prf_obj.events[evt_idx].event_name &&
-					file_list.lst_ft_fmt_vec[i].area == prf_obj.events[evt_idx].event_area) {
+				if ((file_list.lst_ft_fmt_vec[i].event == prf_obj.events[evt_idx].event_name &&
+					file_list.lst_ft_fmt_vec[i].area == prf_obj.events[evt_idx].event_area) ||
+					(file_list.lst_ft_fmt_vec[i].event == prf_obj.events[evt_idx].event_name &&
+					file_list.lst_ft_fmt_vec[i].area == "ftrace" &&
+					prf_obj.events[evt_idx].event_area == "")) {
 					printf("got lst_ft_fmt: match on trace-cmd event= %s at %s %d\n",
 						prf_obj.events[evt_idx].event_name.c_str(), __FILE__, __LINE__);
 					prf_obj.events[evt_idx].lst_ft_fmt_idx = (int)i;
+					area = file_list.lst_ft_fmt_vec[i].area;
 					idx = i;
 					break;
 				}
@@ -130,7 +135,13 @@ static uint32_t find_id_in_perf_event_list_from_evt_idx(
 			prf_obj.events[evt_idx].event_name.c_str(),
 			prf_obj.events[evt_idx].event_area.c_str(),
 			line, __FILE__, __LINE__);
+		printf("prf_obj.events[%d].pea.type= 0x%x == PERF_TYPE_TRACEPOINT= 0x%x at %s %d\n",
+			evt_idx, (uint32_t)prf_obj.events[evt_idx].pea.type, PERF_TYPE_TRACEPOINT,
+			 __FILE__, __LINE__);
 		exit(1);
+	}
+	if (area.size() > 0 && prf_obj.events[evt_idx].event_area.size() == 0) {
+		prf_obj.events[evt_idx].event_area = area;
 	}
 	return idx;
 }
