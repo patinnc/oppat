@@ -2,7 +2,8 @@
 
 TRC_CMD=~/bin/trace-cmd
 PRF_CMD=~/perf.sh
-BASE=mem_bw4
+PRF_CMD=perf
+BASE=mem_bw5
 PFX=lnx
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_DIR=`dirname "$(readlink -f "$0")"`
@@ -80,19 +81,28 @@ echo started $TRC_CMD
 #  sudo ../perf.sh stat -a -e power/energy-pkg/,power/energy-cores/,power/energy-gpu/,power/energy-ram/  -I 1000 -x '\t'  sleep 1000
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
+
 $PRF_CMD stat -a -e power/energy-pkg/,power/energy-cores/,power/energy-gpu/,power/energy-ram/,uncore_cbox_0/clockticks/,uncore_cbox_1/clockticks/,uncore_imc/data_reads/,uncore_imc/data_writes/ -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
+#$BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 while [ ! -f $WAIT_FILE ]
 do
   echo waiting for $WAIT_FILE to exist
   sleep 0.1
 done
 
+#$PRF_CMD record -a -k CLOCK_MONOTONIC -e ftrace:bprint -e ftrace:print  -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k CLOCK_MONOTONIC -e ftrace:bprint -e ftrace:print  -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
+$PRF_CMD record -a -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
+PRF_CMD_PID2=$!
 #
 #$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x
-$PRF_CMD record -a -k CLOCK_MONOTONIC  -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
+#$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
+$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
 
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
+kill -2 $PRF_CMD_PID2
+wait $PRF_CMD_PID2
 
 ck_cmd_pid_threads_oper $TRC_CMD $PID_TRC_CMD 2 -gt 1
 
@@ -103,9 +113,12 @@ hwFopts="     -F hw:comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,brstack
 trcFopts=" -F trace:comm,tid,pid,time,cpu,period,event,sym,dso,symoff,trace,brstack,brstacksym,flags,bpf-output,callindent"
 trcFopts=" -F trace:comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,brstack,brstacksym,flags,bpf-output,callindent"
 #trcFopts=
+Fopts=" -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,flags,callindent"
 
-$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data > $ODIR/prf_trace.txt
 #../perf.sh script -I --ns --header -f $hwFopts $trcFopts -D -i prf_trace.data > prf_d.txt
+#$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data > $ODIR/prf_trace.txt
+$PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
+$PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
 $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
 #chmod a+rw $ODIR/tc*
 #chmod a+rw $ODIR/*.json
@@ -113,14 +126,17 @@ $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
 rm $WAIT_FILE
 rm $ODIR/prf_*.data.old
 
+chmod a+rwx $SCR_DIR/dump_all_perf_events.sh
 $SCR_DIR/dump_all_perf_events.sh $ODIR
 
 echo "{\"file_list\":[" > $ODIR/file_list.json
 echo "   {\"cur_dir\":\"%root_dir%/oppat_data/$PFX/$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"cur_tag\":\"${PFX}_$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_trace.data\", \"txt_file\":\"prf_trace.txt\", \"tag\":\"%cur_tag%\", \"type\":\"PERF\"}," >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"prf_trace2.data\", \"txt_file\":\"prf_trace2.txt\", \"tag\":\"%cur_tag%\", \"type\":\"PERF\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}" >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"} " >> $ODIR/file_list.json
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
