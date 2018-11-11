@@ -3,7 +3,7 @@
 TRC_CMD=/home/pi/ppat/oppat/bin/trace-cmd
 PRF_CMD=/usr/bin/perf_4.9
 PRF_CMD=/home/pi/bin/perf
-BASE=mem_bw5_pi_multi
+BASE=mem_bw5_pi_multi2
 PFX=arm
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_DIR=`dirname "$(readlink -f "$0")"`
@@ -121,7 +121,7 @@ done
 #0xCC	BR_COND_MISPRED	Conditional branch mispredicted.
 
 
-$PRF_CMD record -a -k monotonic -F 997 -e "{cpu-clock,cycles,instructions,r16,r17,rc0,rc2,re7}:S" -e "{cpu-clock,cycles,instructions,r0e,r10,r12,rc9,rcc}:S"  -o $ODIR/prf_trace2.data  &
+$PRF_CMD record --running-time -a -k monotonic -F 997 -e "{cpu-clock,cycles,instructions,r16,r17,rc0,rc2,re7}:S" -e "{cpu-clock,cycles,instructions,r0e,r10,r12,rc9,rcc}:S"  -o $ODIR/prf_trace2.data  &
 PRF_CMD_PID2=$!
 
 #$PRF_CMD record -a -k monotonic -e power:powernv_throttle/call-graph=no/ -e power:cpu_frequency/call-graph=no/ -e clk:clk_set_rate_complete/call-graph=no/  -e "{r19/call-graph=no,freq=10000/,re7,rc0}:S"  -e thermal:thermal_temperature/call-graph=no/ -e power:cpu_idle/call-graph=no/ -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
