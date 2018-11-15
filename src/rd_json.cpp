@@ -16,6 +16,7 @@
 #include <cstddef>
 #include <string>
 #include <regex>
+#include <inttypes.h>
 
 #include "utils2.h"
 #include "utils.h"
@@ -30,6 +31,7 @@
 	
 
 static std::vector <fld_typ_str> fld_typ_strs;
+static std::vector <fld_typ_str> copt_strs;
 
 uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str)
 {
@@ -75,31 +77,29 @@ static void prt_line(int sz)
 	printf("\n");
 }
 
-static uint32_t ck_lkup_typ(const char *str, int verbose)
+static uint64_t ck_lkup_typ(std::vector <fld_typ_str> &typ_strs, const char *str, int verbose)
 {
-	uint32_t sz = fld_typ_strs.size();
-	uint32_t flag = 0;
+	uint32_t sz = typ_strs.size();
+	uint64_t flag = 0;
 	for (uint32_t i=0; i < sz; i++) {
-		if (strcmp(str, fld_typ_strs[i].str.c_str()) == 0) {
-			//flag = (1 << i); // assumes that fld_typ_strs and fld_typ_enums are in the same order
-			flag = fld_typ_strs[i].flag; // doesn't assume that fld_typ_strs and fld_typ_enums are in the same order
-			//uint32_t tflg = fld_typ_enums[i];
+		if (strcmp(str, typ_strs[i].str.c_str()) == 0) {
+			flag = typ_strs[i].flag; // doesn't assume that fld_typ_strs and fld_typ_enums are in the same order
 			if (verbose)
-				printf("fld[%d]: 0x%x str= %s\n", i, flag, str);
+				printf("fld[%d]: 0x%" PRIx64 " str= %s\n", i, flag, str);
 			break;
 		}
 	}
 	if (!flag) {
 		printf("error: got lkup_typ= '%s', not found in valid list. Valid list is:\n", str);
 		for (uint32_t j=0; j < sz; j++) {
-			printf("'%s'\n", fld_typ_strs[j].str.c_str());
+			printf("'%s'\n", typ_strs[j].str.c_str());
 		}
 		exit(1);
 	}
 	return flag;
 }
 
-static std::vector<std::string> get_lkup_typ(std::string s, uint64_t &lkup_typ_flags, int verbose)
+static std::vector<std::string> get_lkup_typ(std::vector <fld_typ_str> &typ_strs, std::string s, uint64_t &lkup_typ_flags, int verbose)
 {
 	std::vector<std::string> array;
 	std::size_t pos = 0, found;
@@ -112,7 +112,7 @@ static std::vector<std::string> get_lkup_typ(std::string s, uint64_t &lkup_typ_f
 	for (uint32_t i=0; i < array.size(); i++) {
 		if (verbose)
 			printf("typ[%d]= %s\n", i, array[i].c_str());
-		flags |= ck_lkup_typ(array[i].c_str(), verbose);
+		flags |= ck_lkup_typ(typ_strs, array[i].c_str(), verbose);
 	}
 	lkup_typ_flags = flags;
 	return array;
@@ -424,7 +424,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					k, name.c_str(), lkup.c_str(), lkup_typ.c_str(), (int)fs.actions.size(), (int)fs.actions_stage2.size());
 				}
 				uint64_t lkup_flags = 0;
-				get_lkup_typ(lkup_typ, lkup_flags, verbose);
+				get_lkup_typ(fld_typ_strs, lkup_typ, lkup_flags, verbose);
 				fs.name  = name;
 				fs.next_for_name = next_for_name;
 				fs.lkup_dlm_str  = lkup_dlm_str;
@@ -523,6 +523,13 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				cs.var_name = j["event_array"][i]["event"]["charts"][k]["var_name"];
 				try {
 					cs.by_var   = j["event_array"][i]["event"]["charts"][k]["by_var"];
+				} catch (...) { }
+				try {
+					uint64_t lkup_flags = 0;
+					std::string lkup_typ = j["event_array"][i]["event"]["charts"][k]["options"];
+					get_lkup_typ(copt_strs, lkup_typ, lkup_flags, verbose);
+					cs.options = lkup_flags;
+					printf("chart options= %" PRIx64 " at %s %d\n", lkup_flags, __FILE__, __LINE__);
 				} catch (...) { }
 				cs.pixels_high = -1;
 				try {
@@ -678,8 +685,19 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 	return 0;
 }
 
+static void bld_copt(void)
+{
+	if (copt_strs.size() > 0) {
+		return;
+	}
+	copt_strs.push_back({(uint64_t)copt_enum::DROP_1ST,           "DROP_1ST"});
+}
+
 static void bld_fld_typ(void)
 {
+	if (fld_typ_strs.size() > 0) {
+		return;
+	}
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_INT,           "TYP_INT"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DBL,           "TYP_DBL"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_STR,           "TYP_STR"});
@@ -712,6 +730,7 @@ static void bld_fld_typ(void)
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_LAG,           "TYP_LAG"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_NEW_VAL,       "TYP_NEW_VAL"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA,   "TYP_ADD_2_EXTRA"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TM_RUN,        "TYP_TM_RUN"});
 }
 
 std::string rd_json(std::string flnm)
@@ -719,6 +738,7 @@ std::string rd_json(std::string flnm)
 	std::ifstream file;
 	//long pos = 0;
 	bld_fld_typ();
+	bld_copt();
 	std::string line;
 	file.open (flnm.c_str(), std::ios::in);
 	if (!file.is_open()) {

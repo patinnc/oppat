@@ -71,6 +71,7 @@ struct chart_str {
 	bool use_chart;
 	uint32_t var_idx, by_var_idx;
 	int32_t pixels_high;
+	uint64_t options;
 	std::unordered_map <double, uint32_t> by_var_hsh;
 	std::vector <double> by_var_vals, by_var_sub_tots;
 	std::vector <double> dura_prev_ts;
@@ -80,7 +81,7 @@ struct chart_str {
 	std::vector <lag_str> lag_cfg;
 	std::vector <std::vector <double>> lag_vec;
 	std::vector <std::string> by_var_strs;
-	chart_str(): use_chart(true), var_idx(-1), by_var_idx(-1), pixels_high(-1) {};
+	chart_str(): use_chart(true), var_idx(-1), by_var_idx(-1), pixels_high(-1), options(0) {};
 };
 
 struct chart_cat_str {
@@ -120,8 +121,11 @@ struct fld_typ_str {
 	std::string str;
 };
 
-//enum class fld_typ_enums : uint64_t {
-enum class fte_enum : uint64_t {
+enum class copt_enum : const uint64_t {
+	DROP_1ST         = (1ULL << 0),
+};
+
+enum class fte_enum : const uint64_t {
 	FLD_TYP_INT           = (1ULL << 0),
 	FLD_TYP_DBL           = (1ULL << 1),
 	FLD_TYP_STR           = (1ULL << 2),
@@ -154,6 +158,7 @@ enum class fte_enum : uint64_t {
 	FLD_TYP_LAG           = (1ULL << 29),
 	FLD_TYP_NEW_VAL       = (1ULL << 30),
 	FLD_TYP_ADD_2_EXTRA   = (1ULL << 31),
+	FLD_TYP_TM_RUN        = (1ULL << 32),
 };
 
 enum {
@@ -214,10 +219,6 @@ EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str>
 EXTERN_STR std::string rd_json(std::string flnm);
 EXTERN_STR uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose);
 EXTERN_STR int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose);
-//EXTERN_STR std::vector <fld_typ_str> fld_typ_strs;
-#if 0
-EXTERN_STR int grph_data_to_json(ns_grph::grph_str &grph);
-#endif
 EXTERN_STR std::unordered_map<std::string, uint32_t> ETW_events_to_skip_hash;
 EXTERN_STR std::vector <std::string> ETW_events_to_skip_vec;
 
