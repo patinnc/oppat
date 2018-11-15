@@ -65,13 +65,13 @@ struct prf_comm_str {
 };
 
 struct pe_group_str {
-	uint64_t grp, tm_run, tm_ena, period;
+	uint64_t grp, tm_ena, tm_run;
 	struct pe_vals_str {
 		uint64_t val, id, off;
 		pe_vals_str(): val(0), id(-1) {}
 	};
 	std::vector <pe_vals_str> pe_vals;
-	pe_group_str(): grp(-1), tm_run(0), tm_ena(0) {}
+	pe_group_str(): grp(-1), tm_ena(0), tm_run(0) {}
 };
 
 struct prf_events_str {
@@ -118,12 +118,11 @@ struct prf_samples_str {
 	//int cpt_idx, cpt_idx2, fe_idx;
 	int fe_idx, orig_order, line_num;
 	long mm_off;
-	uint64_t ts, period;
+	uint64_t ts, period, tm_run;
 	std::vector <std::string> args, new_vals;
 	std::vector <prf_callstack_str> callstack;
-	//prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), cpt_idx(-1), cpt_idx2(-1), fe_idx(-1), mm_off(-1), ts(0), period(0) {}
 	prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), fe_idx(-1),
-		orig_order(-1), line_num(0), mm_off(-1), ts(0), period(0) {}
+		orig_order(-1), line_num(0), mm_off(-1), ts(0), period(0), tm_run(0) {}
 };
 
 struct prf_event_desc_str { 
@@ -182,11 +181,11 @@ struct prf_obj_str {
 	std::vector <prf_samples_str> samples;
 	int sample_id_all;
 	int file_tag_idx;
-	bool has_ids;
+	bool has_ids, has_tm_run;
 	uint32_t def_sample_flags;
 	prf_obj_str(): file_type(-1), mm_buf(0), mm_idx(-1), tm_beg(0), tm_end(0),
 		tm_beg_offset_due_to_clip(0.0), sample_id_all(1),
-		file_tag_idx(-1), has_ids(false), def_sample_flags(0) {};
+		file_tag_idx(-1), has_ids(false), has_tm_run(false), def_sample_flags(0) {};
 };
 
 #ifdef EXTERN2
