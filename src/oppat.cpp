@@ -1448,6 +1448,12 @@ void etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 	callstack_sz += callstacks.size();
 }
 
+enum {
+	OVERLAP_ADD,
+	OVERLAP_TRUNC,
+};
+
+
 static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_obj, std::vector <evt_str> &event_table, int verbose)
 {
 	int var_pid_idx= -1, var_comm_idx = -1, var_cpu_idx=-1, var_idx, by_var_idx=-1;
@@ -1767,6 +1773,12 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					continue;
 				}
 			}
+			bool tmp_verbose = false;
+			if (fx1 >= 5.169510 && fx1 <= 5.169512) {
+				//abcd
+				printf("ckck2 fx1= %f, dura= %f at %s %d\n", fx1, dura, __FILE__, __LINE__);
+				tmp_verbose = true;
+			}
 
 			if (chart_type != CHART_TYPE_STACKED) {
 				double used_so_far = 0.0;
@@ -1786,6 +1798,10 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				//fx1 -= used_so_far;
 			}
 			sx0 = 0.0;
+			int handle_overlap = OVERLAP_ADD;
+			if (prf_obj.has_tm_run && chart_type == CHART_TYPE_LINE) {
+				handle_overlap = OVERLAP_TRUNC;
+			}
 			if (chart_type == CHART_TYPE_STACKED) {
 				if (i > 0) {
 					sx0 = event_table[evt_idx].data.ts[i-1].ts - ts0;
@@ -1807,6 +1823,18 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						// so this event ends before the cur interval
 						break;
 					}
+#if 0
+					if (handle_overlap == OVERLAP_TRUNC) {
+						if (nx1 > fx1) {
+							printf("ummm.... screwup here dude, faulty assumption at %s %d\n", __FILE__, __LINE__);
+							exit(1);
+						}
+						printf("setting fx0 from %f to %f at %s %d\n", fx0, nx1, __FILE__, __LINE__);
+						sx0 = nx1;
+						fx0 = nx1;
+						break;
+					}
+#endif
 					if (overlaps_idx_used[j] == -1) {
 						line_ck_overlap = true;
 						overlaps_idx.push_back(j);
@@ -1859,81 +1887,114 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (overlaps_max_sz < overlaps_sz) {
 				overlaps_max_sz = overlaps_sz;
 			}
-			for (int32_t j=0; j < overlaps_sz; j++) {
-				i = overlaps_idx[j];
-				if (chart_type != CHART_TYPE_STACKED && lst_by_var[i] != lst_by_var[cur_idx]) {
-					continue;
-				}
-				by_var_idx_val = lst_by_var[i];
-				var_val = event_table[evt_idx].data.vals[i][var_idx];
-				double dura2;
-				double tx1, x1, tx0, x0;
-				dura2 = event_table[evt_idx].data.ts[i].duration;
-				x1 = event_table[evt_idx].data.ts[i].ts - ts0;
-				x0 = x1 - dura2;
-				tx1 = x1;
-				tx0 = x0;
-				if (x0 < sx0) {
-					x0 = sx0;
-				}
-				if (x1 > fx1) {
-					x1 = fx1;
-				}
-				double dff = (x1 - x0);
-				if (dff > 0.0) {
-					overlaps_sum[j] -= dff;
-					overlaps_used_sum[j] -= dff;
-				}
-				if ((overlaps_sum[j]/(tx1 - tx0)) < 0.0001) {
-					overlaps_sum[j] = 0.0;
-					overlaps_used_sum[j] = 0.0;
-				}
-				if (fx1 < sx0) {
-					printf("what's going on here. fx1= %f, sx0= %f, fx0= %f i= %d, cur_idx= %d. bye at %s %d\n",
-							fx1, sx0, fx0, i, cur_idx, __FILE__, __LINE__);
-					if (prf_obj.file_type == FILE_TYP_ETW) {
-			    		//uint32_t cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
-			    		uint32_t cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
-			    		uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
-						printf("proc= %s, pid= %d, tid= %d, ts= %f, relTS= %f at %s %d\n",
-								comm_pid_tid_vec[file_tag_idx][cpt_idx].comm.c_str(),
-								comm_pid_tid_vec[file_tag_idx][cpt_idx].pid,
-								comm_pid_tid_vec[file_tag_idx][cpt_idx].tid,
-								event_table[evt_idx].data.ts[i].ts,
-								event_table[evt_idx].data.ts[i].ts - ts0,
-								__FILE__, __LINE__);
+				//printf("overlaps_sz= %d at %s %d\n", overlaps_sz, __FILE__, __LINE__);
+			if (handle_overlap == OVERLAP_TRUNC) {
+				uint32_t prv = prv_nxt[cur_idx].prv;
+				by_var_idx_val = lst_by_var[cur_idx];
+				double new_val = event_table[evt_idx].data.vals[i][var_idx];
+				if (prv != UINT32_M1) {
+					double dura2, x0, x1;
+					dura2 = event_table[evt_idx].data.ts[prv].duration;
+					x1 = event_table[evt_idx].data.ts[prv].ts - ts0;
+					x0 = x1 - dura2;
+					if (x1 > fx0) {
+						fx0 = x1;
 					}
-					exit(1);
-				}
-				double new_val = 0.0;
-				if ((fx1 - sx0) > 0.0 && !(tx1 < fx0 || tx0 > fx1)) {
-					// interval is > 0 and tx interval is not out of range
-					new_val = var_val * (x1 - x0) / (fx1 - sx0);
-				}
-				if (new_val < 0.0 && var_val >= 0.0 && ((x1 - x0) < 0.0 || (fx1 - sx0) < 0.0)) {
-					printf("screw up here, new_val= %f, var_val= %f, x0= %f, x1= %f, dff= %f ts0= %f, tx1= %f, sx0= %f, fx0= %f fx1= %f dff= %f at %s %d\n",
-						new_val, var_val, x0, x1, (x1 - x0), tx0, tx1, sx0, fx0, fx1, (fx1 - sx0), __FILE__, __LINE__);
-				}
-				if (skip_idle) {
-					idle_pid = false;
-					int pid_num = -1;
-					if (var_pid_idx > -1) {
-						pid_num = (int)event_table[evt_idx].data.vals[i][var_pid_idx];
-						if (pid_num == 0) {
-							idle_pid = true;
-							new_val = 0.0;
-						}
+					if (x1 < fx0) {
+						fx0 = x1;
 					}
+					sx0 = fx0;
 				}
 				if (event_table[evt_idx].charts[chrt].actions.size() > 0) {
 					bool use_value = true;
 					run_actions(new_val, event_table[evt_idx].charts[chrt].actions, use_value);
 				}
-				if (new_val < 0.0 && var_val >= 0.0 && ((x1 - x0) < 0.0 || (fx1 - sx0) < 0.0)) {
-					printf("screw up here, new_val= %f, var_val= %f, x0= %f, x1= %f, dff= %f sx0= %f, fx1= %f dff= %f at %s %d\n",
-						new_val, var_val, x0, x1, (x1 - x0), sx0, fx1, (fx1 - sx0), __FILE__, __LINE__);
+				y_val[by_var_idx_val] = new_val;
+			} else {
+				for (int32_t j=0; j < overlaps_sz; j++) {
+					i = overlaps_idx[j];
+					if (chart_type != CHART_TYPE_STACKED && lst_by_var[i] != lst_by_var[cur_idx]) {
+						continue;
+					}
+					by_var_idx_val = lst_by_var[i];
+					var_val = event_table[evt_idx].data.vals[i][var_idx];
+					double dura2;
+					double tx1, x1, tx0, x0;
+					dura2 = event_table[evt_idx].data.ts[i].duration;
+					x1 = event_table[evt_idx].data.ts[i].ts - ts0;
+					x0 = x1 - dura2;
+					tx1 = x1;
+					tx0 = x0;
+					if (x0 < sx0) {
+						x0 = sx0;
+					}
+					if (x1 > fx1) {
+						x1 = fx1;
+					}
+					double dff = (x1 - x0);
+					if (dff > 0.0) {
+						overlaps_sum[j] -= dff;
+						overlaps_used_sum[j] -= dff;
+					}
+					if ((overlaps_sum[j]/(tx1 - tx0)) < 0.0001) {
+						overlaps_sum[j] = 0.0;
+						overlaps_used_sum[j] = 0.0;
+					}
+					if (fx1 < sx0) {
+						printf("what's going on here. fx1= %f, sx0= %f, fx0= %f i= %d, cur_idx= %d. bye at %s %d\n",
+								fx1, sx0, fx0, i, cur_idx, __FILE__, __LINE__);
+						if (prf_obj.file_type == FILE_TYP_ETW) {
+							//uint32_t cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
+							uint32_t cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
+							uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
+							printf("proc= %s, pid= %d, tid= %d, ts= %f, relTS= %f at %s %d\n",
+									comm_pid_tid_vec[file_tag_idx][cpt_idx].comm.c_str(),
+									comm_pid_tid_vec[file_tag_idx][cpt_idx].pid,
+									comm_pid_tid_vec[file_tag_idx][cpt_idx].tid,
+									event_table[evt_idx].data.ts[i].ts,
+									event_table[evt_idx].data.ts[i].ts - ts0,
+									__FILE__, __LINE__);
+						}
+						exit(1);
+					}
+					double new_val = 0.0;
+					if ((fx1 - sx0) > 0.0 && !(tx1 < fx0 || tx0 > fx1)) {
+						// interval is > 0 and tx interval is not out of range
+						new_val = var_val * (x1 - x0) / (fx1 - sx0);
+					}
+					//if (tmp_verbose)
+					//if (y_val[by_var_idx_val] != 0.0)
+					{
+						printf("aft c=%d j=%d i=%d yv=%f vval= %f nval= %f x0=%f, x1=%f, fx0=%f, fx1=%f ts= %f at %s %d\n",
+								cur_idx, j, i, y_val[by_var_idx_val],
+								var_val, new_val, x0, x1, fx0, fx1, event_table[evt_idx].data.ts[i].ts,
+								__FILE__, __LINE__);
+					}
+					if (new_val < 0.0 && var_val >= 0.0 && ((x1 - x0) < 0.0 || (fx1 - sx0) < 0.0)) {
+						printf("screw up here, new_val= %f, var_val= %f, x0= %f, x1= %f, dff= %f ts0= %f, tx1= %f, sx0= %f, fx0= %f fx1= %f dff= %f at %s %d\n",
+							new_val, var_val, x0, x1, (x1 - x0), tx0, tx1, sx0, fx0, fx1, (fx1 - sx0), __FILE__, __LINE__);
+					}
+					if (skip_idle) {
+						idle_pid = false;
+						int pid_num = -1;
+						if (var_pid_idx > -1) {
+							pid_num = (int)event_table[evt_idx].data.vals[i][var_pid_idx];
+							if (pid_num == 0) {
+								idle_pid = true;
+								new_val = 0.0;
+							}
+						}
+					}
+					if (event_table[evt_idx].charts[chrt].actions.size() > 0) {
+						bool use_value = true;
+						run_actions(new_val, event_table[evt_idx].charts[chrt].actions, use_value);
+					}
+					if (new_val < 0.0 && var_val >= 0.0 && ((x1 - x0) < 0.0 || (fx1 - sx0) < 0.0)) {
+						printf("screw up here, new_val= %f, var_val= %f, x0= %f, x1= %f, dff= %f sx0= %f, fx1= %f dff= %f at %s %d\n",
+							new_val, var_val, x0, x1, (x1 - x0), sx0, fx1, (fx1 - sx0), __FILE__, __LINE__);
+					}
+					y_val[by_var_idx_val] += new_val;
 				}
-				y_val[by_var_idx_val] += new_val;
 			}
 			i = 0;
 			while (i < overlaps_sz) {
@@ -1976,6 +2037,14 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			x1 = fx1;
 			x0 = fx0;
 
+			if (event_table[evt_idx].charts[chrt].options & (uint64_t)copt_enum::DROP_1ST) {
+				uint32_t prv = prv_nxt[cur_idx].prv;
+				if (prv == UINT32_M1) {
+					cur_idx--;
+					continue;
+				}
+			}
+
 			ls0p = &last_by_var_lines_str[by_var_idx_val].ls0;
 			last_by_var_lines_str[by_var_idx_val].x0 = x0; // last_by_val_lines_str..x1 - x0 is the true duration
 			last_by_var_lines_str[by_var_idx_val].x1 = x1;
@@ -1986,6 +2055,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 			ls0p->x[0] = x0;
 			ls0p->x[1] = x1;
+			if (ls0p->x[1] >= 5.169510 && ls0p->x[1] <= 5.169512) {
+				//abcd
+				printf("ckck1 x0= %f, x1= %f, dura= %f at %s %d\n",
+					ls0p->x[0], ls0p->x[1], dura, __FILE__, __LINE__);
+			}
 			if (chart_type == CHART_TYPE_STACKED) {
 				ls0p->typ  = SHAPE_RECT;
 			} else {
@@ -2253,7 +2327,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 			}
 			if (prf_obj.file_type != FILE_TYP_ETW) {
-//abcd
 				if (add_2_extra.size() > 0) {
 					int prf_idx = event_table[evt_idx].data.prf_sample_idx[i];
 					ls0p->text += ", line " + std::to_string(prf_obj.samples[prf_idx].line_num);
@@ -2263,6 +2336,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (chart_type != CHART_TYPE_STACKED) {
 				ls0p->y[0] = y_val[by_var_idx_val];
 				ls0p->y[1] = y_val[by_var_idx_val];
+				//abcd
+				if (tmp_verbose) {
+					printf("ckck x0= %f, x1= %f, y0= %f, y1= %f var_val= %f at %s %d\n",
+						ls0p->x[0], ls0p->x[1], ls0p->y[0], ls0p->y[1], var_val, __FILE__, __LINE__);
+				}
 				if (use_this_line) {
 					chart_lines_ck_rng(ls0p->x[0], ls0p->y[0], ts0, ls0p->cat, ls0p->subcat, 0.0, ls0p->fe_idx);
 					chart_lines_ck_rng(ls0p->x[1], ls0p->y[1], ts0, ls0p->cat, ls0p->subcat, y_val[by_var_idx_val], ls0p->fe_idx);
@@ -3516,11 +3594,21 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		std::vector <int> div_by_interval_idx;
 		bool use_u64 = false;
 		bool try_skipping_record = false;
+		bool tmp_verbose = false;
 		for (uint32_t j=0; j < fsz; j++) {
 			did_actions_already[j] = false;
 			uint64_t flg = event_table.flds[j].flags;
-			if (flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) {
-				double ts_delta = ts - ts_cpu[cpu];
+			double ts_delta = 0.0;
+			//abcd
+			if (prf_obj.has_tm_run && (flg & (uint64_t)fte_enum::FLD_TYP_TM_RUN)) {
+				ts_delta = 1.0e-9 * (double)prf_obj.samples[i].tm_run;
+				printf("ts_delta[%d]= %f tm_run= %" PRIu64 " ts= %" PRIu64 " at %s %d\n",
+						i, ts_delta, prf_obj.samples[i].tm_run, prf_obj.samples[i].ts, __FILE__, __LINE__);
+			} else if (flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) {
+				ts_delta = ts - ts_cpu[cpu];
+			}
+			if ((prf_obj.has_tm_run && (flg & (uint64_t)((uint64_t)fte_enum::FLD_TYP_TM_RUN)))
+					   || (flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU)) {
 				if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF) {
 					dura = ts_delta;
 					if ((ts - dura) < 0.0) {
@@ -4041,7 +4129,17 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			for (uint32_t k=0; k < div_by_interval_idx.size(); k++) {
 				if (dv[dura_idx] > 0.0) {
+					if (tmp_verbose) {
+						printf("bef got dv[%d]= %f dv[dura_idx(%d)]= %f at %s %d\n", 
+							div_by_interval_idx[k], dv[div_by_interval_idx[k]],
+						  	dura_idx, dv[dura_idx], __FILE__, __LINE__);
+					}
 					dv[div_by_interval_idx[k]] /= dv[dura_idx];
+					if (tmp_verbose) {
+						printf("aft got dv[%d]= %f dv[dura_idx(%d)]= %f at %s %d\n", 
+							div_by_interval_idx[k], dv[div_by_interval_idx[k]],
+						  	dura_idx, dv[dura_idx], __FILE__, __LINE__);
+					}
 				}
 			}
 
@@ -4096,7 +4194,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			event_table.data.prf_sample_idx.push_back(i);
 		}
-		if (cpu >= 0) {
+		//if (cpu >= 0) 
+		if (cpu >= 0 && ts != ts_cpu[cpu]) {
 			ts_cpu[cpu] = ts;
 		}
 	}
@@ -4903,69 +5002,62 @@ int main(int argc, char **argv)
 	}
 	printf("\nafter  report_chart_data\n");
 
-	int chrt_num = 0;
-	//chrts_json = "{\"chart_data\":[";
-	//std::string chrts_json = "{\"chart_data\":[";
-	std::string report;
-	int did_chrts = 0;
-	for (uint32_t g=0; g < grp_list.size(); g++) {
-		for (uint32_t k=0; k < file_list.size(); k++) {
-			if (file_list[k].grp != grp_list[g]) {
-				continue;
-			}
-			for (uint32_t i=0; i < event_table[grp_list[g]].size(); i++) {
-				for (uint32_t j=0; j < event_table[grp_list[g]][i].charts.size(); j++) {
-					int myg = grp_list[g];
-					if (ck_events_okay_for_this_chart(myg, i, j, event_table[myg]) == 0) {
-						continue;
-					}
-					if (!event_table[grp_list[g]][i].charts[j].use_chart) {
-						continue;
-					}
-					// this resets everything. We probably don't want to reset everything for the case of multiple files in the same group.
-					if (get_signal() == 1) {
-						fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
-						exit(1);
-					}
-					chart_lines_reset();
-					double tt0=0.0, tt1=0.0, tt2=0.0;
-					double js_sz = 0;
-					if (event_table[grp_list[g]][i].charts[j].chart_tag == "PCT_BUSY_BY_CPU") {
-						printf("using event_table[%d][%d]= %s at %s %d\n",
-							grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
-						tt0 = dclock();
-						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
-						tt1 = dclock();
-						std::string this_chart_json = "";
-						if (rc == 0) {
-						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
-						js_sz = this_chart_json.size();
-						did_chrts = 1;
-						chrts_json.push_back(this_chart_json);
-						//printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
+	{
+		std::unordered_map<std::string, uint32_t> hsh_str_chrt_already_done_for_file_tag;
+		std::vector <std::string> vec_str_chrt_already_done_for_file_tag;
+		for (uint32_t g=0; g < grp_list.size(); g++) {
+			for (uint32_t k=0; k < file_list.size(); k++) {
+				if (file_list[k].grp != grp_list[g]) {
+					continue;
+				}
+				for (uint32_t i=0; i < event_table[grp_list[g]].size(); i++) {
+					for (uint32_t j=0; j < event_table[grp_list[g]][i].charts.size(); j++) {
+						int myg = grp_list[g];
+						if (ck_events_okay_for_this_chart(myg, i, j, event_table[myg]) == 0) {
+							continue;
 						}
-						tt2 = dclock();
-					} else {
+						// multiplexed events can appear more than once in the event list.
+						// This check avoids redoing the chart.
+						std::string file_tag_and_title = file_list[k].file_tag + " " + event_table[grp_list[g]][i].charts[j].title;
+						bool already_did_this_chart_for_this_file_tag = false;
+						if (hsh_str_chrt_already_done_for_file_tag[file_tag_and_title] == 0) {
+							hash_string(hsh_str_chrt_already_done_for_file_tag,
+									vec_str_chrt_already_done_for_file_tag, 
+									file_tag_and_title);
+						} else {
+							already_did_this_chart_for_this_file_tag = true;
+						}
+						if (!event_table[grp_list[g]][i].charts[j].use_chart ||
+							already_did_this_chart_for_this_file_tag) {
+							continue;
+						}
+						// this resets everything. We probably don't want to reset everything for the case of multiple files in the same group.
+						if (get_signal() == 1) {
+							fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
+							exit(1);
+						}
+						chart_lines_reset();
+						double tt0=0.0, tt1=0.0, tt2=0.0;
+						std::string this_chart_json = "";
+						double js_sz = 0.0;
 						if (verbose)
 							printf("using event_table[%d][%d]= %s at %s %d\n",
 								grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
 						tt0 = dclock();
 						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
 						tt1 = dclock();
-						std::string this_chart_json = "";
 						if (rc == 0) {
-						this_chart_json += build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
-						js_sz = this_chart_json.size();
-						did_chrts = 1;
-						chrts_json.push_back(this_chart_json);
-						//printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
+							this_chart_json = build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
+							chrts_json.push_back(this_chart_json);
+							js_sz = this_chart_json.size();
+							//printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
 						}
 						tt2 = dclock();
+						fprintf(stderr, "tm build_chart_lines(): %f, build_shapes_json: %f str_sz= %.3f MBs, title= %s at %s %d\n",
+								tt1-tt0, tt2-tt1, 1.0e-6 * js_sz,
+								event_table[grp_list[g]][i].charts[j].title.c_str(),
+								__FILE__, __LINE__);
 					}
-					fprintf(stderr, "tm build_chart_lines(): %f, build_shapes_json: %f str_sz= %.3f MBs, title= %s at %s %d\n",
-							tt1-tt0, tt2-tt1, 1.0e-6 * js_sz,
-							event_table[grp_list[g]][i].charts[j].title.c_str(),
-							__FILE__, __LINE__);
 				}
 			}
 		}
@@ -5002,7 +5094,6 @@ int main(int argc, char **argv)
 		}
 	}
 	fflush(NULL);
-	chrt_num++;
 	double tm_end = dclock();
 	fprintf(stderr, "after reading files and before sending data: elapsed= %f secs at %s %d\n", tm_end - tm_beg, __FILE__, __LINE__);
 	uint64_t callstack_vec_len=0;
