@@ -86,7 +86,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"RUN_QUEUE", "chart_type":"line", "y_label":"wait_time (secs)", "use_chart":"y", "tot_line":"__total__"}
+			"chart_tag":"RUN_QUEUE", "chart_type":"line", "y_label":"wait_time (secs)", "use_chart":"d", "tot_line":"__total__"}
 		]
 	}
   },
@@ -95,12 +95,12 @@
 	"evt_name": "cycles", "evt_type": "ftrace", "comment":"hw cpu cycles events",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":4.0}]},
-		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
+		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"freq from cycles (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu",
-			"chart_tag":"FREQ_BY_CPU", "chart_type":"line"}
+			"chart_tag":"FREQ_BY_CPU", "chart_type":"line", "use_chart":"y", "options":"DROP_1ST"}
 		]
 	}
   },
@@ -111,13 +111,15 @@
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"bus_accesses",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":1000.0}]},
 		{"name":"MB/sec",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":8.0e-6}, {"oper":"drop_if_gt", "val":10.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus accesses (Mi/s) from r19 bus_access event by cpu",  "var_name": "bus_accesses",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"},
 		{"category":"CPU", "title":"Bus accesses BW (MB/sec) from r19 bus_access event by cpu",  "var_name": "MB/sec",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -128,13 +130,15 @@
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"bus_accesses",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":1000.0}]},
 		{"name":"MB/sec",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":8.0e-6}, {"oper":"drop_if_gt", "val":10.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus accesses (Mi/s) from r60 load bus_access event by cpu",  "var_name": "bus_accesses",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"},
 		{"category":"CPU", "title":"Bus accesses BW (MB/sec) from r60 load bus_access event by cpu",  "var_name": "MB/sec",
-			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"BUS_ACCESS_LD_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -144,11 +148,12 @@
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"stall_cycles",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":3.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Load stall cycles (Bi/s) from re7 load_stall_cycles event by cpu",  "var_name": "stall_cycles",
-			"by_var": "cpu", "chart_tag":"LOAD_STALL_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"LOAD_STALL_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -181,11 +186,12 @@
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc0 ext_mem_req event by cpu",  "var_name": "BW",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -195,11 +201,12 @@
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc2 linefill due to prefetch event by cpu",  "var_name": "BW",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_PREFETCH_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_PREFETCH_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -209,11 +216,12 @@
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW (GiB/s) from rc4 entering read allocate mode event by cpu",  "var_name": "BW",
-			"by_var": "cpu", "chart_tag":"MEM_BW_BY_RD_ALLOC_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_RD_ALLOC_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -225,11 +233,12 @@
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 accesses (Mill_accesses/s) from r16 L2 dcache accesses by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"L2_ACCESSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"L2_ACCESSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -242,14 +251,15 @@
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
 		{"name":"bytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 misses (Mill_misses/s) from r17 L2 dcache refill by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
+			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"},
 		{"category":"CPU", "title":"Mem BW MiB/sec from r17 L2 dcache refill by cpu",  "var_name": "bytes",
 			"by_var": "cpu", "chart_tag":"MEM_BW_BY_L2_MISSES_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
-			"use_chart":"d", "tot_line":"__total__"}
+			"use_chart":"d", "tot_line":"__total__", "options":"DROP_1ST"}
 		]
 	}
   },
@@ -262,13 +272,15 @@
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
 		{"name":"MiB/sec", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":32.0e-6}, {"oper":"drop_if_gt", "val":4000.0}]},
-		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Bus freq (MiHz/s) from r1d bus cycles event by cpu",  "var_name": "freq",
-			"by_var": "cpu", "chart_tag":"BUS_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"},
+			"by_var": "cpu", "chart_tag":"BUS_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"},
 		{"category":"CPU", "title":"Bus BW (MiB/sec) from r1d bus cycles event by cpu",  "var_name": "MiB/sec",
-			"by_var": "cpu", "chart_tag":"BUS_BW_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__"}
+			"by_var": "cpu", "chart_tag":"BUS_BW_CYCLES_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -300,12 +312,12 @@
 	"evt_name": "ref-cycles", "evt_type": "ftrace", "comment":"hw cpu cycles events",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":4.0}]},
+		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_TM_RUN|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":4.0}]},
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"ref-freq (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu", "chart_tag":"REF_FREQ_BY_CPU",
-			"chart_type":"line"}
+			"chart_type":"line", "options":"DROP_1ST"}
 		]
 	}
   },
@@ -315,10 +327,12 @@
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"GIPS",  "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
-		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"billion instructions/sec by cpu",  "var_name": "GIPS", "by_var": "cpu", "chart_tag":"INSTR_Per_SEC_BY_CPU", "chart_type":"line", "tot_line":"__total__"}
+		{"category":"CPU", "title":"billion instructions/sec by cpu",  "var_name": "GIPS",
+			"by_var": "cpu", "chart_tag":"INSTR_Per_SEC_BY_CPU", "chart_type":"line", "use_chart":"y", "tot_line":"__total__",
+			"options":"DROP_1ST"}
 		]
 	}
   },
@@ -340,7 +354,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 %miss (L2_misses/L2_accesses) by CPU",  "var_name":"val",
-			"by_var": "area", "chart_tag":"L2_MISS_PCT_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%L2_miss"}
+			"by_var": "area", "chart_tag":"L2_MISS_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"%L2_miss"}
 		]
 	}
   },
@@ -384,7 +398,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"CPI (cycles/instruction) by CPU",  "var_name": "val", "by_var": "area",
-			"chart_tag":"CPI_CHART", "chart_type":"line", "use_chart":"y", "y_label":"CPI"}
+			"chart_tag":"CPI_CHART", "chart_type":"line", "use_chart":"d", "y_label":"CPI"}
 		]
 	}
   },
