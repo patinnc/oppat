@@ -2458,9 +2458,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	tot_line.xarray    = [];
 	function tot_line_get_values()
 	{
+		let ret_data = {};
 		let maxy_new = maxy;
+		ret_data = {maxy_new: maxy_new, typ: "def"}
 		if (tot_line.evt_str == "") {
-			return maxy_new;
+			return ret_data;
 		}
 		if (ch_type == "line" || ch_type == "stacked") {
 			tot_line.yarray.length = tot_line.divisions+1;
@@ -2517,16 +2519,18 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					tot_line.yarray[j] += yval * (xcur1 - xcur0) * tot_line.divisions;
 				}
 			}
+			maxy_new = null;
 			for (let j=0; j < tot_line.divisions+1; j++) {
 				tot_line.xarray[j] = minx + j * (maxx - minx) / tot_line.divisions;
-				if (maxy_new < tot_line.yarray[j]) {
+				if (maxy_new == null || maxy_new <= tot_line.yarray[j]) {
 					maxy_new = tot_line.yarray[j];
+					ret_data = {maxy_new: maxy_new, typ: "ck"}
 				}
 			}
 			//console.log(tot_line.xarray);
 			//console.log(tot_line.yarray);
 		}
-		return maxy_new;
+		return ret_data;
 	}
 
 	function draw_rect(ctx_in, x, y, wd, hi, clr, yPxlzero, do_highlight)
@@ -2559,7 +2563,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 
 	function chart_redraw(from_where) {
-		let maxy_new = tot_line_get_values();
+		let tl_maxy_new = tot_line_get_values();
+		let maxy_new = tl_maxy_new.maxy_new;
 		redo_ylkup(ctx);
 		let build_fl_tm = 0.0;
 		let tm_here_04a = performance.now();
@@ -2584,7 +2589,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		ctx.font = font_sz + 'px Arial';
 		ctx.textAlign = "right";
 		let uminy = miny;
-		let umaxy = maxy_new;
+		let umaxy = tl_maxy_new.maxy_new;
 		if (ch_type == "line" || ch_type == "stacked") {
 			let tminy=null, tmaxy=null;
 			if (chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
@@ -2593,8 +2598,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				g_fl_obj[file_tag_idx]= {};
 				g_fl_obj_rt[file_tag_idx] = {};
 			}
-			if (1==1) {
-				let dbg_cnt=0, ck_it=0;
+			let dbg_cnt=0, ck_it=0;
+			let got_ymx = {};
 			for (let i=0; i < chart_data.myshapes.length; i++) {
 				let x0 = chart_data.myshapes[i].pts[PTS_X0];
 				let x1 = chart_data.myshapes[i].pts[PTS_X1];
@@ -2614,16 +2619,32 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (!do_event) {
 					continue;
 				}
-				if (tmaxy == null) {
-					tminy = chart_data.myshapes[i].pts[PTS_Y0];
-					tmaxy = tminy;
-				}
 				let y0 = chart_data.myshapes[i].pts[PTS_Y0];
 				let y1 = chart_data.myshapes[i].pts[PTS_Y1];
+				if (tmaxy == null) {
+					tminy = y0;
+					tmaxy = tminy;
+					got_ymx.x0 = x0;
+					got_ymx.x1 = x1;
+					got_ymx.y0 = y0;
+					got_ymx.y1 = y1;
+				}
 				if (tminy > y0) { tminy = y0; }
 				if (tminy > y1) { tminy = y1; }
-				if (tmaxy < y0) { tmaxy = y0; }
-				if (tmaxy < y1) { tmaxy = y1; }
+				if (tmaxy < y0) {
+					tmaxy = y0;
+					got_ymx.x0 = x0;
+					got_ymx.x1 = x1;
+					got_ymx.y0 = y0;
+					got_ymx.y1 = y1;
+				}
+				if (tmaxy < y1) {
+					tmaxy = y1;
+					got_ymx.x0 = x0;
+					got_ymx.x1 = x1;
+					got_ymx.y0 = y0;
+					got_ymx.y1 = y1;
+				}
 			}
 			if (tmaxy != null) {
 				if (tminy == tmaxy) {
@@ -2632,10 +2653,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 				uminy = tminy;
 				umaxy = tmaxy;
-				if (umaxy < maxy_new) {
-					umaxy = maxy_new;
+				if (umaxy < maxy_new && tl_maxy_new.typ != "def") {
+					umaxy = tl_maxy_new.maxy_new;
 				}
 			}
+			if (chart_data.title == "freq from cycles (GHz) by cpu" ||
+				chart_data.title == "L2 accesses (Mill_accesses/s) from r16 L2 dcache accesses by cpu") {
+				console.log(sprintf("++mxy for freq from ccyles: x0= %f x1= %f, y0= %f, y1= %f, umaxy= %f, maxy_new= %f, maxy= %f, tl_maxy_new= %s, ttl= %s",
+							got_ymx.x0, got_ymx.x1, got_ymx.y0, got_ymx.y1, umaxy, maxy_new, maxy, JSON.stringify(tl_maxy_new), chart_data.title));
 			}
 			let x   = xPadding - 5;
 			let y   = font_sz
@@ -3340,7 +3365,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (isNaN(zero_to_one)) {
 			return;
 		}
-		console.log("draw_mini["+chrt_idx+"]("+zero_to_one+", arg= "+arg2+")");
+		//console.log("draw_mini["+chrt_idx+"]("+zero_to_one+", arg= "+arg2+")");
 		if ( typeof draw_mini.x_prev == 'undefined' ||
 			draw_mini.invocation_num != can_shape.invocation_num) {
 			draw_mini.x_prev = -1;
@@ -3374,7 +3399,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 		let x_int = Math.trunc(zero_to_one * 1000);
 		if (x_int == draw_mini.x_prev) {
-			console.log("__draw_mini return");
+			//console.log("__draw_mini return");
 			return;
 		}
 		//console.log("draw_mini.x_prev= "+draw_mini.x_prev+", x_int= "+x_int+", z21= "+zero_to_one);
