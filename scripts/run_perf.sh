@@ -30,6 +30,9 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
+#disable nmi_watchdog consuming 1 hw counter slot
+echo 0 > /proc/sys/kernel/nmi_watchdog
+
 function ck_cmd_pid_threads_oper {
   local cmd=$1
   local pid=$2
@@ -92,7 +95,8 @@ done
 
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e ftrace:bprint -e ftrace:print  -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e ftrace:bprint -e ftrace:print  -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
-$PRF_CMD record -a -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
+echo $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,ref-cycles,cycles,instructions,branch-load-misses,branch-loads}:S" -o $ODIR/prf_trace2.data
+$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,ref-cycles,cycles,instructions,branch-load-misses,branch-loads}:S" -o $ODIR/prf_trace2.data  &
 PRF_CMD_PID2=$!
 #
 #$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x
@@ -114,12 +118,16 @@ trcFopts=" -F trace:comm,tid,pid,time,cpu,period,event,sym,dso,symoff,trace,brst
 trcFopts=" -F trace:comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,brstack,brstacksym,flags,bpf-output,callindent"
 #trcFopts=
 Fopts=" -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,flags,callindent"
+Fopts2=" -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,flags,callindent"
 
 #../perf.sh script -I --ns --header -f $hwFopts $trcFopts -D -i prf_trace.data > prf_d.txt
 #$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data > $ODIR/prf_trace.txt
 $PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
-$PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
+echo $PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace2.data _ $ODIR/prf_trace2.txt
+$PRF_CMD script -I --ns --header -f $Fopts2 -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
+echo did perf script
 $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
+echo did trace-cmd report
 #chmod a+rw $ODIR/tc*
 #chmod a+rw $ODIR/*.json
 #chmod a+rw $ODIR/*.txt
