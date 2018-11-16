@@ -3,7 +3,7 @@
 TRC_CMD=/home/pi/ppat/oppat/bin/trace-cmd
 PRF_CMD=/usr/bin/perf_4.9
 PRF_CMD=/home/pi/bin/perf
-BASE=mem_bw5_pi_multi2
+BASE=mem_bw5_pi_multi3
 PFX=arm
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_DIR=`dirname "$(readlink -f "$0")"`
