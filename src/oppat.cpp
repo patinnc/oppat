@@ -1962,8 +1962,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						// interval is > 0 and tx interval is not out of range
 						new_val = var_val * (x1 - x0) / (fx1 - sx0);
 					}
-					//if (tmp_verbose)
 					//if (y_val[by_var_idx_val] != 0.0)
+					if (tmp_verbose)
 					{
 						printf("aft c=%d j=%d i=%d yv=%f vval= %f nval= %f x0=%f, x1=%f, fx0=%f, fx1=%f ts= %f at %s %d\n",
 								cur_idx, j, i, y_val[by_var_idx_val],
@@ -3602,8 +3602,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			//abcd
 			if (prf_obj.has_tm_run && (flg & (uint64_t)fte_enum::FLD_TYP_TM_RUN)) {
 				ts_delta = 1.0e-9 * (double)prf_obj.samples[i].tm_run;
-				printf("ts_delta[%d]= %f tm_run= %" PRIu64 " ts= %" PRIu64 " at %s %d\n",
-						i, ts_delta, prf_obj.samples[i].tm_run, prf_obj.samples[i].ts, __FILE__, __LINE__);
+				//printf("ts_delta[%d]= %f tm_run= %" PRIu64 " ts= %" PRIu64 " at %s %d\n",
+				//		i, ts_delta, prf_obj.samples[i].tm_run, prf_obj.samples[i].ts, __FILE__, __LINE__);
 			} else if (flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) {
 				ts_delta = ts - ts_cpu[cpu];
 			}
