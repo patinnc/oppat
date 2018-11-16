@@ -50,7 +50,7 @@
 #define TC_RD_DATA_CPP
 #include "tc_read_data.h"
 
-#define BUF_MAX 4096
+#define BUF_MAX 4*4096
 static char buf[BUF_MAX];
 
 struct tc_fte_area_str {
@@ -99,7 +99,7 @@ static uint32_t lkup_id_from_perf_event_list(prf_obj_str &prf_obj, uint32_t id, 
 	if (ck_idx == 0) {
 		printf("didn't find event num: tc_evt_num= %u from line= %d at %s %d\n",
 			id, line, __FILE__, __LINE__);
-		exit(1);
+		return UINT32_M1;
 	}
 	return ck_idx;
 }
@@ -147,10 +147,13 @@ static uint32_t find_id_in_perf_event_list_from_evt_idx(
 }
 
 static int tc_read_evt(long max_pos, int cpu, long page_sz, const unsigned char *mm_buf,
-		long &pos, uint64_t &ts, int line, prf_obj_str &prf_obj, int verbose,
+		long &pos, uint64_t &ts, int long_sz, int line, prf_obj_str &prf_obj, int verbose,
 		prf_obj_str *prf_obj_prev, file_list_str &file_list)
 {
 	static int orig_order=0;
+	if (verbose > 0) {
+		printf("tc_read_evt enter pos= %ld at %s %d\n", pos, __FILE__, __LINE__);
+	}
 	int evt_len = 0;
 do_page_hdr:
 	if (((pos+4) % page_sz) == 0) {
@@ -159,18 +162,24 @@ do_page_hdr:
 		evt_len += 4;
 	}
 	if (pos >= max_pos) {
+		if (verbose > 0) {
+			printf("tc_read_evt exit pos= %ld at %s %d\n", pos, __FILE__, __LINE__);
+		}
 		return evt_len;
 	}
 
 #if 1
 	if ((pos % page_sz) == 0) {
 		int sz = 16;
+		if (long_sz == 4) {
+			sz = 12;
+		}
 		//read_n_bytes(file, pos, sz, __LINE__);
 		mm_read_n_bytes(mm_buf, pos, sz, __LINE__, buf, BUF_MAX);
 		//hex_dump_n_bytes_from_buf(buf, 16, "hex pg_top len=16:", __LINE__);
 		ts = *(buf_uint64_ptr(buf, 0));
 		if (verbose)
-			printf("cpu[%d] ts= %" PRIu64 "\n", cpu, ts);
+			printf("cpu[%d] ts= %" PRIu64 " at %s %d\n", cpu, ts, __FILE__, __LINE__);
 		evt_len += sz;
 	}
 #endif
@@ -207,18 +216,21 @@ do_page_hdr:
 	} else if (evt_hdr_typ <= tc_eh_typ_data_len_max) {
 		// see https://elixir.bootlin.com/linux/v3.8/source/include/linux/ring_buffer.h
 #pragma pack(push, 1)
-				struct cmn_hdr_str {
-					uint16_t type;
-					uint8_t flags;
-					uint8_t preempt_count;
-					int32_t pid;
-				} *cmn_hdr;
+		struct cmn_hdr_str {
+			uint16_t type;
+			uint8_t flags;
+			uint8_t preempt_count;
+			int32_t pid;
+		} *cmn_hdr;
 #pragma pack(pop)
 		bool evt_handled, did_read_cmn_hdr, do_part2;
 		uint64_t mm_off = (uint64_t)pos;
 		evt_handled = false;
 		did_read_cmn_hdr = false;
 		do_part2 = false;
+		if (verbose > 0) {
+			printf("got evt_hdr_typ= %d at %s %d\n", evt_hdr_typ, __FILE__, __LINE__);
+		}
 		if (evt_hdr_typ == 0) {
 			//read_n_bytes(file, pos, 4, __LINE__);
 			evt_handled = true;
@@ -232,16 +244,26 @@ do_page_hdr:
 			}
 			if (evt_hdr_tm_delta == 0 && len == 0) {
 				// this is just a filler, no timestamp delta, no data
+				if (verbose > 0) {
+					printf("tc_read_evt exit pos= %ld at %s %d\n", pos, __FILE__, __LINE__);
+				}
 				return evt_len;
 			}
 			//read_n_bytes(file, pos, len, __LINE__);
 			mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
 			//hex_dump_n_bytes_from_buf(buf, len, "hex evt_hdr_typ==0:", __LINE__);
 			evt_len += len;
+			if (verbose > 0) {
+				printf("got len= %d at %s %d\n", len, __FILE__, __LINE__);
+			}
 			if (len >= 4) {
 				did_read_cmn_hdr = true;
 				cmn_hdr = (cmn_hdr_str *)buf;
 				uint32_t ck_idx = lkup_id_from_perf_event_list(prf_obj, cmn_hdr->type, __LINE__);
+				if (ck_idx == UINT32_M1) {
+					printf("bye at %s %d\n", __FILE__, __LINE__);
+					exit(1);
+				}
 				uint32_t ck_evt_idx = prf_obj.ids_vec[ck_idx-1];
 				std::string evt_nm = prf_obj.events[ck_evt_idx].event_name;
 				uint32_t prf_evt_idx = find_id_in_perf_event_list_from_evt_idx(prf_obj, file_list, ck_evt_idx, __LINE__);
@@ -278,13 +300,20 @@ do_page_hdr:
 			if (!did_read_cmn_hdr) {
 				ts += evt_hdr_tm_delta;
 				len = evt_hdr_typ << 2;
+				if(verbose) {
+					printf("do_part2: read %d bytes at pos= %ld evt_len= %d evt_hdr_typ= %d (0x%x) at %s %d\n",
+							len, pos, evt_len, evt_hdr_typ, evt_hdr_typ, __FILE__, __LINE__);
+				}
 				//mm_off = (uint64_t)pos;
 				mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
+				//uint32_t mmlen = *(buf_uint32_ptr(buf, 0));
+				//printf("mmlen= %d at %s %d\n", mmlen, __FILE__, __LINE__);
+				//cmn_hdr = (cmn_hdr_str *)buf;
 				evt_len += len;
 			}
 			char *hdr_typ_str = tc_decode_evt_hdr_typ(evt_hdr_typ);
 			if (verbose > 0)
-				printf("evt_hdr_typ == 0x%x(%s), len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
+				printf("do_part2: evt_hdr_typ == 0x%x(%s), len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
 					evt_hdr_typ, hdr_typ_str, len, evt_len, pos_sv, pos, __FILE__, __LINE__);
 			if (evt_hdr_typ < tc_eh_typ_data_len_max) {
 				prf_samples_str pss;
@@ -300,6 +329,10 @@ do_page_hdr:
 				}
 
 				uint32_t ck_idx = lkup_id_from_perf_event_list(prf_obj, cmn_hdr->type, __LINE__);
+				if (ck_idx == UINT32_M1) {
+					printf("bye at %s %d\n", __FILE__, __LINE__);
+					exit(1);
+				}
 				uint32_t ck_evt_idx = prf_obj.ids_vec[ck_idx-1];
 				std::string evt_nm = prf_obj.events[ck_evt_idx].event_name;
 
@@ -441,6 +474,9 @@ read_part2_end:
 		exit(1);
 	}
 #endif
+	if (verbose > 0) {
+		printf("tc_read_evt exit pos= %ld at %s %d\n", pos, __FILE__, __LINE__);
+	}
 	return evt_len;
 }
 
@@ -890,6 +926,7 @@ read_opt_again:
 		printf("hdr_page=\n%s\n", hdr_page.c_str());
 	if (verbose)
 		printf("hdr_evnt=\n%s\n", evt_hdr_info.c_str());
+
 	for (uint32_t j=0; j < tc_cpu_data.size(); j++) {
 		pos = tc_cpu_data[j].off;
 		i = mm_read_n_bytes(mm_buf, pos, 64, __LINE__, buf, BUF_MAX);
@@ -898,18 +935,12 @@ read_opt_again:
 		//hex_dump_bytes(file, tc_cpu_data[j].off, 64, "page_hdr on evt_hdr_typ:", __LINE__);
 		//file.seekg(tc_cpu_data[j].off);
 		pos = tc_cpu_data[j].off;
-#if 0
-		int sz = 16;
-		i = read_n_bytes(file, pos, sz, __LINE__);
-		uint64_t ts = *(buf_uint64_prt(buf, 0));
-		printf("cpu[%d] ts= %lu\n", j, ts);
-#endif
 
 		long evt_data_read = 0;
 		uint64_t ts = 0;
 		while (evt_data_read < tc_cpu_data[j].len) {
 			evt_data_read += tc_read_evt(tc_cpu_data[j].len+tc_cpu_data[j].off, (int)j, page_sz, mm_buf, pos, ts,
-					__LINE__, prf_obj, verbose, prf_obj_prev, file_list);
+					long_sz, __LINE__, prf_obj, verbose, prf_obj_prev, file_list);
 		}
 	}
 	std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
