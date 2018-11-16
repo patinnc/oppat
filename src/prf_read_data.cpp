@@ -57,6 +57,17 @@
 #define BUF_MAX 4096
 static char buf[BUF_MAX];
 
+struct run_ena_str {
+	uint64_t tm_run_prev, tm_ena_prev;
+	uint64_t tm_run, tm_ena;
+	double tm_run_fctr, tm_ena_fctr;
+	run_ena_str(): tm_run_prev(0), tm_ena_prev(0),
+		tm_run(0), tm_ena(0), tm_run_fctr(1.0), tm_ena_fctr(1.0) {}
+};
+
+static std::vector <run_ena_str> vec_run_ena_tm;
+static std::vector <uint64_t> vec_prev_val_by_id;
+
 int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose, std::vector <evt_str> &evt_tbl2)
 {
 	std::ifstream file;
@@ -213,14 +224,6 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			if (sz > (i_beg+100)) {
 				sz = i_beg + 100;
 			}
-#if 0
-			static bool need_one_time_tm_beg_clip = true;
-			if (options.tm_clip_beg_valid && need_one_time_tm_beg_clip) {
-				sz = prf_obj.samples.size();
-				need_one_time_tm_beg_clip = false;
-				printf("bumped sz= %d at %s %d\n", sz, __FILE__, __LINE__);
-			}
-#endif
 			int mtch=-1, nxt=-1;
 			if (s_idx == -1 && i_beg == 0) {
 				printf("line[0].tm= %s at %s %d\n", prf_obj.samples[0].tm_str.c_str(), __FILE__, __LINE__);
@@ -241,12 +244,6 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 						}
 					}
     			}
-#if 0
-				if (std::regex_match( line, regx)) {
-					fprintf(stderr, "__got regex line= %s at %s %d\n", line.c_str(), __FILE__, __LINE__);
-					did_ck_for_ns = 0;
-				}
-#endif
 			}
 			std::string use_tm_str;
 			for (int i=i_beg; i < sz; i++) {
@@ -683,7 +680,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			}
 			u32 pid=(u32)-1;
 			u32 tid=pid, cpu=pid, res=pid;
-			u64 time=0, addr, id, stream_id, period=0;
+			u64 time=0, addr, id, stream_id=(u64)-1, period=0;
 		 //	{ u32			pid, tid; } && PERF_SAMPLE_TID
 			if ((whch_evt > -1 && prf_obj.events[whch_evt].pea.sample_type & PERF_SAMPLE_TID) ||
 				(prf_obj.def_sample_flags & PERF_SAMPLE_TID)) {
@@ -716,6 +713,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 		 //	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
 			if (prf_obj.events[whch_evt].pea.sample_type & PERF_SAMPLE_STREAM_ID) {
 				stream_id = *(u64 *)(buf + off);
+				printf("stream_id= %d at %s %d\n", (int32_t)(stream_id), __FILE__, __LINE__);
 				off += sizeof(stream_id);
 			}
 		 //	{ u32			cpu, res; } && PERF_SAMPLE_CPU
@@ -728,8 +726,10 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 		 //	{ u64			period;   } && PERF_SAMPLE_PERIOD
 			if (prf_obj.events[whch_evt].pea.sample_type & PERF_SAMPLE_PERIOD) {
 				period = *(u64 *)(buf + off);
+				//printf("period= %" PRIu64 " at %s %d\n", period, __FILE__, __LINE__);
 				off += sizeof(period);
 			}
+			uint64_t tm_run_val = 0;
 		 //	{ struct read_format	values;	  } && PERF_SAMPLE_READ
 			if (prf_obj.events[whch_evt].pea.sample_type & PERF_SAMPLE_READ) {
 				//sample_rec_fmt_len = prf_decode_read_format(decoded_sample_fmt, (uint64_t)pfa->attr.read_format);
@@ -737,6 +737,9 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				int grp=0, tm_ena=0, tm_run=0, id3=0;
 				int len = prf_decode_read_format_len((uint64_t)prf_obj.events[whch_evt].pea.read_format, grp,
 						tm_ena, tm_run, id3);
+				if (tm_run) {
+					prf_obj.has_tm_run = true;
+				}
 				if (!grp) {
 					len++;
 					len *= sizeof(u64);
@@ -746,7 +749,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 					u64 vtm_ena, vtm_run, vval, vid, xoff;
 					nr = *(u64 *)(buf + off);
 					xoff = sizeof(u64);
-					pe_grp.period = period;
+					//pe_grp.period = period;
 					pe_grp.grp = stream_id;
 					pe_grp.pe_vals.resize(nr);
 					if (prf_obj.events[whch_evt].pe_grp.pe_vals.size() < nr) {
@@ -760,25 +763,64 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 						pe_grp.tm_run = *(u64 *)(buf + off + xoff);
 						xoff += sizeof(u64);
 					}
-					//printf("PERF_SAMPLE_READ: grp= %" PRIu64 " tm_ena= %" PRIu64 " tm_run= %" PRIu64 "\n",
-					//		pe_grp.grp, pe_grp.tm_ena, pe_grp.tm_run);
+					//printf("PERF_SAMPLE_READ: grp= %" PRId64 " tm_ena= %" PRIu64 " tm_run= %" PRIu64 " ts= %" PRIu64 " cpu= %d\n",
+					//		(int64_t)pe_grp.grp, pe_grp.tm_ena, pe_grp.tm_run, time, cpu);
 					for (uint32_t ii=0; ii < nr; ii++) {
 						pe_grp.pe_vals[ii].val = *(u64 *)(buf + off + xoff);
 						pe_grp.pe_vals[ii].off = off + xoff;
 						xoff += sizeof(u64);
 						if (id3) {
 							pe_grp.pe_vals[ii].id = *(u64 *)(buf + off + xoff);
-							pe_grp.pe_vals[ii].off = off + xoff;
+							//pe_grp.pe_vals[ii].off = off + xoff;
+							if (ii == 0) {
+								uint32_t evt_idx_p1 = prf_obj.ids_2_evt_indxp1[pe_grp.pe_vals[ii].id];
+								if (evt_idx_p1 == 0) {
+									printf("did not expect 0 here. bye at %s %d\n", __FILE__, __LINE__);
+									exit(1);
+								}
+								uint32_t evt_idx = prf_obj.ids_vec[evt_idx_p1 - 1];
+								for (uint32_t ij = 0; ij < prf_obj.features_group_desc.size(); ij++) {
+									uint32_t last_idx = prf_obj.features_group_desc[ij].leader_idx +
+										prf_obj.features_group_desc[ij].nr_members;
+									if (evt_idx >= prf_obj.features_group_desc[ij].leader_idx &&
+											evt_idx < last_idx) {
+										pe_grp.grp = ij;
+										break;
+									}
+								}
+								if (pe_grp.grp == -1) {
+									printf("not sure what is going on. didn't find match on grp at %s %d\n",
+											__FILE__, __LINE__);
+									exit(1);
+								}
+							}
 							xoff += sizeof(u64);
 						}
-						//printf("\tPERF_SAMPLE_READ: val[%d]= %" PRIu64 " id= %" PRIu64 "\n",
-						//	ii, pe_grp.pe_vals[ii].val, pe_grp.pe_vals[ii].id);
+						//printf("\tPERF_SAMPLE_READ: val[%d]= %" PRIu64 " grp= %d id= %" PRIu64 "\n",
+						//	ii, pe_grp.pe_vals[ii].val, (uint32_t)pe_grp.grp, pe_grp.pe_vals[ii].id);
 					}
-
+					if (tm_ena && tm_run && pe_grp.grp != -1) {
+							if (pe_grp.tm_run < vec_run_ena_tm[pe_grp.grp].tm_run_prev) {
+								//printf("pe_grp.tm_run(%" PRIu64 ") < vec_run_ena_tm[%d].tm_run_prev(%" PRIu64 "). bye at %s %d\n", 
+								//	pe_grp.tm_run, (int)pe_grp.grp, vec_run_ena_tm[pe_grp.grp].tm_run_prev, __FILE__, __LINE__);
+								//exit(1);
+							}
+						if (pe_grp.tm_run < vec_run_ena_tm[pe_grp.grp].tm_run_prev ||
+							vec_run_ena_tm[pe_grp.grp].tm_ena_prev == 0) {
+							vec_run_ena_tm[pe_grp.grp].tm_run = pe_grp.tm_run;
+							vec_run_ena_tm[pe_grp.grp].tm_ena = pe_grp.tm_ena;
+						} else {
+							vec_run_ena_tm[pe_grp.grp].tm_run = pe_grp.tm_run - vec_run_ena_tm[pe_grp.grp].tm_run_prev;
+							vec_run_ena_tm[pe_grp.grp].tm_ena = pe_grp.tm_ena - vec_run_ena_tm[pe_grp.grp].tm_ena_prev;
+						}
+						vec_run_ena_tm[pe_grp.grp].tm_run_prev = pe_grp.tm_run;
+						vec_run_ena_tm[pe_grp.grp].tm_ena_prev = pe_grp.tm_ena;
+						tm_run_val = vec_run_ena_tm[pe_grp.grp].tm_run;
+					}
 					len = (int)(sizeof(u64) * ((1 + tm_ena + tm_run) + nr * (1 + id3)));
 					if (verbose > 1)
 						printf("PERF_SAMPLE_READ grp sz= %d , nr= %d grp= %d, tm_ena= %d, tm_run= %d, id= %d, at %s %d\n",
-							(int)len, (int)nr, grp, tm_ena, tm_run, id3, __FILE__, __LINE__);
+							(int)len, (int)nr, (int)grp, tm_ena, tm_run, id3, __FILE__, __LINE__);
 				}
 				off += len;
 			}
@@ -968,8 +1010,12 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			}
 			pss.tm_str = std::string(num_buf);
 			if (pe_grp.pe_vals.size() > 0) {
-				pss.period = pe_grp.pe_vals[0].val - prf_obj.events[whch_evt].pe_grp.pe_vals[0].val;
-				prf_obj.events[whch_evt].pe_grp.pe_vals[0].val = pe_grp.pe_vals[0].val;
+				//pss.period = pe_grp.pe_vals[0].val - prf_obj.events[whch_evt].pe_grp.pe_vals[0].val;
+				uint32_t id = pe_grp.pe_vals[0].id;
+				pss.period = pe_grp.pe_vals[0].val - vec_prev_val_by_id[id];
+				pss.tm_run = period;
+				//printf("pss.tm_run= %" PRIu64 " at %s %d\n", pss.tm_run, __FILE__, __LINE__);
+				vec_prev_val_by_id[id] = pe_grp.pe_vals[0].val;
 			}
 			if (verbose > 0) 
 				printf("hdr:[%d] %-16.16s %d/%d [%.3d]%s %" PRIu64 " %s:\n",
@@ -985,11 +1031,12 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				uint32_t whch_evt2 = get_evt_from_id(prf_obj, pe_grp.pe_vals[ii].id, evt_nm2, __LINE__, verbose);
 				pss.event  = evt_nm2;
 				pss.evt_idx = (uint32_t)whch_evt2;
+				pss.tm_run = period;
 				pss.orig_order = orig_order++;
-				pss.period = pe_grp.pe_vals[ii].val - prf_obj.events[whch_evt].pe_grp.pe_vals[ii].val;
-				prf_obj.events[whch_evt].pe_grp.pe_vals[ii].val = pe_grp.pe_vals[ii].val;
+				uint32_t id = pe_grp.pe_vals[ii].id;
+				pss.period = pe_grp.pe_vals[ii].val - vec_prev_val_by_id[id];
+				vec_prev_val_by_id[id] = pe_grp.pe_vals[ii].val;
 				pss.mm_off = -1;
-				//pss.mm_off = pe_grp.vals[ii].off;
 				prf_obj.samples.push_back(pss);
 				++smples;
 			}
@@ -1132,17 +1179,6 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			if (verbose > 0)
 			printf("smpl_typ_fork: pid= %d, ppid= %d, tid= %d, ptid= %d, time= %" PRIu64 "\n",
 				smpl->pid, smpl->ppid, smpl->tid,smpl->ptid, smpl->time);
-#if 0
-			int indx = prf_obj.tid_2_comm_indxp1[smpl->tid];
-			if (indx == 0) {
-				indx = prf_obj.tid_2_comm_indxp1[tid];
-				prf_add_comm(smpl->pid, smpl->tid, std::string(smpl->comm), prf_obj);
-				printf("missed loookup of comm for pid= %d, tid= %d evt_nm= %s tm= %.9f at %s %d\n",
-					pid, tid, evt_nm.c_str(), tm, __FILE__, __LINE__);
-				exit(1);
-			}
-			pss.comm   = prf_obj.comm[indx-1].comm;
-#endif
 			break;
 		}
 		case PERF_RECORD_READ:
@@ -1329,6 +1365,7 @@ static int prf_prt_event_desc(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 	printf("event_desc nr= %d, at_sz= %d, sizoef(attr)= %d, at_off= %d, nr_ids[0]= %d\n",
 		nr, at_sz, (int)sizeof(struct perf_event_attr), at_off, pevt_hdr->events.nr_ids);
 	int str_off = at_off; 
+	int mx_id= 0;
 //xyz
 	for (int j=0; j < nr; j++) {
 		char *cp = sbuf + str_off;
@@ -1343,13 +1380,20 @@ static int prf_prt_event_desc(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 				pfx, j, pevents[0].nr_ids, pevents[0].event_string.len, e_str.c_str());
 		pevents[0].ids = (uint64_t *)(char *)(cp + slen);
 		for (uint32_t k=0; k < eds.nr_ids; k++) {
-			eds.ids.push_back(pevents[0].ids[k]);
+			uint32_t id = pevents[0].ids[k];
+			eds.ids.push_back(id);
+			prf_add_ids(id, j, prf_obj);
+			if (mx_id < id) {
+				mx_id = id;
+			}
+			printf("\tevt_idx= %d, id= %d at %s %d\n", j, (int)pevents[0].ids[k], __FILE__, __LINE__);
 		}
 		eds.attr = pevents[0].attr;
 		prf_obj.features_event_desc.push_back(eds);
 		slen += pevents[0].nr_ids*sizeof(uint64_t);
 		str_off += slen;
 	}
+	vec_prev_val_by_id.resize(mx_id+1, 0);
 	for (uint32_t i=0; i < prf_obj.events.size(); i++) {
 		printf("ck if need to update prf_obj[%d].event_name= %s at %s %d\n",
 				i, prf_obj.events[i].event_name.c_str(), __FILE__, __LINE__);
@@ -1499,6 +1543,8 @@ static int prf_prt_group_desc(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 		prf_obj.features_group_desc.push_back(gs);
 		str_off += slen + off + sizeof(gs.nr_members);
 	}
+	vec_run_ena_tm.resize(0);
+	vec_run_ena_tm.resize(nr);
 	return 0;
 }
 
@@ -1579,13 +1625,6 @@ int prf_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, doubl
 		printf("memory map getData() failed at %s %d\n", __FILE__, __LINE__);
 		exit(1);
 	}
-#if 0
-	file.open (flnm, std::ios::in | std::ios::binary);
-	if (!file.is_open()) {
-		printf("messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
-		exit(1);
-	}
-#endif
 	pos = 0;
 	//i = read_n_bytes(file, pos, 8, __LINE__);
 	mm_read_n_bytes(mm_buf, pos, 8, __LINE__, buf, BUF_MAX);
@@ -1615,18 +1654,6 @@ int prf_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, doubl
 		}
 	}
 
-#if 0
-	std::vector <perf_file_section> opt_hdrs;
-	for (i=0; i < 64; i++) {
-		if ((1UL << i) & perf_hdr.flags) {
-			perf_file_section pfs;
-			read_n_bytes_buf(file, pos, sizeof(pfs), (char *)&pfs, __LINE__);
-			printf("opt_hdrs[%d] offset= 0x%lx, size= %ld\n", (int)opt_hdrs.size(), pfs.offset, pfs.size);
-			opt_hdrs.push_back(pfs);
-			
-		}
-	}
-#endif
 	// read perf event attr section
 	
 	printf("struct perf_event_attr size= %d\n", (int)sizeof(perf_event_attr));
