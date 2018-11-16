@@ -4814,7 +4814,7 @@ int main(int argc, char **argv)
 	}
 
 	for (uint32_t i=0; i < file_list.size(); i++) {
-		int v_tmp = 0;
+		int v_tmp = options.verbose;
 		std::string file_tag = file_list[i].file_tag;
 		uint32_t file_tag_idx = hash_string(file_tag_hash, file_tag_vec, file_tag) - 1;
 		if (file_tag_idx != UINT32_M1 && file_tag_idx >= flnm_evt_hash.size()) {
