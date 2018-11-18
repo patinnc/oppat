@@ -6,6 +6,12 @@
 #pragma once
 
 enum {
+	CLIP_NONE,
+	CLIP_LVL_1,
+	CLIP_LVL_2,
+};
+
+enum {
 	SHOW_JSON_NO=0,
 	SHOW_JSON_PER_FILE,
 	SHOW_JSON_ALL,
@@ -29,9 +35,13 @@ struct options_str {
 	std::vector <std::string> file_tag_vec;
 	double tm_clip_beg, tm_clip_end;
 	int tm_clip_beg_valid, tm_clip_end_valid;
+	int clip_mode;
+	int marker_beg_num, marker_end_num;
 	bool load_replay_file, web_file_quit;
 	options_str(): verbose(0), help(0), file_mode(-1), show_json(SHOW_JSON_NO), web_port(8081),
-   		tm_clip_beg(-1.0), tm_clip_end(-1.0), tm_clip_beg_valid(0), tm_clip_end_valid(0),
+		tm_clip_beg(-1.0), tm_clip_end(-1.0), clip_mode(CLIP_NONE),
+		tm_clip_beg_valid(CLIP_NONE), tm_clip_end_valid(CLIP_NONE),
+		marker_beg_num(-1), marker_end_num(-1),
    		load_replay_file(false), web_file_quit(false) {}
 };
 
@@ -83,9 +93,9 @@ struct prf_events_str {
 	std::string event_area;
 	std::string event_name;
 	std::string event_name_w_area;
-	int lst_ft_fmt_idx;
+	int lst_ft_fmt_idx, evt_count;
 	struct pe_group_str pe_grp;
-	prf_events_str(): lst_ft_fmt_idx(-2) {}
+	prf_events_str(): lst_ft_fmt_idx(-2), evt_count(0) {}
 };
 struct prf_callstack_str {
 	std::string mod, rtn;
@@ -115,7 +125,6 @@ struct evts_derived_str {
 struct prf_samples_str {
 	std::string comm, event, tm_str, extra_str;
 	uint32_t evt_idx, pid, tid, cpu;
-	//int cpt_idx, cpt_idx2, fe_idx;
 	int fe_idx, orig_order, line_num;
 	long mm_off;
 	uint64_t ts, period, tm_run;

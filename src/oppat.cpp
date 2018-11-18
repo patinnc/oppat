@@ -149,6 +149,17 @@ static int ck_if_root_points_to_data_file(std::vector <std::string> root_dir, st
 	return 0;
 }
 
+void bump_clip_valid(int &tm_clip_valid)
+{
+	if (tm_clip_valid == 0) {
+		tm_clip_valid++;
+		options.clip_mode = std::max((int)CLIP_LVL_1, options.clip_mode);
+	} else if (tm_clip_valid == 1) {
+		tm_clip_valid++;
+		options.clip_mode = std::max((int)CLIP_LVL_2, options.clip_mode);
+	}
+}
+
 static int
 get_opt_main (int argc, char **argv)
 {
@@ -174,7 +185,22 @@ get_opt_main (int argc, char **argv)
 		},
 		/* These options don’t set a flag.
 			We distinguish them by their indices. */
-		{"beg_tm",      required_argument,   0, 'b', "begin time (absolute) to clip"},
+		{"beg_tm",      required_argument,   0, 'b', "begin time (absolute timestamp) to clip\n"
+		   "   The begin time is the absolute time (not relative time) unless you use --marker_beg_num option too.\n"
+		   "   If you use '--marker_beg_num numbr' then the time is relative to the marker's absolute time.\n"
+		   "   For example:\n"
+		   "     '-b 0.5 --marker_beg_num 1'  will set the begin clip time to marker number 1's absolute time - 0.5 seconds.\n"
+		},
+		{"marker_beg_num",      required_argument,   0, 0, "set begin clip time to marker number's absolute time"
+		   "   The markers are sorted by time the first marker is marker 0\n"
+		   "   If beg_tm is not entered then clip beg time is set to the marker 'num' absolute time\n"
+		   "   If beg_tm is entered then clip beg time is set to the marker 'num' absolute time + beg_tm\n"
+		},
+		{"marker_end_num",      required_argument,   0, 0, "set end clip time to marker number's absolute time"
+		   "   The markers are sorted by time the first marker is marker 0\n"
+		   "   If end_tm is not entered then clip end time is set to the marker 'num' absolute time\n"
+		   "   If end_tm is entered then clip end time is set to the marker 'num' absolute time + end_tm\n"
+		},
 		{"charts",      required_argument,   0, 'c', "json list of charts"},
 		{"data_files",  required_argument,   0, 'd', "json list of data files\n"
 		   "   By default the file is input_files/input_data_files.json and each data dir you\n"
@@ -337,6 +363,32 @@ get_opt_main (int argc, char **argv)
 				options.web_file_quit = true;
 				break;
 			}
+			if (strcmp(long_options[option_index].name, "beg_tm") == 0) {
+				options.tm_clip_beg = atof(optarg);
+				printf ("option -beg_tm with value `%s', %f\n", optarg, options.tm_clip_beg);
+				bump_clip_valid(options.tm_clip_beg_valid);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "marker_beg_num") == 0) {
+				options.marker_beg_num = atoi(optarg);
+				printf ("option -marker_beg_num with value `%s', %d\n", optarg, options.marker_beg_num);
+				options.clip_mode = CLIP_LVL_2;
+				options.tm_clip_beg_valid = CLIP_LVL_2;
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "end_tm") == 0) {
+				options.tm_clip_end = atof(optarg);
+				printf ("option -end_tm with value `%s', %f\n", optarg, options.tm_clip_beg);
+				bump_clip_valid(options.tm_clip_end_valid);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "marker_end_num") == 0) {
+				options.marker_end_num = atoi(optarg);
+				printf ("option -marker_end_num with value `%s', %d\n", optarg, options.marker_end_num);
+				options.clip_mode = CLIP_LVL_2;
+				options.tm_clip_end_valid = CLIP_LVL_2;
+				break;
+			}
 			/* If this option set a flag, do nothing else now. */
 			if (long_options[option_index].flag != 0)
 				break;
@@ -349,7 +401,7 @@ get_opt_main (int argc, char **argv)
 		case 'b':
 			printf ("option -b with value `%s'\n", optarg);
 			options.tm_clip_beg = atof(optarg);
-			options.tm_clip_beg_valid++;
+			bump_clip_valid(options.tm_clip_beg_valid);
 			break;
 
 		case 'c':
@@ -365,7 +417,7 @@ get_opt_main (int argc, char **argv)
 		case 'e':
 			printf ("option -e with value `%s'\n", optarg);
 			options.tm_clip_end = atof(optarg);
-			options.tm_clip_end_valid++;
+			bump_clip_valid(options.tm_clip_end_valid);
 			break;
 
 		case 'h':
@@ -465,6 +517,11 @@ get_opt_main (int argc, char **argv)
 	}
 
 	ck_if_root_points_to_file_list(options.root_data_dirs, "file_list.json", options.file_list);
+
+	printf("options: tm_clip_beg= %f, beg_valid= %d, end= %f, end_valid= %d at %s %d\n",
+		options.tm_clip_beg, options.tm_clip_beg_valid,
+		options.tm_clip_end, options.tm_clip_end_valid,
+		__FILE__, __LINE__);
 
 	if (options.file_list.size() > 0) {
 		// everything in this routine below this point should be for just filling in list of files
@@ -1739,14 +1796,16 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			dura = event_table[evt_idx].data.ts[i].duration;
 			fx1 = event_table[evt_idx].data.ts[i].ts - ts0;
 			fx0 = fx1 - dura;
-			if (options.tm_clip_beg_valid == 2 && (fx1+ts0) < options.tm_clip_beg) {
+#if 1
+			if (options.tm_clip_beg_valid == CLIP_LVL_2  && (fx1+ts0) < options.tm_clip_beg) {
 				cur_idx--;
 				continue;
 			}
-			if (options.tm_clip_end_valid == 2 && (fx0+ts0) > options.tm_clip_end) {
+			if (options.tm_clip_end_valid == CLIP_LVL_2 && (fx0+ts0) > options.tm_clip_end) {
 				cur_idx--;
 				continue;
 			}
+#endif
 			if (have_filter_regex) {
 				bool skip = false;
 				for (uint32_t ii=0; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
@@ -1774,11 +1833,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 			}
 			bool tmp_verbose = false;
-			if (fx1 >= 5.169510 && fx1 <= 5.169512) {
-				//abcd
-				printf("ckck2 fx1= %f, dura= %f at %s %d\n", fx1, dura, __FILE__, __LINE__);
-				tmp_verbose = true;
-			}
 
 			if (chart_type != CHART_TYPE_STACKED) {
 				double used_so_far = 0.0;
@@ -2046,6 +2100,22 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 
 			ls0p = &last_by_var_lines_str[by_var_idx_val].ls0;
+#if 1
+			if (options.tm_clip_beg_valid == CLIP_LVL_2 && (x1+ts0) < options.tm_clip_beg) {
+				cur_idx--;
+				continue;
+			}
+			if (options.tm_clip_end_valid == CLIP_LVL_2 && (x0+ts0) > options.tm_clip_end) {
+				cur_idx--;
+				continue;
+			}
+			if (options.tm_clip_beg_valid == CLIP_LVL_2 && (x0+ts0) < options.tm_clip_beg) {
+				x0 = options.tm_clip_beg - ts0;
+			}
+			if (options.tm_clip_end_valid == CLIP_LVL_2 && (x1+ts0) > options.tm_clip_end) {
+				x1 = options.tm_clip_end - ts0;
+			}
+#endif
 			last_by_var_lines_str[by_var_idx_val].x0 = x0; // last_by_val_lines_str..x1 - x0 is the true duration
 			last_by_var_lines_str[by_var_idx_val].x1 = x1;
 			if (i > 0) {
@@ -2055,23 +2125,10 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 			ls0p->x[0] = x0;
 			ls0p->x[1] = x1;
-			if (ls0p->x[1] >= 5.169510 && ls0p->x[1] <= 5.169512) {
-				//abcd
-				printf("ckck1 x0= %f, x1= %f, dura= %f at %s %d\n",
-					ls0p->x[0], ls0p->x[1], dura, __FILE__, __LINE__);
-			}
 			if (chart_type == CHART_TYPE_STACKED) {
 				ls0p->typ  = SHAPE_RECT;
 			} else {
 				ls0p->typ  = SHAPE_LINE;
-			}
-			if (options.tm_clip_beg_valid == 2 && (x1+ts0) < options.tm_clip_beg) {
-				cur_idx--;
-				continue;
-			}
-			if (options.tm_clip_end_valid == 2 && (x0+ts0) > options.tm_clip_end) {
-				cur_idx--;
-				continue;
 			}
 			ls0p->text = comm;
 			ls0p->pid  = pid_num;
@@ -2152,10 +2209,10 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							fx1 = event_table[evt_idx].data.ts[i].ts - ts0;
 							fx0 = event_table[evt_idx].data.ts[jj].ts - ts0;
 							double ux0=x0, ux1=x1, uclip_beg = 0, uclip_end=0;
-							if (options.tm_clip_beg_valid > 0) {
+							if (options.tm_clip_beg_valid == CLIP_LVL_1) {
 								uclip_beg = options.tm_clip_beg - ch_lines.range.ts0;
 							}
-							if (options.tm_clip_end_valid > 0) {
+							if (options.tm_clip_end_valid == CLIP_LVL_1) {
 								uclip_end = options.tm_clip_end - ch_lines.range.ts0;
 							}
 							if (uclip_end != 0.0 && ux0 < uclip_beg && ux1 >= uclip_beg) {
@@ -2296,6 +2353,22 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					}
 				}
 			}
+#if 1
+			if (options.tm_clip_beg_valid == CLIP_LVL_2 && (ls0p->x[1]+ts0) < options.tm_clip_beg) {
+				cur_idx--;
+				continue;
+			}
+			if (options.tm_clip_end_valid == CLIP_LVL_2 && (ls0p->x[0]+ts0) > options.tm_clip_end) {
+				cur_idx--;
+				continue;
+			}
+			if (options.tm_clip_beg_valid == CLIP_LVL_2 && (ls0p->x[0]+ts0) < options.tm_clip_beg) {
+				ls0p->x[0] = options.tm_clip_beg - ts0;
+			}
+			if (options.tm_clip_end_valid == CLIP_LVL_2 && (ls0p->x[1]+ts0) > options.tm_clip_end) {
+				ls0p->x[1] = options.tm_clip_end - ts0;
+			}
+#endif
 			if (ls0p->pid != 0) {
 				ls0p->y[0] = 0.0;
 				ls0p->y[1] = y_val[by_var_idx_val];
@@ -2441,6 +2514,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		//		tm_srt2, __FILE__, __LINE__);
 		return 0;
 	}
+	// BLOCK chart
 	for (uint32_t i=0; i < event_table[evt_idx].data.vals.size(); i++) {
 		var_val = event_table[evt_idx].data.vals[i][var_idx];
 		int pid_num = -1;
@@ -2467,12 +2541,17 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 		}
 		x = event_table[evt_idx].data.ts[i].ts - dura - ts0;
-		if (options.tm_clip_beg_valid == 2 && (x+dura+ts0) < options.tm_clip_beg) {
+#if 1
+		if (options.tm_clip_beg_valid == CLIP_LVL_2 && (x+dura+ts0) < options.tm_clip_beg) {
 			continue;
 		}
-		if (options.tm_clip_end_valid == 2 && (x+ts0) > options.tm_clip_end) {
+		if (options.tm_clip_beg_valid == CLIP_LVL_2 && (x+ts0) < options.tm_clip_beg) {
+			x = options.tm_clip_beg - ts0;
+		}
+		if (options.tm_clip_end_valid == CLIP_LVL_2 && (x+ts0) > options.tm_clip_end) {
 			continue;
 		}
+#endif
 		y = lo;
 		if (var_comm_idx > -1) {
 			double var_comm_val = event_table[evt_idx].data.vals[i][var_comm_idx];
@@ -2509,11 +2588,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			} else {
 			    uint32_t cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
 				if (var_cpu_idx > -1) {
-			        ls1.cpu    = event_table[evt_idx].data.vals[i][var_cpu_idx];
+			        ls1.cpu = event_table[evt_idx].data.vals[i][var_cpu_idx];
 				} else {
-			        ls1.cpu    = -1;
+			        ls1.cpu = -1;
 				}
-			    ls1.cpt_idx    = cpt_idx;
+			    ls1.cpt_idx = cpt_idx;
 				ls1.period  = 1.0;
 			}
 			ls1.period = dura;
@@ -2521,7 +2600,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				std::string ostr;
 				prf_sample_to_string(prf_idx, ostr, prf_obj);
 				//ls1.text = ostr;
-				ls1.text = "_P_";
+				ls1.text = "_P_"; // placeholder will be replaced by main.js with trace record
 				ls1.text += "<br>" + prf_obj.samples[prf_idx].extra_str;
 				if (prf_obj.samples[prf_idx].args.size() > 0) {
 					ls1.text += "<br>";
@@ -2572,9 +2651,16 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls1.subcat = 1;
 			ls1.prf_idx = prf_idx;
 			ls1.typ = SHAPE_LINE;
-			chart_lines_ck_rng(ls1.x[0], ls1.y[0], ts0, ls1.cat, ls1.subcat, 0.0, ls1.fe_idx);
-			chart_lines_ck_rng(ls1.x[1], ls1.y[1], ts0, ls1.cat, ls1.subcat, 1.0, ls1.fe_idx);
-			ch_lines.line.push_back(ls1);
+			bool do_it = true;
+			if (options.tm_clip_end_valid == CLIP_LVL_2 &&
+				   ((ls1.x[0]+ts0) < options.tm_clip_beg || (ls1.x[0]+ts0) > options.tm_clip_end)) {
+				do_it = false;
+			}
+			if (do_it) {
+				chart_lines_ck_rng(ls1.x[0], ls1.y[0], ts0, ls1.cat, ls1.subcat, 0.0, ls1.fe_idx);
+				chart_lines_ck_rng(ls1.x[1], ls1.y[1], ts0, ls1.cat, ls1.subcat, 1.0, ls1.fe_idx);
+				ch_lines.line.push_back(ls1);
+			}
 		}
 		if (chart_type == CHART_TYPE_BLOCK && doing_pct_busy_by_cpu == 1 && idle_pid) {
 			continue;
@@ -2582,6 +2668,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		lines_str ls0;
 		ls0.x[0] = x;
 		ls0.x[1] = event_table[evt_idx].data.ts[i].ts - ts0;
+#if 1
+		if (options.tm_clip_end_valid == CLIP_LVL_2 && (ls0.x[1]+ts0) > options.tm_clip_end) {
+			ls0.x[1] = options.tm_clip_end - ts0;
+		}
+#endif
 		if (chart_type == CHART_TYPE_LINE) {
 			ls0.y[0] = var_val;
 			ls0.y[1] = var_val;
@@ -2663,6 +2754,15 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				// already did these events so skip
 				continue;
 			}
+			double ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
+#if 1
+			if (options.tm_clip_beg_valid == CLIP_LVL_2 && ts < options.tm_clip_beg) {
+				continue;
+			}
+			if (options.tm_clip_end_valid == CLIP_LVL_2 && ts > options.tm_clip_end) {
+				continue;
+			}
+#endif
 			lines_str ls0;
 
 			int cpt_idx = -1;
@@ -2679,13 +2779,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			//}
 			//shape_str ss;
 			double cpu = prf_obj.samples[i].cpu;
-			double ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
-			if (options.tm_clip_beg_valid == 2 && (ts+ts0) < options.tm_clip_beg) {
-				continue;
-			}
-			if (options.tm_clip_end_valid == 2 && (ts+ts0) > options.tm_clip_end) {
-				continue;
-			}
 			ls0.x[0] = ts - ts0;
 			ls0.y[0] = cpu + delta;
 			ls0.x[1] = ls0.x[0];
@@ -2704,7 +2797,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			std::string ostr;
 			prf_sample_to_string(i, ostr, prf_obj);
 			//ls0.text = ostr;
-			ls0.text = "_P_";
+			ls0.text = "_P_"; // placeholder will be replaced by main.js with trace record
 			if (prf_obj.samples[i].args.size() > 0) {
 				ls0.text += "<br>";
 				for (uint32_t k=0; k < prf_obj.samples[i].args.size(); k++) {
@@ -2844,6 +2937,15 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					cpu = atoi(prf_obj.etw_data[data_idx][cpu_idx].c_str());
 				}
 				double ts = prf_obj.tm_beg + 1.0e-6 * (double)prf_obj.etw_evts_set[set_idx][i].ts;
+				//double ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
+#if 1
+				if (options.tm_clip_beg_valid == CLIP_LVL_2 && (ts+ts0) < options.tm_clip_beg) {
+					continue;
+				}
+				if (options.tm_clip_end_valid == CLIP_LVL_2 && (ts+ts0) > options.tm_clip_end) {
+					continue;
+				}
+#endif
 				ls0.x[0] = ts - prf_obj.tm_beg;
 				ls0.y[0] = cpu + delta;
 				ls0.x[1] = ls0.x[0];
@@ -2946,10 +3048,10 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	json += ", \"chart_category\": \"" + cat + "\"";
 	json += ", \"y_by_var\": \"" + event_table[evt_idx].charts[chrt].by_var + "\"";
 	double uclip_beg= 0, uclip_end= 0;
-	if (options.tm_clip_beg_valid > 0) {
+	if (options.tm_clip_beg_valid == CLIP_LVL_1) {
 		uclip_beg = options.tm_clip_beg - ch_lines.range.ts0;
 	}
-	if (options.tm_clip_end_valid > 0) {
+	if (options.tm_clip_end_valid == CLIP_LVL_1) {
 		uclip_end = options.tm_clip_end - ch_lines.range.ts0;
 	}
 	json += ", \"ts_initial\": { \"ts\":" + do_string_with_decimals(ch_lines.range.ts0, 9) +
@@ -3091,24 +3193,29 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 			double ux0, ux1;
 			ux0 = ch_lines.range.subcat_rng[i][j].x0;
 			ux1 = ch_lines.range.subcat_rng[i][j].x1;
-			if (options.tm_clip_beg_valid > 0) {
+#if 0
+			// this needs work
+			if (options.tm_clip_beg_valid == CLIP_LVL_2) {
 				double ubeg = options.tm_clip_beg - ch_lines.range.ts0;
 				if (ux1 < ubeg) {
+					did_line = false;
 					continue;
 				}
 				if (ux0 < ubeg) {
 					ux0 = ubeg;
 				}
 			}
-			if (options.tm_clip_end_valid > 0) {
+			if (options.tm_clip_end_valid == CLIP_LVL_2) {
 				double uend = options.tm_clip_end - ch_lines.range.ts0;
 				if (ux0 > uend) {
+					did_line = false;
 					continue;
 				}
 				if (ux1 > uend) {
 					ux1 = uend;
 				}
 			}
+#endif
 			if (verbose > 0)
 			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s, initd= %d\n", i, j,
 				//ch_lines.range.subcat_rng[i][j].x0,
@@ -4119,7 +4226,9 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			continue;
 		}
 		if (dv.size() != fsz) {
-			printf("mismatch dv.size()= %d, fsz= %d at %s %d\n", (int)dv.size(), (int)fsz, __FILE__, __LINE__);
+			printf("mismatch dv.size()= %d, fsz= %d event_name= %s at %s %d\n",
+					(int)dv.size(), (int)fsz, event_table.event_name_w_area.c_str(),
+					__FILE__, __LINE__);
 			exit(1);
 		}
 		if (div_by_interval_idx.size() > 0) {
@@ -4570,6 +4679,114 @@ int read_perf_event_list_dump(file_list_str &file_list)
 	return 0;
 }
 
+struct marker_str {
+	double ts_abs;
+	std::string text, evt_name;
+	bool beg, end;
+	int prf_obj_idx, evt_idx_in_po;
+	marker_str(): ts_abs(0.0), beg(false), end(false), prf_obj_idx(-1), evt_idx_in_po(-1) {}
+};
+
+static std::vector <marker_str> marker_vec;
+
+int ck_for_markers(int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <marker_str> &marker_vec)
+{
+	//abcd
+	std::string evt_nm;
+	bool got_marker_beg_num = false, got_marker_end_num = false;
+	uint32_t Mark_idx = UINT32_M1;
+
+	if (prf_obj[po_idx].file_type == FILE_TYP_ETW) {
+		Mark_idx = prf_obj[po_idx].etw_evts_hsh["Mark"] -1;
+		if (Mark_idx != UINT32_M1) {
+			int sz = (int)prf_obj[po_idx].etw_evts_set[Mark_idx].size();
+			prf_obj[po_idx].events[Mark_idx].evt_count = sz;
+			printf("Mark[%d] sz= %d at %s %d\n", Mark_idx, sz, __FILE__, __LINE__);
+			for (uint32_t i=0; i < prf_obj[po_idx].etw_evts_set[Mark_idx].size(); i++) {
+				uint32_t data_idx = prf_obj[po_idx].etw_evts_set[Mark_idx][i].data_idx;
+				double tm = prf_obj[po_idx].tm_beg + 1.0e-6 * (double)prf_obj[po_idx].etw_evts_set[Mark_idx][i].ts;
+				printf("marker[%d]: tm= %f, str= %s at %s %d\n", i, tm, 
+					prf_obj[po_idx].etw_data[data_idx][2].c_str(), __FILE__, __LINE__);
+				marker_str ms;
+				if (options.marker_beg_num == i) {
+					printf("use this marker as --marker_beg_num %d at %s %d\n", i, __FILE__, __LINE__);
+					got_marker_beg_num = true;
+					options.tm_clip_beg = tm + options.tm_clip_beg;
+					ms.beg = true;
+				}
+				if (options.marker_end_num == i) {
+					printf("use this marker as --marker_end_num %d at %s %d\n", i, __FILE__, __LINE__);
+					got_marker_end_num = true;
+					options.tm_clip_end = tm + options.tm_clip_end;
+					ms.end = true;
+				}
+				ms.ts_abs = tm;
+				ms.text   = prf_obj[po_idx].etw_data[data_idx][2];
+				ms.evt_name = "Mark";
+				ms.prf_obj_idx = po_idx;
+				ms.evt_idx_in_po = Mark_idx;
+				marker_vec.push_back(ms);
+			}
+		}
+	} else {
+		for (uint32_t j=0; j < prf_obj[po_idx].events.size(); j++) {
+			if (prf_obj[po_idx].events[j].event_name.find(":") != std::string::npos) {
+				evt_nm = prf_obj[po_idx].events[j].event_name;
+			} else {
+				if (prf_obj[po_idx].events[j].event_area.size() > 0) {
+					evt_nm = prf_obj[po_idx].events[j].event_area + ":" + prf_obj[po_idx].events[j].event_name;
+				} else {
+					evt_nm = prf_obj[po_idx].events[j].event_name;
+				}
+			}
+			if (evt_nm == "ftrace:print" || evt_nm == "print") {
+				printf("got marker event in prf_obj[%d] event[%d] count= %d smples= %d at %s %d\n",
+						po_idx, j, prf_obj[po_idx].events[j].evt_count,
+						(int)prf_obj[po_idx].samples.size(),
+						__FILE__, __LINE__);
+				printf("prf_obj[%d].event[%d] = %s at %s %d\n", po_idx, j, evt_nm.c_str(), __FILE__, __LINE__);
+				uint32_t mrkr=0;
+				for (uint32_t i=0; i < prf_obj[po_idx].samples.size(); i++) {
+#if 0
+					printf("smpl[%d] evt= %s idx= %d at %s %d\n",
+						i, prf_obj[po_idx].samples[i].event.c_str(),
+						prf_obj[po_idx].samples[i].evt_idx, __FILE__, __LINE__);
+#endif
+
+					if (prf_obj[po_idx].samples[i].evt_idx != j) {
+						continue;
+					}
+					marker_str ms;
+					//double tm = prf_obj[po_idx].tm_beg + 1.0e-9 * (double)prf_obj[po_idx].samples[i].ts;
+					double tm = 1.0e-9 * (double)prf_obj[po_idx].samples[i].ts;
+					printf("marker[%d]: tm= %f str= %s at %s %d\n", mrkr, tm,
+						prf_obj[po_idx].samples[i].extra_str.c_str(), __FILE__, __LINE__);
+					if (options.marker_beg_num == mrkr) {
+						printf("use this marker as --marker_beg_num %d at %s %d\n", mrkr, __FILE__, __LINE__);
+						got_marker_beg_num = true;
+						options.tm_clip_beg = tm + options.tm_clip_beg;
+						ms.beg = true;
+					}
+					if (options.marker_end_num == mrkr) {
+						printf("use this marker as --marker_end_num %d at %s %d\n", mrkr, __FILE__, __LINE__);
+						got_marker_end_num = true;
+						options.tm_clip_end = tm + options.tm_clip_end;
+						ms.end = true;
+					}
+					ms.ts_abs = tm;
+					ms.text   = prf_obj[po_idx].samples[i].extra_str;
+					ms.evt_name = evt_nm;
+					ms.prf_obj_idx = po_idx;
+					ms.evt_idx_in_po = j;
+					marker_vec.push_back(ms);
+					mrkr++;
+				}
+			}
+		}
+	}
+	return (int)marker_vec.size();
+}
+
 int main(int argc, char **argv)
 {
 	std::vector <std::vector <evt_str>> event_table, evt_tbl2;
@@ -4881,6 +5098,18 @@ int main(int argc, char **argv)
 			fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
 			exit(1);
 		}
+		printf("prf_obj[%d].sample.size()= %d at %s %d\n", i, (int)prf_obj[i].samples.size(), __FILE__, __LINE__);
+		ck_for_markers(i, prf_obj, marker_vec);
+	}
+	if (options.marker_beg_num != -1 && marker_vec.size() < (options.marker_beg_num+1)) {
+		fprintf(stderr, "you enter '--marker_beg_num %d' but marker array size= %d. Bye at %s %d\n",
+				options.marker_beg_num, (int)marker_vec.size(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (options.marker_end_num != -1 && marker_vec.size() < (options.marker_end_num+1)) {
+		fprintf(stderr, "you enter '--marker_end_num %d' but marker array size= %d. Bye at %s %d\n",
+				options.marker_end_num, (int)marker_vec.size(), __FILE__, __LINE__);
+		exit(1);
 	}
 
 	event_table.resize(grp_list.size());
