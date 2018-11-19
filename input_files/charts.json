@@ -379,6 +379,50 @@
   },
   {"event":
 	{
+	"evt_name": "br_mis_pred_pct", "evt_type": "ftrace", "comment":"derived event for branch mis_pred/br_pred)",
+	"evt_derived":{
+		"evts_tags":[{"evt":"r10", "tag":"num"}, {"evt":"r12", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%Branch mis_predict (r10 BR_MIS_PRED/r12 BR_PRED) by CPU",  "var_name":"val",
+			"by_var": "area", "chart_tag":"BR_MIS_PRED_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"%br_mis_pred"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cond_br_mis_pred_pct", "evt_type": "ftrace", "comment":"derived event for cond_branch mis_pred/BR_COND)",
+	"evt_derived":{
+		"evts_tags":[{"evt":"rcc", "tag":"num"}, {"evt":"rc9", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%cond branch mis_predict (rcc BR_COND_MISPRED/rc9 BR_COND) by CPU",  "var_name":"val",
+			"by_var": "area", "chart_tag":"BR_MIS_PRED_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"%cond_br_mis_pred"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "L2_miss_pct", "evt_type": "ftrace", "comment":"derived event for L2 miss % (L2 misses/L2 accesses)",
 	"evt_derived":{
 		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"r16", "tag":"den"}],
