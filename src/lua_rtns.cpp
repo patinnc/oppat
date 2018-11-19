@@ -35,6 +35,7 @@ static int lua_push_sample(prf_obj_str &prf_obj, int verbose, int evt_idx, doubl
 	//pss.comm   = comm;
 	//pss.event  = evt_nm;
 	pss.evt_idx= evt_idx;
+	prf_obj.events[evt_idx].evt_count++;
 	pss.pid    = -1;
 	pss.tid    = -1;
 	pss.cpu    = 0;
@@ -270,10 +271,12 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 		if (verbose)
 			printf("\n");
 		double tsn = ldvs_vec[ts_idx[evt_idx]].dval;
-		if ((options.tm_clip_beg_valid && tsn < options.tm_clip_beg) ||
-			(options.tm_clip_end_valid && tsn > options.tm_clip_end)) {
+#if 1
+		if ((options.tm_clip_beg_valid == CLIP_LVL_1 && tsn < options.tm_clip_beg) ||
+			(options.tm_clip_end_valid == CLIP_LVL_1 && (tsn-dura) > options.tm_clip_end)) {
 			continue;
 		}
+#endif
 		dura = ldvs_vec[dura_idx[evt_idx]].dval;
 		double ts_beg = ldvs_vec[ts_idx[evt_idx]].dval - dura;
 		if (need_ts0 || ts_beg < prf_obj.tm_beg) {
