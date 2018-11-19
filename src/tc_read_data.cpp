@@ -413,6 +413,7 @@ do_page_hdr:
 				pss.comm   = prf_obj.comm[(uint64_t)(pid_indx-1)].comm;
 				pss.event  = evt_nm;
 				pss.evt_idx= ck_evt_idx;
+				prf_obj.events[ck_evt_idx].evt_count++;
 				pss.pid    = (uint32_t)pid;
 				pss.tid    = (uint32_t)pid;
 				pss.cpu    = (uint32_t)cpu;
@@ -440,8 +441,8 @@ do_page_hdr:
 					(int)prf_obj.samples.size(), pss.comm.c_str(), pid, pid, cpu, pss.tm_str.c_str(), evt_nm.c_str());
 				bool use_sample;
 				use_sample = true;
-				if ((options.tm_clip_beg_valid && tsn < options.tm_clip_beg) ||
-					(options.tm_clip_end_valid && tsn > options.tm_clip_end)) {
+				if ((options.tm_clip_beg_valid == CLIP_LVL_1 && tsn < options.tm_clip_beg) ||
+					(options.tm_clip_end_valid == CLIP_LVL_1 && tsn > options.tm_clip_end)) {
 					use_sample = false;
 				}
 				//printf("ts= %f use= %d at %s %d\n", tsn, use_sample, __FILE__, __LINE__);
@@ -1280,6 +1281,7 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 					samples.back().event      = prf_obj.events[new_idx].event_name;
 					samples.back().orig_order++;
 					samples.back().evt_idx = new_idx;
+					prf_obj.events[new_idx].evt_count++;
 					samples.back().new_vals.resize(new_vals.size());
 					samples.back().new_vals = new_vals;
 #endif
@@ -1456,7 +1458,7 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 					break;
 				}
 			}
-			if (options.tm_clip_beg_valid && mtch == -1) {
+			if (options.tm_clip_beg_valid == CLIP_LVL_1 && mtch == -1) {
 				continue;
 			}
 			if (mtch == -1) {
