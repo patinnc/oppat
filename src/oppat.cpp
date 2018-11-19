@@ -2191,7 +2191,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							//printf("ck Run state= %s, at %s %d\n", str.c_str(), __FILE__, __LINE__);
 							if ((event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE" ||
 								event_table[evt_idx].charts[chrt].chart_tag == "RUN_QUEUE_BY_CPU") &&
-								str != "R" && str != "R+") {
+								//str != "R" && str != "R+")
+								str != "R") {
 								got_ready = false;
 								//printf("got Run state= %s, at %s %d\n", str.c_str(), __FILE__, __LINE__);
 							}
