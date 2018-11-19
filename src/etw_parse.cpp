@@ -409,15 +409,19 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 				WinSAT_SystemConfig = tkns;
 				continue;
 			}
-			if (options.tm_clip_end_valid && tm > options.tm_clip_end) {
+#if 1
+			if (options.tm_clip_end_valid == CLIP_LVL_1 && tm > options.tm_clip_end) {
 				continue;
 			}
+#endif
 			if (evt_idx == thr_st0 || evt_idx == thr_st1) {
 				add_threads(tkns, prf_obj, evt_idx, (double)es.ts, verbose);
 			}
-			if (options.tm_clip_beg_valid && tm < options.tm_clip_beg) {
+#if 1
+			if (options.tm_clip_beg_valid == CLIP_LVL_1 && tm < options.tm_clip_beg) {
 				continue;
 			}
+#endif
 			if (ETW_events_to_skip_hash[tkns[0]] != 0) {
 				//printf("skipping ETW event: %s line= %d at %s %d\n", tkns[0].c_str(), line_num, __FILE__, __LINE__);
 				continue;
@@ -602,6 +606,7 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	}
 #endif
 	return 0;
+#if 0
 	printf("bye at %s %d\n", __FILE__, __LINE__);
 	exit(1);
 	std::string unknown_mod;
@@ -728,4 +733,5 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			i, prf_obj.features_event_desc[i].event_string.c_str(), nms[i].count, nms[i].ext_strs);
 	}
 	return 0;
+#endif
 }
