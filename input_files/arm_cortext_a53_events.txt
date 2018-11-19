@@ -1,0 +1,62 @@
+# cortex a53 events from DDI0500J_cortex_a53_trm.pdf
+# Events 0xC0 and higher didn't have an 'Event mnemonic' so I made one up.
+# Events without an event number are not listed.
+0x00	SW_INCR	Software increment. The register is incremented only on writes to the Software Increment Register.
+0x01	L1I_CACHE_REFILL	L1 Instruction cache refill.
+0x02	L1I_TLB_REFILL	L1 Instruction TLB refill.
+0x03	L1D_CACHE_REFILL	L1 Data cache refill.
+0x04	L1D_CACHE	L1 Data cache access.
+0x05	L1D_TLB_REFILL	L1 Data TLB refill.
+0x06	LD_RETIRED	Instruction architecturally executed, condition check pass - load.
+0x07	ST_RETIRED	Instruction architecturally executed, condition check pass - store.
+0x08	INST_RETIRED	Instruction architecturally executed.
+0x09	EXC_TAKEN	Exception taken.
+0x0A	EXC_RETURN	Exception return.
+0x0B	CID_WRITE_RETIRED	Change to Context ID retired.
+0x0C	PC_WRITE_RETIRED	Instruction architecturally executed, condition check pass, software change of the PC.
+0x0D	BR_IMMED_RETIRED	Instruction architecturally executed, immediate branch.
+0x0E	BR_RETURN_RETIRED	Instruction architecturally executed, condition code check pass, procedure return.
+0x0F	UNALIGNED_LDST_RETIRED	Instruction architecturally executed, condition check pass, unaligned load or store.
+0x10	BR_MIS_PRED	Mispredicted or not predicted branch speculatively executed.
+0x11	CPU_CYCLES	Cycle.
+0x12	BR_PRED	Predictable branch speculatively executed.
+0x13	MEM_ACCESS	Data memory access.
+0x14	L1I_CACHE	L1 Instruction cache access.
+0x15	L1D_CACHE_WB	L1 Data cache Write-Back.
+0x16	L2D_CACHE	L2 Data cache access.
+0x17	L2D_CACHE_REFILL	L2 Data cache refill.
+0x18	L2D_CACHE_WB	L2 Data cache Write-Back.
+0x19	BUS_ACCESS	Bus access.
+0x1A	MEMORY_ERROR	Local memory error.
+0x1D	BUS_CYCLES	Bus cycle.
+0x1E	CHAIN	Odd performance counter chain mode.
+0x60	BUS_ACCESS_LD	Bus access - Read.
+0x61	BUS_ACCESS_ST	Bus access - Write.
+0x7A	BR_INDIRECT_SPEC	Branch speculatively executed - Indirect branch.
+0x86	EXC_IRQ	Exception taken, IRQ.
+0x87	EXC_FIQ	Exception taken, FIQ.
+0xC0	EXT_MEM_REQ	External memory request.
+0xC1	EXT_MEM_REQ_NC	Non-cacheable external memory request.
+0xC2	LINEFILL_PREF	Linefill because of prefetch.
+0xC3	INST_THROT	Instruction Cache Throttle occurred.
+0xC4	RD_ALLOC_ENTER	Entering read allocate mode.
+0xC5	RD_ALLOC	Read allocate mode.
+0xC6	ERR_PRE_DECODE	Pre-decode error.
+0xC7	STALL_SB_FULL	Data Write operation that stalls the pipeline because the store buffer is full.
+0xC8	SNOOP_SCU	SCU Snooped data from another CPU for this CPU.
+0xC9	BR_COND	Conditional branch executed.
+0xCA	BR_IND_MISPRED	Indirect branch mispredicted.
+0xCB	BR_IND_MISPRED_ADD	Indirect branch mispredicted because of address miscompare.
+0xCC	BR_COND_MISPRED	Conditional branch mispredicted.
+0xD0	MEM_ERR_L1I	L1 Instruction Cache (data or tag) memory error.
+0xD1	MEM_ERR_LD1	L1 Data Cache (data, tag or dirty) memory error, correctable or non-correctable.
+0xD2	MEM_ERR_TLB	TLB memory error.
+0xE0	STALL_IQ_OTHER	Attributable Performance Impact Event.  Counts every cycle that the DPU IQ is empty and that is not because of a recent micro-TLB miss, instruction cache miss or pre-decode error.
+0xE1	STALL_IQ_INST_MISS	Attributable Performance Impact Event.  Counts every cycle the DPU IQ is empty and there is an instruction cache miss being processed.
+0xE2	STALL_IQ_ITLB_MISS	Attributable Performance Impact Event.  Counts every cycle the DPU IQ is empty and there is an instruction micro-TLB miss being processed.
+0xE3	STALL_IQ_PD_ERR	Attributable Performance Impact Event.  Counts every cycle the DPU IQ is empty and there is a pre-decode error being processed.
+0xE4	STALL_ILK_OTHER	Attributable Performance Impact Event.  Counts every cycle there is an interlock that is not because of an Advanced SIMD or Floating-point instruction, and not because of a load/store instruction waiting for data to calculate the address in the AGU.  Stall cycles because of a stall in Wr, typically awaiting load data, are excluded.
+0xE5	STALL_ILK_AGU	Attributable Performance Impact Event.  Counts every cycle there is an interlock that is because of a load/store instruction waiting for data to calculate the address in the AGU.  Stall cycles because of a stall in Wr, typically awaiting load data, are excluded.
+0xE6	STALL_ILK_SIMD_FP	Attributable Performance Impact Event.  Counts every cycle there is an interlock that is because of an Advanced SIMD or Floating-point instruction.  Stall cycles because of a stall in the Wr stage, typically awaiting load data, are excluded.
+0xE7	STALL_MISS_LD	Attributable Performance Impact Event Counts every cycle there is a stall in the Wr stage because of a load miss.
+0xE8	STALL_MISS_ST	Attributable Performance Impact Event.  Counts every cycle there is a stall in the Wr stage because of a store.
