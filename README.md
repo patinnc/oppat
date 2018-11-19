@@ -29,7 +29,7 @@ Below is one of the OPPAT charts. The 'cpu_busy' chart shows what is running on 
 
 Here are some sample html files. Most of the files are for a shorter ~2 interval but some are 'full' 8 second runs. The files won't load directly from the repo but they will load from the project web page: [https://patinnc.github.io](https://patinnc.github.io)
 - [Intel 4-CPU chip, Windows OS, html file with 1 hw events via xperf sampling](sample_html_files/win_mem_bw4.html) or
-- [full ~8 second Intel 4-CPU chip, Windows OS, html file with PCM and xperf sampling](sample_html_files/win_mem_bw4_pcm.html.html) or
+- [full ~8 second Intel 4-CPU chip, Windows OS, html file with PCM and xperf sampling](sample_html_files/win_mem_bw4_pcm.html) or
 - [Intel 4-CPU chip, Linux OS, html file with 10 hw events in 2 multiplexed groups](sample_html_files/lnx_mem_bw4.html).
 - [ARM (Broadcom A53) chip, Raspberry Pi3 Linux html file with 14 hw events (for CPI, L2 misses, mem BW etc in 2 multiplexed groups)](sample_html_files/arm_mem_bw4_pi4.html).
 - [11 MB, full version of above ARM (Broadcom A53) chip, Raspberry Pi3 Linux html file with 14 hw events (for CPI, L2 misses, mem BW etc in 2 multiplexed groups)](sample_html_files/arm_mem_bw4_pi4_full.html).
