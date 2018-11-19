@@ -2659,7 +2659,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 			if (chart_data.title == "freq from cycles (GHz) by cpu" ||
 				chart_data.title == "L2 accesses (Mill_accesses/s) from r16 L2 dcache accesses by cpu") {
-				console.log(sprintf("++mxy for freq from ccyles: x0= %f x1= %f, y0= %f, y1= %f, umaxy= %f, maxy_new= %f, maxy= %f, tl_maxy_new= %s, ttl= %s",
+				console.log(sprintf("++mxy for freq from ccyles: x0= %s x1= %s, y0= %s, y1= %s, umaxy= %s, maxy_new= %s, maxy= %s, tl_maxy_new= %s, ttl= %s",
 							got_ymx.x0, got_ymx.x1, got_ymx.y0, got_ymx.y1, umaxy, maxy_new, maxy, JSON.stringify(tl_maxy_new), chart_data.title));
 			}
 			let x   = xPadding - 5;
