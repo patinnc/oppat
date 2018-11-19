@@ -198,7 +198,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 				exit(1);
 			}
 			static bool need_1st_time_tm_beg_clip = true;
-			if (options.tm_clip_beg_valid == 1 && need_1st_time_tm_beg_clip && pos != std::string::npos) {
+			if (options.tm_clip_beg_valid == CLIP_LVL_1 && need_1st_time_tm_beg_clip && pos != std::string::npos) {
 				// this logic assumes the order is like below:
 				// spin.x  3190 [002]   359.000788360:     250000            cpu-clock:
 				// so find the event, assume cpu is before it like '[xxx] '
@@ -304,7 +304,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 #endif
 				printf("missed line= '%s' at %s %d\n", line.c_str(), __FILE__, __LINE__);
 			}
-			if (mtch == -1 && options.tm_clip_beg_valid == 1) {
+			if (mtch == -1 && options.tm_clip_beg_valid == CLIP_LVL_1) {
 				continue;
 			}
 			if (mtch == -1) {
@@ -987,15 +987,16 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			pss.event  = evt_nm;
 			pss.pid    = pid;
 			pss.evt_idx = (uint32_t)whch_evt;
+			prf_obj.events[whch_evt].evt_count++;
 			pss.tid    = tid;
 			pss.cpu    = cpu;
 			pss.ts     = time;
 			pss.orig_order = orig_order++;
 			//printf("ts= %f at %s %d\n", tm, __FILE__, __LINE__);
-			if (options.tm_clip_beg_valid == 1 && tm < options.tm_clip_beg) {
+			if (options.tm_clip_beg_valid == CLIP_LVL_1 && tm < options.tm_clip_beg) {
 				break;
 			}
-			if (options.tm_clip_end_valid == 1 && tm > options.tm_clip_end) {
+			if (options.tm_clip_end_valid == CLIP_LVL_1 && tm > options.tm_clip_end) {
 				break;
 			}
 			pss.period = period;
@@ -1031,6 +1032,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				uint32_t whch_evt2 = get_evt_from_id(prf_obj, pe_grp.pe_vals[ii].id, evt_nm2, __LINE__, verbose);
 				pss.event  = evt_nm2;
 				pss.evt_idx = (uint32_t)whch_evt2;
+				prf_obj.events[whch_evt2].evt_count++;
 				pss.tm_run = period;
 				pss.orig_order = orig_order++;
 				uint32_t id = pe_grp.pe_vals[ii].id;
