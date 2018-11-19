@@ -285,6 +285,44 @@
   },
   {"event":
 	{
+	"evt_name": "branch-load-misses", "evt_type": "ftrace", "comment":"branch load misses events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"branch load misses (Mill_misses/s) from branch-load-misses by cpu",  "var_name": "freq",
+			"by_var": "cpu", "chart_tag":"branch_load_misses_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "branch_load_miss_pct", "evt_type": "ftrace", "comment":"derived event for branch load miss % (branch-load-misses/branch-loads)",
+	"evt_derived":{
+		"evts_tags":[{"evt":"branch-load-misses", "tag":"num"}, {"evt":"branch-loads", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%branch load misses (branch-load_misses/branch-loads) by CPU",  "var_name":"val",
+			"by_var": "area", "chart_tag":"branch_load_MISS_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"%br_ld_miss"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "r17", "evt_type": "ftrace", "comment":"hw r17 L2 dcache misses events",
 	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
 	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
