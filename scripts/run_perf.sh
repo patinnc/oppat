@@ -123,9 +123,10 @@ Fopts2=" -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,flags,callinden
 #../perf.sh script -I --ns --header -f $hwFopts $trcFopts -D -i prf_trace.data > prf_d.txt
 #$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data > $ODIR/prf_trace.txt
 $PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
+echo did perf script
 echo $PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace2.data _ $ODIR/prf_trace2.txt
 $PRF_CMD script -I --ns --header -f $Fopts2 -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
-echo did perf script
+echo did perf script2
 $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
 echo did trace-cmd report
 #chmod a+rw $ODIR/tc*
