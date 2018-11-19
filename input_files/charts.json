@@ -244,20 +244,61 @@
   },
   {"event":
 	{
+	"evt_name": "LLC-load-misses", "evt_type": "ftrace", "comment":"hw cache misses events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"LLC misses (Mill_misses/s) from LLC-load-misses by cpu",  "var_name": "freq",
+			"by_var": "cpu", "chart_tag":"LLC-load-misses_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
+			"options":"DROP_1ST"},
+		{"category":"CPU", "title":"Mem BW MiB/sec from LLC-load-misses by cpu",  "var_name": "Mbytes",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_LLC-load-misses_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
+			"use_chart":"d", "tot_line":"__total__", "options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "LLC_miss_pct", "evt_type": "ftrace", "comment":"derived event for LLC miss % (LLC misses/LLC accesses)",
+	"evt_derived":{
+		"evts_tags":[{"evt":"LLC-load-misses", "tag":"num"}, {"evt":"LLC-loads", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"LLC %miss (LLC_misses/LLC_accesses) by CPU",  "var_name":"val",
+			"by_var": "area", "chart_tag":"LLC_MISS_PCT_CHART", "chart_type":"line", "use_chart":"d", "y_label":"%LLC_miss"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "r17", "evt_type": "ftrace", "comment":"hw r17 L2 dcache misses events",
 	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
 	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
-		{"name":"bytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
 		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 misses (Mill_misses/s) from r17 L2 dcache refill by cpu",  "var_name": "freq",
 			"by_var": "cpu", "chart_tag":"L2_MISSES_FREQ_BY_CPU", "chart_type":"line", "use_chart":"d", "tot_line":"__total__",
 			"options":"DROP_1ST"},
-		{"category":"CPU", "title":"Mem BW MiB/sec from r17 L2 dcache refill by cpu",  "var_name": "bytes",
+		{"category":"CPU", "title":"Mem BW MiB/sec from r17 L2 dcache refill by cpu",  "var_name": "Mbytes",
 			"by_var": "cpu", "chart_tag":"MEM_BW_BY_L2_MISSES_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
 			"use_chart":"d", "tot_line":"__total__", "options":"DROP_1ST"}
 		]
@@ -312,8 +353,8 @@
 	"evt_name": "ref-cycles", "evt_type": "ftrace", "comment":"hw cpu cycles events",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_TM_RUN|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":4.0}]},
-		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_DURATION_BEF|TYP_DBL"}
+		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":4.0}]},
+		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"ref-freq (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu", "chart_tag":"REF_FREQ_BY_CPU",
@@ -326,7 +367,7 @@
 	"evt_name": "instructions", "evt_type": "ftrace", "comment":"hw instruction event",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"GIPS",  "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
+		{"name":"GIPS",  "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":100.0}]},
 		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
@@ -587,7 +628,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
-			"use_chart":"n"},
+			"use_chart":"d"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM",
 			"chart_type":"stacked", "use_chart":"d", "y_fmt":"%.1f%%", "tot_line":"__total__"},
 		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc",
