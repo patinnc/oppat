@@ -575,7 +575,8 @@
      		"example":"0.730438635 52194588 uncore_cbox_0/clockticks/ 20416769 100.00",
 	"evt_flds": [
 		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
-		{"name":"freq",     "lkup":"cycles",       "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}]},
+		{"name":"freq",     "lkup":"cycles",       "lkup_typ": "TYP_DBL",
+			"actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":20}]},
 		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
