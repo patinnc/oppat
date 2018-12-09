@@ -271,6 +271,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 		}
 	} catch (...) { };
 	sz = j["event_array"].size();
+	std::vector <std::string> evt_aliases;
 	if (verbose > 0) {
 		printf("sz= %d\n", sz);
 	}
@@ -284,6 +285,10 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				fflush(NULL);
 			}
 			std::string evt_nm  = j["event_array"][i]["event"]["evt_name"];
+			if (evt_nm.find("|") != std::string::npos) {
+				tkn_split(evt_nm, "|", evt_aliases);
+				evt_nm = evt_aliases[0];
+			}
 			std::string evt_typ = j["event_array"][i]["event"]["evt_type"];
 			if (verbose > 0) {
 				printf("evt_nm[%d]= '%s', typ= '%s'\n", i, evt_nm.c_str(), evt_typ.c_str());
@@ -308,6 +313,11 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			es.event_name = evt_nm;
 			es.event_type = evt_typ;
 			event_table.push_back(es);
+			if (evt_aliases.size() > 0) {
+				for (uint32_t k=0; k < evt_aliases.size(); k++) {
+					event_table.back().evt_aliases.push_back(evt_aliases[k]);
+				}
+			}
 			uint32_t fsz = 0;
 			try {
 				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_tags"].size();

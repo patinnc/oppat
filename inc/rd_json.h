@@ -104,6 +104,7 @@ struct evt_derived_str {
 
 struct evt_str {
 	std::string event_name, event_type, event_name_w_area;
+	std::vector <std::string> evt_aliases;
 	struct evt_derived_str evt_derived;
 	uint32_t prf_obj_idx, event_idx_in_file;
 	std::unordered_map <std::string, uint32_t> hsh_str;
