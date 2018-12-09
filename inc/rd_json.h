@@ -102,9 +102,15 @@ struct evt_derived_str {
 	std::string evt_trigger, lua_file, lua_rtn;
 };
 
+struct evt_aliases_str {
+	std::string evt_name;
+	std::vector <std::string> aliases;
+	uint32_t use_alias;
+	evt_aliases_str(): use_alias(-1) {}
+};
+
 struct evt_str {
 	std::string event_name, event_type, event_name_w_area;
-	std::vector <std::string> evt_aliases;
 	struct evt_derived_str evt_derived;
 	uint32_t prf_obj_idx, event_idx_in_file;
 	std::unordered_map <std::string, uint32_t> hsh_str;
@@ -213,6 +219,7 @@ struct file_list_str {
 #endif
 
 EXTERN_STR chart_defaults_str chart_defaults;
+EXTERN_STR std::vector <evt_aliases_str> evt_aliases_vec;
 
 EXTERN_STR std::vector <chart_cat_str> chart_category;
 EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str> &file_list, std::vector <std::string> use_file_tag,

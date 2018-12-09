@@ -219,6 +219,19 @@ int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbo
 			chart_category.push_back(ch_cat);
 		} catch (...) { }
 	}
+	sz = j["event_aliases"].size();
+	for (uint32_t i=0; i < sz; i++) {
+		try {
+			evt_aliases_str e_a;
+			e_a.evt_name     = j["event_aliases"][i]["evt_name"];
+			uint32_t sz1     = j["event_aliases"][i]["aliases"].size();
+			evt_aliases_vec.push_back(e_a);
+			for (uint32_t k=0; k < sz1; k++) {
+				std::string str = j["event_aliases"][i]["aliases"][k];
+				evt_aliases_vec.back().aliases.push_back(str);
+			}
+		} catch (...) { }
+	}
 	sz = j["event_array"].size();
 	return sz;
 }
@@ -285,9 +298,20 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				fflush(NULL);
 			}
 			std::string evt_nm  = j["event_array"][i]["event"]["evt_name"];
-			if (evt_nm.find("|") != std::string::npos) {
-				tkn_split(evt_nm, "|", evt_aliases);
-				evt_nm = evt_aliases[0];
+			for (uint32_t k=0; k < evt_aliases_vec.size(); k++) {
+				if (evt_nm == evt_aliases_vec[k].evt_name) {
+					for (uint32_t m=0; m < evt_aliases_vec[k].aliases.size(); m++) {
+						if (evt_aliases_vec[k].aliases[m] == lkfor_evt_name) {
+							printf("evt_nm= %s, use_alias= %s num= %d at %s %d\n", 
+								evt_nm.c_str(), evt_aliases_vec[k].aliases[m].c_str(),
+								(int)m, __FILE__, __LINE__);
+							evt_nm = evt_aliases_vec[k].aliases[m];
+							evt_aliases_vec[k].use_alias = m;
+							break;
+						}
+					}
+					break;
+				}
 			}
 			std::string evt_typ = j["event_array"][i]["event"]["evt_type"];
 			if (verbose > 0) {
@@ -313,17 +337,23 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			es.event_name = evt_nm;
 			es.event_type = evt_typ;
 			event_table.push_back(es);
-			if (evt_aliases.size() > 0) {
-				for (uint32_t k=0; k < evt_aliases.size(); k++) {
-					event_table.back().evt_aliases.push_back(evt_aliases[k]);
-				}
-			}
 			uint32_t fsz = 0;
 			try {
 				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_tags"].size();
 				for (uint32_t k=0; k < fsz; k++) {
-					event_table.back().evt_derived.evts_used.push_back(
-							j["event_array"][i]["event"]["evt_derived"]["evts_tags"][k]["evt"]);
+					std::string e_nm = j["event_array"][i]["event"]["evt_derived"]["evts_tags"][k]["evt"];
+					for (uint32_t m=0; m < evt_aliases_vec.size(); m++) {
+						printf("try evts_tags evt '%s' with alias '%s' use_alias= %d, lkfor_nm= %s at %s %d\n",
+								e_nm.c_str() , evt_aliases_vec[m].evt_name.c_str(),
+								(int)evt_aliases_vec[m].use_alias, lkfor_evt_name.c_str(), __FILE__, __LINE__);
+						if (evt_aliases_vec[m].evt_name == e_nm && evt_aliases_vec[m].use_alias != UINT32_M1) {
+							printf("replace evts_tags evt '%s' with alias '%s' at %s %d\n",
+								e_nm.c_str() , evt_aliases_vec[m].aliases[evt_aliases_vec[m].use_alias].c_str(), __FILE__, __LINE__);
+							e_nm = evt_aliases_vec[m].aliases[evt_aliases_vec[m].use_alias];
+							break;
+						}
+					}
+					event_table.back().evt_derived.evts_used.push_back(e_nm);
 					event_table.back().evt_derived.evts_tags.push_back(
 							j["event_array"][i]["event"]["evt_derived"]["evts_tags"][k]["tag"]);
 				}
