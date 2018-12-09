@@ -96,7 +96,18 @@ done
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e ftrace:bprint -e ftrace:print  -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e ftrace:bprint -e ftrace:print  -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions}:S" -o $ODIR/prf_trace2.data  &
 echo $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,ref-cycles,cycles,instructions,branch-load-misses,branch-loads}:S" -o $ODIR/prf_trace2.data
-$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,ref-cycles,cycles,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,ref-cycles,cycles,instructions,branch-load-misses,branch-loads}:S" -o $ODIR/prf_trace2.data  &
+evt_lst0="{cpu-clock,ref-cycles,cycles,instructions,LLC-load-misses,LLC-loads}:S"
+#evt_lst1="{cpu-clock,ref-cycles,cycles,instructions,branch-load-misses,branch-loads,uops_issued.any}:S"
+#evt_lst1="{cpu-clock,ref-cycles,cycles,instructions,branch-load-misses,branch-loads,uops_issued.any}:S"
+evt_lst1="{cpu-clock,ref-cycles,cycles,instructions,mem_load_uops_l3_miss_retired.local_dram,uops_issued.any}:S"
+#jevt_lst2="{cpu-clock,cycles,offcore_requests.all_data_rd}:S"
+#evt_lst2="{cpu-clock,ref-cycles,cycles,instructions,mem_load_uops_l3_miss_retired.local_dram,uops_issued.any}:S"
+#evt_lst2="{cpu-clock,ref-cycles,cycles,instructions,uops_issued.any}:S"
+#evt_lst2="{cpu-clock,cycles,offcore_requests.demand_data_rd}:S"
+#evt_lst3="{cpu-clock,ref-cycles,cycles,instructions,uops_issued.any}:S"
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "$evt_lst0" -e "$evt_lst1" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,uops_issued.any,offcore_requests.demand_data_rd}:S" -o $ODIR/prf_trace2.data  &
+$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,inst_retired.any,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,cpu_clk_unhalted.thread,inst_retired.any,uops_issued.any,offcore_response.all_requests.l3_miss.any_response,uops_retired.all}:S" -o $ODIR/prf_trace2.data  &
 PRF_CMD_PID2=$!
 #
 #$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x
@@ -119,6 +130,7 @@ trcFopts=" -F trace:comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,b
 #trcFopts=
 Fopts=" -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,trace,flags,callindent"
 Fopts2=" -F comm,tid,pid,time,cpu,period,event,ip,sym,dso,symoff,flags,callindent"
+Fopts3=" -F comm,tid,pid,time,cpu,event,ip,sym,dso,symoff,flags,callindent"
 
 #../perf.sh script -I --ns --header -f $hwFopts $trcFopts -D -i prf_trace.data > prf_d.txt
 #$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data > $ODIR/prf_trace.txt
@@ -126,6 +138,7 @@ $PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace.data  > $ODIR/prf_
 echo did perf script
 echo $PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace2.data _ $ODIR/prf_trace2.txt
 $PRF_CMD script -I --ns --header -f $Fopts2 -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
+#$PRF_CMD script -I --ns --header -f $Fopts3 -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
 echo did perf script2
 $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
 echo did trace-cmd report
