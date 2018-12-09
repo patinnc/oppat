@@ -5385,6 +5385,7 @@ int main(int argc, char **argv)
 			options.web_port);
 
 	{
+		static std::string svg_str;
 		static std::string sz_str;
 		static std::string str_cats;
 		int i=0;
@@ -5392,10 +5393,11 @@ int main(int argc, char **argv)
 		str_cats = "chrt_cats= " + chrts_cats;
 		while(thrd_status == THRD_RUNNING && get_signal() == 0) {
 			if (!q_from_clnt_to_srvr.is_empty()) {
-				std::string j = q_from_clnt_to_srvr.pop();
-				printf("msg[%d] from clnt= %s at %s %d\n", i, j.c_str(), __FILE__, __LINE__);
+				std::string msg = q_from_clnt_to_srvr.pop();
+				printf("msg[%d] from clnt= %s at %s %d\n", i, msg.c_str(), __FILE__, __LINE__);
 				i++;
-				if (j == "Ready") {
+				uint32_t msg_len = msg.size();
+				if (msg == "Ready") {
 					double tm_bef = dclock();
 					q_from_srvr_to_clnt.push(bin_map);
 					q_from_srvr_to_clnt.push(str_cats);
@@ -5406,18 +5408,27 @@ int main(int argc, char **argv)
 					double tm_aft = dclock();
 					fprintf(stderr, "q_from_srvr_to_clnt.push(chrts_json) size= %d txt_sz= %d push_tm= %f at %s %d\n",
 						(int)chrts_json.size(), (int)callstack_sz, tm_aft-tm_bef, __FILE__, __LINE__);
+				} else if (msg_len >= 9 &&  msg.substr(0, 9) == "parse_svg") {
+					fprintf(stderr, "got svg msg %s %d", __FILE__, __LINE__);
+					svg_str = msg.substr(10, msg.size());
+					fprintf(stdout, "%s\n", svg_str.c_str());
+					fflush(stdout);
+					ck_json(svg_str, "check parse_svg json str", __FILE__, __LINE__, options.verbose);
 				}
+
 			}
 #ifdef __linux__
-			usleep(10000);
+			usleep(10*1000);
 #else
 			Sleep(10);
 #endif
 		}
 	}
+
 	for (auto& thrds : thrds_started){
 		thrds.join();
 	}
+
 	if (get_signal() == 1) {
 		fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
 	}

@@ -95,9 +95,15 @@ class WebSocketHandler : public CivetWebSocketHandler {
 	                        int bits,
 	                        char *data,
 	                        size_t data_len) {
+		uint32_t sz = data_len;
 		printf("WS got %lu bytes: ", (long unsigned)data_len);
-		fwrite(data, 1, data_len, stdout);
-		printf("\n");
+		if (sz > 100) {
+			sz = 100;
+		}
+		if (sz > 2) {
+			fwrite(data, 1, sz, stdout);
+			printf("\n");
+		}
 		if(ck_cmd(data, data_len, "msg_frm_clnt=") > 0) {
 			printf("got cmd= '%s' at %s %d\n", data, __FILE__, __LINE__);
 		}
@@ -110,6 +116,14 @@ class WebSocketHandler : public CivetWebSocketHandler {
 		if(ck_cmd(data, data_len, "Ready") > 0) {
 			printf("got Ready from client at %s %d\n", __FILE__, __LINE__);
 			q_from_clnt_to_srvr->push("Ready");
+			return 1;
+		}
+		if(ck_cmd(data, data_len, "parse_svg") > 0) {
+			std::string msg;
+			printf("got parse_svg from client at %s %d\n", __FILE__, __LINE__);
+			msg = data;
+			msg = msg.substr(0, data_len);
+			q_from_clnt_to_srvr->push(msg);
 			return 1;
 		}
 		if(ck_cmd(data, data_len, "quit") > 0) {
