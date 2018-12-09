@@ -46,6 +46,7 @@ var FLAMEGRAPH_BASE_CP  = 1; // comm, pid
 var FLAMEGRAPH_BASE_C   = 2; // comm
 var g_flamegraph_base = FLAMEGRAPH_BASE_CPT;
 var did_prt = 0;
+var g_svg_obj = {status:0, str:""};
 
 var chart_did_image = [];
 var gcolor_def = "lavender"; // lavender e6e6fa for events above 'number of colors' rank
@@ -58,29 +59,14 @@ var mymodal_span_text = null;
 
 /* Adds Element BEFORE NeighborElement */
 Element.prototype.appendBefore = function(element) {
-  element.parentNode.insertBefore(this, element);
+	element.parentNode.insertBefore(this, element);
 }, false;
 
 /* Adds Element AFTER NeighborElement */
 Element.prototype.appendAfter = function(element) {
-  element.parentNode.insertBefore(this, element.nextSibling);
+	element.parentNode.insertBefore(this, element.nextSibling);
 }, false;
 
-jQuery.fn.redraw = function() {
-    this.css('display', 'none');
-    var temp = this[0].offsetHeight;
-    this.css('display', '');
-    temp = this[0].offsetHeight;
-};
-
-
-
-var forceRedraw = function(element){
-  var disp = element.style.display;
-  element.style.display = 'none';
-  var trick = element.offsetHeight;
-  element.style.display = disp;
-};
 
 function myBarMove(cur_val, max_val) {
   var elem = document.getElementById("myBar");
@@ -152,15 +138,12 @@ function update_status(txt)
 	gmsg_span.innerHTML   = txt2;
 	//gmsg_span.style.visibility = 'hidden';
 	//gmsg_span.style.visibility = 'visible';
-	//forceRedraw(gmsg_span);
 	//gmsg_span.style.display = 'block';
 	    			//clr_button.style.visibility = 'visible';
 	//document.getElementById('parentOfElementToBeRedrawn').style.display = 'block';
 	//gmsg_span.innerHTML = txt2;
 	//$('#msg_span').text(txt2);
 	//console.log(txt2);
-	//$('.msg_span').redraw();
-	//$('#msg_span').redraw();
 }
 
 function ck_cmd(str_in, str_in_len, ck_str) {
@@ -3381,7 +3364,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				draw_mini.x_prev = -1;
 	//console.log("inside0: hvr_clr= "+hvr_clr+", minx= "+zoom_x0+", maxx= "+zoom_x1+", zoom_y0= "+zoom_y0+", zoom_y1= "+zoom_y1+", chart_data.x_range.max= "+chart_data.x_range.max);
 	let win_sz = get_win_wide_high();
-				//abcd
 				let xn = zoom_x0 + 0.5 * (zoom_x1 - zoom_x0);
 				let xd = chart_data.x_range.max - chart_data.x_range.min;
 				let xx = 0.5;
@@ -4346,10 +4328,15 @@ async function start_charts() {
 	}
 	document.title = doc_title_def;
 	tm_now = performance.now();
+	let did_parse_svg = false;
+	if (false) {
+		parse_svg();
+		did_parse_svg = true;
+	}
 	//console.log("tm_now - tm_top0= "+(tm_now - tm_top0));
 	update_status("finished "+chrts_started+" graphs, chart loop took "+tm_diff_str(0.001*(tm_now-tm_top0), 3, "secs"));
-    mymodal.style.display = "none";
-    document.getElementById("chart_container").style.display = "block";
+	mymodal.style.display = "none";
+	document.getElementById("chart_container").style.display = "block";
 	// if (msWriteProfilerMark) {
 	//   msWriteProfilerMark("mark1");
 	// }
@@ -4434,6 +4421,10 @@ async function start_charts() {
 
 
 	lhs_menu_ch_list_state = 1; // lhs_menu list finalized
+	if (did_parse_svg) {
+		console.log("svg len= "+g_svg_obj.str.length);
+		webSocket.send("parse_svg="+g_svg_obj.str);
+	}
 
 	return;
 }
@@ -4463,13 +4454,13 @@ function parse_str_pool(str_pool)
 
 
 function openSocket(port_num) {
-    // Ensures only one connection is open at a time
-    if(webSocket !== undefined && webSocket.readyState !== WebSocket.CLOSED){
-        console.log("WebSocket is already opened.");
-        return;
-    }
-    // Create a new instance of the websocket
-    webSocket = new WebSocket("ws://localhost:"+port_num);
+	// Ensures only one connection is open at a time
+	if(webSocket !== undefined && webSocket.readyState !== WebSocket.CLOSED){
+		console.log("WebSocket is already opened.");
+		return;
+	}
+	// Create a new instance of the websocket
+	webSocket = new WebSocket("ws://localhost:"+port_num);
 
     webSocket.binaryType = 'arraybuffer';
     /*
@@ -4566,9 +4557,9 @@ function openSocket(port_num) {
 }
 
 function send(){
-    //used by the Send button
-    var text = document.getElementById("messageinput").value;
-    webSocket.send(text);
+	//used by the Send button
+	var text = document.getElementById("messageinput").value;
+	webSocket.send(text);
 }
 function bootside_menu_setup(div_nm, which_side) {
 	$('#'+div_nm).BootSideMenu({
@@ -4830,3 +4821,1420 @@ function tm_diff_str(tm_in_secs, precisn, units) {
 	return tm_str + " " + tm_sfx;
 }
 
+function parse_svg()
+{
+	var svgObject = document.getElementById('svg-object').contentDocument;
+	let shapes = [];
+	let svg_gs = svgObject.getElementsByTagName('svg');
+	let rect_prev = -1;
+	let rects=0;
+	let texts=0;
+	let svg_xmax = svg_gs[0].getAttributeNS(null, 'width');
+	let svg_ymax = svg_gs[0].getAttributeNS(null, 'height');
+
+	function svg_parse_path(path, xfrm, rect_prev, shapes, gxf_arr) {
+		let xf = path.getAttributeNS(null, 'transform');
+		if (xf == '' || xf == null) {
+			xf = "";
+		}
+		let gxf = gxf_arr;
+		let d = path.getAttributeNS(null, 'd');
+		let style= path.getAttributeNS(null, 'style');
+		let id   = path.getAttributeNS(null, 'id');
+		let shp = {typ:'path', d:d, style:style, rect_prev:rect_prev, text_arr:[], xf0:[], id:id, xf1:xf, box:null};
+		for (let j=0; j < gxf_arr.length; j++) {
+			shp.xf0.push(gxf_arr[j]);
+		}
+		shapes.push(shp);
+	}
+
+	function svg_parse_rect(rect, xfrm, rect_prev, shapes, gxf_arr) {
+		let x = parseFloat(rect.getAttributeNS(null, 'x'));
+		let y = parseFloat(rect.getAttributeNS(null, 'y'));
+		let hi= parseFloat(rect.getAttributeNS(null, 'height'));
+		let wd= parseFloat(rect.getAttributeNS(null, 'width'));
+		let id = rect.getAttributeNS(null, 'id');
+		let xf = rect.getAttributeNS(null, 'transform');
+		if (xf == '' || xf == null) {
+			xf = "";
+		}
+		let gxf = gxf_arr;
+		let style= rect.getAttributeNS(null, 'style');
+		if (gxf_arr.length > 0 && gxf_arr[gxf_arr.length-1].substr(0,7) == "matrix(") {
+			//console.log("xfrm:rct: "+gxf_arr[gxf_arr.length-1]);
+		}
+		let shp = {typ:'rect', x:x, y:y, hi:hi, wd:wd, id:id, style:style, rect_prev:rect_prev, text_arr:[], xf0:[], xf1:xf, box:null};
+		for (let j=0; j < gxf_arr.length; j++) {
+			shp.xf0.push(gxf_arr[j]);
+		}
+		shapes.push(shp);
+		//shapes.push({typ:'rect', x:x, y:y, hi:hi, wd:wd, style:style, rect_prev:rect_prev, xf0:gxf_arr, xf1:xf});
+	}
+
+	function svg_parse_text(txt, xfrm, rect_prev, shapes, gxf_arr) {
+		let gst = txt.children.length;
+		let texts = 0;
+		let gxf = gxf_arr;
+		let tstyle= txt.getAttributeNS(null, 'style');
+		if (tstyle == null) {
+			xft = "";
+		}
+		let xft = txt.getAttributeNS(null, 'transform');
+		let gxf_len = gxf.length;
+		if (xft == '' || xft == null) {
+			xft = "";
+		} else {
+			gxf.push(xft);
+			//console.log("txt_xf: "+xft);
+		}
+		for (let k=0; k < gst; k++) {
+			if (txt.children[k].tagName == "tspan") {
+				let x= parseFloat(txt.children[k].getAttributeNS(null, 'x'));
+				let y= parseFloat(txt.children[k].getAttributeNS(null, 'y'));
+				let style= txt.children[k].getAttributeNS(null, 'style');
+				let id   = txt.children[k].getAttributeNS(null, 'id');
+				let t    = txt.children[k].innerHTML;
+				let xf   = txt.children[k].getAttributeNS(null, 'transform');
+				if (xf == '' || xf == null) {
+					xf = "";
+				}
+				//console.log(sprintf("ts[%d].c[%d].c[%d].txt= %s, x= %s", i, j, k, t, x));
+				let shp = {typ:'text', x:x, y:y, text:t, id:id, style:style, tstyle:tstyle, rect_prev:rect_prev, xf0:[], xf1:xf, box:null};
+				for (let j=0; j < gxf.length; j++) {
+					shp.xf0.push(gxf[j]);
+				}
+				if (rect_prev >= 0) {
+					shapes[rect_prev].text_arr.push(shapes.length);
+				}
+				shapes.push(shp);
+				texts++;
+			}
+		}
+		while (gxf.length > gxf_len) {
+			gxf.pop();
+		}
+		return texts;
+	}
+
+	function svg_parse_g(ge, shapes, cntr, gxf_arr) {
+		let xfrm = ge.getAttributeNS(null, 'transform');
+		if (xfrm == '' || xfrm == null) {
+			xfrm = "";
+		} else {
+			if (xfrm.length > 7 && xfrm.substr(0,7) == "matrix(") {
+				//console.log("xfrm= "+xfrm);
+			}
+		}
+		let gxf_arr_len = gxf_arr.length;
+		gxf_arr.push(xfrm);
+		let gsc = ge.children.length;
+		let xf_dmy = "";
+		for (let j=0; j < gsc; j++) {
+			if (ge.children[j].tagName == "g") {
+				svg_parse_g(ge.children[j], shapes, cntr, gxf_arr);
+			}
+			if (ge.children[j].tagName == "rect") {
+				svg_parse_rect(ge.children[j], xf_dmy, rect_prev, shapes, gxf_arr);
+				rect_prev = shapes.length-1;
+				cntr.rects++;
+			}
+			if (ge.children[j].tagName == "text") {
+				cntr.texts += svg_parse_text(ge.children[j], xf_dmy, rect_prev, shapes, gxf_arr);
+			}
+			if (ge.children[j].tagName == "path") {
+				cntr.paths += svg_parse_path(ge.children[j], xf_dmy, rect_prev, shapes, gxf_arr);
+			}
+		}
+		while(gxf_arr.length > gxf_arr_len) {
+			gxf_arr.pop();
+		}
+		xfrm = "";
+	}
+
+	let cntr = {texts:0, rects:0, paths:0};
+
+	let gxf_arr = [];
+	for (let i=0; i < svg_gs[0].children.length; i++) {
+		let ge = svg_gs[0].children[i];
+		if (ge.tagName == "g") {
+			//console.log(sprintf("g[%d].id= %s", i, ge.id));
+			svg_parse_g(ge, shapes, cntr, gxf_arr);
+		}
+		if (ge.tagName == "rect") {
+			svg_parse_rect(ge, "", rect_prev, shapes, gxf_arr);
+			rect_prev = shapes.length-1;
+			console.log("rect id= %s"+ge.id);
+			cntr.rects++;
+		}
+		if (ge.tagName == "text") {
+			cntr.texts += svg_parse_text(ge, "", rect_prev, shapes, gxf_arr);
+		}
+		console.log(sprintf("ele[%d].id= %s", i, ge.id));
+	}
+	console.log(sprintf("rects= %d, texts= %d", cntr.rects, cntr.texts));
+	console.log(sprintf("svg: width= %s, height= %s", svg_xmax, svg_ymax));
+	let hvr_clr = 'mysvg';
+	let win_sz = get_win_wide_high();
+	let px_wide = win_sz.width - 30;
+	let scale_ratio = px_wide/svg_xmax;
+	let px_high = svg_ymax/svg_xmax * px_wide;
+	let myhvr_clr = document.getElementById(hvr_clr);
+	let str = '<canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high)+'" style="border:1px solid #000000;">';
+	myhvr_clr.innerHTML = str;
+	let mycanvas = document.getElementById('canvas_'+hvr_clr);
+	let ctx = mycanvas.getContext("2d");
+
+	function xlate_rotate(xin, yin, degrees) {
+		let xout = xin;
+		let yout = yin;
+		let angle = parseFloat(degrees);
+		angle = (angle/90.0) * 0.5*Math.PI;
+		let s = Math.sin(angle);
+		let c = Math.cos(angle);
+		let xnew = xout * c - yout * s;
+		let ynew = xout * s + yout * c;
+		//console.log(sprintf("xo= %f, xn= %f yo= %f, yn= %f", xout, xnew, yout, ynew));
+		xout = xnew;
+		yout = ynew;
+		return [xout, yout];
+	}
+	function decode_xform(xin, yin, xform, verbose) {
+		let xout = xin;
+		let yout = yin;
+		if (xform.length > 7 && xform.substr(0,7) == "rotate(") {
+			let xf = xform.substr(7, xform.length-8);
+			if (verbose) {
+				console.log("rotate angle= "+xf);
+			}
+			[xout, yout] = xlate_rotate(xout, yout, xf);
+		}
+		if (xform.length > 6 && xform.substr(0,6) == "scale(") {
+			let xf = xform.substr(6, xform.length-7);
+			let scl = xf.split(",");
+			if (scl.length == 1) {
+				scl.push(scl[0]);
+			}
+			scl[0] = parseFloat(scl[0]);
+			scl[1] = parseFloat(scl[1]);
+			let xn= xout * scl[0];
+			let yn= yout * scl[1];
+			if (verbose) {
+				console.log(sprintf("scl: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
+			}
+			xout = xn;
+			yout = yn;
+			if (verbose != 1) {
+			}
+		}
+		if (xform.length > 10 && xform.substr(0,10) == "translate(") {
+			let xf = xform.substr(10, xform.length-11);
+			let scl = xf.split(",");
+			if (scl.length == 1) {
+				//console.log("add y0 for xf= "+xf);
+				scl.push("0.0");
+			}
+			scl[0] = parseFloat(scl[0]);
+			scl[1] = parseFloat(scl[1]);
+			let xn= xout + scl[0];
+			let yn= yout + scl[1];
+			if (verbose) {
+				console.log(sprintf("xlt: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
+			}
+			xout = xn;
+			yout = yn;
+		}
+		if (xform.length > 7 && xform.substr(0,7) == "matrix(") {
+			// newX = a * oldX + c * oldY + e
+			// newY = b * oldX + d * oldY + f
+			let xf = xform.substr(7, xform.length-8);
+			let scl = xf.split(",");
+			if (verbose) {
+				console.log(sprintf("got matrix.len %d, %s", scl.length, xform));
+			}
+			for (let i=0; i < scl.length; i++) {
+				scl[i] = parseFloat(scl[i]);
+			}
+			let xn= scl[0] * xout + scl[2] * yout + scale_ratio * scl[4];
+			let yn= scl[1] * xout + scl[3] * yout + scale_ratio * scl[5];
+			if (verbose) {
+				console.log(sprintf("xlt: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
+			}
+			xout = xn;
+			yout = yn;
+			/*
+			*/
+		}
+		return [xout, yout];
+	}
+	function xlate(tctx, xin, yin, uminx, umaxx, uminy, umaxy, shape) {
+		//let xout = Math.trunc(px_wide * (xin - uminx)/ (umaxx - uminx));
+		//let yout = Math.trunc(px_high * (yin - uminy)/ (umaxy - uminy));
+		let xout = px_wide * (xin - uminx)/ (umaxx - uminx);
+		let yout = px_high * (yin - uminy)/ (umaxy - uminy);
+		let id = shape.id;
+		let verbose = 0;
+		if (id == 'rect7914') {
+			//console.log("xlate beg id= "+id);
+			//verbose = 1;
+		}
+		if (shape.xf1 != "") {
+			[xout, yout] = decode_xform(xout, yout, shape.xf1, verbose);
+		}
+		if (shape.xf0.length > 0) {
+			for (let i=shape.xf0.length-1; i >=0; i--) {
+				[xout, yout] = decode_xform(xout, yout, shape.xf0[i], verbose);
+			}
+		}
+		return [xout, yout];
+	}
+
+	// transform matrix
+	// [a c e]
+	// [b d f]
+	// [0 0 1]
+	// newX = a * oldX + c * oldY + e
+	// newY = b * oldX + d * oldY + f
+	// The translate(<x> [<y>]) transform function moves the object by x and y (i.e. xnew = xold + <x>, ynew = yold + <y>). If y is not provided, it is assumed to be zero.
+	// The scale(<x> [<y>]) transform function specifies a scale operation by x and y. If y is not provided, it is assumed to be equal to x.
+	// The rotate(<a> [<x> <y>]) transform function specifies a rotation by a degrees about a given point.
+	// If optional parameters x and y are not supplied, the rotation is about the origin of the current
+	// user coordinate system. If optional parameters x and y are supplied, the rotate is about the point (x, y).
+
+	ctx.clearRect(0, 0, mycanvas.width, mycanvas.height);
+	// draw yaxis label
+	let step = [];
+	ctx.fillStyle = 'black';
+	// draw y by_var values.
+	let font_sz = 11.0;
+	ctx.font = font_sz + 'px Arial';
+	ctx.textAlign = "right";
+
+	function pair2pt(str) {
+		let arr = str.split(",");
+		let x = parseFloat(arr[0]);
+		let y = 0.0;
+		if (arr.length > 1) {
+			y = parseFloat(arr[1]);
+		}
+		return {x:x, y:y};
+	}
+
+	// begin find end-points
+	//let lkfor_id = 'path4777';
+	//let lkfor_id = 'path4281';
+	//let lkfor_id = 'path4688';
+	//let lkfor_id = 'path4188';
+	//let lkfor_id = 'path4760';
+	//let lkfor_id = 'path4824';
+	//let lkfor_id = 'pathxxxx';
+	//let lkfor_id = 'path4748';
+	//	let lkfor_id = 'path4188';
+	let lkfor_id = "path4651";
+
+	function build_poly() {
+		let pt  = {x:0, y:0};
+		for (let i=0; i < shapes.length; i++) {
+			if (shapes[i].typ != 'path') {
+				continue;
+			}
+			let vrb = 0;
+			if (shapes[i].id == lkfor_id) {
+				vrb = 1;
+			}
+			shapes[i].poly = [];
+			for (let j=0; j < shapes[i].cmds.length; j++) {
+				pt.x = shapes[i].cmds[j].pt_a[0].x;
+				pt.y = shapes[i].cmds[j].pt_a[0].y;
+				let p0 = xlate(ctx, pt.x, pt.y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				shapes[i].poly.push({x:p0[0], y:p0[1]});
+				if (shapes[i].cmds[j].cmd == 'C' || shapes[i].cmds[j].cmd == 'c') {
+					p0 = xlate(ctx, shapes[i].cmds[j].pt_a[2].x, shapes[i].cmds[j].pt_a[2].y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+					shapes[i].poly.push({x:p0[0], y:p0[1]});
+				}
+			}
+		}
+	}
+
+	function decode_paths() {
+		for (let i=0; i < shapes.length; i++) {
+			if (shapes[i].typ != 'path') {
+				continue;
+			}
+			let arr = shapes[i].d.split(" ");
+			shapes[i].cmds = [];
+			let last_cmd = "";
+			let j = 0;
+
+			while (j < arr.length) {
+				if (arr[j] == "M" || arr[j] == "m" || arr[j] == "L" || arr[j] == "l" ||
+					arr[j] == "H" || arr[j] == "h" || arr[j] == "V" || arr[j] == "v" ||
+					arr[j] == "c" || arr[j] == "C" || arr[j] == "Z" || arr[j] == "z") {
+					last_cmd = arr[j];
+					if (arr[j] == "M" || arr[j] == "m" || arr[j] == "L" || arr[j] == "l" ||
+						arr[j] == "H" || arr[j] == "h" || arr[j] == "V" || arr[j] == "v") {
+						shapes[i].cmds.push({cmd:arr[j], pt:[pair2pt(arr[j+1])]});
+						j += 2;
+						continue;
+					}
+					if (arr[j] == "Z" || arr[j] == "z") {
+						shapes[i].cmds.push({cmd:arr[j]});
+						j++;
+						continue;
+					}
+					if (arr[j] == "c" || arr[j] == "C") {
+						shapes[i].cmds.push({cmd:arr[j], pt:[pair2pt(arr[j+1]), pair2pt(arr[j+2]), pair2pt(arr[j+3])]});
+						j += 4;
+						continue;
+					}
+				}
+				if (last_cmd == "M") {
+					shapes[i].cmds.push({cmd:"L", pt:[pair2pt(arr[j])]});
+					last_cmd = "L";
+					j++;
+					continue;
+				}
+				if (last_cmd == "m") {
+					shapes[i].cmds.push({cmd:"l", pt:[pair2pt(arr[j])]});
+					last_cmd = "l";
+					j++;
+					continue;
+				}
+				if (last_cmd == "L" || last_cmd == "l") {
+					shapes[i].cmds.push({cmd:last_cmd, pt:[pair2pt(arr[j])]});
+					j++;
+					continue;
+				}
+				if (last_cmd == "H" || last_cmd == "h") {
+					shapes[i].cmds.push({cmd:last_cmd, pt:[pair2pt(arr[j])]});
+					j++;
+					continue;
+				}
+				if (last_cmd == "v" || last_cmd == "V") {
+					shapes[i].cmds.push({cmd:last_cmd, pt:[pair2pt(arr[j])]});
+					j++;
+					continue;
+				}
+				if (last_cmd == "C" || last_cmd == "c") {
+					shapes[i].cmds.push({cmd:last_cmd, pt:[pair2pt(arr[j]), pair2pt(arr[j+1]), pair2pt(arr[j+2])]});
+					j += 3;
+					continue;
+				}
+				if (last_cmd == "Z" || last_cmd == "z") {
+					shapes[i].cmds.push({cmd:last_cmd});
+					j++;
+					continue;
+				}
+			}
+		}
+		for (let i=0; i < shapes.length; i++) {
+			if (shapes[i].typ != 'path') {
+				continue;
+			}
+			let pt = {x:null, y:null}; // prev pt
+			let bg = {x:null, y:null}; // beginning pt (needed to close the shape with Z cmd)
+			for (let j=0; j < shapes[i].cmds.length; j++) {
+				let typ = shapes[i].cmds[j].cmd;
+				shapes[i].cmds[j].pt_a = [];
+				if (typ == 'M' || typ == 'm') {
+					// it seems that the 1st cmd is alway M or m and,
+					// if it is the 1st point then the x,y pair is always absolute (even if cmd == 'm')
+					let x = shapes[i].cmds[j].pt[0].x;
+					let y = shapes[i].cmds[j].pt[0].y;
+					if (j == 0) {
+						bg.x = x;
+						bg.y = y;
+					} else if (typ == 'm') {
+						x += pt.x;
+						y += pt.y;
+					}
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					pt.x = x;
+					pt.y = y;
+					continue;
+				}
+				if (typ == 'Z' || typ == 'z') {
+					let x = bg.x;
+					let y = bg.y;
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					pt.x = x;
+					pt.y = y;
+					continue;
+				}
+				if (typ == 'C' || typ == 'c') {
+					let x = shapes[i].cmds[j].pt[0].x;
+					let y = shapes[i].cmds[j].pt[0].y;
+					if (typ == 'c') {
+						x += pt.x;
+						y += pt.y;
+					}
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					x = shapes[i].cmds[j].pt[1].x;
+					y = shapes[i].cmds[j].pt[1].y;
+					if (typ == 'c') {
+						x += pt.x;
+						y += pt.y;
+					}
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					x = shapes[i].cmds[j].pt[2].x;
+					y = shapes[i].cmds[j].pt[2].y;
+					if (typ == 'c') {
+						x += pt.x;
+						y += pt.y;
+					}
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					pt.x = x;
+					pt.y = y;
+					continue;
+				}
+				if (typ == 'L' || typ == 'l') {
+					let x = shapes[i].cmds[j].pt[0].x;
+					let y = shapes[i].cmds[j].pt[0].y;
+					if (typ == 'l') {
+						x += pt.x;
+						y += pt.y;
+					}
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					pt.x = x;
+					pt.y = y;
+					continue;
+				}
+				if (typ == 'H' || typ == 'h') {
+					let x = shapes[i].cmds[j].pt[0].x;
+					let y = pt.y
+					if (typ == 'h') {
+						x += pt.x;
+					}
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					pt.x = x;
+					pt.y = y;
+					continue;
+				}
+				if (typ == 'V' || typ == 'v') {
+					let x = pt.x
+					let y = shapes[i].cmds[j].pt[0].x; // yes, just x (only 1 value for HhVv cmds)
+					if (typ == 'v') {
+						y += pt.y;
+					}
+					shapes[i].cmds[j].pt_a.push({x:x, y:y});
+					pt.x = x;
+					pt.y = y;
+					continue;
+				}
+			}
+		}
+	}
+
+	function rot_pt(cx, cy, x, y, angle, rot) {
+		let radians;
+		if (angle != 0.0) {
+			radians = angle;
+		} else {
+			radians = rot * Math.PI/2;
+		}
+		let cos = Math.cos(radians);
+		let sin = Math.sin(radians);
+		let nx = (cos * (x - cx)) + (sin * (y - cy)) + cx;
+		let ny = (cos * (y - cy)) - (sin * (x - cx)) + cy;
+		return [nx, ny];
+	}
+
+
+	decode_paths();
+
+	function draw_lineTo(cmd_typ, ctx, x, y, shape) {
+		if (cmd_typ != 'cpy') {
+			let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shape);
+			if (cmd_typ == 'M' || cmd_typ == 'm') {
+				ctx.moveTo(p0[0], p0[1]);
+			} else {
+				ctx.lineTo(p0[0], p0[1]);
+			}
+		}
+		return {x:x, y:y};
+	}
+
+	function ck_if_i_in_list(lkfor, arr) {
+		if (arr.length > 0 && arr.indexOf(lkfor) > -1) {
+			return true;
+		}
+		return false;
+	}
+
+	function follow_paths2(i, typ, poly) {
+		for (let j=0; j < shapes[i].poly.length; j++) {
+			if (typeof shapes[i].poly[j].arrow_extended != 'undefined') {
+				add_path_connections(i, 'path', poly, shapes[i].poly[j].x, shapes[i].poly[j].y);
+			} else if (typeof shapes[i].poly[j].endpoint_line != 'undefined') {
+				add_path_connections(i, 'path', poly, shapes[i].poly[j].endpoint_line.x0, shapes[i].poly[j].endpoint_line.y0);
+			}
+		}
+	}
+
+	function add_path_connections(i, typ, poly, x, y) {
+		let arr2 = find_overlap(x, y);
+		if (typeof poly.im_connected_to == 'undefined') {
+			poly.im_connected_to = [];
+		}
+		if (shapes[i].id == lkfor_id) {
+			console.log(sprintf("apc: id=%s", lkfor_id));
+		}
+		for (let k=arr2.length-1; k >= 0; k--) {
+			if (arr2[k] != i && shapes[arr2[k]].typ == typ) {
+				let kk = poly.im_connected_to.indexOf(arr2[k]);
+				if (kk == -1) {
+					poly.im_connected_to.push(arr2[k]);
+					if (typeof shapes[arr2[k]].is_connected_to_me == 'undefined') {
+						shapes[arr2[k]].is_connected_to_me = [];
+					}
+					if (shapes[arr2[k]].is_connected_to_me.indexOf(i) == -1) {
+						shapes[arr2[k]].is_connected_to_me.push(i);
+					}
+				}
+				if (typ == 'rect') {
+					break; // just add the first (highest-level) rectangle
+				}
+				if (shapes[arr2[k]].id == lkfor_id) {
+					console.log(sprintf("apc: cf= %s to=%s", shapes[i].id, lkfor_id));
+				}
+				/*
+				if (typ == 'path') {
+					follow_paths2(arr2[k], typ, poly);
+				}
+				*/
+			}
+		}
+	}
+
+	function draw_svg(hilite_arr) {
+		build_poly();
+		ctx.clearRect(0, 0, mycanvas.width, mycanvas.height);
+		let drew_rect = 0;
+		let drew_text = 0;
+		let drew_path = 0;
+		for (let i=0; i < shapes.length; i++) {
+			let highlight = ck_if_i_in_list(i, hilite_arr);
+			if (shapes[i].typ == 'path') {
+				let style = shapes[i].style;
+				let st = style.split(";");
+				let fill_clr = null;
+				let strk_clr = null;
+				shapes[i].box = {xb:0, xe:0, yb:1, ye:1, str:"path "+i};
+				for (let j=0; j < st.length; j++) {
+					if (st[j].length > 5 && st[j].substr(0,5) == "fill:") {
+						fill_clr = st[j].substr(5);
+					} else if (st[j].length > 7 && st[j].substr(0,7) == "stroke:") {
+						strk_clr = st[j].substr(7);
+					}
+				}
+				let pt = {x:null, y:null}; // prev pt
+				let bg = {x:null, y:null}; // beginning pt (needed to close the shape with Z cmd)
+				ctx.beginPath();
+				let line_wd = 1;
+				if (highlight) {
+					strk_clr = 'black';
+					line_wd = 3;
+				}
+				ctx.lineWidth = line_wd;
+				//console.log("cmds.len= "+shapes[i].cmds.length);
+				for (let j=0; j < shapes[i].cmds.length; j++) {
+					let typ = shapes[i].cmds[j].cmd;
+					if ((typ == 'M' || typ == 'm')) {
+						// it seems that the 1st cmd is alway M or m and,
+						// if it is the 1st point then the x,y pair is always absolute (even if cmd == 'm')
+						let x = shapes[i].cmds[j].pt[0].x;
+						let y = shapes[i].cmds[j].pt[0].y;
+						if (j == 0) {
+							bg.x = x;
+							bg.y = y;
+						} else if (typ == 'm') {
+							x += pt.x;
+							y += pt.y;
+						}
+						pt = draw_lineTo(typ, ctx, x, y, shapes[i]);
+						continue;
+					}
+					if (typ == 'Z' || typ == 'z') {
+						let x = bg.x;
+						let y = bg.y;
+						pt = draw_lineTo(typ, ctx, x, y, shapes[i]);
+						continue;
+					}
+					if (typ == 'C' || typ == 'c') {
+						let x = shapes[i].cmds[j].pt[0].x;
+						let y = shapes[i].cmds[j].pt[0].y;
+						if (typ == 'c') {
+							x += pt.x;
+							y += pt.y;
+						}
+						let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						x = shapes[i].cmds[j].pt[1].x;
+						y = shapes[i].cmds[j].pt[1].y;
+						if (typ == 'c') {
+							x += pt.x;
+							y += pt.y;
+						}
+						let p1 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						x = shapes[i].cmds[j].pt[2].x;
+						y = shapes[i].cmds[j].pt[2].y;
+						if (typ == 'c') {
+							x += pt.x;
+							y += pt.y;
+						}
+						let p2 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						ctx.bezierCurveTo(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1]);
+						//console.log(sprintf("%s %f %f (%f %f)", typ, x, y, p0[0], p0[1]));
+						pt.x = x;
+						pt.y = y;
+						continue;
+					}
+					if (typ == 'L' || typ == 'l') {
+						let x = shapes[i].cmds[j].pt[0].x;
+						let y = shapes[i].cmds[j].pt[0].y;
+						if (typ == 'l') {
+							x += pt.x;
+							y += pt.y;
+						}
+						pt = draw_lineTo(typ, ctx, x, y, shapes[i]);
+						continue;
+					}
+					if (typ == 'H' || typ == 'h') {
+						let x = shapes[i].cmds[j].pt[0].x;
+						let y = pt.y
+						if (typ == 'h') {
+							x += pt.x;
+						}
+						pt = draw_lineTo(typ, ctx, x, y, shapes[i]);
+						continue;
+					}
+					if (typ == 'V' || typ == 'v') {
+						let x = pt.x
+						let y = shapes[i].cmds[j].pt[0].x; // yes, just x (only 1 value for HhVv cmds)
+						if (typ == 'v') {
+							y += pt.y;
+						}
+						pt = draw_lineTo(typ, ctx, x, y, shapes[i]);
+						continue;
+					}
+				}
+				if (strk_clr != 'none') {
+					ctx.strokeStyle = strk_clr;
+					ctx.stroke();
+				}
+				if (fill_clr != 'none') {
+					ctx.fillStyle = fill_clr;
+					ctx.fill();
+				}
+				ctx.closePath();
+				ctx.beginPath();
+
+				let ppt = {x:0, y:0};
+				let do_draw = -1;
+				shapes[i].angles = [];
+
+
+				for (let j=0; j < shapes[i].poly.length-1; j++) {
+					if (true && shapes[i].id == lkfor_id)
+					{
+						let x = shapes[i].poly[j].x;
+						let y = shapes[i].poly[j].y;
+						ctx.strokeStyle = 'black';
+						ctx.font = sprintf("%.3fpx sans-serif", 9);
+						let fl = ctx.fillStyle;
+						ctx.fillStyle = 'black';
+						ctx.fillText(j, x, y);
+						ctx.fillStyle = fl;
+						//let fl = ctx.strokeStyle = 'black';
+					}
+					let jm1 = j-1;
+					let jp1 = j+1;
+					if (j == 0) {
+						jm1 = shapes[i].poly.length - 2;
+					} else if (jp1 == shapes[i].poly.length) {
+						jp1 = 1;
+					}
+					let ori = {x:shapes[i].poly[j  ].x, y:shapes[i].poly[j  ].y};
+					let v1  = {x:shapes[i].poly[jm1].x - ori.x, y:shapes[i].poly[jm1].y - ori.y};
+					let v2  = {x:shapes[i].poly[jp1].x - ori.x, y:shapes[i].poly[jp1].y - ori.y};
+					//let angle = Math.atan2(v2.y - ori.y, v2.x - ori.x) - Math.atan2(v1.y-ori.y, v1.x-ori.x);
+					//angle *=  180.0 / Math.PI;
+					//cos(angle) = dot(v1,v2) / (len(v1)*len(v2))
+					let dot = v1.x * v2.x + v1.y * v2.y;
+					let v1_len =   Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+					let v2_len =   Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+					shapes[i].poly[j].m1_len = v1_len;
+					shapes[i].poly[j].p1_len = v2_len;
+					let den = v1_len * v2_len;
+					let angle = 0.0;
+					if (den != 0.0) {
+						angle = Math.acos(dot/den);
+						angle *= 180.0 / Math.PI;
+					}
+					if (angle > 135.0 && angle < 175.0)
+					{
+						if (shapes[i].id == lkfor_id) {
+							console.log(sprintf("w[%d] angle= %.3f", j, angle));
+						}
+					}
+					if (89.0 < angle && angle < 91.0) {
+						angle = 90.0;
+					}
+					if (angle > 135.0 && angle < 175.0) {
+						angle -= 90;
+					}
+					shapes[i].angles.push(angle);
+					let str_angle = sprintf("%.3f", angle);
+					if (shapes[i].id == lkfor_id) {
+						console.log(sprintf("j[%d] angle= %.3f rght=%s", j, angle, (angle==90.0?1:0)));
+					}
+				}
+				ctx.lineWidth = 1;
+				drew_path++;
+			}
+			if (shapes[i].typ == 'rect') {
+				let x0 = shapes[i].x;
+				let y0 = shapes[i].y;
+				let x1 = x0 + shapes[i].wd;
+				let y1 = y0 + shapes[i].hi;
+				let style = shapes[i].style;
+				let st = style.split(";");
+				let fill_clr = null;
+				let strk_clr = null;
+				for (let j=0; j < st.length; j++) {
+					if (st[j].length > 5 && st[j].substr(0,5) == "fill:") {
+						fill_clr = st[j].substr(5);
+					} else if (st[j].length > 7 && st[j].substr(0,7) == "stroke:") {
+						strk_clr = st[j].substr(7);
+					}
+				}
+				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				ctx.beginPath();
+				ctx.fillStyle = 'blue';
+				let wd = p1[0] - p0[0];
+				let hi = p1[1] - p0[1];
+				shapes[i].box = {xb:p0[0], xe:p1[0], yb:p0[1], ye:p1[1], str:"rect "+i};
+				shapes[i].poly = [];
+				shapes[i].poly.push({x:p0[0], y:p0[1]});
+				shapes[i].poly.push({x:p1[0], y:p0[1]});
+				shapes[i].poly.push({x:p1[0], y:p1[1]});
+				shapes[i].poly.push({x:p0[0], y:p1[1]});
+				shapes[i].poly.push({x:p0[0], y:p0[1]});
+				if (shapes[i].id == 'rect4213') {
+					console.log(sprintf("r[%d]: x0= %s, x1= %s y0= %s y1= %s, p0= %s p1= %s wd= %s, hi= %s",
+								i, x0, x1, y0, y1, p0, p1, shapes[i].wd, shapes[i].hi));
+				}
+				if (fill_clr != null) {
+					ctx.fillStyle = fill_clr;
+					ctx.fillRect(p0[0],p0[1], wd, hi);
+				}
+				if (highlight) {
+					strk_clr = 'black';
+					ctx.lineWidth = 3;
+				}
+				if (strk_clr != null) {
+					ctx.strokeStyle = strk_clr;
+					ctx.strokeRect(p0[0],p0[1], wd, hi);
+				}
+				if (highlight) {
+					ctx.lineWidth = 1;
+				}
+				drew_rect++;
+			}
+			if (shapes[i].typ == 'text') {
+					//let shp = {typ:'text', x:x, y:y, text:t, style:style, rect_prev:rect_prev, xf0:[], xf1:xf};
+				//style="font-size:7.82361031px;line-height:1.25;font-family:sans-serif;stroke-width:1.26729274"
+				//text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle
+				//let x1 = x0 + shapes[i].wd;
+				//let y1 = y0 + shapes[i].hi;
+				let tstyle = shapes[i].tstyle;
+				let tst = tstyle.split(";");
+				let text_align = 'left';
+				let text_anchor = 'bottom';
+				for (let j=0; j < tst.length; j++) {
+					if (tst[j].length > 11 && tst[j].substr(0,11) == "text-align:") {
+						text_align = tst[j].substr(11);
+					}
+					if (tst[j].length > 12 && tst[j].substr(0,12) == "text-anchor:") {
+						text_anchor = tst[j].substr(12);
+					}
+				}
+				let style = shapes[i].style;
+				let st = style.split(";");
+				let nfont_sz = 11;
+				let line_hi = 0;
+				let font_sz = "11px";
+				for (let j=0; j < st.length; j++) {
+					if (st[j].length > 5 && st[j].substr(0,10) == "font-size:") {
+						font_sz = st[j].substr(10);
+						nfont_sz = parseFloat(font_sz.substr(0, font_sz.length-2));
+					}
+					if (st[j].length > 12 && st[j].substr(0,12) == "line-height:") {
+						line_hi = st[j].substr(12);
+						if (line_hi.indexOf('%') > 0) {
+							line_hi = line_hi.replace('%', '');
+							line_hi = parseFloat(line_hi);
+							if (line_hi >= 100.0) {
+								line_hi /= 100.0;
+							}
+						} else {
+							line_hi = parseFloat(line_hi);
+						}
+					}
+				}
+				// if we've scaled down the canvas sz from svg sz then font can be too big to fit in box
+				nfont_sz *= scale_ratio;
+				shapes[i].nfont_sz = nfont_sz;
+				let x0 = shapes[i].x;
+				let y0 = shapes[i].y;
+				if (line_hi > 1.0) {
+					y0 -= nfont_sz * (line_hi - 1.0);
+				}
+				//let y0 = shapes[i].y - nfont_sz;
+				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				//let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				if (line_hi > 1.0) {
+					//p0[1] -= nfont_sz * (line_hi - 1.0);
+				}
+				let rot = 0;
+				let angle = 0.0;
+				for (let j=0; j < shapes[i].xf0.length; j++) {
+					if (shapes[i].xf0[j].length > 7 && shapes[i].xf0[j].substr(0,7) == "rotate(") {
+						let xf = shapes[i].xf0[j].substr(7, shapes[i].xf0[j].length-8);
+						xf = parseFloat(xf)/90.0;
+						rot = xf;
+					}
+					if (shapes[i].xf0[j].indexOf("matrix") >= 0) {
+						let arr = shapes[i].xf0[j].substr(7, shapes[i].xf0[j].length-8).split(',');
+						let b = parseFloat(arr[1]);
+						let c = parseFloat(arr[2]);
+						let ub = 0;
+						let uc = 0;
+						//let xnew = xout * c - yout * s;
+						//rot = angle/(0.5*Math.PI);
+						//console.log(sprintf("sin()= %f, angle= %f, pi/2= %f, rot= %f", b, angle, Math.PI/2, rot));
+						if (0.99 <= b && b <= 1.01) {
+							ub = 1;
+						} else if (-1.01 <= b && b <= -0.99) {
+							ub = -1;
+						}
+						if (0.99 <= c && c <= 1.01) {
+							uc = 1;
+						} else if (-1.01 <= c && c <= -0.99) {
+							uc = -1;
+						}
+						if (ub == 1 && uc == -1) {
+							rot = 1;
+						}
+						if (ub == -1 && uc == 1) {
+							rot = -1;
+						}
+						if (!(rot == 1 || rot == 0 || rot == -1)) {
+							angle = Math.asin(b);
+						}
+					}
+				}
+				if (shapes[i].text == "Adder") {
+					//console.log(shapes[i].text+":");
+					//console.log(shapes[i]);
+				}
+				ctx.beginPath();
+				ctx.textAlign = text_align;
+				ctx.textBaseline = text_anchor;
+				ctx.fillStyle = 'black';
+				//ctx.font = font_sz + ' Arial';
+				ctx.font = sprintf("%.3fpx sans-serif", nfont_sz);
+				//ctx.font = font_sz + ' sans-serif';
+				let str = shapes[i].text;
+				if (str.indexOf('&amp;') >= 0) {
+					str = str.replace('&amp;', '&');
+				}
+				let twidth = ctx.measureText(str).width;
+				let xb, xe, yb, ye;
+				if (text_align == 'start' || text_align == 'left') {
+					xb = p0[0];
+					xe = xb + twidth;
+				} else if (text_align == 'end' || text_align == 'right') {
+					xe = p0[0];
+					xb = xe - twidth;
+				} else if (text_align == 'center') {
+					xb = p0[0] - 0.5*twidth;
+					xe = p0[0] + 0.5*twidth;
+				} else {
+					console.log("unknown text_align= "+text_align);
+					xb = p0[0];
+					xe = xb + twidth;
+				}
+				if (text_anchor == 'top' || text_anchor == 'hanging') {
+					yb = p0[1];
+					ye = yb - nfont_sz;
+				} else if (text_anchor == 'bottom' || text_anchor == 'alphabetic') {
+					ye = p0[1];
+					yb = ye - nfont_sz;
+				} else if (text_anchor == 'middle') {
+					yb = p0[1] - 0.5*nfont_sz;
+					ye = p0[1] + 0.5*nfont_sz;
+				} else {
+					console.log("unknown text_anchor= "+text_anchor);
+					ye = p0[1];
+					yb = ye - nfont_sz;
+				}
+				shapes[i].box = {xb:xb, xe:xe, yb:yb, ye:ye, str:str};
+				//console.log(sprintf("txt %s %s", text_align, text_anchor));
+				//console.log(shapes[i].box);
+
+				if (rot != 0) {
+					ctx.save();
+					ctx.translate(p0[0], p0[1]);
+					if (angle != 0.0) {
+						ctx.rotate(angle);
+					} else {
+						ctx.rotate(rot * Math.PI/2);
+					}
+					let npt0 = rot_pt(p0[0], p0[1], shapes[i].box.xb, shapes[i].box.yb, angle, rot);
+					let npt1 = rot_pt(p0[0], p0[1], shapes[i].box.xe, shapes[i].box.ye, angle, rot);
+					shapes[i].box.xb = npt0[0];
+					shapes[i].box.yb = npt0[1];
+					shapes[i].box.xe = npt1[0];
+					shapes[i].box.ye = npt1[1];
+
+					ctx.fillText(str, 0, 0);
+					ctx.restore()
+				} else {
+					ctx.fillText(str, p0[0], p0[1]);
+				}
+				drew_text++;
+			}
+		}
+		for (let i=0; i < shapes.length; i++) {
+			if (shapes[i].typ == 'path') {
+				for (let j=0; j < shapes[i].angles.length; j++) {
+					//angle = atan2(vector2.y, vector2.x) - atan2(vector1.y, vector1.x);
+					//if (angle < 0) angle += 2 * M_PI;
+					let jm2 = j-2;
+					let jm1 = j-1;
+					let jp1 = j+1;
+					let jp2 = j+2;
+					if (j == 0) {
+						jm2 = shapes[i].angles.length - 2;
+						jm1 = shapes[i].angles.length - 1;
+					} else if (j == 1) {
+						jm2 = shapes[i].angles.length - 1;
+					} else if ((j+1) == shapes[i].angles.length) {
+						jp1 = 0;
+						jp2 = 1;
+					} else if ((j+2) == shapes[i].angles.length) {
+						jp2 = 0;
+					}
+					//let angle = sprintf("%.3f", shapes[i].angles[j]+shapes[i].angles[jm1]+shapes[i].angles[jp1]);
+					let angle = shapes[i].angles[j]+shapes[i].angles[jm1]+shapes[i].angles[jp1];
+					let angle2 = angle;
+					if (((176 <= angle && angle <= 181) || (176 <= angle2 && angle2 <= 181)) &&
+							shapes[i].angles[jm2] == 90.0 && shapes[i].angles[jp2]== 90.0) {
+						ctx.strokeStyle = 'black';
+						ctx.beginPath();
+						ctx.arc(shapes[i].poly[j].x, shapes[i].poly[j].y, 5, 0,2*Math.PI);
+						let midx=shapes[i].poly[jm2].x + 0.5* (shapes[i].poly[jp2].x-shapes[i].poly[jm2].x);
+						let midy=shapes[i].poly[jm2].y + 0.5* (shapes[i].poly[jp2].y-shapes[i].poly[jm2].y);
+						let dffx=shapes[i].poly[j].x - midx;
+						let dffy=shapes[i].poly[j].y - midy;
+						ctx.moveTo(shapes[i].poly[j].x, shapes[i].poly[j].y);
+						ctx.lineTo(shapes[i].poly[j].x+dffx, shapes[i].poly[j].y+dffy);
+						shapes[i].poly[j].arrow_extended = {x:shapes[i].poly[j].x+dffx, y:shapes[i].poly[j].y+dffy};
+						//let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						//ctx.arc(p0[0], p0[1], 5, 0,2*Math.PI);
+						//console.log(str_angle);
+						shapes[i].poly[j].angle = shapes[i].angles[j];
+						shapes[i].is_connector = true;
+						add_path_connections(i, 'rect', shapes[i].poly[j], shapes[i].poly[j].arrow_extended.x, shapes[i].poly[j].arrow_extended.y);
+						add_path_connections(i, 'path', shapes[i].poly[j], shapes[i].poly[j].x, shapes[i].poly[j].y);
+						ctx.stroke();
+						ctx.closePath();
+						if (shapes[i].id == lkfor_id) {
+							console.log(sprintf("jj[%d] angle= %.3f", j, angle));
+						}
+					} else {
+						if ( 
+								shapes[i].angles[j] == 90.0 && shapes[i].angles[jp1] == 90 &&
+								shapes[i].poly[j].m1_len > shapes[i].poly[j].p1_len &&
+								shapes[i].poly[j].m1_len > 1.0 &&
+								shapes[i].poly[j].p1_len > 1.0 &&
+								shapes[i].poly[jp1].p1_len > shapes[i].poly[jp1].m1_len) {
+							ctx.strokeStyle = 'black';
+							ctx.beginPath();
+							let x = shapes[i].poly[j].x + 0.5 * (shapes[i].poly[jp1].x - shapes[i].poly[j].x);
+							let y = shapes[i].poly[j].y + 0.5 * (shapes[i].poly[jp1].y - shapes[i].poly[j].y);
+							let dist = 5;
+							ctx.arc(x, y, dist, 0,2*Math.PI);
+							shapes[i].poly[j].end_pt = {x, y};
+							shapes[i].poly[j].angle = shapes[i].angles[j];
+							ctx.moveTo(x, y);
+							let norm_angle = Math.atan2(y - shapes[i].poly[j].y, x - shapes[i].poly[j].x);
+							// Draw a normal to the line above
+							let x1 = Math.sin(norm_angle) * dist + x;
+							let y1 = -Math.cos(norm_angle) * dist + y;
+							if (!isPointInPoly(shapes[i].poly, {x1, y1})) {
+								x1 = -Math.sin(norm_angle) * dist + x;
+								y1 = +Math.cos(norm_angle) * dist + y;
+							}
+							ctx.lineTo(x1, y1);
+							shapes[i].poly[j].endpoint_line = {x0:x, y0:y, x1:x1, y1:y1};
+							shapes[i].is_connector = true;
+							ctx.stroke();
+							ctx.closePath();
+							add_path_connections(i, 'rect', shapes[i].poly[j], shapes[i].poly[j].endpoint_line.x1, shapes[i].poly[j].endpoint_line.y1);
+							add_path_connections(i, 'path', shapes[i].poly[j], shapes[i].poly[j].endpoint_line.x0, shapes[i].poly[j].endpoint_line.y0);
+							if (shapes[i].id == lkfor_id) {
+								console.log(sprintf("jk[%d] angle= %.3f len:jm1= %.3f, jp1= %.3f, jp1p1= %.3f, jp1m1= %.3f",
+									j, angle, shapes[i].poly[j].m1_len, shapes[i].poly[j].p1_len,
+									shapes[i].poly[jp1].p1_len, shapes[i].poly[jp1].m1_len));
+							}
+						}
+					}
+				}
+			}
+		}
+		// end of drawing
+	}
+
+	draw_svg([]);
+
+	ck_text_enclosing_boxes();
+
+	let hvr_prv_x = -1, hvr_prv_y = -1, hvr_last_i=-1;
+
+	function ck_text_enclosing_boxes() {
+		let ck=0;
+		for (let i=0; i < shapes.length; i++) {
+			if (shapes[i].typ == 'rect' ||
+				shapes[i].typ == 'path') {
+				shapes[i].text_arr = [];
+			}
+		}
+		for (let i=0; i < shapes.length; i++) {
+			if (shapes[i].typ != 'text') {
+				continue;
+			}
+			let xmid = 0.6 * (shapes[i].box.xe - shapes[i].box.xb);
+			let ymid = 0.5 * (shapes[i].box.ye - shapes[i].box.yb);
+			let x = shapes[i].box.xb + xmid;
+			let y = shapes[i].box.yb + ymid;
+			shapes[i].rect_arr = [];
+			let arr = find_overlap(x, y);
+			for (let j=0; j < arr.length; j++) {
+				let idx = arr[j];
+				if (idx == i) {
+					continue;
+				}
+				shapes[i].rect_arr.push(idx);
+			}
+			for (let j=arr.length-1; j >= 0; j--) {
+				let idx = arr[j];
+				if (idx == i) {
+					continue;
+				}
+				if (shapes[idx].typ == 'path') {
+					shapes[idx].text_arr.push(i);
+				}
+				if (shapes[idx].typ == 'rect') {
+					shapes[idx].text_arr.push(i);
+				}
+				break;
+			}
+			/*
+			if (ck++ < 10) {
+				let str = "str["+i+"]= "+shapes[i].box.str+" lst_rct= "+shapes[i].rect_prev;
+				console.log(str);
+				console.log(arr);
+			}
+			*/
+		}
+		return;
+	}
+	function find_overlap(x, y) {
+		let arr = [];
+		for (let i=0; i < shapes.length; i++) {
+			if (shapes[i].box != null) {
+				if (((shapes[i].box.xb <= x && x <= shapes[i].box.xe) ||
+					 (shapes[i].box.xe <= x && x <= shapes[i].box.xb)) &&
+					((shapes[i].box.yb <= y && y <= shapes[i].box.ye) ||
+					 (shapes[i].box.ye <= y && y <= shapes[i].box.yb))) {
+					arr.push(i);
+				}
+			}
+			if (typeof shapes[i].poly != 'undefined') {
+				if (isPointInPoly(shapes[i].poly, {x, y})) {
+					arr.push(i);
+				}
+			}
+		}
+		return arr;
+	}
+
+	let did_svg_highlight = false;
+
+	function build_svg_json_file() {
+		let str_all = "", cma_all="  ";
+		for (let i=0; i < shapes.length; i++) {
+			let str = "";
+			if ((shapes[i].typ == 'rect') && shapes[i].text_arr.length > 0) {
+				str = "{ "+shapes[i].id+" ";
+				let use_k = 0;
+				let tidx0 = shapes[i].text_arr[0];
+				// find biggest text (by font size)
+				for (let k=1; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (shapes[tidx].nfont_sz > shapes[tidx0].nfont_sz) {
+						use_k = k;
+					}
+				}
+				tidx0 = shapes[i].text_arr[use_k];
+				for (let k=0; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (shapes[tidx].nfont_sz >= shapes[tidx0].nfont_sz &&
+						shapes[tidx].box.yb < shapes[tidx0].box.yb) {
+							use_k = k;
+							tidx0 = shapes[i].text_arr[use_k];
+					}
+				}
+				let str2 = shapes[tidx0].text.trim();
+				for (let k=0; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (tidx != tidx0) {
+						str2 += ", " + shapes[tidx].text.trim();
+					}
+				}
+				let ply_str = "", cma="";
+				for (let k=0; k < shapes[i].poly.length; k++) {
+					let strx = sprintf('%s{"x":%.3f,"y":%.3f}', cma, shapes[i].poly[k].x, shapes[i].poly[k].y);
+					cma = ", ";
+					ply_str += strx;
+				}
+				str_all += sprintf('%s{"id":"%s", "idx":%d, "txt":"%s", "poly":[%s]}\n',
+						cma_all, shapes[i].id, i, str2, ply_str);
+				cma_all = ", ";
+
+			}
+		}
+		for (let i=0; i < shapes.length; i++) {
+			let str = "";
+			if (shapes[i].typ == 'path' &&
+				typeof shapes[i].is_connector != 'undefined' &&
+				shapes[i].is_connector == true ) {
+				//console.log(shapes[i]);
+				let ply_str = "", cma="";
+				let arr = [];
+				for (let j=0; j < shapes[i].poly.length; j++) {
+					let con_str = "", con_cma= "";
+					if (typeof shapes[i].poly[j].im_connected_to != 'undefined') {
+						let arr2 = shapes[i].poly[j].im_connected_to;
+						for (let k=0; k < arr2.length; k++) {
+							if (arr.indexOf(arr2[k]) == -1) {
+								con_str += con_cma + arr2[k];
+								con_cma = ", ";
+								arr.push(arr2[k]);
+							}
+						}
+					}
+					if (con_str != "") {
+						con_str = ', "con_to":['+con_str+']';
+					}
+					let strx = sprintf('%s{"x":%.3f,"y":%.3f%s}', cma, shapes[i].poly[j].x, shapes[i].poly[j].y, con_str);
+					cma = ", ";
+					ply_str += strx;
+				}
+				let str2 = "", str2_cma= "";
+				for (let k=0; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+						str2 += str2_cma + shapes[tidx].text.trim();
+						str2_cma = ", ";
+				}
+				let con_to_me = "", con_to_me_cma= "";
+				if (typeof shapes[i].is_connected_to_me != 'undefined') {
+					for (let m=0; m < shapes[i].is_connected_to_me.length; m++) {
+						let cf = shapes[i].is_connected_to_me[m];
+						if (
+							shapes[cf].typ == 'path' &&
+							typeof shapes[cf].is_connector != 'undefined' &&
+							shapes[cf].is_connector == true &&
+							arr.indexOf(cf) == -1) {
+							arr.push(cf);
+							con_to_me += con_to_me_cma + cf;
+							con_to_me_cma = ", ";
+							//arr = follow_paths(cf, arr);
+						}
+					}
+					if (con_to_me != "") {
+						con_to_me = ', "con_to_me":['+con_to_me+']';
+					}
+				}
+				//str2 = str2.replace("Âµ", "µ");
+				//str2 = str2.replace("&amp;", "&");
+				//str2 = str2.replace(/Âµ/g, "µ");
+				str2 = str2.replace(/&amp;/g, "&");
+				str_all += sprintf('%s{"id":"%s", "idx":%d, "txt":"%s", "poly":[%s]%s}\n',
+						cma_all, shapes[i].id, i, str2, ply_str, con_to_me);
+				cma_all = ", ";
+			}
+			//abcd
+			if (false && (shapes[i].typ == 'rect') && shapes[i].text_arr.length > 0) {
+				let use_k = 0;
+				let tidx0 = shapes[i].text_arr[0];
+				// find biggest text (by font size)
+				for (let k=1; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (shapes[tidx].nfont_sz > shapes[tidx0].nfont_sz) {
+						use_k = k;
+					}
+				}
+				tidx0 = shapes[i].text_arr[use_k];
+				for (let k=0; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (shapes[tidx].nfont_sz >= shapes[tidx0].nfont_sz &&
+						shapes[tidx].box.yb < shapes[tidx0].box.yb) {
+							use_k = k;
+							tidx0 = shapes[i].text_arr[use_k];
+					}
+				}
+				let str2 = shapes[tidx0].text.trim();
+				for (let k=0; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (tidx != tidx0) {
+						str2 += ", " + shapes[tidx].text.trim();
+					}
+				}
+				//str2 = str2.replace(/Âµ/g, "µ");
+				str2 = str2.replace(/&amp;/g, "&");
+				let ply_str = "", cma="";
+				for (let k=0; k < shapes[i].poly.length; k++) {
+					let strx = sprintf('%s{"x":%.3f,"y":%.3f}', cma, shapes[i].poly[k].x, shapes[i].y);
+					cma = ", ";
+					ply_str += strx;
+				}
+				str_all += sprintf('%s{"id":"%s", "idx":%d, "txt":"%s", "poly":[%s]}\n',
+						cma_all, shapes[i].id, i, str2, ply_str);
+				cma_all = ", ";
+
+			}
+		}
+		str_all = '{"svg":{"max_x":'+px_wide+',"max_y":'+px_high+', "shapes":['+str_all+']}}';
+		return {status:1, str:str_all};
+	}
+
+	g_svg_obj = build_svg_json_file();
+
+	mycanvas.onmousemove = function(e) {
+		// important: correct mouse position:
+		let rect = this.getBoundingClientRect(),
+			x = e.clientX - rect.left,
+			y = e.clientY - rect.top;
+		if (x == hvr_prv_x && y == hvr_prv_y) {
+			return;
+		}
+		hvr_prv_x = x;
+		hvr_prv_y = y;
+		let arr = find_overlap(x, y);
+		for (let j=0; j < arr.length; j++) {
+			let i = arr[j];
+			let str = "";
+			if (shapes[i].typ == 'path') {
+				str = "pth= "+i+",id= "+shapes[i].id;
+				//console.log(shapes[i]);
+			}
+			if ((shapes[i].typ == 'rect' || shapes[i].typ == 'path') && shapes[i].text_arr.length > 0) {
+				str = "str= "+shapes[i].box.str+" lst_rct= "+shapes[i].rect_prev + ", id= "+shapes[i].id;
+				let use_k = 0;
+				let tidx0 = shapes[i].text_arr[0];
+				// find biggest text (by font size)
+				for (let k=1; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (shapes[tidx].nfont_sz > shapes[tidx0].nfont_sz) {
+						use_k = k;
+					}
+				}
+				tidx0 = shapes[i].text_arr[use_k];
+				for (let k=0; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					if (shapes[tidx].nfont_sz >= shapes[tidx0].nfont_sz &&
+						shapes[tidx].box.yb < shapes[tidx0].box.yb) {
+							use_k = k;
+							tidx0 = shapes[i].text_arr[use_k];
+					}
+				}
+				if (true && i == 223) {
+					for (let k=0; k < shapes[i].text_arr.length; k++) {
+					let tidx = shapes[i].text_arr[k];
+					console.log(sprintf("rect %d: txt %d str= %s, fntsz= %f, yb= %f, shape:",
+								i, k, shapes[tidx].box.str, shapes[tidx].nfont_sz, shapes[tidx].box.yb));
+					}
+					console.log(shapes[i]);
+				}
+				let idx = shapes[i].text_arr[use_k];
+				str += ", str0= "+shapes[idx].box.str;
+			}
+			if (hvr_last_i != i) {
+				console.log(str);
+				hvr_last_i = i;
+			}
+		}
+		function follow_paths(i, arr) {
+			if (shapes[i].typ == 'path' &&
+				typeof shapes[i].is_connector != 'undefined' &&
+				shapes[i].is_connector == true ) {
+				//console.log(shapes[i]);
+				for (let j=0; j < shapes[i].poly.length; j++) {
+					if (typeof shapes[i].poly[j].im_connected_to != 'undefined') {
+						let arr2 = shapes[i].poly[j].im_connected_to;
+						for (let k=0; k < arr2.length; k++) {
+							if (arr.indexOf(arr2[k]) == -1) {
+								arr.push(arr2[k]);
+							}
+						}
+					}
+				}
+				if (typeof shapes[i].is_connected_to_me != 'undefined') {
+					for (let m=0; m < shapes[i].is_connected_to_me.length; m++) {
+						let cf = shapes[i].is_connected_to_me[m];
+						if (
+							shapes[cf].typ == 'path' &&
+							typeof shapes[cf].is_connector != 'undefined' &&
+							shapes[cf].is_connector == true &&
+							arr.indexOf(cf) == -1) {
+							arr.push(cf);
+							//arr = follow_paths(cf, arr);
+						}
+					}
+				}
+			}
+			return arr;
+		}
+
+		for (let m=0; m < arr.length; m++) {
+			let i = arr[m];
+			let str = "";
+			arr = follow_paths(i, arr);
+		}
+		if (arr.length > 0) {
+			draw_svg(arr);
+			did_svg_highlight = true;
+		} else {
+			if (did_svg_highlight) {
+				draw_svg([]);
+				did_svg_highlight = false;
+			}
+		}
+		return;
+	};
+
+	function isPointInPoly(poly, pt){
+	//Copyright
+	// We authorize the copy and modification of all the codes on the site, since the original author credits are kept
+	//+ Jonas Raoni Soares Silva
+	//@ http://jsfromhell.com/math/is-point-in-poly [rev. #0]
+		let c = false;
+		for(let i = -1, l = poly.length, j = l - 1; ++i < l; j = i)
+			((poly[i].y <= pt.y && pt.y < poly[j].y) || (poly[j].y <= pt.y && pt.y < poly[i].y))
+			&& (pt.x < (poly[j].x - poly[i].x) * (pt.y - poly[i].y) / (poly[j].y - poly[i].y) + poly[i].x)
+			&& (c = !c);
+		return c;
+	}
+}
