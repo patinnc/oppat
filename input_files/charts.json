@@ -13,6 +13,9 @@
 	{"name":"Network", "priority":800},
 	{"name":"Test",    "priority":10000}
 	], "comment":"chart_category_priority defines grouping names for charts and priority (order) of charts",
+  "event_aliases": [
+	{"evt_name":"CYCLES_EVENT", "aliases":["cycles", "cpu_clk_unhalted.thread"]}
+  ],
   "event_array": [
   {"event":
 	{
@@ -92,7 +95,7 @@
   },
   {"event":
 	{
-	"evt_name": "cycles", "evt_type": "ftrace", "comment":"hw cpu cycles events",
+	"evt_name": "CYCLES_EVENT", "evt_type": "ftrace", "comment":"hw cpu cycles events",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
@@ -161,7 +164,7 @@
 	{
 	"evt_name": "load_stalls", "evt_type": "ftrace", "comment":"derived event for pct stalled on loads (ld_stall_cycles/cycles)",
 	"evt_derived":{
-		"evts_tags":[{"evt":"re7", "tag":"num"}, {"evt":"cycles", "tag":"den"}],
+		"evts_tags":[{"evt":"re7", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
 		"new_cols":["val", "__EMIT__", "duration", "area"],
 		"lua_file":"gen_div_pair.lua",
@@ -257,6 +260,22 @@
 			"options":"DROP_1ST"},
 		{"category":"CPU", "title":"Mem BW MiB/sec from LLC-load-misses by cpu",  "var_name": "Mbytes",
 			"by_var": "cpu", "chart_tag":"MEM_BW_BY_LLC-load-misses_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
+			"use_chart":"d", "tot_line":"__total__", "options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_response.all_requests.l3_miss.any_response", "evt_type": "ftrace", "comment":"hw cache misses events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Mem BW MiB/sec from L3 misses by cpu",  "var_name": "Mbytes",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_OFFCORE_RESP_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
 			"use_chart":"d", "tot_line":"__total__", "options":"DROP_1ST"}
 		]
 	}
@@ -507,7 +526,7 @@
 	{
 	"evt_name": "CPI", "evt_type": "ftrace", "comment":"derived event for CPI (cycles/instruction)",
 	"evt_derived":{
-		"evts_tags":[{"evt":"cycles", "tag":"num"}, {"evt":"instructions", "tag":"den"}],
+		"evts_tags":[{"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"instructions", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
 		"new_cols":["val", "__EMIT__", "duration", "area"],
 		"lua_file":"gen_div_pair.lua",
