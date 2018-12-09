@@ -1173,6 +1173,18 @@ static uint32_t ck_got_evts_derived_dependents(prf_obj_str &prf_obj,  evt_str &e
 
 	uint32_t hsh_ck = UINT32_M1;
 	for (uint32_t j=0; j < evt_tbl2.evt_derived.evts_used.size(); j++) {
+		for (uint32_t k=0; k < evt_aliases_vec.size(); k++) {
+			if (evt_aliases_vec[k].evt_name == evt_tbl2.evt_derived.evts_used[j]) {
+				uint32_t hsh_ck2 = UINT32_M1;
+				for (uint32_t m=0; m < evt_aliases_vec[k].aliases.size(); m++) {
+					hsh_ck2 = ck_for_match_on_event_name(evt_aliases_vec[k].aliases[m], prf_obj, verbose);
+					if (hsh_ck2 != UINT32_M1) {
+						evt_tbl2.evt_derived.evts_used[j] = evt_aliases_vec[k].aliases[m];
+						break;
+					}
+				}
+			}
+		}
 		hsh_ck = ck_for_match_on_event_name(evt_tbl2.evt_derived.evts_used[j], prf_obj, verbose);
 		if (hsh_ck == UINT32_M1) {
 			return UINT32_M1;
