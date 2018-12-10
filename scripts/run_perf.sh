@@ -3,6 +3,7 @@
 TRC_CMD=~/bin/trace-cmd
 PRF_CMD=~/perf.sh
 PRF_CMD=perf
+PRF_CMD=~/bin/perf
 BASE=mem_bw6
 PFX=lnx
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
@@ -108,7 +109,26 @@ evt_lst1="{cpu-clock,ref-cycles,cycles,instructions,mem_load_uops_l3_miss_retire
 #$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "$evt_lst0" -e "$evt_lst1" -o $ODIR/prf_trace2.data  &
 #$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,uops_issued.any,offcore_requests.demand_data_rd}:S" -o $ODIR/prf_trace2.data  &
 #$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,inst_retired.any,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,cpu_clk_unhalted.thread,inst_retired.any,uops_issued.any,offcore_response.all_requests.l3_miss.any_response,uops_retired.all}:S" -o $ODIR/prf_trace2.data  &
-$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,uops_issued.any,offcore_response.all_requests.l3_miss.any_response,uops_retired.all}:S" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,uops_issued.any,offcore_response.all_requests.l3_miss.any_response,uops_retired.all}:S" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,LLC-load-misses,LLC-loads}:S" -e "{cpu-clock,cpu_clk_unhalted.thread,instructions,uops_issued.any,offcore_response.all_requests.l3_miss.any_response}:S" -o $ODIR/prf_trace2.data  &
+evt_lst0="{cpu-clock,cpu_clk_unhalted.thread,instructions,LLC-load-misses,LLC-loads}:S"
+evt_lst1="{cpu-clock,cpu_clk_unhalted.thread,instructions,uops_issued.any,offcore_response.all_requests.l3_miss.any_response}:S"
+evt_lst1="{cpu-clock,cpu_clk_unhalted.thread,instructions,offcore_response.all_requests.l3_miss.any_response}:S"
+evt_lst1="{cpu-clock,cpu_clk_unhalted.thread,instructions,uops_issued.any}:S"
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "$evt_lst0" -e "$evt_lst1" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 --group -e "{cpu-clock,cpu_clk_unhalted.thread,inst_retired.any,uops_retired.all}:S" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 --group -e "{cpu-clock,cpu_clk_unhalted.thread,inst_retired.any}:S" -o $ODIR/prf_trace2.data  &
+#$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "{cpu-clock,cpu_clk_unhalted.thread,uops_retired.all}:S" -o $ODIR/prf_trace2.data  &
+# r0100 = inst_retired.any using fixed but doesn't work
+# r0200 = cpu_clk_unhalted.thread using fixed but doesn't work
+# r0300 = cpu_clk_unhalted.ref , using fixed
+# r3c   = cpu_clk_unhalted.thread maybe uses gen countr
+# rc0   = inst_retired.any maybe uses gen counter
+# r01c2 = uops_retired.all
+# r010e = uops_issued.any
+# r20d1 = MEM_LOAD_UOPS_RETIRED.L3_MISS
+
+$PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e '{cpu-clock,r0300,rc0,r3c,r01c2,r010e}:S' -o $ODIR/prf_trace2.data  &
 PRF_CMD_PID2=$!
 #
 #$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x
