@@ -14,7 +14,11 @@
 	{"name":"Test",    "priority":10000}
 	], "comment":"chart_category_priority defines grouping names for charts and priority (order) of charts",
   "event_aliases": [
-	{"evt_name":"CYCLES_EVENT", "aliases":["cycles", "cpu_clk_unhalted.thread"]}
+	 {"evt_name":"CYCLES_EVENT", "arch":"Intel", "aliases":["cycles", "cpu_clk_unhalted.thread", "r0200", "r3c"]}
+	,{"evt_name":"CYCLES_EVENT", "arch":"ARM",   "aliases":["cycles", "r11"]}
+	,{"evt_name":"INST_EVENT", "arch":"Intel", "aliases":["instructions", "rc0"]}
+	,{"evt_name":"INST_EVENT", "arch":"ARM",   "aliases":["instructions", "r08"]}
+	,{"evt_name":"REF_CYCLES_EVENT", "arch":"Intel", "aliases":["ref-cycles","r0300"]}
   ],
   "event_array": [
   {"event":
@@ -109,7 +113,7 @@
   },
   {"event":
 	{
-	"evt_name": "r19", "evt_type": "ftrace", "comment":"hw r19 bus-access events",
+	"evt_name": "r19", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r19 bus-access events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"bus_accesses",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":1000.0}]},
@@ -128,7 +132,7 @@
   },
   {"event":
 	{
-	"evt_name": "r60", "evt_type": "ftrace", "comment":"hw r60 Load bus-access events",
+	"evt_name": "r60", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r60 Load bus-access events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"bus_accesses",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":1000.0}]},
@@ -147,7 +151,7 @@
   },
   {"event":
 	{
-	"evt_name": "re7", "evt_type": "ftrace", "comment":"hw re7 events",
+	"evt_name": "re7", "evt_type": "ftrace", "arch":"ARM", "comment":"hw re7 events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"stall_cycles",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":3.0}]},
@@ -162,7 +166,7 @@
   },
   {"event":
 	{
-	"evt_name": "load_stalls", "evt_type": "ftrace", "comment":"derived event for pct stalled on loads (ld_stall_cycles/cycles)",
+	"evt_name": "load_stalls", "evt_type": "ftrace", "arch":"ARM", "comment":"derived event for pct stalled on loads (ld_stall_cycles/cycles)",
 	"evt_derived":{
 		"evts_tags":[{"evt":"re7", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
@@ -185,7 +189,7 @@
   },
   {"event":
 	{
-	"evt_name": "rc0", "evt_type": "ftrace", "comment":"hw rc0 events",
+	"evt_name": "rc0", "evt_type": "ftrace", "arch":"ARM", "comment":"hw rc0 events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
@@ -200,7 +204,7 @@
   },
   {"event":
 	{
-	"evt_name": "rc2", "evt_type": "ftrace", "comment":"hw rc2 linefill due to prefetch events",
+	"evt_name": "rc2", "evt_type": "ftrace", "arch":"ARM", "comment":"hw rc2 linefill due to prefetch events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
@@ -215,7 +219,7 @@
   },
   {"event":
 	{
-	"evt_name": "rc4", "evt_type": "ftrace", "comment":"hw rc4 entering read allocate mode",
+	"evt_name": "rc4", "evt_type": "ftrace", "arch":"ARM", "comment":"hw rc4 entering read allocate mode",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"BW",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":10.0}]},
@@ -230,7 +234,7 @@
   },
   {"event":
 	{
-	"evt_name": "r16", "evt_type": "ftrace", "comment":"hw r16 L2 dcache accesses events",
+	"evt_name": "r16", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r16 L2 dcache accesses events",
 	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
 	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
 	"evt_flds": [
@@ -266,7 +270,7 @@
   },
   {"event":
 	{
-	"evt_name": "offcore_response.all_requests.l3_miss.any_response", "evt_type": "ftrace", "comment":"hw cache misses events",
+	"evt_name": "offcore_response.all_requests.l3_miss.any_response", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cache misses events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
@@ -342,7 +346,7 @@
   },
   {"event":
 	{
-	"evt_name": "r17", "evt_type": "ftrace", "comment":"hw r17 L2 dcache misses events",
+	"evt_name": "r17", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r17 L2 dcache misses events",
 	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
 	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
 	"evt_flds": [
@@ -363,7 +367,7 @@
   },
   {"event":
 	{
-	"evt_name": "r1d", "evt_type": "ftrace", "comment":"hw r1d events",
+	"evt_name": "r1d", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r1d events",
 	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
 	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
 	"evt_flds": [
@@ -384,7 +388,7 @@
   },
   {"event":
 	{
-	"evt_name": "arm_bus_util", "evt_type": "ftrace", "comment":"hw derived arm_bus_util events",
+	"evt_name": "arm_bus_util", "evt_type": "ftrace", "arch":"ARM", "comment":"hw derived arm_bus_util events",
 	"evt_derived":{
 		"evts_tags":[{"evt":"r19", "tag":"num"}, {"evt":"r1d", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
@@ -407,7 +411,7 @@
   },
   {"event":
 	{
-	"evt_name": "ref-cycles", "evt_type": "ftrace", "comment":"hw cpu cycles events",
+	"evt_name": "REF_CYCLES_EVENT", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cpu cycles events",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"GHz",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":4.0}]},
@@ -421,7 +425,7 @@
   },
   {"event":
 	{
-	"evt_name": "instructions", "evt_type": "ftrace", "comment":"hw instruction event",
+	"evt_name": "INST_EVENT", "evt_type": "ftrace", "comment":"hw instruction event",
 	"evt_flds": [
 		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"GIPS",  "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}, {"oper":"drop_if_gt", "val":100.0}]},
@@ -436,7 +440,7 @@
   },
   {"event":
 	{
-	"evt_name": "br_mis_pred_pct", "evt_type": "ftrace", "comment":"derived event for branch mis_pred/br_pred)",
+	"evt_name": "br_mis_pred_pct", "evt_type": "ftrace", "arch":"ARM", "comment":"derived event for branch mis_pred/br_pred)",
 	"evt_derived":{
 		"evts_tags":[{"evt":"r10", "tag":"num"}, {"evt":"r12", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
@@ -458,7 +462,7 @@
   },
   {"event":
 	{
-	"evt_name": "cond_br_mis_pred_pct", "evt_type": "ftrace", "comment":"derived event for cond_branch mis_pred/BR_COND)",
+	"evt_name": "cond_br_mis_pred_pct", "evt_type": "ftrace", "arch":"ARM", "comment":"derived event for cond_branch mis_pred/BR_COND)",
 	"evt_derived":{
 		"evts_tags":[{"evt":"rcc", "tag":"num"}, {"evt":"rc9", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
@@ -480,7 +484,7 @@
   },
   {"event":
 	{
-	"evt_name": "L2_miss_pct", "evt_type": "ftrace", "comment":"derived event for L2 miss % (L2 misses/L2 accesses)",
+	"evt_name": "L2_miss_pct", "evt_type": "ftrace", "arch":"ARM", "comment":"derived event for L2 miss % (L2 misses/L2 accesses)",
 	"evt_derived":{
 		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"r16", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
@@ -502,9 +506,9 @@
   },
   {"event":
 	{
-	"evt_name": "L2_mpki", "evt_type": "ftrace", "comment":"derived event for L2 MPKI (L2 misses/thousand instructions)",
+	"evt_name": "L2_mpki", "evt_type": "ftrace", "arch":"ARM", "comment":"derived event for L2 MPKI (L2 misses/thousand instructions)",
 	"evt_derived":{
-		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"instructions", "tag":"den"}],
+		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"INST_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
 		"new_cols":["val", "__EMIT__", "duration", "area"],
 		"lua_file":"gen_div_pair.lua",
@@ -524,9 +528,55 @@
   },
   {"event":
 	{
+	"evt_name": "uops_ret_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"evt_derived":{
+		"evts_tags":[{"evt":"r01c2", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"uops retired per cycle by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"UOPS_RETIRED_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"d",
+			"y_label":"uops/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "uops_iss_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"evt_derived":{
+		"evts_tags":[{"evt":"r010e", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"uops issued per cycle by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"UOPS_ISSUED_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"d",
+			"y_label":"uops/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "CPI", "evt_type": "ftrace", "comment":"derived event for CPI (cycles/instruction)",
 	"evt_derived":{
-		"evts_tags":[{"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"instructions", "tag":"den"}],
+		"evts_tags":[{"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"INST_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
 		"new_cols":["val", "__EMIT__", "duration", "area"],
 		"lua_file":"gen_div_pair.lua",
