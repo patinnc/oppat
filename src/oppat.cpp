@@ -5003,7 +5003,7 @@ int main(int argc, char **argv)
 	evt_tbl2.resize(1);
 	for (uint32_t i=0; i <  ck_num_events; i++) {
 		std::string evt_nm;
-		do_json(i, evt_nm, chart_file, json_evt_chrt_str, evt_tbl2[0], options.verbose);
+		do_json(i, evt_nm, chart_file, json_evt_chrt_str, evt_tbl2[0], "", options.verbose);
 	}
 	printf("chart_file has %d events. At %s %d\n", ck_num_events, __FILE__, __LINE__);
 	std::cout << "evt_tbl2[0].size() " << evt_tbl2[0].size() << std::endl;
@@ -5144,7 +5144,7 @@ int main(int argc, char **argv)
 					str, prf_obj[k].filename_bin, prf_obj[k].filename_text,  evt_nm, k, j, -1) - 1;
 				//printf("fe_idx= %d, str= '%s' at %s %d\n", fe_idx, str.c_str(), __FILE__, __LINE__);
 				flnm_evt_vec[file_tag_idx][fe_idx].evt_tbl_idx = (uint32_t)grp_list[g];
-				do_json(UINT32_M1, evt_nm, chart_file, json_evt_chrt_str, event_table[grp_list[g]], options.verbose);
+				do_json(UINT32_M1, evt_nm, chart_file, json_evt_chrt_str, event_table[grp_list[g]], prf_obj[k].features_cpuid, options.verbose);
 				if (get_signal() == 1) {
 					fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
