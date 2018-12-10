@@ -103,14 +103,14 @@ struct evt_derived_str {
 };
 
 struct evt_aliases_str {
-	std::string evt_name;
+	std::string evt_name, arch;
 	std::vector <std::string> aliases;
 	uint32_t use_alias;
 	evt_aliases_str(): use_alias(-1) {}
 };
 
 struct evt_str {
-	std::string event_name, event_type, event_name_w_area;
+	std::string event_name, event_type, event_name_w_area, event_arch;
 	struct evt_derived_str evt_derived;
 	uint32_t prf_obj_idx, event_idx_in_file;
 	std::unordered_map <std::string, uint32_t> hsh_str;
@@ -225,7 +225,8 @@ EXTERN_STR std::vector <chart_cat_str> chart_category;
 EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str> &file_list, std::vector <std::string> use_file_tag,
 	int read_file_mode, std::string root_data_dir, int verbose);
 EXTERN_STR std::string rd_json(std::string flnm);
-EXTERN_STR uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_nm, std::string json_file, std::string str, std::vector <evt_str> &event_table, int verbose);
+EXTERN_STR uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_nm, std::string json_file, std::string str,
+	std::vector <evt_str> &event_table,  std::string features_cpuid, int verbose);
 EXTERN_STR int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose);
 EXTERN_STR std::unordered_map<std::string, uint32_t> ETW_events_to_skip_hash;
 EXTERN_STR std::vector <std::string> ETW_events_to_skip_vec;
