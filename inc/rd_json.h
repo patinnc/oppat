@@ -64,10 +64,19 @@ struct lag_str {
 	int fld_from, fld_to, by_var;
 	lag_str(): fld_from(-1), fld_to(-1), by_var(0) {}
 };
+
+struct tot_line_opts_str {
+	std::string xform, yval_fmt, yvar_fmt, desc;
+	std::vector <std::string> scope;
+	double HT_factor, post_factor;
+	tot_line_opts_str(): HT_factor(1.0), post_factor(1.0) {}
+};
+
 struct chart_str {
 	std::string title, var_name, by_var, chart_tag, chart_category, chart_type,
 		y_fmt, by_val_ts, by_val_dura, y_label, tot_line,
 		marker_type, marker_size, marker_connect;
+	struct tot_line_opts_str tot_line_opts;
 	bool use_chart;
 	uint32_t var_idx, by_var_idx;
 	int32_t pixels_high;
