@@ -48,7 +48,7 @@ function gen_div_pair(verbose)
 		for k,t in ipairs(data_cols) do
     		data_cols_hash[t] = k
 		end
-		local tbl_ck_new_cols = {"val", "__EMIT__", "duration", "area"}
+		local tbl_ck_new_cols = {"val", "__EMIT__", "duration", "area", "numerator", "denominator"}
 		for k,t in ipairs(tbl_ck_new_cols) do
 			if new_cols_hash[t] == nil then
 				error("expected to find field '"..t.."' in new_cols list")
@@ -115,6 +115,10 @@ function gen_div_pair(verbose)
 		end
 		if dura > 0.0 and den > 0.0 then
 			local val = num / den
+			local nume_idx = new_cols_hash["numerator"];
+			local deno_idx = new_cols_hash["denominator"];
+			new_vals[nume_idx] = num
+			new_vals[deno_idx] = den
 			new_vals[val_idx]  = val
 			new_vals[area_idx] = cpu
 			new_vals[emit_idx] = 1
