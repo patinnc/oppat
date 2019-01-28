@@ -27,6 +27,37 @@
   background-color: #555;
 }
 
+.dot_red {
+  height: 18px;
+  width: 18px;
+  background-color: red;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot_green {
+  height: 18px;
+  width: 18px;
+  background-color: green;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot_yellow {
+  height: 18px;
+  width: 18px;
+  background-color: green;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot {
+  height: 20px;
+  width: 20px;
+  background-color: #bab;
+  border-radius: 50%;
+  display: inline-block;
+}
 .ul_none {
     list-style-position: none;
 	list-style: none;
@@ -176,12 +207,15 @@ circle {
 </div>
 <div> <input type="text" id="messageinput"></input><span id="msg_span"></span> </div>
 <div> <button type="button" onclick="send();">Send</button> <br> </div>
+<div id="mysvg"></div>
 <div id="chart_container" style="display:none">
  <div id="chart_anchor" style="display:none;"></div>
 </div>
-<div id="mysvg"></div>
 <!--
 <object id="svg-object" data="haswell_block_diagram.svg" type="image/svg+xml"></object>
 -->
+<!-- string below is looked for by oppat.cpp create_web_file() -->
+<div id='cpu_diagram_svg'>
+</div>
 </body>
 </html>
