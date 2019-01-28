@@ -38,6 +38,10 @@
 enum { // below enum has to be in same order as wrk_typs
 	WRK_SPIN,
 	WRK_MEM_BW,
+	WRK_MEM_BW_RDWR,
+	WRK_MEM_BW_2RD,
+	WRK_MEM_BW_2RDWR,
+	WRK_MEM_BW_2RD2WR,
 	WRK_DISK_RD,
 	WRK_DISK_WR,
 	WRK_DISK_RDWR,
@@ -49,6 +53,10 @@ enum { // below enum has to be in same order as wrk_typs
 static std::vector <std::string> wrk_typs = {
 	"spin",
 	"mem_bw",
+	"mem_bw_rdwr",
+	"mem_bw_2rd",
+	"mem_bw_2rdwr",
+	"mem_bw_2rd2wr",
 	"disk_rd",
 	"disk_wr",
 	"disk_rdwr",
@@ -118,6 +126,44 @@ int array_write(char *buf, int ar_sz, int strd)
 	int res=0;
 	for (int i=0; i < ar_sz-strd; i += strd) {
 		buf[i] = i;
+	}
+	return res;
+}
+
+int array_read_write(char *buf, int ar_sz, int strd)
+{
+	int res=0;
+	for (int i=0; i < ar_sz-strd; i += strd) {
+		buf[i] += i;
+	}
+	return res;
+}
+
+int array_2read_write(char *dst, char *src, int ar_sz, int strd)
+{
+	int res=0;
+	for (int i=0; i < ar_sz-strd; i += strd) {
+		dst[i] += src[i];
+	}
+	return res;
+}
+
+int array_2read_2write(char *dst, char *src, int ar_sz, int strd)
+{
+	int res=0;
+	for (int i=0; i < ar_sz-strd; i += strd) {
+		dst[i] += res;
+		src[i] += res;
+		res++;
+	}
+	return res;
+}
+
+int array_2read(char *dst, char *src, int ar_sz, int strd)
+{
+	int res=0;
+	for (int i=0; i < ar_sz-strd; i += strd) {
+		res += dst[i] + src[i];
 	}
 	return res;
 }
@@ -371,7 +417,7 @@ float disk_all(unsigned int i)
 
 float mem_bw(unsigned int i)
 {
-	char *buf;
+	char *dst, *src;
 	double tm_to_run = args[i].spin_tm;
 	int cpu =  args[i].id;
 	//unsigned int i;
@@ -391,12 +437,36 @@ float mem_bw(unsigned int i)
 		printf("strd= %d, arr_sz= %d, %d KB, %.4f MB\n",
 			strd, arr_sz, arr_sz/1024, (double)(arr_sz)/(1024.0*1024.0));
 	}
-	buf = (char *)malloc(arr_sz);
-	array_write(buf, arr_sz, strd);
+	dst = (char *)malloc(arr_sz);
+	array_write(dst, arr_sz, strd);
+	if (args[i].wrk_typ == WRK_MEM_BW_2RDWR ||
+		args[i].wrk_typ == WRK_MEM_BW_2RD ||
+		args[i].wrk_typ == WRK_MEM_BW_2RD2WR) {
+		src = (char *)malloc(arr_sz);
+		array_write(src, arr_sz, strd);
+	}
 	tm_end = tm_beg = dclock();
 	while((tm_end - tm_beg) < tm_to_run) {
-		rezult += array_read(buf, arr_sz, strd);
-		bytes += arr_sz;
+		if (args[i].wrk_typ == WRK_MEM_BW) {
+			rezult += array_read(dst, arr_sz, strd);
+			bytes += arr_sz;
+		}
+		else if (args[i].wrk_typ == WRK_MEM_BW_RDWR) {
+			rezult += array_read_write(dst, arr_sz, strd);
+			bytes += 2*arr_sz;
+		}
+		else if (args[i].wrk_typ == WRK_MEM_BW_2RD) {
+			rezult += array_2read(dst, src, arr_sz, strd);
+			bytes += 2*arr_sz;
+		}
+		else if (args[i].wrk_typ == WRK_MEM_BW_2RDWR) {
+			rezult += array_2read_write(dst, src, arr_sz, strd);
+			bytes += 3*arr_sz;
+		}
+		else if (args[i].wrk_typ == WRK_MEM_BW_2RD2WR) {
+			rezult += array_2read_2write(dst, src, arr_sz, strd);
+			bytes += 4*arr_sz;
+		}
 		tm_end = dclock();
 	}
 	double dura = tm_end - tm_beg;
@@ -447,6 +517,10 @@ float dispatch_work(int  i)
 			res = simd_dot0(i);
 			break;
 		case WRK_MEM_BW:
+		case WRK_MEM_BW_RDWR:
+		case WRK_MEM_BW_2RDWR:
+		case WRK_MEM_BW_2RD2WR:
+		case WRK_MEM_BW_2RD:
 			res = mem_bw(i);
 			break;
 		case WRK_DISK_RD:
@@ -485,7 +559,7 @@ int main(int argc, char **argv)
 	time_t c_start, c_end;
 	unsigned long adder=1, loops = 0xffffff;
 	printf("usage: %s tm_secs [work_type [ arg3 [ arg4 ]]]\n", argv[0]);
-	printf("\twork_type: spin|mem_bw|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
+	printf("\twork_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
 	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 
 	int i=1;
@@ -501,6 +575,7 @@ int main(int argc, char **argv)
 		for (uint32_t j=0; j < wrk_typs.size(); j++) {
 			if (work == wrk_typs[j]) {
 				wrk_typ = j;
+				printf("got work= '%s' at %s %d\n", work.c_str(), __FILE__, __LINE__);
 				break;
 			}
 		}
@@ -516,7 +591,9 @@ int main(int argc, char **argv)
 			doing_disk = true;
 			loops = 100;
 		}
-		if (wrk_typ == WRK_MEM_BW) {
+		if (wrk_typ == WRK_MEM_BW || wrk_typ == WRK_MEM_BW_RDWR ||
+			wrk_typ == WRK_MEM_BW_2RDWR || wrk_typ == WRK_MEM_BW_2RD ||
+			wrk_typ == WRK_MEM_BW_2RD2WR) {
 			loops = 64;
 			adder = 80*1024*1024;
 		}
