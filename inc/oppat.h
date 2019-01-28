@@ -30,6 +30,7 @@ struct options_str {
 	std::string etw_txt;
 	std::string replay_filename;
 	std::string web_file;
+	std::string cpu_diagram;
 	std::vector <std::string> root_data_dirs;
 	std::vector <path_file_str> file_list;
 	std::vector <std::string> file_tag_vec;
@@ -162,6 +163,7 @@ struct prf_obj_str {
 	std::vector <std::string> features_cmdline;
 	std::vector <std::string> features_topology_cores;
 	std::vector <std::string> features_topology_threads;
+	std::vector <int> map_cpu_2_core;
 	lua_data_str lua_data;
 	int features_nr_cpus_online;
 	int features_nr_cpus_available;
