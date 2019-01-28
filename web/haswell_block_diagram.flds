@@ -1,0 +1,36 @@
+
+{
+
+"cpu_diagram_hdr": {"max_x":1016,"max_y":1386.8284248803116},
+
+"cpu_diagram_fields":[
+  {"fld":{"x":80,  "y":922}, "chart":"CYCLES_PER_UOP_PORT0_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":160, "y":922}, "chart":"CYCLES_PER_UOP_PORT1_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":240, "y":922}, "chart":"CYCLES_PER_UOP_PORT5_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":334, "y":922}, "chart":"CYCLES_PER_UOP_PORT6_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":419, "y":922}, "chart":"CYCLES_PER_UOP_PORT2_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":505, "y":922}, "chart":"CYCLES_PER_UOP_PORT3_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":591, "y":922}, "chart":"CYCLES_PER_UOP_PORT4_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":677, "y":922}, "chart":"CYCLES_PER_UOP_PORT7_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":460, "y":560}, "chart":"CYCLES_PER_IDQ_ALL_UOPS_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":260, "y":665}, "chart":"CYCLES_PER_RAT_UOPS_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":100, "y":668}, "chart":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}}
+, {"fld":{"x":100, "y":695}, "chart":"UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART",  "rng":{"green": 10, "yellow":40}}
+, {"fld":{"x":370, "y":887}, "chart":"RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}}
+, {"fld":{"x":537,"y":1180}, "chart":"RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}}
+, {"fld":{"x":220, "y":758}, "chart":"RESOURCE_STALLS.ROB_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}}
+, {"fld":{"x":260, "y":530}, "chart":"CYCLES_PER_DSB_UOPS_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":240, "y":600}, "chart":"CYCLES_PER_LSD_UOPS_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":260, "y":450}, "chart":"CYCLES_PER_MS_UOPS_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":160, "y":265}, "chart":"MISPRED_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}}
+, {"fld":{"x":370, "y":165}, "chart":"IFETCH_STALLS_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}}
+, {"fld":{"x":850, "y":250}, "chart":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 16, "yellow":32}}
+, {"fld":{"x":850,"y":1140}, "chart":"L2_REQ_REF_BYTES_PER_CYCLE_CHART", "rng":{"green": 16, "yellow":32}}
+, {"fld":{"x":920,"y":1000}, "chart":"L2_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 6, "yellow":16}}
+, {"fld":{"x":920,"y":1050}, "chart":"L3_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 3, "yellow":6}}
+, {"fld":{"x":950,"y":1080}, "chart":"UNC_HASWELL_PEAK_BW_CHART", "rng":{"green": 10, "yellow":20}}
+, {"fld":{"x":920,"y":1110}, "chart":"SQ_FULL_PER_CYCLE_CHART", "rng":{"green": 10, "yellow":20}}
+, {"fld":{"x":850,"y":1190}, "chart":"L2_TRANS_ALL_PER_CYCLE_CHART", "rng":{"green": 16, "yellow":32}}
+, {"fld":{"x":450,"y":1220}, "chart":"L1D_REPL_BYTES_PER_CYCLE_CHART", "rng":{"green": 16, "yellow":32}}
+, {"fld":{"x":700,"y":1370}, "chart":"L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":20}}
+]}
