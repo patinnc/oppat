@@ -575,10 +575,63 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				} catch (...) { }
 				cs.use_chart = use_chart;
 				std::string tot_line, y_fmt, by_val_ts, by_val_dura;
+				struct tot_line_opts_str tot_line_opts;
 				try {
 					tot_line = j["event_array"][i]["event"]["charts"][k]["tot_line"];
 				} catch (...) { }
 				cs.tot_line = tot_line;
+				try {
+					tot_line_opts.xform = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["xform"];
+				} catch (...) { }
+				cs.tot_line_opts.xform = tot_line_opts.xform;
+				try {
+					tot_line_opts.yval_fmt = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["yval_fmt"];
+				} catch (...) { }
+				cs.tot_line_opts.yval_fmt = tot_line_opts.yval_fmt;
+				try {
+					tot_line_opts.yvar_fmt = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["yvar_fmt"];
+				} catch (...) { }
+				cs.tot_line_opts.yvar_fmt = tot_line_opts.yvar_fmt;
+				try {
+					tot_line_opts.HT_factor = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["HT_factor"];
+				} catch (...) { }
+				cs.tot_line_opts.HT_factor = tot_line_opts.HT_factor;
+				try {
+					uint32_t scp_sz = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["scope"].size();
+					for (uint32_t m=0; m < scp_sz; m++) {
+						tot_line_opts.scope.push_back(
+							j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["scope"][m]);
+					}
+				} catch (...) { }
+				if (tot_line_opts.scope.size() > 0) {
+					uint32_t scp_sz = tot_line_opts.scope.size();
+					if (scp_sz != 2) {
+						printf("tot_line_options.scope must be size= 2. Got sz= %d at %s %d\n",
+							scp_sz, __FILE__, __LINE__);
+						for (uint32_t m=0; m < scp_sz; m++) {
+							printf("tot_line_options.scope[%d]= %s at %s %d\n",
+								m, tot_line_opts.scope[m].c_str(), __FILE__, __LINE__);
+						}
+						exit(1);
+					}
+					for (uint32_t m=0; m < scp_sz; m++) {
+						if (tot_line_opts.scope[m] != "per_thread" &&
+							tot_line_opts.scope[m] != "per_core") {
+						printf("tot_line_options.scope must be 'per_thread' or 'per_core'. got %s at %s %d\n",
+							tot_line_opts.scope[m].c_str(), __FILE__, __LINE__);
+						exit(1);
+						}
+						cs.tot_line_opts.scope.push_back(tot_line_opts.scope[m]);
+					}
+				}
+				try {
+					tot_line_opts.post_factor = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["post_factor"];
+				} catch (...) { }
+				cs.tot_line_opts.post_factor = tot_line_opts.post_factor;
+				try {
+					tot_line_opts.desc = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["desc"];
+				} catch (...) { }
+				cs.tot_line_opts.desc = tot_line_opts.desc;
 				try {
 					y_fmt = j["event_array"][i]["event"]["charts"][k]["y_fmt"];
 				} catch (...) { }
