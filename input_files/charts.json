@@ -170,7 +170,7 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"re7", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -178,6 +178,8 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":120}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -270,17 +272,76 @@
   },
   {"event":
 	{
-	"evt_name": "offcore_response.all_requests.l3_miss.any_response", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cache misses events",
+	"evt_name": "aaa_offcore_response.all_requests.l3_miss.any_response", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cache misses events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
-		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
 		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
 		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"Mem BW MiB/sec from L3 misses by cpu",  "var_name": "Mbytes",
 			"by_var": "cpu", "chart_tag":"MEM_BW_BY_OFFCORE_RESP_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
-			"use_chart":"d", "tot_line":"__total__", "options":"DROP_1ST"}
+			"use_chart":"y", "tot_line":"__total__", "options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "mem_load_uops_l3_miss_retired.local_dram", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cache misses events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Mem BW MiB/sec from mem_load_uops.L3 misses by cpu",  "var_name": "Mbytes",
+			"by_var": "cpu", "chart_tag":"MEM_LD_UOPS_BW_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
+			"use_chart":"y", "tot_line":"__total__", "options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_response.all_requests.l3_hit.any_response", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cache misses events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Mem BW MiB/sec from L3 hits by cpu",  "var_name": "Mbytes",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_OFFCORE_RESP_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
+			"use_chart":"y", "tot_line":"__total__", "options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_response.all_data_rd.l3_miss.local_dram", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cache misses events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Mem BW MiB/sec from L3 hits by cpu",  "var_name": "Mbytes",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_OFFCORE_RESP2_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
+			"use_chart":"y", "tot_line":"__total__", "options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_response.all_data_rd.l3_miss.local_dram", "evt_type": "ftrace", "arch":"Intel", "comment":"hw cache misses events",
+	"evt_flds": [
+		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"Mbytes", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-6}, {"oper":"drop_if_gt", "val":20000.0}]},
+		{"name":"dura", "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"Mem BW MiB/sec from L3 hits by cpu",  "var_name": "Mbytes",
+			"by_var": "cpu", "chart_tag":"MEM_BW_BY_OFFCORE_RESP2_BY_CPU", "chart_type":"line", "y_label":"MiB/sec",
+			"use_chart":"y", "tot_line":"__total__", "options":"DROP_1ST"}
 		]
 	}
   },
@@ -290,7 +351,7 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"LLC-load-misses", "tag":"num"}, {"evt":"LLC-loads", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -298,6 +359,8 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -328,7 +391,7 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"branch-load-misses", "tag":"num"}, {"evt":"branch-loads", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -336,6 +399,8 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -392,7 +457,7 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"r19", "tag":"num"}, {"evt":"r1d", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -400,6 +465,8 @@
 		{"name":"val",  "lkup": "val", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":200.0}]},
 		{"name":"emit", "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura", "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area", "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -440,11 +507,26 @@
   },
   {"event":
 	{
+	"evt_name": "offcore_requests_outstanding.all_data_rd", "evt_type": "ftrace",
+	"evt_flds": [
+		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"GB",  "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":64.0e-9}, {"oper":"drop_if_gt", "val":100.0}]},
+		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"offcore_req_outstanding GB/sec by cpu",  "var_name": "GB",
+			"by_var": "cpu", "chart_tag":"OFFCORE_REQ_OUT_BY_CPU", "chart_type":"line", "use_chart":"y", "tot_line":"__total__",
+			"options":"DROP_1ST"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "br_mis_pred_pct", "evt_type": "ftrace", "arch":"ARM", "comment":"derived event for branch mis_pred/br_pred)",
 	"evt_derived":{
 		"evts_tags":[{"evt":"r10", "tag":"num"}, {"evt":"r12", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -452,6 +534,8 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -466,7 +550,7 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"rcc", "tag":"num"}, {"evt":"rc9", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -474,6 +558,8 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -488,7 +574,7 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"r16", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -496,6 +582,8 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -510,7 +598,7 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"r17", "tag":"num"}, {"evt":"INST_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -518,6 +606,8 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1000.0}, {"oper":"drop_if_gt", "val":2000.0}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1000.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
@@ -530,9 +620,9 @@
 	{
 	"evt_name": "uops_ret_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
 	"evt_derived":{
-		"evts_tags":[{"evt":"r01c2", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evts_tags":[{"evt":"uops_retired.all", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -540,12 +630,14 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":120}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"uops retired per cycle by CPU",  "var_name": "val",
 			"by_var": "area", "chart_tag":"UOPS_RETIRED_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"d",
-			"y_label":"uops/cycle"}
+			"y_label":"uops_retired/cycle"}
 		]
 	}
   },
@@ -553,9 +645,9 @@
 	{
 	"evt_name": "uops_iss_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
 	"evt_derived":{
-		"evts_tags":[{"evt":"r010e", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evts_tags":[{"evt":"uops_issued.any", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
@@ -563,12 +655,262 @@
 		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":120}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"uops issued per cycle by CPU",  "var_name": "val",
 			"by_var": "area", "chart_tag":"UOPS_ISSUED_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"d",
-			"y_label":"uops/cycle"}
+			"y_label":"uops_issued/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L2_rqsts_ref_per_cycle", "evt_type": "ftrace", "comment":"l2_rqsts.references * 64 /cycle",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"l2_rqsts.references", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L2_req bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on 64*l2_rqsts.references/cycle. Peak on haswell is 64 bytes/cycle"
+			},
+			"chart_tag":"L2_REQ_REF_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L2_req_ref bytes/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L1_repl_bytes_per_cycle", "evt_type": "ftrace", "comment":"l1d_replacement * 64 /cycle",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"l1d.replacement", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L1D replacment bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_thread","per_core"],
+			"desc":"Based on 64*l1d.replacement/cycle. Does not seem to count all l1d replacments."},
+			"chart_tag":"L1D_REPL_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L1D_replace bytes/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L2_trans_all_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"comment":" r80f0 = L2_TRANS.ALL_REQUESTS",
+	"evt_derived":{
+		"evts_tags":[{"evt":"l2_trans.all_requests", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L2_trans_all bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_thread","per_core"],
+			"desc":"Based on 64*l2_trans.all_requests/cycle. Peak possible on haswell is 64 bytes/cycle. Peak on haswell is 64 bytes/cycle."},
+			"chart_tag":"L2_TRANS_ALL_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L2_trans bytes/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_response_all_requests_l3_miss_any_response_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"evt_derived":{
+		"evts_tags":[{"evt":"offcore_response.all_requests.l3_miss.any_response", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L3 miss bytes per cycle by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"L3_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_core"],
+			"desc":"Based on 64*offcore_response.all_requests.l3_miss.any_response/cycle. Does not seem to count all mem traffic."},
+			"y_label":"L3_miss bytes/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_requests_buffer.sq_full_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"evt_derived":{
+		"evts_tags":[{"evt":"offcore_requests_buffer.sq_full", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":200}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%sq_full per cycle by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"SQ_FULL_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_core"],
+			"desc":"Based on SQ stall cycles/total cycles: 100.0*offcore_requests_buffer.sq_full/cycle"},
+			"y_label":"%sq_full/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_response.all_requests.l3_miss.any_response_bytes_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"evt_derived":{
+		"evts_tags":[{"evt":"offcore_response.all_requests.l3_miss.any_response", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":200000}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L3_miss_bytes_per_cycle",  "var_name": "val",
+			"by_var": "area", "chart_tag":"OFFCORE_L3_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_core"],
+			"desc":"Based on L3 miss bytes/total cycles: 64.0*offcore_response.all_requests.l3_miss.any_response/cycle"},
+			"y_label":"offcore L3 miss bytes/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "offcore_requests_outstanding.all_data_rd_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"evt_derived":{
+		"evts_tags":[{"evt":"offcore_requests_outstanding.all_data_rd", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"val2",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"req_outstanding bytes per cycle by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"REQ_OUT_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
+			"y_label":"req_out/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L3_refs_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"comment":" r4f2e = LONGEST_LAT_CACHE.REFERENCE",
+	"evt_derived":{
+		"evts_tags":[{"evt":"r4f2e", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L3_refs bytes per cycle by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"L3_REFS_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
+			"y_label":"L3_refs bytes/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L3_misses_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
+	"comment":" r412e = LONGEST_LAT_CACHE.MISS",
+	"evt_derived":{
+		"evts_tags":[{"evt":"r412e", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L3_misses bytes per cycle by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"L3_MISSES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
+			"y_label":"L3_misses bytes/cycle"}
 		]
 	}
   },
@@ -578,19 +920,669 @@
 	"evt_derived":{
 		"evts_tags":[{"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"INST_EVENT", "tag":"den"}],
 		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "area"],
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
 		"lua_rtn":"gen_div_pair"
 	},
 	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":100.0}]},
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":120}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
 		{"category":"CPU", "title":"CPI (cycles/instruction) by CPU",  "var_name": "val", "by_var": "area",
 			"chart_tag":"CPI_CHART", "chart_type":"line", "use_chart":"d", "y_label":"CPI"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port0", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_0",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_0", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port0",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_0"},
+			"chart_tag":"CYCLES_PER_UOP_PORT0_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port0"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port1", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_1",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_1", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port1",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_1"},
+			"chart_tag":"CYCLES_PER_UOP_PORT1_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port1"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port2", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_2",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_2", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port2",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_2"},
+			"chart_tag":"CYCLES_PER_UOP_PORT2_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port2"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port3", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_3",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_3", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port3",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_3"},
+			"chart_tag":"CYCLES_PER_UOP_PORT3_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port3"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port4", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_4",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_4", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port4",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_4"},
+			"chart_tag":"CYCLES_PER_UOP_PORT4_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port4"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port5", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_5",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_5", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port5",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_5"},
+			"chart_tag":"CYCLES_PER_UOP_PORT5_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port5"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port6", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_6",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_6", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port6",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_6"},
+			"chart_tag":"CYCLES_PER_UOP_PORT6_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port6"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_port7", "evt_type": "ftrace", "comment":"cycles per uops_dispatched_port.port_7",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.port_7", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uop port7",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_7"},
+			"chart_tag":"CYCLES_PER_UOP_PORT7_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port7"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_idq_all_uops", "evt_type": "ftrace", "comment":"cycles per idq.mite_all_uops",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"idq.mite_all_uops", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/idq.mite_all_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/idq.mite_all_uops. I think the peak is 4 uops/cycle (or 0.25 cycles/uop)."},
+			"chart_tag":"CYCLES_PER_IDQ_ALL_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/IDQ_uop"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_lsd_uops", "evt_type": "ftrace", "comment":"cycles per lsd.uops",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"lsd.uops", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/lsd.uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/lsd.uops. Peak loop stream detector uops/cycle = 4."},
+			"chart_tag":"CYCLES_PER_LSD_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/LSD_uop"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_idq.dsb_uops", "evt_type": "ftrace", "comment":"cycles per idq.dsb_uops",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"idq.dsb_uops", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/idq.dsb_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/idq.dsb_uops. Peak dsb uops/cycle = 4."},
+			"chart_tag":"CYCLES_PER_DSB_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/DSB_uop"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_rat_uops", "evt_type": "ftrace", "comment":"cycles per uops_issued.any",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_issued.any", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/RAT uops_issued.any",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_issued.any. Minimum on haswell is 0.25 cycles/uop (4 uops/cycle)."},
+			"chart_tag":"CYCLES_PER_RAT_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/RAT_uop"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "cycles_per_uop_retired", "evt_type": "ftrace", "comment":"cycles per uops_retired.any",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_retired.all", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/uops_retired.all",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/uops_retired.all"},
+			"chart_tag":"CYCLES_PER_UOPS_RETIRED_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uops_retired"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "L2_miss_bytes_per_cycle", "evt_type": "ftrace", "comment":"l2_rqsts.miss * 64 / cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"l2_rqsts.miss", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"L2 miss bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_thread","per_core"],
+			"desc":"Based on L2 request bytes/total_cycles: 64*l2_rqsts.miss/cycle. Peak is 32 bytes/cycle on haswell. Does not seem to count all L2<->L3 traffic."},
+			"chart_tag":"L2_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L2_misses bytes/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "mispred_per_cycles", "evt_type": "ftrace", "comment":"cycles per int_misc.recovery_cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"int_misc.recovery_cycles", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}, {"oper":"mult", "val":100.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"BR_MISPRED_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_thread","per_core"], "post_factor":1.0,
+			"desc":"Based stall cycles due to misprediction: 100*int_misc.recovery_cycles/total_cycles"},
+			"chart_tag":"MISPRED_CYCLES_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%mispred cycles/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "ifetch_stalls_per_cycles", "evt_type": "ftrace", "comment":"icache.ifetch_stall per total cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"icache.ifetch_stall", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}, {"oper":"mult", "val":100.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"ifetch_stall_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_thread","per_core"], "post_factor":1.0,
+			"desc":"Based stall cycles due to icache misses: 100*icache.ifetch_stall/total_cycles"},
+			"chart_tag":"IFETCH_STALLS_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%ifetch_stall_cycles/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "l1d_pend_miss.fb_full_stalls_per_cycles", "evt_type": "ftrace", "comment":"l1d_pend_miss.fb_full * 100  per total cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"l1d_pend_miss.fb_full", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}, {"oper":"mult", "val":100.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%l1d_pend_miss.fb_full/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0, "post_factor":1.0,
+			"scope":["per_thread","per_core"],
+			"desc":"Based stall cycles due to fill buffer full: 100*l1d_pend_miss.fb_full/total_cycles"},
+		"chart_tag":"L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%l1d_pend_miss.fb_full_stall_cycles/tot_cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "uops_issued.core_stall_cycles_per_cycles", "evt_type": "ftrace", "comment":"uops_issued.core_stall_cycles * 100  per total cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"uops_issued.core_stall_cycles", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%uops_issued.core_stall_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
+			"post_factor":1.0, "scope":["per_core","per_core"],
+			"desc":"Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS): 100*uops_issued.core_stall_cycles/total_cycles"},
+		"chart_tag":"UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%uops_issued.core_stall_cycles/tot_cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "resource_stalls.rob_per_cycle", "evt_type": "ftrace", "comment":"resource_stalls.rob * 100  per total cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"resource_stalls.rob", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%resource_stalls.rob/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
+			"post_factor":1.0, "scope":["per_thread","per_core"],
+			"desc":"stall cycles due to ROB is full: 100*resource_stalls.rob/total_cycles"},
+		"chart_tag":"RESOURCE_STALLS.ROB_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%resource_stalls.rob/tot_cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "resource_stalls.rs_per_cycle", "evt_type": "ftrace", "comment":"resource_stalls.rs * 100  per total cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"resource_stalls.rs", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%resource_stalls.rs/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"HT_factor":0, "post_factor":1.0, "scope":["per_thread","per_core"],
+			"desc":"stall cycles due to RS is full: 100*resource_stalls.rs/total_cycles"},
+		"chart_tag":"RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%resource_stalls.rs/tot_cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "resource_stalls.sb_per_cycle", "evt_type": "ftrace", "comment":"resource_stalls.sb * 100  per total cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"resource_stalls.sb", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%resource_stalls.sb/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"HT_factor":0, "post_factor":1.0, "scope":["per_thread","per_core"],
+			"desc":"stall cycles due to SB store buffer is full: 100*resource_stalls.sb/total_cycles"},
+		"chart_tag":"RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%resource_stalls.sb/tot_cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "uops_retired.core_stall_cycles_per_cycles", "evt_type": "ftrace", "comment":"uops_retired.core_stall_cycles * 100  per total cycles",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"uops_retired.core_stall_cycles", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%uops_retired.core_stall_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"HT_factor":0, "post_factor":1.0, "scope":["per_core","per_core"],
+			"desc":"% of Cycles without actually retired uops: 100*uops_retired.core_stall_cycles/total_cycles"},
+		"chart_tag":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%uops_retired.core_stall_cycles/tot_cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "uops_issued_per_uops_retired", "evt_type": "ftrace", "comment":"uops_issued vs uops_retired",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"uops_retired.all", "tag":"den"}, {"evt":"uops_issued.any", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":2888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"uops_issued per uops_retired",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
+			"HT_factor":0, "post_factor":1.0, "scope":["per_thread","per_thread"],
+			"desc":"ratio of uops_issued.any/uops_retired.all: uops_issued.any/uops_retired.all"},
+		"chart_tag":"UOPS_ISSUED_PER_UOP_RETIRED_CHART", "chart_type":"line", "use_chart":"y", "y_label":"uops_issued/retired"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "icache_misses_per_cycle", "evt_type": "ftrace", "comment":"icache.misses bytes per cycle",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"icache.misses", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}, {"oper":"mult", "val":64.0}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"icache_misse_bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"scope":["per_thread","per_core"], "post_factor":1.0,
+			"desc":"icache miss bytes/cycle: 64*icache.misses/total_cycles. Peak is 64 bytes/cycle."},
+			"chart_tag":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"icache_miss_bytes/cycle"}
 		]
 	}
   },
@@ -667,7 +1659,31 @@
 		],
 	"charts": [
 		{"category":"DRAM", "title":"imc BW (MB/sec)",  "var_name": "BW", "by_var": "area", "chart_tag":"BW_BY_TYPE",
-			"chart_type":"line", "use_chart":"d"}
+			"chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:unc_bytes", "evt_type": "lua", "comment":"lua processing perf stat unc_arb_trk_requests.all",
+     		"example":"0.730438635 88.10 MiB uncore_imc/data_reads/ 20416914 100.00",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"BW",        "lkup":"bytes",         "lkup_typ": "TYP_DBL|TYP_DIV_BY_INTERVAL", "actions":[{"oper":"mult", "val":64.0e-6}]},
+		{"name":"PCT_PK_BW",  "lkup":"bytes",      "lkup_typ": "TYP_DBL|TYP_DIV_BY_INTERVAL",
+			"actions":[{"oper":"mult", "val":247.104247104e-9}], "comment":"64bytes/line * 100 * 1e-9 / 25.9 GB/s (haswell peak mem bw)"}, 
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"DRAM", "title":"uncore BW (MB/sec)",  "var_name": "BW", "by_var": "area", "chart_tag":"UNC_BW_CHART",
+			"chart_type":"line", "use_chart":"y", "tot_line":"__total__"},
+		{"category":"DRAM", "title":"% peak haswell mem BW",  "var_name": "PCT_PK_BW", "by_var": "area", "chart_tag":"UNC_HASWELL_PEAK_BW_CHART",
+			"chart_type":"line", "use_chart":"y", "y_fmt":"%.1f%%", "y_label":"%max_haswell_mem_BW", "tot_line":"__total__",
+			"tot_line_options":{"yval_fmt":"%.1f%%", "HT_factor":0,
+			"desc":"Based on 64 (bytes/req) * unc_arb_trk_requests.all (reqs) * 100 (for pct) * 1e-9 (to GB) / 25.9 GB/s (haswell peak mem bw)"
+			}
+		}
 		]
 	}
   },
@@ -996,7 +2012,10 @@
 		],
 	"charts": [
 		{"category":"PERF", "title":"spin mem bw",  "var_name": "val", "by_var":"area", "chart_tag":"SPIN_MEM_BW",
-			"chart_type":"line", "use_chart":"d", "y_label":"GB/sec", "tot_line":"__total__"}
+			"chart_type":"line", "use_chart":"y", "y_label":"GB/sec", "tot_line":"__total__",
+			"tot_line_options":{ "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"desc":"Based on data from spin.txt file"}
+		}
 		]
 	}
   }
