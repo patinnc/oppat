@@ -11,6 +11,8 @@ var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
 var gcanvas_args = [];
+var g_cpu_diagram_flds = null;
+var g_got_cpu_diagram_svg = false;
 var gmsg_span = null;
 var gpixels_high_default = 250;
 var doc_title_def = "OPPAT: Open Power/Performance Analysis Tool";
@@ -67,6 +69,48 @@ Element.prototype.appendAfter = function(element) {
 	element.parentNode.insertBefore(this, element.nextSibling);
 }, false;
 
+
+function clearToolTipText(tt_ele) {
+	tt_ele.style.borderWidth = '0px';
+	tt_ele.setAttribute("visibility", 'hidden');
+	tt_ele.setAttribute("opacity", '0');
+	tt_ele.innerHTML = '';
+}
+
+function setTooltipText(a_tooltip, a_canvas, current_text, x, y) {
+	a_tooltip.style.borderWidth = '1px';
+	a_tooltip.innerHTML = current_text;
+	a_tooltip.setAttribute("visibility", 'visible');
+	a_tooltip.setAttribute("display", 'inline-block');
+	if (x > (0.5 * a_canvas.width)) {
+		a_tooltip.style.removeProperty('left');
+		a_tooltip.style.right = (a_canvas.width - x + 20) + 'px';
+	} else {
+		a_tooltip.style.removeProperty('right');
+		a_tooltip.style.left = (x + 20) + 'px';
+	}
+	a_tooltip.style.removeProperty('bottom');
+	a_tooltip.style.top = (y + 20) + 'px';
+	let visible = checkVisible(a_tooltip);
+	if (!visible) {
+		//tooltip_top_bot = 'top';
+		a_tooltip.style.removeProperty('top');
+		a_tooltip.style.bottom = (a_canvas.height - y - 20) + 'px';
+	}
+	console.log("did setToolTip");
+}
+
+function checkVisible(elm) {
+	let rect = elm.getBoundingClientRect();
+	let viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+	//console.log("rect.top= "+rect.top+", bot= "+rect.bottom+", height= "+viewHeight);
+	//console.log(rect);
+	if (rect.bottom > viewHeight) {
+		return false;
+	}
+
+	return !((rect.bottom < 0) || ((rect.top - viewHeight) >= 0));
+}
 
 function myBarMove(cur_val, max_val) {
   var elem = document.getElementById("myBar");
@@ -455,8 +499,46 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let draw_mini_cursor_prev = null;
 	let mycanvas2_ctx = null;
 	let tot_line = {};
-	tot_line.evt_str = chart_data.tot_line;
-	tot_line.subcat_rng_idx = -1;
+	tot_line.evt_str = [];
+	tot_line.xarray  = [];
+	tot_line.yarray  = [];
+	tot_line.xarray2 = [];
+	tot_line.yarray2 = [];
+	tot_line.evt_str_base_val_arr = [];
+	if (chart_data.tot_line != "") {
+		//if (chart_data.chart_tag == "CYCLES_PER_UOP_PORT0_CHART")
+		if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
+			chart_data.tot_line_opts_xform == "map_cpu_2_core") {
+			let u_hsh = {};
+			let u_arr = [];
+			for (let i=0; i < chart_data.map_cpu_2_core.length; i++) {
+				if (typeof u_hsh[chart_data.map_cpu_2_core[i]] == 'undefined') {
+					u_hsh[chart_data.map_cpu_2_core[i]] = i;
+					u_arr.push(chart_data.map_cpu_2_core[i]);
+				}
+			}
+			u_arr.sort(function(a, b){return a - b});
+			for (let i=0; i < u_arr.length; i++) {
+				let str = sprintf("%d", u_arr[i]);
+				tot_line.evt_str_base_val_arr.push(u_arr[i]);
+				if (typeof chart_data.tot_line_opts_yvar_fmt !== 'undefined') {
+					str = sprintf(chart_data.tot_line_opts_yvar_fmt, u_arr[i]);
+				}
+				tot_line.evt_str.push(str);
+				tot_line.yarray.push([]);
+				tot_line.yarray2.push([]);
+				tot_line.xarray2.push([]);
+			}
+		} else {
+			tot_line.evt_str.push(chart_data.tot_line);
+			tot_line.yarray.push([]);
+			tot_line.yarray2.push([]);
+			tot_line.xarray2.push([]);
+		}
+	}
+	tot_line.subcat_rng_idx = {};
+	tot_line.subcat_rng_arr = [];
+	tot_line.event_list_idx = [];
 	//console.log("tot_line.evt_str= '"+tot_line.evt_str+"'");
 
 	function reset_minx_maxx(zm_x0, zm_x1, zm_y0, zm_y1) {
@@ -876,16 +958,18 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	}
 	if (ch_type == "line" || ch_type == "stacked") {
-		// add a new subcat_rng for the __total__ line
 		let mx_cat = null, mnx, mxx, mny, mxy, mx_fe_idx=-1;
 		let big_val = 1e20;
 		mx_fe_idx = -1;
 		if (chart_data.flnm_evt.length > 0) {
 			mx_fe_idx = chart_data.flnm_evt[chart_data.flnm_evt.length-1].idx + 1;
 		}
-		if (tot_line.evt_str != "") {
-			num_events = chart_data.subcat_rng.length;
+		// add a new subcat_rng for the __total__ line
+		if (tot_line.evt_str.length > 0) {
 			let already_added = false;
+			num_events = chart_data.subcat_rng.length;
+			for (let myi=0; myi < tot_line.evt_str.length; myi++) {
+			already_added = false;
 			for (let j=0; j < num_events; j++) {
 				if (j == 0) {
 					mx_cat = chart_data.subcat_rng[j].cat;
@@ -910,28 +994,40 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (mxy < chart_data.subcat_rng[j].y1) {
 					mxy = chart_data.subcat_rng[j].y1;
 				}
-				if (chart_data.subcat_rng[j].event == tot_line.evt_str) {
+				if (chart_data.subcat_rng[j].event == tot_line.evt_str[myi]) {
 					already_added = true;
-					tot_line.subcat_rng_idx = j;
+					//tot_line.subcat_rng_idx = j;
+					//tot_line.subcat_rng_idx[j] = true;
 				}
 			}
 			if (!already_added) {
-				mx_cat++;
-				chart_data.subcat_rng.push({x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:mx_fe_idx, event:tot_line.evt_str, total:big_val,
-						cat:mx_cat, subcat:0, cat_text:tot_line.evt_str});
-				//console.log("tot_line: fe_idx= "+mx_fe_idx+", mx_cat= "+mx_cat);
-				tot_line.subcat_rng_idx = chart_data.subcat_rng.length-1;
+				let bef_len = chart_data.subcat_rng.length;
+				let arr_len = tot_line.subcat_rng_arr.length;
+				let use_fe_idx = mx_fe_idx + arr_len;
+				let use_mx_cat = mx_cat + arr_len+1;
+				chart_data.subcat_rng.push({x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:use_fe_idx, event:tot_line.evt_str[myi],
+					 total:big_val, is_tot_line:true, cat:use_mx_cat, subcat:0, cat_text:tot_line.evt_str[myi]});
+				if (chart_data.chart_tag == "CYCLES_PER_UOP_PORT0_CHART") {
+				console.log(sprintf("==tot_line: fe_idx= %d, mx_cat= %d, bef_len= %d", use_fe_idx, use_mx_cat, bef_len));
+				}
+				//tot_line.subcat_rng_idx = chart_data.subcat_rng.length-1;
+				tot_line.subcat_rng_idx[chart_data.subcat_rng.length-1] = arr_len;
+				tot_line.subcat_rng_arr.push(chart_data.subcat_rng.length-1);
+			}
 			}
 		} else {
-			tot_line.subcat_rng_idx = -1;
+			//tot_line.subcat_rng_idx = -1;
+			tot_line.subcat_rng_idx = {};
+			tot_line.subcat_rng_arr = [];
 		}
 
 		num_events = chart_data.subcat_rng.length;
 		for (let j=0; j < num_events; j++) {
 			let fe_idx = chart_data.subcat_rng[j].fe_idx;
 			event_list.push({event:chart_data.subcat_rng[j].cat_text, idx:chart_data.subcat_rng[j].cat,
-				total:chart_data.subcat_rng[j].total, fe_idx:fe_idx});
-			if (tot_line.evt_str != "" && (j+1) < num_events) {
+				total:chart_data.subcat_rng[j].total, fe_idx:fe_idx, is_tot_line:chart_data.subcat_rng[j].is_tot_line});
+			//if (tot_line.evt_str.length > 0 && (j+1) < num_events)
+			if (typeof chart_data.subcat_rng[j].is_tot_line === 'undefined') {
 				// don't add the fake __total__ total
 				event_total += chart_data.subcat_rng[j].total;
 			}
@@ -944,13 +1040,16 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		function sortCat(a, b) {
 			return b.total - a.total;
 		}
-		if (tot_line.evt_str != "") {
+		if (tot_line.evt_str.length > 0) {
 			for (let j=0; j < num_events; j++) {
-				if (event_list[j].total == big_val) {
+				if (typeof event_list[j].is_tot_line !== 'undefined') {
 					event_list[j].total = 1.0e-6; // can't set it all the way to zero or else it will get dropped later
-					tot_line.event_list_idx = j;
+					tot_line.event_list_idx.push(j);
+					if (chart_data.chart_tag == "CYCLES_PER_UOP_PORT0_CHART") {
+					console.log(sprintf("==evt_lst[%d], tl.eli.len= %d", j, tot_line.event_list_idx.length));
+					}
 					//console.log("zero out total for mx_cat= "+mx_cat+",j= "+j+",idx= "+event_list[j].idx);
-					break;
+					//break;
 				}
 			}
 		}
@@ -972,8 +1071,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let idx = event_list[j].idx;
 		event_list[j].color = gcolor_def;
 		event_lkup[idx] = j;
-		if (tot_line.event_list_idx == j) {
+		for (let sci= 0; sci < tot_line.event_list_idx.length; sci++) {
+		if (tot_line.event_list_idx[sci] == j) {
 			tot_line.event_lkup_idx = idx;
+		}
 		}
 
 		//console.log("evt= "+event_list[j].event+", tot= "+event_list[j].total+", lkup idx= "+idx+", j="+j);
@@ -1489,27 +1590,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let fl_id = -1;
 	let current_tooltip_text = "";
 	let current_tooltip_shape = -1;
-	function setTooltipText(a_tooltip, a_canvas, current_text, x, y) {
-		a_tooltip.style.borderWidth = '1px';
-		a_tooltip.innerHTML = current_text;
-		a_tooltip.setAttribute("visibility", 'visible');
-		a_tooltip.setAttribute("display", 'inline-block');
-		if (x > (0.5 * a_canvas.width)) {
-			a_tooltip.style.removeProperty('left');
-			a_tooltip.style.right = (a_canvas.width - x + 20) + 'px';
-		} else {
-			a_tooltip.style.removeProperty('right');
-			a_tooltip.style.left = (x + 20) + 'px';
-		}
-		a_tooltip.style.removeProperty('bottom');
-		a_tooltip.style.top = (y + 20) + 'px';
-		let visible = checkVisible(a_tooltip);
-		if (!visible) {
-			//tooltip_top_bot = 'top';
-			a_tooltip.style.removeProperty('top');
-			a_tooltip.style.bottom = (a_canvas.height - y - 20) + 'px';
-		}
-	}
 
 	let dbg_cntr2 = 0;
 
@@ -2311,7 +2391,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 			if (evt_nm == "CPI" || evt_nm == "GIPS") {
 				let evt_idx = evt_idx_hash[evt_nm];
-				//console.log("x= "+x+",x_px= "+x_px);
+				//console.log("_x= "+x+",x_px= "+x_px);
 				if (x_px >= cpi_gradient_shape[evt_idx].x0 && x_px <= cpi_gradient_shape[evt_idx].x1 &&
 					y_px >= cpi_gradient_shape[evt_idx].y0 && y_px <= cpi_gradient_shape[evt_idx].y1) {
 					for (let kk=0; kk < cpi_gradient[evt_idx].length; kk++) {
@@ -2324,6 +2404,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 			}
 			clearToolTipText(mytooltip3);
+			current_tooltip_text = "";
+			current_tooltip_shape = -1;
 			return "";
 		}
 
@@ -2348,7 +2430,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let xnp1 = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * (x+2.0) / ucwd;
 				let yn   = ctx3_range.y_min + (ctx3_range.y_max - ctx3_range.y_min) * (uchi - y)/uchi;
 				let ostr2 = fl_lkup_func(xn, yn, x, y, xnm1, xnp1);
-				//mycanvas3_txt.innerHTML = "x= "+x+", y= "+y+", xn= "+xn+", yn= "+yn+", str2= "+ostr2.str2;
+				//mycanvas3_txt.innerHTML = "_x= "+x+", y= "+y+", xn= "+xn+", yn= "+yn+", str2= "+ostr2.str2;
 				return;
 			}
 		};
@@ -2437,26 +2519,103 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	tot_line.divisions = 100.0;
 	tot_line.xdelta    = (maxx - minx) / tot_line.divisions;
-	tot_line.yarray    = [];
-	tot_line.xarray    = [];
 	function tot_line_get_values()
 	{
 		let ret_data = {};
 		let maxy_new = maxy;
-		ret_data = {maxy_new: maxy_new, typ: "def"}
-		if (tot_line.evt_str == "") {
+		ret_data = {maxy_new: maxy_new, typ: "def"};
+		if (tot_line.evt_str.length == 0) {
 			return ret_data;
 		}
+		let fld_1st_time = {};
+		let HT_factor = 0.0;
+		let HT_enabled = false;
+		let desc = "";
+		let map_num_den = 0;
+		let post_factor = 1.0;
+		let scope = [];
+		if (typeof chart_data.tot_line_opts_has_num_den !== 'undefined') {
+			map_num_den = +chart_data.tot_line_opts_has_num_den;
+		}
+		if (typeof chart_data.tot_line_opts_desc !== 'undefined') {
+			desc = chart_data.tot_line_opts_desc;
+		}
+		if (desc != "") {
+			desc += "\n";
+		}
+		desc += "See chart: " + chart_data.title;
+		desc += "\n" + "chart_tag: " + chart_data.chart_tag;
+		if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
+			chart_data.tot_line_opts_xform == 'map_cpu_2_core' &&
+			typeof chart_data.tot_line_opts_HT_factor !== 'undefined') {
+			// I probably should have a way to indicate if really want to divide by 2 for HT
+			// The 'div by 2' is for the case where we are computing cycles/uop with HT enabled
+			// then summing core thread 0 and 1.
+			for(let cpu=0; cpu < chart_data.map_cpu_2_core.length; cpu++) {
+				if (chart_data.map_cpu_2_core[cpu] != cpu) {
+					//console.log(sprintf("HT_fctr= %f", +HT_factor));
+					HT_enabled = true;
+					break;
+				}
+			}
+		}
+		let HT_factor_num = 1.0, HT_factor_den = 1.0;
+		if (1==20 && HT_enabled) {
+			if (map_num_den == 1.0) {
+				// so the numerator is 'sum-able'
+				HT_factor_den = 0.5; // so divide the denominator by 2
+			}
+			if (map_num_den == 2.0) {
+				HT_factor_num = 0.5; // so divide the denominator by 2
+			}
+		}
+		if (typeof chart_data.tot_line_opts_scope !== 'undefined') {
+			scope = chart_data.tot_line_opts_scope;
+		}
+		if (scope.length > 0) {
+			if (HT_enabled) {
+				if (scope.length >= 1 && scope[0] == 'per_core') {
+					HT_factor_num = 0.5;
+				}
+				if (scope.length >= 2 && scope[1] == 'per_core') {
+					HT_factor_den = 0.5;
+				}
+				//console.log(sprintf("n= %.1f, d= %.1f mnd= %d ttl= %s", HT_factor_num, HT_factor_den, map_num_den, chart_data.title));
+			} else {
+				HT_factor_num = 1.0;
+				HT_factor_den = 1.0;
+			}
+		}
+		if (typeof chart_data.tot_line_opts_post_factor !== 'undefined') {
+			post_factor = +chart_data.tot_line_opts_post_factor;
+		}
+		let num=0.0, den=0.0;
 		if (ch_type == "line" || ch_type == "stacked") {
-			tot_line.yarray.length = tot_line.divisions+1;
 			tot_line.xarray.length = tot_line.divisions+1;
-			for (let j=0; j < tot_line.yarray.length; j++) {
-				tot_line.yarray[j] = 0.0;
+			for (let sci= 0; sci < tot_line.evt_str.length; sci++) {
+				tot_line.xarray2[sci].length = tot_line.divisions+1;
+				tot_line.yarray2[sci].length = tot_line.divisions+1;
+				tot_line.yarray[sci].length = tot_line.divisions+1;
+				//console.log(chart_data.map_cpu_2_core);
+			for (let j=0; j < tot_line.yarray[sci].length; j++) {
+				tot_line.yarray[sci][j] = 0.0;
+				tot_line.yarray2[sci][j] = 0.0;
+				tot_line.xarray2[sci][j] = 0.0;
 				tot_line.xarray[j] = 0.0;
 			}
 			for (let i=0; i < chart_data.myshapes.length; i++) {
 				let x0 = chart_data.myshapes[i].pts[PTS_X0];
 				let x1 = chart_data.myshapes[i].pts[PTS_X1];
+				let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
+				if (tot_line.evt_str_base_val_arr.length > 0) {
+					if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
+						chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
+						let core = chart_data.map_cpu_2_core[cpu];
+						if (tot_line.evt_str_base_val_arr[sci] != core) {
+							continue;
+						}
+					}
+				}
 				if (x1 < minx || x0 > maxx) {
 					continue;
 				}
@@ -2470,12 +2629,18 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 				let y0 = chart_data.myshapes[i].pts[PTS_Y0];
 				let y1 = chart_data.myshapes[i].pts[PTS_Y1];
-				let yval;
+				let yval, num, den;
 				if (ch_type == "line") {
 					yval = y1;
+					if (map_num_den > 0) {
+						num = chart_data.myshapes[i].num;
+						den = chart_data.myshapes[i].den;
+					}
 				} else {
 					yval = (y1 - y0);
 				}
+				//yval *= HT_factor;
+				yval *= post_factor;
 				let relx0 = tx0 - minx;
 				let relx1 = tx1 - minx;
 				relx0 /= (maxx - minx);
@@ -2499,16 +2664,60 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					} else {
 						xcur1 = (j+1)/tot_line.divisions;
 					}
-					tot_line.yarray[j] += yval * (xcur1 - xcur0) * tot_line.divisions;
+					if (map_num_den > 0) {
+						tot_line.yarray2[sci][j] += HT_factor_num * num * (xcur1 - xcur0) * tot_line.divisions;
+						tot_line.xarray2[sci][j] += HT_factor_den * den * (xcur1 - xcur0) * tot_line.divisions;
+						tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
+					} else {
+						tot_line.yarray[sci][j] += yval * (xcur1 - xcur0) * tot_line.divisions;
+					}
 				}
 			}
 			maxy_new = null;
+			let tot_avg = 0, tot_avg2= 0;
+			let tot_avg2_num = 0;
+			let tot_avg2_den = 0;
 			for (let j=0; j < tot_line.divisions+1; j++) {
 				tot_line.xarray[j] = minx + j * (maxx - minx) / tot_line.divisions;
-				if (maxy_new == null || maxy_new <= tot_line.yarray[j]) {
-					maxy_new = tot_line.yarray[j];
+				tot_avg += tot_line.yarray[sci][j];
+				tot_avg2_num += tot_line.yarray2[sci][j];
+				tot_avg2_den += tot_line.xarray2[sci][j];
+				if (maxy_new == null || maxy_new <= tot_line.yarray[sci][j]) {
+					maxy_new = tot_line.yarray[sci][j];
 					ret_data = {maxy_new: maxy_new, typ: "ck"}
 				}
+			}
+			if (tot_line.divisions > 0) {
+				tot_avg /= tot_line.divisions;
+				tot_avg2 = tot_avg2_num/tot_avg2_den;
+				//console.log(sprintf("tot_avg[%d]= %.3f title= %s\n", sci, tot_avg, chart_data.title));
+				if (g_cpu_diagram_flds != null) {
+					for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+						if (chart_data.chart_tag == g_cpu_diagram_flds.cpu_diagram_fields[j].chart) {
+							if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined'
+								|| typeof fld_1st_time[j] === 'undefined') {
+								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr = [];
+								fld_1st_time[j] = 1;
+							}
+							if (map_num_den == 0) {
+								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.push(tot_avg);
+							} else {
+								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.push(tot_avg2);
+							}
+							let y_fmt = "%.3f";
+							if (typeof chart_data.tot_line_opts_yval_fmt !== 'undefined') {
+								y_fmt = chart_data.tot_line_opts_yval_fmt;
+							}
+							g_cpu_diagram_flds.cpu_diagram_fields[j].y_label = chart_data.y_label;
+							g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt = y_fmt;
+							g_cpu_diagram_flds.cpu_diagram_fields[j].desc = desc;
+							g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag = chart_data.chart_tag;
+							g_cpu_diagram_flds.cpu_diagram_fields[j].map_cpu_2_core = chart_data.map_cpu_2_core;
+							//console.log("got cpu_diagram chart match= "+chart_data.chart_tag);
+						}
+					}
+				}
+			}
 			}
 			//console.log(tot_line.xarray);
 			//console.log(tot_line.yarray);
@@ -2642,8 +2851,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 			if (chart_data.title == "freq from cycles (GHz) by cpu" ||
 				chart_data.title == "L2 accesses (Mill_accesses/s) from r16 L2 dcache accesses by cpu") {
-				console.log(sprintf("++mxy for freq from ccyles: x0= %s x1= %s, y0= %s, y1= %s, umaxy= %s, maxy_new= %s, maxy= %s, tl_maxy_new= %s, ttl= %s",
-							got_ymx.x0, got_ymx.x1, got_ymx.y0, got_ymx.y1, umaxy, maxy_new, maxy, JSON.stringify(tl_maxy_new), chart_data.title));
+				//console.log(sprintf("++mxy for freq from ccyles: x0= %s x1= %s, y0= %s, y1= %s, umaxy= %s, maxy_new= %s, maxy= %s, tl_maxy_new= %s, ttl= %s",
+				//			got_ymx.x0, got_ymx.x1, got_ymx.y0, got_ymx.y1, umaxy, maxy_new, maxy, JSON.stringify(tl_maxy_new), chart_data.title));
 			}
 			let x   = xPadding - 5;
 			let y   = font_sz
@@ -3196,26 +3405,30 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 		}
 		// now draw __total__ line if needed
-		if (tot_line.yarray.length > 0) {
-			let sc_idx = tot_line.subcat_rng_idx;
+		if (tot_line.evt_str.length > 0) {
+			for (let sci= 0; sci < tot_line.subcat_rng_arr.length; sci++) {
+			//let sc_idx = tot_line.subcat_rng_idx;
+			let sc_idx = tot_line.subcat_rng_arr[sci];
 			//chart_data.subcat_rng[sc_idx].{x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:mx_fe_idx, event:tot_line.evt_str, total:0.001,
 			//	cat:mx_cat, subcat:0, cat_text:tot_line.evt_str});
-			let fe_idx = event_list[tot_line.event_list_idx].idx;
+			let fe_idx = event_list[tot_line.event_list_idx[sci]].idx;
+			//let fe_idx = event_list[tot_line.event_list_idx[sci]].fe_idx;
 			//console.log("tot_line: sc_idx= "+sc_idx+", yarr= "+tot_line.yarray.length+", ch_title="+chart_data.title+", fe_idx= "+fe_idx);
 			let cat = chart_data.subcat_rng[sc_idx].cat;
 			let subcat = chart_data.subcat_rng[sc_idx].subcat;
 			let subcat_idx = subcat_cs_2_sidx_hash[cat][subcat];
-			let clr = event_list[tot_line.event_list_idx].color;
+			let clr = event_list[tot_line.event_list_idx[sci]].color;
 			//console.log("tot_line: sc_idx= "+sc_idx+", fe_idx= "+fe_idx+", fe_rnk= "+fe_rnk+", clr= "+clr+", subcat_idx= "+subcat_idx);
 			let do_event = false;
 			let do_event_highlight = false;
-			//console.log("ev_lst_idx= "+tot_line.event_list_idx+", fe_idx= "+fe_idx);
+			//console.log("ev_lst_idx= "+tot_line.event_list_idx[sci]+", fe_idx= "+fe_idx);
 			if (fe_idx != -1 && typeof event_select[fe_idx] != 'undefined') {
 				if (event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show') {
 					do_event = true;
 					if (event_select[fe_idx][1] == 'highlight') {
 						do_event_highlight = true;
-						console.log("__tot_line.highlight");
+						console.log(sprintf("__tot_line.highlight fe_idx= %d, sci= %d, tl.eli= %d",
+							fe_idx, sci, tot_line.event_list_idx[sci]));
 					}
 				}
 			}
@@ -3225,14 +3438,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			if (do_event_highlight) {
 				ctx.lineWidth = 5;
 			}
-			let pts_max = tot_line.yarray.length-1;
+			let pts_max = tot_line.yarray[sci].length-1;
 			let yPxlzero = canvas_px_high(null) - yPadding;
 			if (do_event) {
 				for (let i=0; i < pts_max; i++) {
 					let x0 = tot_line.xarray[i];
 					let x1 = tot_line.xarray[i+1];
-					let y0 = tot_line.yarray[i];
-					let y1 = tot_line.yarray[i];
+					let y0 = tot_line.yarray[sci][i];
+					let y1 = tot_line.yarray[sci][i];
 					let beg = xlate(ctx, x0, y0, minx, maxx, uminy, umaxy);
 					let end = xlate(ctx, x1, y1, minx, maxx, uminy, umaxy);
 					if (beg[1] > yPxlzero) {
@@ -3246,7 +3459,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					lkup[subcat_idx].push([beg[0], beg[1], end[0], end[1], i]);
 					if ((i+1) < pts_max) {
 						x1 = tot_line.xarray[i+1];
-						y1 = tot_line.yarray[i+1];
+						y1 = tot_line.yarray[sci][i+1];
 						end = xlate(ctx, x1, y1, minx, maxx, uminy, umaxy);
 						if (end[1] > yPxlzero) {
 							end[1] = yPxlzero;
@@ -3255,6 +3468,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					}
 				}
 				ctx.stroke();
+			}
 			}
 		}
 		ctx.lineWidth = 1;
@@ -3761,25 +3975,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		return val_str;
 	}
 	//console.log("mycanvas.width= "+mycanvas.width);
-	function checkVisible(elm) {
-		let rect = elm.getBoundingClientRect();
-		let viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
-		//console.log("rect.top= "+rect.top+", bot= "+rect.bottom+", height= "+viewHeight);
-		//console.log(rect);
-		if (rect.bottom > viewHeight) {
-			return false;
-		}
-
-		return !((rect.bottom < 0) || ((rect.top - viewHeight) >= 0));
-	}
-	function clearToolTipText(tt_ele) {
-		tt_ele.style.borderWidth = '0px';
-	    	tt_ele.setAttribute("visibility", 'hidden');
-	    	tt_ele.setAttribute("opacity", '0');
-	    	tt_ele.innerHTML = '';
-		current_tooltip_text = "";
-		current_tooltip_shape = -1;
-	}
 	mycanvas.onmousemove = function(e) {
 		if ( typeof can_shape.hvr_prv_x == 'undefined' ) {
 			can_shape.hvr_prv_x == -1;
@@ -3807,7 +4002,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						//console.log(xs);
 						if (fnd >= 0) {
 							row = i;
-							if (tot_line.evt_str != "" && row == tot_line.subcat_rng_idx) {
+							if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
 								//console.log("got tot_line");
 								fnd_list.push({fnd:fnd, row:row});
 								//console.log("evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
@@ -3861,7 +4056,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							//console.log("fnd= "+fnd+",i="+i);
 							//console.log(lkup[i][fnd]);
 							row = i;
-							if (tot_line.evt_str != "" && row == tot_line.subcat_rng_idx) {
+							if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
 								//console.log("got tot_line");
 								fnd_list.push({fnd:fnd, row:row});
 								//console.log("evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
@@ -3890,6 +4085,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					rw = binarySearch(ylkup, y, x, compare_in_rect);
 					if (rw < 0) {
 						clearToolTipText(mytooltip);
+						current_tooltip_text = "";
+						current_tooltip_shape = -1;
 						return;
 					}
 					row = ylkup[rw][4];
@@ -3909,15 +4106,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					}
 					mtch = -2;
 					let lk = lkup[row][fnd];
-					//console.log("x= "+x+", y= "+y + ", fnd= "+fnd+", lkup_rect: x0= "+lk[0]+", y0= "+lk[1]+", x1= "+lk[2]+", y1= "+lk[3]);
+					//console.log("x_= "+x+", y= "+y + ", fnd= "+fnd+", lkup_rect: x0= "+lk[0]+", y0= "+lk[1]+", x1= "+lk[2]+", y1= "+lk[3]);
 					mtch = fnd;
 					let shape_idx= lk[4];
 					let cpt=-1, x0, x1, cpu, val;
 					let nm = "unknown1";
-					if (tot_line.evt_str != "" && row == tot_line.subcat_rng_idx) {
+					if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
+						console.log(sprintf("tot_line row= %s, val= %s", row, tot_line.subcat_rng_idx[row]));
 						x0  = tot_line.xarray[shape_idx];
 						x1  = tot_line.xarray[shape_idx+1];
-						val = tot_line.yarray[shape_idx];
+						let sci = tot_line.subcat_rng_idx[row];
+						val = tot_line.yarray[sci][shape_idx];
 						cpu = -1;
 					} else {
 						x0 = chart_data.myshapes[shape_idx].pts[PTS_X0];
@@ -3947,7 +4146,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						x1 = lk[7];
 						val = inserted_value;
 					}
-					let str = "T= "+sprintf("%.6f", x0);
+					let str = "at T= "+sprintf("%.6f", x0);
 					let lines_done=0;
 					if (x0 != x1 || ch_type == "stacked") {
 						// so we're doing a rectangle
@@ -3961,11 +4160,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							for (let k=1; k < fnd_list.length; k++) {
 								let lk2 = lkup[fnd_list[k].row][fnd_list[k].fnd];
 								let shape_idx2= lk2[4];
-								if (tot_line.evt_str != "" && fnd_list[k].row == tot_line.subcat_rng_idx) {
+								if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[fnd_list[k].row] !== 'undefined') {
 									let myx0  = sprintf("%.6f", tot_line.xarray[shape_idx2]);
 									let myx1  = sprintf("%.6f", tot_line.xarray[shape_idx2+1]);
 									//let myx1  = tot_line.xarray[shape_idx2+1];
-									let val = tot_line.yarray[shape_idx2];
+									let sci = tot_line.subcat_rng_idx[fnd_list[k].row];
+									let val = tot_line.yarray[sci][shape_idx2];
 									str += "<br>x="+myx0+"-"+myx1+","+chart_data.y_by_var+"="+chart_data.subcat_rng[fnd_list[k].row].cat_text;
 									let val_str = fmt_val(val);
 									str += ", "+chart_data.y_label+"="+val_str;
@@ -4081,14 +4281,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						}
 						current_tooltip_text += "<br>"+tstr;
 					}
-					if (tot_line.evt_str == "") {
+					if (tot_line.evt_str.length == 0) {
 						let cs_ret = get_cs_str(shape_idx, nm);
 						current_tooltip_text += cs_ret.txt;
 					}
-    				mytooltip.style.borderWidth = '1px';
-    				mytooltip.innerHTML = current_tooltip_text;
-    				mytooltip.setAttribute("visibility", 'visible');
-    				mytooltip.setAttribute("display", 'inline-block');
+    					mytooltip.style.borderWidth = '1px';
+    					mytooltip.innerHTML = current_tooltip_text;
+    					mytooltip.setAttribute("visibility", 'visible');
+    					mytooltip.setAttribute("display", 'inline-block');
 					if (x > (0.5 * mycanvas.width)) {
 						mytooltip.style.removeProperty('left');
 						mytooltip.style.right = (mycanvas.width - x + 20) + 'px';
@@ -4104,16 +4304,21 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						mytooltip.style.removeProperty('top');
 						mytooltip.style.bottom = (mycanvas.height - y - 20) + 'px';
 					}
+					console.log("tt x= "+x+", y= "+y);
 				} else {
 					clearToolTipText(mytooltip);
+					current_tooltip_text = "";
+					current_tooltip_shape = -1;
 				}
-				//console.log("x= "+x+", y= "+y + ", mtch= "+mtch+", fnd= "+fnd);
+				//console.log("x_= "+x+", y= "+y + ", mtch= "+mtch+", fnd= "+fnd);
 				can_shape.hvr_prv_x = x;
 				can_shape.hvr_prv_y = y;
 			}
 	};
 	mycanvas.onmouseout = function(e) {
 		clearToolTipText(mytooltip);
+		current_tooltip_text = "";
+		current_tooltip_shape = -1;
 	}
 	function flt_dec(num, dec) {
 		return num.toFixed(dec);
@@ -4328,11 +4533,6 @@ async function start_charts() {
 	}
 	document.title = doc_title_def;
 	tm_now = performance.now();
-	let did_parse_svg = false;
-	if (false) {
-		parse_svg();
-		did_parse_svg = true;
-	}
 	//console.log("tm_now - tm_top0= "+(tm_now - tm_top0));
 	update_status("finished "+chrts_started+" graphs, chart loop took "+tm_diff_str(0.001*(tm_now-tm_top0), 3, "secs"));
 	mymodal.style.display = "none";
@@ -4421,7 +4621,8 @@ async function start_charts() {
 
 
 	lhs_menu_ch_list_state = 1; // lhs_menu list finalized
-	if (did_parse_svg) {
+	if (g_got_cpu_diagram_svg) {
+		parse_svg();
 		console.log("svg len= "+g_svg_obj.str.length);
 		webSocket.send("parse_svg="+g_svg_obj.str);
 	}
@@ -4437,7 +4638,7 @@ function parse_chart_data(ch_data_str)
 	gjson.chart_data.push(JSON.parse(ch_data_str));
 	let tm_now = performance.now();
 	//document.title = "aft JSON "+str+",tm="+tm_diff_str(0.001*(tm_now-g_tm_beg), 1, "secs");
-	console.log("parse chart_data end. elap ms= "+ (tm_now-tm_beg)+", tm_btwn_frst_this_msg= "+(tm_beg - g_tm_beg));
+	//console.log("parse chart_data end. elap ms= "+ (tm_now-tm_beg)+", tm_btwn_frst_this_msg= "+(tm_beg - g_tm_beg));
 }
 
 function parse_str_pool(str_pool)
@@ -4478,9 +4679,9 @@ function openSocket(port_num) {
 
     webSocket.onmessage = function(event){
         var sln = event.data.length;
-		console.log("msg slen= "+sln+", type= "+ typeof(event.data));
+		//console.log("msg slen= "+sln+", type= "+ typeof(event.data));
 		if(typeof event.data === 'string' ) {
-			console.log('Rec str0-20= '+event.data.substr(0, 20));
+			//console.log('Rec str0-20= '+event.data.substr(0, 20));
 			//document.title = "got msg: "+event.data.substr(0,8);
 			//mymodal_span_text.innerHTML = "loading data, creating charts. See page tab for status msgs."
 		}
@@ -4494,6 +4695,16 @@ function openSocket(port_num) {
 			//var vector_length = dv.getUint8(0);
 			let tm_now = performance.now();
 			console.log("str len= "+str.length+", tm= "+(tm_now-tm_beg));
+		}
+		ckln = ck_cmd(event.data, sln, 'cpu_diagram=');
+		if (ckln > 0) {
+			g_got_cpu_diagram_svg = true;
+			document.getElementById("cpu_diagram_svg").innerHTML = event.data.substring(ckln);
+		}
+		ckln = ck_cmd(event.data, sln, 'cpu_diagram_flds=');
+		if (ckln > 0) {
+			g_cpu_diagram_flds = JSON.parse(event.data.substring(ckln));
+			console.log("__got cpu_diagram_flds len= "+g_cpu_diagram_flds.cpu_diagram_fields.length);
 		}
 		ckln = ck_cmd(event.data, sln, '{"str_pool":');
 		if (ckln > 0) {
@@ -4823,7 +5034,8 @@ function tm_diff_str(tm_in_secs, precisn, units) {
 
 function parse_svg()
 {
-	var svgObject = document.getElementById('svg-object').contentDocument;
+	//var svgObject = document.getElementById('svg-object').contentDocument;
+	var svgObject = document.getElementById('cpu_diagram_svg');
 	let shapes = [];
 	let svg_gs = svgObject.getElementsByTagName('svg');
 	let rect_prev = -1;
@@ -4831,6 +5043,9 @@ function parse_svg()
 	let texts=0;
 	let svg_xmax = svg_gs[0].getAttributeNS(null, 'width');
 	let svg_ymax = svg_gs[0].getAttributeNS(null, 'height');
+	let svg_name = svg_gs[0].getAttributeNS(null, 'sodipodi:docname');
+	let svg_ver = svg_gs[0].getAttributeNS(null, 'version');
+	console.log("svg_name= "+svg_name+', ver= '+svg_ver);
 
 	function svg_parse_path(path, xfrm, rect_prev, shapes, gxf_arr) {
 		let xf = path.getAttributeNS(null, 'transform');
@@ -4969,19 +5184,24 @@ function parse_svg()
 		if (ge.tagName == "text") {
 			cntr.texts += svg_parse_text(ge, "", rect_prev, shapes, gxf_arr);
 		}
-		console.log(sprintf("ele[%d].id= %s", i, ge.id));
+		//console.log(sprintf("ele[%d].id= %s", i, ge.id));
 	}
+	svgObject.style.display = 'none';
 	console.log(sprintf("rects= %d, texts= %d", cntr.rects, cntr.texts));
 	console.log(sprintf("svg: width= %s, height= %s", svg_xmax, svg_ymax));
+	//abcd
 	let hvr_clr = 'mysvg';
 	let win_sz = get_win_wide_high();
 	let px_wide = win_sz.width - 30;
 	let scale_ratio = px_wide/svg_xmax;
 	let px_high = svg_ymax/svg_xmax * px_wide;
 	let myhvr_clr = document.getElementById(hvr_clr);
-	let str = '<canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high)+'" style="border:1px solid #000000;">';
+	let str = '<div id="tbl_'+hvr_clr+'"></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high)+'" style="border:1px solid #000000;"><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div>';
 	myhvr_clr.innerHTML = str;
-	let mycanvas = document.getElementById('canvas_'+hvr_clr);
+	let mycanvas  = document.getElementById('canvas_'+hvr_clr);
+	let mytooltip = document.getElementById("tooltip_"+hvr_clr);
+	let mytable   = document.getElementById("tbl_"+hvr_clr);
+	let tt_prv_x=-2, tt_prv_y=-2;
 	let ctx = mycanvas.getContext("2d");
 
 	function xlate_rotate(xin, yin, degrees) {
@@ -5071,18 +5291,20 @@ function parse_svg()
 		//let yout = Math.trunc(px_high * (yin - uminy)/ (umaxy - uminy));
 		let xout = px_wide * (xin - uminx)/ (umaxx - uminx);
 		let yout = px_high * (yin - uminy)/ (umaxy - uminy);
-		let id = shape.id;
 		let verbose = 0;
-		if (id == 'rect7914') {
-			//console.log("xlate beg id= "+id);
-			//verbose = 1;
-		}
-		if (shape.xf1 != "") {
-			[xout, yout] = decode_xform(xout, yout, shape.xf1, verbose);
-		}
-		if (shape.xf0.length > 0) {
-			for (let i=shape.xf0.length-1; i >=0; i--) {
-				[xout, yout] = decode_xform(xout, yout, shape.xf0[i], verbose);
+		if (shape != null) {
+			let id = shape.id;
+			if (id == 'rect7914') {
+				//console.log("xlate beg id= "+id);
+				//verbose = 1;
+			}
+			if (shape.xf1 != "") {
+				[xout, yout] = decode_xform(xout, yout, shape.xf1, verbose);
+			}
+			if (shape.xf0.length > 0) {
+				for (let i=shape.xf0.length-1; i >=0; i--) {
+					[xout, yout] = decode_xform(xout, yout, shape.xf0[i], verbose);
+				}
 			}
 		}
 		return [xout, yout];
@@ -5376,9 +5598,12 @@ function parse_svg()
 			poly.im_connected_to = [];
 		}
 		if (shapes[i].id == lkfor_id) {
-			console.log(sprintf("apc: id=%s", lkfor_id));
+			//console.log(sprintf("apc: id=%s", lkfor_id));
 		}
 		for (let k=arr2.length-1; k >= 0; k--) {
+			if (arr2[k] < 0) {
+				continue;
+			}
 			if (arr2[k] != i && shapes[arr2[k]].typ == typ) {
 				let kk = poly.im_connected_to.indexOf(arr2[k]);
 				if (kk == -1) {
@@ -5394,7 +5619,7 @@ function parse_svg()
 					break; // just add the first (highest-level) rectangle
 				}
 				if (shapes[arr2[k]].id == lkfor_id) {
-					console.log(sprintf("apc: cf= %s to=%s", shapes[i].id, lkfor_id));
+					//console.log(sprintf("apc: cf= %s to=%s", shapes[i].id, lkfor_id));
 				}
 				/*
 				if (typ == 'path') {
@@ -5584,7 +5809,7 @@ function parse_svg()
 					shapes[i].angles.push(angle);
 					let str_angle = sprintf("%.3f", angle);
 					if (shapes[i].id == lkfor_id) {
-						console.log(sprintf("j[%d] angle= %.3f rght=%s", j, angle, (angle==90.0?1:0)));
+						//console.log(sprintf("j[%d] angle= %.3f rght=%s", j, angle, (angle==90.0?1:0)));
 					}
 				}
 				ctx.lineWidth = 1;
@@ -5620,8 +5845,8 @@ function parse_svg()
 				shapes[i].poly.push({x:p0[0], y:p1[1]});
 				shapes[i].poly.push({x:p0[0], y:p0[1]});
 				if (shapes[i].id == 'rect4213') {
-					console.log(sprintf("r[%d]: x0= %s, x1= %s y0= %s y1= %s, p0= %s p1= %s wd= %s, hi= %s",
-								i, x0, x1, y0, y1, p0, p1, shapes[i].wd, shapes[i].hi));
+					//console.log(sprintf("r[%d]: x0= %s, x1= %s y0= %s y1= %s, p0= %s p1= %s wd= %s, hi= %s",
+					//			i, x0, x1, y0, y1, p0, p1, shapes[i].wd, shapes[i].hi));
 				}
 				if (fill_clr != null) {
 					ctx.fillStyle = fill_clr;
@@ -5807,6 +6032,7 @@ function parse_svg()
 		}
 		for (let i=0; i < shapes.length; i++) {
 			if (shapes[i].typ == 'path') {
+				let draw_circles = false;
 				for (let j=0; j < shapes[i].angles.length; j++) {
 					//angle = atan2(vector2.y, vector2.x) - atan2(vector1.y, vector1.x);
 					//if (angle < 0) angle += 2 * M_PI;
@@ -5832,13 +6058,17 @@ function parse_svg()
 							shapes[i].angles[jm2] == 90.0 && shapes[i].angles[jp2]== 90.0) {
 						ctx.strokeStyle = 'black';
 						ctx.beginPath();
-						ctx.arc(shapes[i].poly[j].x, shapes[i].poly[j].y, 5, 0,2*Math.PI);
+						if (draw_circles) {
+							ctx.arc(shapes[i].poly[j].x, shapes[i].poly[j].y, 5, 0,2*Math.PI);
+						}
 						let midx=shapes[i].poly[jm2].x + 0.5* (shapes[i].poly[jp2].x-shapes[i].poly[jm2].x);
 						let midy=shapes[i].poly[jm2].y + 0.5* (shapes[i].poly[jp2].y-shapes[i].poly[jm2].y);
 						let dffx=shapes[i].poly[j].x - midx;
 						let dffy=shapes[i].poly[j].y - midy;
 						ctx.moveTo(shapes[i].poly[j].x, shapes[i].poly[j].y);
-						ctx.lineTo(shapes[i].poly[j].x+dffx, shapes[i].poly[j].y+dffy);
+						if (draw_circles) {
+							ctx.lineTo(shapes[i].poly[j].x+dffx, shapes[i].poly[j].y+dffy);
+						}
 						shapes[i].poly[j].arrow_extended = {x:shapes[i].poly[j].x+dffx, y:shapes[i].poly[j].y+dffy};
 						//let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
 						//ctx.arc(p0[0], p0[1], 5, 0,2*Math.PI);
@@ -5864,7 +6094,9 @@ function parse_svg()
 							let x = shapes[i].poly[j].x + 0.5 * (shapes[i].poly[jp1].x - shapes[i].poly[j].x);
 							let y = shapes[i].poly[j].y + 0.5 * (shapes[i].poly[jp1].y - shapes[i].poly[j].y);
 							let dist = 5;
-							ctx.arc(x, y, dist, 0,2*Math.PI);
+							if (draw_circles) {
+								ctx.arc(x, y, dist, 0,2*Math.PI);
+							}
 							shapes[i].poly[j].end_pt = {x, y};
 							shapes[i].poly[j].angle = shapes[i].angles[j];
 							ctx.moveTo(x, y);
@@ -5876,14 +6108,16 @@ function parse_svg()
 								x1 = -Math.sin(norm_angle) * dist + x;
 								y1 = +Math.cos(norm_angle) * dist + y;
 							}
-							ctx.lineTo(x1, y1);
+							if (draw_circles) {
+								ctx.lineTo(x1, y1);
+							}
 							shapes[i].poly[j].endpoint_line = {x0:x, y0:y, x1:x1, y1:y1};
 							shapes[i].is_connector = true;
 							ctx.stroke();
 							ctx.closePath();
 							add_path_connections(i, 'rect', shapes[i].poly[j], shapes[i].poly[j].endpoint_line.x1, shapes[i].poly[j].endpoint_line.y1);
 							add_path_connections(i, 'path', shapes[i].poly[j], shapes[i].poly[j].endpoint_line.x0, shapes[i].poly[j].endpoint_line.y0);
-							if (shapes[i].id == lkfor_id) {
+							if (false && shapes[i].id == lkfor_id) {
 								console.log(sprintf("jk[%d] angle= %.3f len:jm1= %.3f, jp1= %.3f, jp1p1= %.3f, jp1m1= %.3f",
 									j, angle, shapes[i].poly[j].m1_len, shapes[i].poly[j].p1_len,
 									shapes[i].poly[jp1].p1_len, shapes[i].poly[jp1].m1_len));
@@ -5894,6 +6128,7 @@ function parse_svg()
 			}
 		}
 		// end of drawing
+		draw_svg_txt_flds();
 	}
 
 	draw_svg([]);
@@ -5922,14 +6157,14 @@ function parse_svg()
 			let arr = find_overlap(x, y);
 			for (let j=0; j < arr.length; j++) {
 				let idx = arr[j];
-				if (idx == i) {
+				if (idx == i || idx < 0) {
 					continue;
 				}
 				shapes[i].rect_arr.push(idx);
 			}
 			for (let j=arr.length-1; j >= 0; j--) {
 				let idx = arr[j];
-				if (idx == i) {
+				if (idx == i || idx < 0) {
 					continue;
 				}
 				if (shapes[idx].typ == 'path') {
@@ -5950,8 +6185,31 @@ function parse_svg()
 		}
 		return;
 	}
+	//abcd
+
 	function find_overlap(x, y) {
 		let arr = [];
+		let got_tbox = false;
+		let x_0=-1, y_0=-1;
+		if (g_cpu_diagram_flds != null) {
+			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tbox === 'undefined') {
+					continue;
+				}
+				let tbox = g_cpu_diagram_flds.cpu_diagram_fields[j].tbox;
+				if (((tbox.xb <= x && x <= tbox.xe) ||
+					 (tbox.xe <= x && x <= tbox.xb)) &&
+					((tbox.yb <= y && y <= tbox.ye) ||
+					 (tbox.ye <= y && y <= tbox.yb))) {
+					console.log("tbox.txt1= "+ tbox.txt);
+					x_0 = x;
+					y_0 = y;
+					got_tbox = true;
+					arr.push(-j-1); 
+				}
+				//g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
+			}
+		}
 		for (let i=0; i < shapes.length; i++) {
 			if (shapes[i].box != null) {
 				if (((shapes[i].box.xb <= x && x <= shapes[i].box.xe) ||
@@ -6075,7 +6333,6 @@ function parse_svg()
 						cma_all, shapes[i].id, i, str2, ply_str, con_to_me);
 				cma_all = ", ";
 			}
-			//abcd
 			if (false && (shapes[i].typ == 'rect') && shapes[i].text_arr.length > 0) {
 				let use_k = 0;
 				let tidx0 = shapes[i].text_arr[0];
@@ -6122,6 +6379,295 @@ function parse_svg()
 
 	g_svg_obj = build_svg_json_file();
 
+	function draw_svg_txt_flds()
+	{
+		if (g_cpu_diagram_flds == null) {
+			return;
+		}
+		let txt_tbl = [];
+		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
+				continue;
+			}
+			let cp_str = "";
+			let val_arr = [];
+			for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
+				let str = sprintf(g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt,
+					g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[ii]);
+				val_arr.push(str);
+				cp_str += (ii > 0 ? " ":"") + str;
+			}
+			let text_align = 'left';
+			let text_anchor = 'bottom';
+			let nfont_sz = 11;
+			let font_sz = "11px";
+			nfont_sz *= scale_ratio;
+			let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
+			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
+			let x0 = svg_xmax * g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x/fmxx;
+			let y0 = svg_ymax * g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y/fmxy;
+			let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null);
+			let rot = 0;
+			let angle = 0.0;
+			ctx.beginPath();
+			ctx.textAlign = text_align;
+			ctx.textBaseline = text_anchor;
+			ctx.fillStyle = 'black';
+			//ctx.font = font_sz + ' Arial';
+			ctx.font = sprintf("%.3fpx sans-serif", nfont_sz);
+			//ctx.font = font_sz + ' sans-serif';
+			let str = cp_str;
+			if (str.indexOf('&amp;') >= 0) {
+				str = str.replace('&amp;', '&');
+			}
+			let twidth = ctx.measureText(str).width;
+			let xb, xe, yb, ye;
+			if (text_align == 'start' || text_align == 'left') {
+				xb = p0[0];
+				xe = xb + twidth;
+			} else if (text_align == 'end' || text_align == 'right') {
+				xe = p0[0];
+				xb = xe - twidth;
+			} else if (text_align == 'center') {
+				xb = p0[0] - 0.5*twidth;
+				xe = p0[0] + 0.5*twidth;
+			} else {
+				console.log("unknown text_align= "+text_align);
+				xb = p0[0];
+				xe = xb + twidth;
+			}
+			if (text_anchor == 'top' || text_anchor == 'hanging') {
+				yb = p0[1];
+				ye = yb - nfont_sz;
+			} else if (text_anchor == 'bottom' || text_anchor == 'alphabetic') {
+				ye = p0[1];
+				yb = ye - nfont_sz;
+			} else if (text_anchor == 'middle') {
+				yb = p0[1] - 0.5*nfont_sz;
+				ye = p0[1] + 0.5*nfont_sz;
+			} else {
+				console.log("unknown text_anchor= "+text_anchor);
+				ye = p0[1];
+				yb = ye - nfont_sz;
+			}
+			//console.log(sprintf("txt %s %s", text_align, text_anchor));
+			//console.log(shapes[i].box);
+
+			ctx.fillText(str, p0[0], p0[1]);
+			g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
+			let iidx = txt_tbl.length;
+			txt_tbl.push({jidx:j, iidx:iidx, txt:[]});
+			for (let k=0; k < val_arr.length; k++) {
+				txt_tbl[iidx].txt.push(val_arr[k]);
+			}
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].rng !== 'undefined') {
+				let off = 0.0;
+				let hi = 0.4 * (ye - yb);
+				for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
+				ctx.beginPath();
+				ctx.arc(xe+2+off+hi, yb+hi, hi, 0, 2 * Math.PI, false);
+				if (g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[0] <=
+					g_cpu_diagram_flds.cpu_diagram_fields[j].rng.green) {
+					ctx.fillStyle = 'green';
+				} else if (g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[0] <=
+					g_cpu_diagram_flds.cpu_diagram_fields[j].rng.yellow) {
+					ctx.fillStyle = 'yellow';
+				} else {
+					ctx.fillStyle = 'red';
+				}
+				off += 2.0*hi;
+				ctx.fill();
+				ctx.lineWidth = 1;
+				ctx.strokeStyle = 'black';
+				ctx.stroke();
+				}
+			}
+		}
+//abcd
+		txt_tbl.sort(function(a, b){
+			let lh = g_cpu_diagram_flds.cpu_diagram_fields[a.jidx].y_label;
+			let rh = g_cpu_diagram_flds.cpu_diagram_fields[b.jidx].y_label;
+			if(lh < rh) { return -1; }
+			if(lh > rh) { return 1; }
+			return 0;
+		})
+		let tbl_str = "<table border='1' style='float: left'>";
+		for (let i=0; i < txt_tbl.length; i++) {
+			let j = txt_tbl[i].jidx;
+			let desc = g_cpu_diagram_flds.cpu_diagram_fields[j].desc;
+			let ct   = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			tbl_str += "<tr>";
+			tbl_str += "<td title='"+desc+"\nchart_tag:"+ct+"'>" +g_cpu_diagram_flds.cpu_diagram_fields[j].y_label + "</td>";
+			if (typeof txt_tbl[i] != 'undefined') {
+			for (let k=0; k < txt_tbl[i].txt.length; k++) {
+				let txt = txt_tbl[i].txt[k];
+				tbl_str += "<td align='right' title='"+ desc + "'>" + txt + "</td>";
+			}
+			}
+			tbl_str += "</tr>";
+		}
+		tbl_str += "</table>";
+		let tbl_str2 = parse_resource_stalls(txt_tbl);
+		//mytable.innerHTML = tbl_str2 + tbl_str;
+		mytable.innerHTML = tbl_str2;
+	}
+
+	function lkup_chrt(lkup, txt_tbl, chrt) {
+		if (typeof lkup[chrt] != 'undefined') {
+			let i = lkup[chrt];
+			let j = txt_tbl[i].jidx;
+			return {j:txt_tbl[i].jidx, i:i, desc:g_cpu_diagram_flds.cpu_diagram_fields[j].desc,
+				ylab:g_cpu_diagram_flds.cpu_diagram_fields[j].y_label,
+				vals:g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr,
+				rng: g_cpu_diagram_flds.cpu_diagram_fields[j].rng,
+				tvals:txt_tbl[i].txt};
+		}
+		return {j:-1, i:-1};
+	}
+	function lkup_fillin(ret, flds_max, resource, prfx) {
+		let stall = "";
+		let txt     = "";
+		let t = "";
+		let prefix = "";
+		if (typeof prfx != "undefined") {
+			for (let i=0; i < prfx; i++) {
+				prefix += "&nbsp;";
+			}
+		}
+		for (let i=0; i < flds_max; i++) {
+			let str = "";
+			let cir = ""; 
+			if (i < ret.vals.length) {
+				str = ret.tvals[i];
+				if (ret.vals[i] <= ret.rng.green) {
+					cir = "<span class='dot_green'>n</span>";
+				} else if (ret.vals[i] <= ret.rng.yellow) {
+					cir = "<span class='dot_yellow'>?</span>";
+				} else {
+					cir = "<span class='dot_red'>y</span>";
+				}
+			}
+			stall += "<td title='"+ret.desc+"'>"+cir+"</td>";
+			txt += "<td align='right' title='"+ret.desc+"'><span class='nowrap'>"+str+ "</span></td>";
+		}
+		t += "<tr>";
+		t += "<td title='"+ret.desc+"'>" +prefix+ret.ylab + "</td>";
+		t += txt;
+		t += stall;
+		t += "<td title='"+ret.desc+"'>" +resource + "</td>";
+		t += "</tr>";
+		return t;
+	}
+
+	function parse_resource_stalls(txt_tbl) {
+		if (svg_name != "haswell_block_diagram.svg") {
+			return "";
+		}
+		let lkup = {};
+		let flds_max = 0;
+		for (let i=0; i < txt_tbl.length; i++) {
+			let j  = txt_tbl[i].jidx;
+			let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			lkup[ct] = i;
+			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
+			if (flds_max < mx) {
+				flds_max = mx;
+			}
+		}
+		let t = "<table border='1' style='float: left'>";
+		t += "<tr><td>Area</td>";
+		for (let i=0; i < flds_max; i++) {
+			t += "<td title='Value of the computed metric for core or system'>core"+i+" val</td>";
+		}
+		for (let i=0; i < flds_max; i++) {
+			t += "<td title='Some of these are guesses as to whether the core is stalled.'>core"+i+" stalled</td>";
+		}
+		t += "<td>Desc</td></tr>";
+		t += "<tr><td>Memory Subsystem </td></tr>";
+		let ret = lkup_chrt(lkup, txt_tbl, "UNC_HASWELL_PEAK_BW_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "DRAM: pct of max possible memory BW 25.9 GB/s", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "L3_MISS_BYTES_PER_CYCLE_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L3_misses: max L3 misses about 10 bytes/cycle", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "SQ_FULL_PER_CYCLE_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L2_misses: pct of cycles SuperQueue full so can't take more requests", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "L2_MISS_BYTES_PER_CYCLE_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L2_misses: path to L3 64 bytes/cycle max", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "L2_TRANS_ALL_PER_CYCLE_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L2_traffic: path L1d to L2 64 bytes/cycle max", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "ICACHE_MISS_BYTES_PER_CYCLE_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L2_traffic: path icache to L2 64 bytes/cycle max", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "FB stalls: pct cycles L1d demand request blocked due to Fill Buffer (FB) full", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "L1D_REPL_BYTES_PER_CYCLE_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L1d: L1d to load buffer: 2 paths of 32 bytes/cycle", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L1d: L1d to store buffer: %cycles stalled due store buffer full", 2);
+		}
+		t += "<tr><td>Front End</td></tr>";
+		ret = lkup_chrt(lkup, txt_tbl, "IFETCH_STALLS_PER_TOT_CYCLES_CHART", 2);
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "L1i: %cycles stalled due to L1 icache miss", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "MISPRED_CYCLES_PER_TOT_CYCLES_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "Branch prediction Unit: %cycles allocator stalled due to mispredict or memory nuke", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_DSB_UOPS_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "Decode Stream Buffer: cycles per uop to Instr Decode Queue IDQ from DSB path. Min possible is 0.25 cycles/uop", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_IDQ_ALL_UOPS_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "IDQ: cycles per uop to IDQ from MITE path. Min possible is 0.25 cycles/uop", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_LSD_UOPS_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "LSD: cycles per Loop Stream Detector uop to IDQ. Min possible is 0.25 cycles/uop. ", 2);
+		}
+		t += "<tr><td>Execution Engine</td></tr>";
+		ret = lkup_chrt(lkup, txt_tbl, "UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "RAT: pct of total cycles where uops not issued by Register Allocation Table", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "EXE: pct of total cycles where uops not retired", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "RS: pct of total cycles stalled due to no eligible Reservation Station entry available", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_RAT_UOPS_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "RAT: cycles per RAT uop issued. Min possible is 0.25 cycles/uop. Compare to the DSB, LSD, IDQ cycles/uop to see which path is probably mostly feeding the RAT", 2);
+		}
+		for (let i=0; i < 8; i++) {
+			ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_UOP_PORT"+i+"_CHART");
+			if (ret.i > -1) {
+				t += lkup_fillin(ret, flds_max, "port"+i+": cycles/uop on port"+i+". Big values may mean port is not used much", 4);
+			}
+		}
+		t += "</table>";
+		return t;
+	}
+
 	mycanvas.onmousemove = function(e) {
 		// important: correct mouse position:
 		let rect = this.getBoundingClientRect(),
@@ -6130,11 +6676,48 @@ function parse_svg()
 		if (x == hvr_prv_x && y == hvr_prv_y) {
 			return;
 		}
+		let current_tooltip_text = "aa";
 		hvr_prv_x = x;
 		hvr_prv_y = y;
 		let arr = find_overlap(x, y);
+		if (arr.length == 0) {
+			//clearToolTipText(mytooltip);
+			current_tooltip_text = "";
+			tt_prv_x = -2;
+			tt_prv_y = -2;
+			mycanvas.title = "";
+			//current_tooltip_shape = -1;
+		}
+		let got_neg = false;
 		for (let j=0; j < arr.length; j++) {
 			let i = arr[j];
+			if (i < 0) {
+				got_neg = true;
+				break;
+			}
+		}
+		if (!got_neg) {
+			mycanvas.title = "";
+		}
+		for (let j=0; j < arr.length; j++) {
+			let i = arr[j];
+			if (i < 0) {
+				let ui= -i-1;
+				let ts= g_cpu_diagram_flds.cpu_diagram_fields[ui].y_label+ ": " +
+					g_cpu_diagram_flds.cpu_diagram_fields[ui].tbox.txt+',\n'+
+					g_cpu_diagram_flds.cpu_diagram_fields[ui].desc;
+				console.log(ts);
+				if (tt_prv_x != x || tt_prv_y != y) {
+					tt_prv_x = x;
+					tt_prv_y = y;
+					let pgx = e.pageX, pgy = e.pagey;
+				//console.log(sprintf("tooltip txt= %s, x= %.3f, y= %.3f, ttl= %s, ttr=%s ttt= %s ttb= %s",ts, x, y,
+				//mytooltip.style.left, mytooltip.style.right, mytooltip.style.top, mytooltip.style.bottom));
+					mycanvas.title = ts;
+					//console.log(mytooltip);
+				}
+				continue;
+			}
 			let str = "";
 			if (shapes[i].typ == 'path') {
 				str = "pth= "+i+",id= "+shapes[i].id;
@@ -6202,7 +6785,7 @@ function parse_svg()
 							arr.push(cf);
 							//arr = follow_paths(cf, arr);
 						}
-					}
+				 	}
 				}
 			}
 			return arr;
@@ -6210,6 +6793,10 @@ function parse_svg()
 
 		for (let m=0; m < arr.length; m++) {
 			let i = arr[m];
+			if (i < 0) {
+				// svg cpu_diagram tbox with avg values from box
+				continue;
+			}
 			let str = "";
 			arr = follow_paths(i, arr);
 		}
