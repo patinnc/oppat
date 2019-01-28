@@ -293,6 +293,12 @@ get_opt_main (int argc, char **argv)
 		   "   If you want to select multiple file group, use this option more than once... for example:\n"
 		   "      -u tag1 -u tag2  # to select files with file_tag 'tag1' and files with file_tag 'tag2'.\n"
 		},
+		{"cpu_diagram", required_argument,   0, 0, "cpu block diagram SVG file\n"
+		   "   Default is don't use a cpu block diagram SVG file.\n"
+		   "   You have to have a diagram like ./web/haswell_block_diagram.svg.\n"
+		   "   The SVG file is CPU specific and you need to specify the right events to be put on the diagram.\n"
+		   "   See scripts/run_perf_x86_haswell.sh for a haswell specific events.\n"
+		},
 		{"web_file",    required_argument,   0, 0, "create standalone html web page named web_file\n"
 		   "   Default is don't create web_file.\n"
 		   "   This option creates a standalone web file that can be shared with other users without installing OPPAT.\n"
@@ -354,6 +360,15 @@ get_opt_main (int argc, char **argv)
 				break;
 			}
 			if (load_long_opt_val(long_options[option_index].name, "tc_txt", options.tc_txt, optarg) > 0) {
+				break;
+			}
+			if (load_long_opt_val(long_options[option_index].name, "cpu_diagram", options.cpu_diagram, optarg) > 0) {
+				int rc = ck_filename_exists(options.cpu_diagram.c_str(), __FILE__, __LINE__, options.verbose);
+				if (rc != 0) {
+					printf("didn't find --cpu_diagram %s file at %s %d\n",
+						options.cpu_diagram.c_str(), __FILE__, __LINE__);
+					exit(1);
+				}
 				break;
 			}
 			if (load_long_opt_val(long_options[option_index].name, "web_file", options.web_file, optarg) > 0) {
@@ -596,11 +611,12 @@ struct shape_str {
 };
 
 struct lines_str {
-	double x[2], y[2], period;
+	double x[2], y[2], period, numerator, denom;
 	std::string text;
-	int cpt_idx, fe_idx, pid, prf_idx, typ, cat, subcat, cpu;
+	int cpt_idx, fe_idx, pid, prf_idx, typ, cat, subcat, cpu, use_num_denom;
 	std::vector <int> callstack_str_idxs;
-	lines_str(): period(0.0), cpt_idx(-1), fe_idx(-1), pid(-1), prf_idx(-1), typ(-1), cat(-1), subcat(-1), cpu(-1) {}
+	lines_str(): period(0.0), numerator(0.0), denom(0.0), cpt_idx(-1), fe_idx(-1), pid(-1), prf_idx(-1),
+		typ(-1), cat(-1), subcat(-1), cpu(-1), use_num_denom(-1) {}
 };
 
 // order of SHAPE_* enum values must agree with SHAPE_* variables in main.js
@@ -1544,9 +1560,16 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 	}
 	//uint32_t wait_ts_idx= UINT32_M1, wait_dura_idx= UINT32_M1;
 	std::vector <uint32_t> add_2_extra;
+	int numerator_idx = -1, denom_idx = -1;
 	for (uint32_t j=0; j < fsz; j++) {
 		uint64_t flg = event_table[evt_idx].flds[j].flags;
 		//fprintf(stderr, "fld[%d] flgs= 0x%x, name= %s at %s %d\n", j, flg, event_table[evt_idx].flds[j].name.c_str(), __FILE__, __LINE__);
+		if (event_table[evt_idx].flds[j].name == "numerator") {
+			numerator_idx = j;
+		}
+		if (event_table[evt_idx].flds[j].name == "denominator") {
+			denom_idx = j;
+		}
 		if (flg & (uint64_t)fte_enum::FLD_TYP_EXCL_PID_0 && verbose) {
 			fprintf(stderr, "skip idle= true, var_idx= %d j= %d at %s %d\n", var_idx, j, __FILE__, __LINE__);
 		}
@@ -2020,9 +2043,9 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					if (tmp_verbose)
 					{
 						printf("aft c=%d j=%d i=%d yv=%f vval= %f nval= %f x0=%f, x1=%f, fx0=%f, fx1=%f ts= %f at %s %d\n",
-								cur_idx, j, i, y_val[by_var_idx_val],
-								var_val, new_val, x0, x1, fx0, fx1, event_table[evt_idx].data.ts[i].ts,
-								__FILE__, __LINE__);
+							cur_idx, j, i, y_val[by_var_idx_val],
+							var_val, new_val, x0, x1, fx0, fx1, event_table[evt_idx].data.ts[i].ts,
+							__FILE__, __LINE__);
 					}
 					if (new_val < 0.0 && var_val >= 0.0 && ((x1 - x0) < 0.0 || (fx1 - sx0) < 0.0)) {
 						printf("screw up here, new_val= %f, var_val= %f, x0= %f, x1= %f, dff= %f ts0= %f, tx1= %f, sx0= %f, fx0= %f fx1= %f dff= %f at %s %d\n",
@@ -2132,6 +2155,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 			ls0p->text = comm;
 			ls0p->pid  = pid_num;
+			if (numerator_idx != -1 && denom_idx != -1) {
+				ls0p->use_num_denom = 1;
+				ls0p->numerator = event_table[evt_idx].data.vals[i][numerator_idx];
+				ls0p->denom     = event_table[evt_idx].data.vals[i][denom_idx];
+			}
 			bool use_this_line = true;
 			//ls0p->cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
 			uint32_t cpt_idx = UINT32_M1;
@@ -2147,7 +2175,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					exit(1);
 			    	//prf_obj.samples[prf_idx].cpt_idx = cpt_idx;
 				}
-			    ls0p->cpt_idx = cpt_idx;
+			    	ls0p->cpt_idx = cpt_idx;
 				ls0p->fe_idx  = prf_obj.samples[prf_idx].fe_idx;
 				ls0p->period  = (double)prf_obj.samples[prf_idx].period;
 				ls0p->cpu     = (int)prf_obj.samples[prf_idx].cpu;
@@ -2336,7 +2364,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						//last_by_var_callstacks[by_var_idx_val] = callstacks;
 					}
 				}
-			    ls0p->cpt_idx    = cpt_idx;
+				ls0p->cpt_idx    = cpt_idx;
 				{
 					int ti;
 					if (prf_obj.file_type == FILE_TYP_ETW) {
@@ -3005,7 +3033,8 @@ static std::string drop_trailing_zeroes(std::string str)
 	return nstr;
 }
 
-static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_t evt_idx, uint32_t chrt, std::vector <evt_str> event_table, int verbose)
+static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_t evt_idx,
+		uint32_t chrt, std::vector <evt_str> event_table, int verbose)
 {
 	int var_idx = (int)event_table[evt_idx].charts[chrt].var_idx;
 	// main.js looks for '{ "title":' so be careful changing this string
@@ -3021,6 +3050,46 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	printf("tot_line= %s for title= %s at %s %d\n", 
 		event_table[evt_idx].charts[chrt].tot_line.c_str(), 
 		event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
+	if (event_table[evt_idx].charts[chrt].tot_line_opts.xform.size() > 0) {
+		json += ", \"tot_line_opts_xform\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.xform + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].tot_line_opts.yval_fmt.size() > 0) {
+		json += ", \"tot_line_opts_yval_fmt\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.yval_fmt + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].tot_line_opts.yvar_fmt.size() > 0) {
+		json += ", \"tot_line_opts_yvar_fmt\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.yvar_fmt + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].tot_line_opts.desc.size() > 0) {
+		json += ", \"tot_line_opts_desc\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.desc + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].tot_line.size() > 0) {
+		std::string s = ", \"tot_line_opts_HT_factor\": "+ std::to_string(event_table[evt_idx].charts[chrt].tot_line_opts.HT_factor);
+		json += s;
+	}
+	if (ch_lines.line.size() > 0 && ch_lines.line[0].use_num_denom > -1) {
+		std::string s = ", \"tot_line_opts_has_num_den\":1";
+		json += s;
+	}
+	if (event_table[evt_idx].charts[chrt].tot_line.size() > 0 &&
+		event_table[evt_idx].charts[chrt].tot_line_opts.scope.size() > 0) {
+		std::string cma= "", s = ", \"tot_line_opts_scope\":[";
+		uint32_t sz = event_table[evt_idx].charts[chrt].tot_line_opts.scope.size();
+		for (uint32_t m=0; m < sz; m++) {
+			s += cma;
+			s += "\"";
+			s += event_table[evt_idx].charts[chrt].tot_line_opts.scope[m];
+			s += "\"";
+			cma = ",";
+		}
+		s += "]";
+		printf("scope= '%s' at %s %d\n", s.c_str(), __FILE__, __LINE__);
+		json += s;
+	}
+	if (event_table[evt_idx].charts[chrt].tot_line.size() > 0) {
+		std::string s = ", \"tot_line_opts_post_factor\": "+ std::to_string(event_table[evt_idx].charts[chrt].tot_line_opts.post_factor);
+		printf("post_factor= '%s' at %s %d\n", s.c_str(), __FILE__, __LINE__);
+		json += s;
+	}
 	json += ", \"pixels_high\": "+ std::to_string(event_table[evt_idx].charts[chrt].pixels_high);
 	json += ", \"file_tag\": \"" + file_tag + "\"";
 	if (event_table[evt_idx].charts[chrt].marker_type.size() > 0) {
@@ -3037,6 +3106,18 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		json += ", \"y_label\": \"" + event_table[evt_idx].flds[var_idx].name + "\"";
 	} else {
 		json += ", \"y_label\": \"" + event_table[evt_idx].charts[chrt].y_label + "\"";
+	}
+	if (ch_lines.prf_obj != 0 && ch_lines.prf_obj->map_cpu_2_core.size() > 0) {
+		std::string topo;
+		topo = ", \"map_cpu_2_core\":[";
+		for (uint32_t i=0; i < ch_lines.prf_obj->map_cpu_2_core.size(); i++) {
+			topo += (i > 0 ? "," : "") + std::to_string(ch_lines.prf_obj->map_cpu_2_core[i]);
+		}
+		topo += "]";
+		if (options.verbose > 0) {
+			printf("topo= '%s' at %s %d\n", topo.c_str(), __FILE__, __LINE__);
+		}
+		json += topo;
 	}
 	json += ", \"file_tag_idx\": " + std::to_string(event_table[evt_idx].file_tag_idx);
 	json += ", \"prf_obj_idx\": " + std::to_string(event_table[evt_idx].prf_obj_idx);
@@ -3119,6 +3200,23 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[1])) +
 				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[1])) +
 				"]";
+		if (ch_lines.line[i].use_num_denom > -1) {
+			double nval= ch_lines.line[i].denom;
+			if (nval != 0.0) {
+				nval = ch_lines.line[i].numerator / nval;
+			} else {
+				nval = 0.0;
+			}
+			json += std::string(", \"num\":") +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].numerator));
+			json += std::string(", \"den\":") +
+				drop_trailing_zeroes(std::to_string(ch_lines.line[i].denom));
+#if 0
+			printf("ch_lines.line[%d].numerator= %f, denom= %f, nval= %f, oval= %f at %s %d\n",
+				i, ch_lines.line[i].numerator, ch_lines.line[i].denom, nval,
+				ch_lines.line[i].y[1], __FILE__, __LINE__);
+#endif
+		}
 		if (ch_lines.line[i].text.size() > 0) {
 			//printf("ch_lines.line[%d].text= %s at %s %d\n", i, ch_lines.line[i].text.c_str(), __FILE__, __LINE__);
 			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
@@ -4347,7 +4445,7 @@ static int start_web_server_threads(Queue<std::string>& q_from_srvr_to_clnt,
 {
 	int thrd_status = THRD_STARTED;
 
-	printf("start civetweb thrad at %s %d\n", __FILE__, __LINE__);
+	printf("start civetweb thread at %s %d\n", __FILE__, __LINE__);
 	//std::vector<std::thread> thrds_started;
 	{
 		std::thread thrd(std::bind(&web_srvr_start, std::ref(q_from_srvr_to_clnt), std::ref(q_bin_from_srvr_to_clnt), std::ref(q_from_clnt_to_srvr), &thrd_status, verbose));
@@ -4496,6 +4594,7 @@ void create_web_file(int verbose)
 	std::string scr_str = "<script src=";
 	std::string style = "<link rel=\"stylesheet\" href=";
 	std::string openSocket = "openSocket(window.location.port);";
+	std::string cpu_diag_svg_str = "<div id='cpu_diagram_svg'>";
 	bool write_it, first_style=true;
 
 	while(!file.eof()){
@@ -4550,6 +4649,25 @@ void create_web_file(int verbose)
 			file2.close();
 			ofile << "</script>" << std::endl;
 			continue;
+		}
+		if (options.cpu_diagram.size() > 0) {
+			ofile << line << std::endl;
+			write_it = false;
+			pos = line.find(cpu_diag_svg_str);
+			//ofile << "    document.getElementById('svg-object').contentDocument = g_cpu_diagram_svg; " << std::endl;
+			if (pos != std::string::npos) {
+				file2.open (options.cpu_diagram.c_str(), std::ios::in);
+				if (!file2.is_open()) {
+					printf("messed up fopen of flnm= %s at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
+					exit(1);
+				}
+				std::string line2;
+				while(!file2.eof()){
+					std::getline (file2, line2);
+					ofile << line2 << std::endl;
+				}
+				file2.close();
+			}
 		}
 		pos = line.find(style);
 		if (pos != std::string::npos) {
@@ -4821,6 +4939,7 @@ int main(int argc, char **argv)
 	int thrd_status = start_web_server_threads(q_from_srvr_to_clnt, q_bin_from_srvr_to_clnt, q_from_clnt_to_srvr,
 			thrds_started, verbose);
 
+	std::string cpu_diag_str, cpu_diag_flds;
 	if (options.load_replay_file) {
 		do_load_replay(verbose);
 		//goto load_replay_file;
@@ -5341,6 +5460,47 @@ int main(int argc, char **argv)
 	if (options.show_json > 1) {
 		printf("bin_map=\n%s\n", bin_map.c_str());
 	}
+	if (options.cpu_diagram.size() > 0) {
+		cpu_diag_str = "cpu_diagram=";
+		std::ifstream file2;
+		file2.open (options.cpu_diagram.c_str(), std::ios::in);
+		if (!file2.is_open()) {
+			printf("messed up fopen of flnm= %s at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		std::string line2;
+		while(!file2.eof()){
+			std::getline (file2, line2);
+			cpu_diag_str += line2 + "\n";
+		}
+		file2.close();
+		if (options.verbose > 0) {
+			printf("cpu_diag= '%s' at %s %d\n", cpu_diag_str.c_str(), __FILE__, __LINE__);
+		}
+		std::string flds_file = options.cpu_diagram;
+		std::size_t pos = 0;
+		pos = flds_file.find_last_of(".");
+		if (pos == std::string::npos) {
+			printf("messed up fopen of flnm= %s at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		flds_file = flds_file.substr(0, pos) + ".flds";
+		printf("flds_file= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
+		file2.open (flds_file.c_str(), std::ios::in);
+		if (!file2.is_open()) {
+			printf("messed up fopen of flnm= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		cpu_diag_flds = "cpu_diagram_flds=";
+		while(!file2.eof()) {
+			std::getline (file2, line2);
+			cpu_diag_flds += line2 + "\n";
+		}
+		file2.close();
+		//if (options.verbose > 0) {
+			printf("cpu_diag_flds= '%s' at %s %d\n", cpu_diag_flds.c_str(), __FILE__, __LINE__);
+		//}
+	}
 	fflush(NULL);
 	fprintf(stderr, "callstack_vec num_strings= %d, sum of strings len= %d\n", (int)callstack_vec.size(), (int)callstack_vec_len);
 	fprintf(stderr, "charts_json.size()= %d, sz= %f MBs at %s %d\n", (int)chrts_json.size(), (double)(1.0e-6*(double)chrts_json.size()), __FILE__, __LINE__);
@@ -5399,6 +5559,10 @@ int main(int argc, char **argv)
 				uint32_t msg_len = msg.size();
 				if (msg == "Ready") {
 					double tm_bef = dclock();
+					if (cpu_diag_str.size() > 0) {
+						q_from_srvr_to_clnt.push(cpu_diag_flds);
+						q_from_srvr_to_clnt.push(cpu_diag_str);
+					}
 					q_from_srvr_to_clnt.push(bin_map);
 					q_from_srvr_to_clnt.push(str_cats);
 					q_from_srvr_to_clnt.push(sz_str);
