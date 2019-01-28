@@ -44,6 +44,7 @@
 #include "oppat.h"
 #include "lua_rtns.h"
 #include "utils.h"
+#include "utils2.h"
 #include "ck_nesting.h"
 #include "web_api.h"
 #include "MemoryMapped.h"
@@ -1606,6 +1607,31 @@ static int prf_prt_sample_time(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 	return 0;
 }
 
+static int map_cpus_to_cores(prf_obj_str &prf_obj)
+{
+	if (prf_obj.map_cpu_2_core.size() > 0 || prf_obj.features_nr_cpus_online == 0) {
+		return 0;
+	}
+	prf_obj.map_cpu_2_core.resize(prf_obj.features_nr_cpus_online, -1);
+	std::vector <std::string> tkns;
+	for (uint32_t i=0; i < prf_obj.features_topology_threads.size(); i++) {
+		printf("features_topology_threads[%d]= %s at %s %d\n", i, 
+			prf_obj.features_topology_threads[i].c_str(), __FILE__, __LINE__);
+		tkn_split(prf_obj.features_topology_threads[i], ",", tkns);
+		for (uint32_t j=0; j < tkns.size(); j++) {
+			int cpu_num = atoi(tkns[j].c_str());
+			printf("core %d cpu= %d at %s %d\n", i, cpu_num, __FILE__, __LINE__);
+			if (cpu_num < 0 || cpu_num >= prf_obj.map_cpu_2_core.size()) {
+				printf("perf topology mixup: cpu_num= %d, core= %d, str= %s, bye at %s %d\n",
+					cpu_num, i, prf_obj.features_topology_threads[i].c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			prf_obj.map_cpu_2_core[cpu_num] = i;
+		}
+	}
+	return (int)prf_obj.map_cpu_2_core.size();
+}
+
 int prf_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg, file_list_str &file_list)
 {
 	std::ifstream file;
@@ -1865,6 +1891,7 @@ assigned by the linker to an executable.
 				prf_obj.features_topology_cores = prf_prt_str_lst(feat, feat_buf, off);
 				printf("threads: %s\n", feat_buf+off);
 				prf_obj.features_topology_threads = prf_prt_str_lst(feat, feat_buf+off, off);
+				map_cpus_to_cores(prf_obj);
 			} else if (features[i].indx == HEADER_NUMA_TOPOLOGY) {
 				prf_prt_numa_topology(feat, feat_buf, prf_obj);
 			} else if (features[i].indx == HEADER_PMU_MAPPINGS) {
