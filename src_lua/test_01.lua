@@ -74,6 +74,10 @@ function read_file(ts0, flnm)
 			extr_j = 1
 			units = "cycles"
 		end
+		if i == "unc_arb_trk_requests.all" then
+			extr_j = 1
+			units = "bytes"
+		end
  	   end
 	   if ((j+extr_j) == 3) then
 		if i == "power/energy-pkg/" then
@@ -97,6 +101,9 @@ function read_file(ts0, flnm)
 		elseif i == "uncore_cbox_1/clockticks/" then
                  	t[col.area] = 'cbox1'
 			evt = "cbox_freq"
+		elseif i == "unc_arb_trk_requests.all" then
+                 	t[col.area] = 'uncore'
+			evt = "unc_bytes"
 		elseif i == "uncore_imc/data_reads/" then
                		t[col.area] = 'imc_reads'
 			evt = "imc_bw"
