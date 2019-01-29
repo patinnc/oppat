@@ -24,10 +24,22 @@ The project web page is [https://patinnc.github.io](https://patinnc.github.io)
 
 The source code repo is [https://github.com/patinnc/oppat](https://github.com/patinnc/oppat)
 
+I've added a CPU block diagram feature. I've added a full sample HTML sample file below. For this feature:
+- start with a block diagram svg,
+- look at the resource constraints (such as max BW, max bytes/cycle on various paths, minimum cycles/uop, etc),
+- compute metrics for the resource usage
+- display the resource usage info in a table (along with an estimate of whether the CPU is stalled due to the usage). Below is a PNG image of the table. The html table (but not the PNG) has popup info when you hover over fields.
+![a screen shot of the haswell cpu diagram table](images/hsw_cpu_diag_tbl.png)
+- display the block diagram with the metric usage by the block for the resource. Below is a PNG image of the cpu_diagram canvas. The html canvas drawing (but not the PNG) displays popup info when you hover over text.
+![a PNG of the haswell cpu diagram canvas drawing](images/hsw_cpu_diag.png)
+
+Currently this is only available for haswell (I don't have other systems to test on) but it shouldn't be hard to add other block diagrams.
+
 Below is one of the OPPAT charts. The 'cpu_busy' chart shows what is running on each CPU and the events that happen on each cpu. For example, the green circle shows a spin.x thread running on CPU 1. The red circle shows some of the events occurring on CPU1. This chart is modeled after trace-cmd's kernelshark chart. More info on the cpu_busy chart is in [chart-types section](#chart-types). The callout box shows the event data (including callstack (if any)) for the event under the cursor. Unfortunately windows screenshot doesn't capture the cursor.
 ![a screen shot of the cpu busy chart](images/cpu_busy.png)
 
 Here are some sample html files. Most of the files are for a shorter ~2 interval but some are 'full' 8 second runs. The files won't load directly from the repo but they will load from the project web page: [https://patinnc.github.io](https://patinnc.github.io)
+- [Intel Haswell with CPU diagram 4-CPU chip, linux OS, html file with 50+ hw events via perf sampling](sample_html_files/lnx_haswell_cpu_diagram_mem_bw7.html) or
 - [Intel 4-CPU chip, Windows OS, html file with 1 hw events via xperf sampling](sample_html_files/win_mem_bw4.html) or
 - [full ~8 second Intel 4-CPU chip, Windows OS, html file with PCM and xperf sampling](sample_html_files/win_mem_bw4_pcm.html) or
 - [Intel 4-CPU chip, Linux OS, html file with 10 hw events in 2 multiplexed groups](sample_html_files/lnx_mem_bw4.html).
