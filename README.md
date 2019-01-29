@@ -28,7 +28,11 @@ I've added a CPU block diagram feature. I've added a full sample HTML sample fil
 - start with a block diagram svg,
 - look at the resource constraints (such as max BW, max bytes/cycle on various paths, minimum cycles/uop, etc),
 - compute metrics for the resource usage
-- display the resource usage info in a table (along with an estimate of whether the CPU is stalled due to the usage). Below is a PNG image of the table. The html table (but not the PNG) has popup info when you hover over fields.
+- display the resource usage info in a table (along with an estimate of whether the CPU is stalled due to the usage). Below is a PNG image of the table. The html table (but not the PNG) has popup info when you hover over fields. The table shows that:
+    - the core is stalled on memory bandwidth at 55% of the max possible 25.9 GB/s BW. It is a memory bw test
+    - the SuperQueue (SQ) is full (55% for core0 and 66% core1) of the cycles (so more L2 requests can't be handled)
+    - the line fill buffer FB is full (30% and 51%) so lines can't be moved to L1d from L2
+    - the result is that the backend is stalled (90% and 97%) of the cycles no UOPs are retired.
 ![a screen shot of the haswell cpu diagram table](images/hsw_cpu_diag_tbl.png)
 - display the block diagram with the metric usage by the block for the resource. Below is a PNG image of the cpu_diagram canvas. The html canvas drawing (but not the PNG) displays popup info when you hover over text.
 ![a PNG of the haswell cpu diagram canvas drawing](images/hsw_cpu_diag.png)
@@ -232,6 +236,9 @@ The steps for data collection using the scripts:
     - on Windows: ```.\mk_spin.bat``` (from a Visual Studio cmd box)
     - The binaries will be put in the ./bin subdir
 - Start with running the provided scripts:
+    - run_perf_x86_haswell.sh - for the haswell cpu_diagram data collection
+        - On Linux, type: ```sudo bash ./scripts/run_perf.sh```
+        - By default the script puts the data in dir ../oppat_data/lnx/mem_bw7
     - run_perf.sh - You need to have trace-cmd and perf installed
         - On Linux, type: ```sudo bash ./scripts/run_perf.sh```
         - By default the script puts the data in dir ../oppat_data/lnx/mem_bw4
@@ -285,6 +292,10 @@ The steps for data collection using the scripts:
        - on Linux ../oppat_data/lnx/mem_bw4
     - You need to add the created files to the input_files\input_data_files.json file:
 - Starting OPPAT reads all the data files and starts the web server
+- on Windows to generate the haswell cpu_diagram (assuming your data dir is ..\oppat_data\lnx\mem_bw7)
+```
+   bin\oppat.exe -r ..\oppat_data\lnx\mem_bw7 --cpu_diagram web\haswell_block_diagram.svg > tmp.txt
+```
 - on Windows (assuming your data dir is ..\oppat_data\win\mem_bw4)
 ```
    bin\oppat.exe -r ..\oppat_data\win\mem_bw4 > tmp.txt
