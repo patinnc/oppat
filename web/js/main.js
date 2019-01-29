@@ -11,6 +11,7 @@ var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
 var gcanvas_args = [];
+var g_charts_done = 0;
 var g_cpu_diagram_flds = null;
 var g_got_cpu_diagram_svg = false;
 var gmsg_span = null;
@@ -2455,9 +2456,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let xdiff0= ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * x0 / (px_wide - xPadding);
 				let xdiff1= ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * x1 / (px_wide - xPadding);
 				let nx0 = +minx+( xdiff0 * (maxx - minx));
-				console.log("x0= "+x0+", rec.right= "+rect.right+", maxx= "+maxx+", minx= "+minx+", xdiff0= "+xdiff0+", nx0= "+nx0);
+				//console.log("x0= "+x0+", rec.right= "+rect.right+", maxx= "+maxx+", minx= "+minx+", xdiff0= "+xdiff0+", nx0= "+nx0);
 				let nx1 = +minx+(xdiff1 * (maxx - minx));
-				console.log("x_px_diff= "+(x - ms_dn_pos[0])+", nd1= "+xdiff0+", xd1= "+xdiff1+", xdff="+(xdiff1-xdiff0));
+				//console.log("x_px_diff= "+(x - ms_dn_pos[0])+", nd1= "+xdiff0+", xd1= "+xdiff1+", xdff="+(xdiff1-xdiff0));
 				if (Math.abs(x - ms_dn_pos[0]) <= 3) {
 					console.log("Click_2 "+", btn= "+evt.button);
 					nx0_prev = nx0;
@@ -3807,7 +3808,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let xdiff0= +x0 / (px_wide - xPadding);
 			let xdiff1= +x1 / (px_wide - xPadding);
 			let nx0 = +minx+( xdiff0 * (maxx - minx));
-			console.log("x0= "+x0+", rec.right= "+rect.right+", maxx= "+maxx+", minx= "+minx+", xdiff0= "+xdiff0+", nx0= "+nx0);
+			//console.log("x0= "+x0+", rec.right= "+rect.right+", maxx= "+maxx+", minx= "+minx+", xdiff0= "+xdiff0+", nx0= "+nx0);
 			let nx1 = +minx+(xdiff1 * (maxx - minx));
 			console.log("xdiff= "+(x - ms_dn_pos[0])+", nx0= "+nx0+", nx1= "+nx1);
 			if (Math.abs(x - ms_dn_pos[0]) <= 3) {
@@ -4304,7 +4305,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						mytooltip.style.removeProperty('top');
 						mytooltip.style.bottom = (mycanvas.height - y - 20) + 'px';
 					}
-					console.log("tt x= "+x+", y= "+y);
+					//console.log("tt x= "+x+", y= "+y);
 				} else {
 					clearToolTipText(mytooltip);
 					current_tooltip_text = "";
@@ -4334,6 +4335,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	if (tm_dff > 500) {
 		console.log("cs time= "+tm_dff.toFixed(2));
 	}
+	g_charts_done++;
 	return;
 }
 /*
@@ -4397,11 +4399,35 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 			n_of_m = ", file "+j+ " of "+ch_data2.length;
 		}
 	}
+	if (i == 5) {
+		if (g_cpu_diagram_flds != null) {
+			console.log("++++g_charts_done bef= "+g_charts_done);
+			let jj=0;
+			function myDelay () {           //  create a loop function
+				setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+					console.log('jj= '+jj);          //  your code here
+					jj++;                     //  increment the counter
+					if (g_charts_done < gjson.chrt_data_sz) {
+						myDelay();             //  ..  again which will trigger another 
+					} else {
+						parse_svg();
+						console.log("++++g_charts_done aft= "+g_charts_done);
+						console.log("__did parse_svg()");
+					}
+				}, 1000)
+			}
+			//abcd
+			if (g_charts_done < gjson.chrt_data_sz) {
+				myDelay();
+			}
+		}
+	}
+
 	mymodal_span_text.innerHTML = "finished work "+wrk+n_of_m+", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm+wrk_nxt;
-    setTimeout(() => {
+	setTimeout(() => {
 		//console.log('End: ' + i);
 		resolve(i);
-    }, g_parse_delay);
+	}, g_parse_delay);
   });
 }
 
@@ -4834,7 +4860,7 @@ function init_mymodal()
 async function standalone(sp_data2, ch_data2)
 {
 	let tm_beg = performance.now();
-	for (let i=0; i <= 4; i++) {
+	for (let i=0; i <= 5; i++) {
 		if (i != 2 && i != 3) {
 			let result = await standaloneJob(i, -1, sp_data2, ch_data2, tm_beg);
 		} else {
@@ -6575,14 +6601,14 @@ function parse_svg()
 			}
 		}
 		let t = "<table border='1' style='float: left'>";
-		t += "<tr><td>Area</td>";
+		t += "<tr><td>Haswell CPU diagram metric</td>";
 		for (let i=0; i < flds_max; i++) {
 			t += "<td title='Value of the computed metric for core or system'>core"+i+" val</td>";
 		}
 		for (let i=0; i < flds_max; i++) {
 			t += "<td title='Some of these are guesses as to whether the core is stalled.'>core"+i+" stalled</td>";
 		}
-		t += "<td>Desc</td></tr>";
+		t += "<td>Resource utilization description</td></tr>";
 		t += "<tr><td>Memory Subsystem </td></tr>";
 		let ret = lkup_chrt(lkup, txt_tbl, "UNC_HASWELL_PEAK_BW_CHART");
 		if (ret.i > -1) {
@@ -6824,4 +6850,7 @@ function parse_svg()
 			&& (c = !c);
 		return c;
 	}
+
+	draw_svg([]);
+	console.log("got to end of parse_svg()");
 }
