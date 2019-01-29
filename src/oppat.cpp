@@ -4502,6 +4502,9 @@ static int str_2_base64(uint8_t *dst, uint8_t *src, int isz)
 	return olen;
 }
 
+static std::string cpu_diag_str, cpu_diag_flds;
+static std::string cpu_diag_flds_beg="cpu_diagram_flds=";
+
 void create_web_file(int verbose)
 {
 	double tm_beg = dclock();
@@ -4635,6 +4638,12 @@ void create_web_file(int verbose)
 						ofile << "    let sp_data2='" << std::string((const char *)sp_b64) << "';" << std::endl;
 						ofile << "    let ch_data2=[];" << std::endl;
 						ofile << "    gjson = JSON.parse('" << chrts_cats << "');" << std::endl;
+						if (cpu_diag_flds.size() > 0) {
+							replace_substr(cpu_diag_flds, "\n", " ", verbose);
+							replace_substr(cpu_diag_flds, "'", "\'", verbose);
+							std::string st2 = cpu_diag_flds.substr(cpu_diag_flds_beg.size(), std::string::npos);
+							ofile << "    g_cpu_diagram_flds = JSON.parse('"+st2+"');" << std::endl;
+						}
 						ofile << "    gjson.chrt_data_sz = " << std::to_string(cd_str.size()) << ";" << std::endl;
 						for (uint32_t i=0; i < cd_str.size(); i++) {
 							ofile << "    ch_data2.push('" << cd_str[i] << "');" << std::endl;
@@ -4906,6 +4915,7 @@ int ck_for_markers(int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <
 	return (int)marker_vec.size();
 }
 
+
 int main(int argc, char **argv)
 {
 	std::vector <std::vector <evt_str>> event_table, evt_tbl2;
@@ -4939,7 +4949,6 @@ int main(int argc, char **argv)
 	int thrd_status = start_web_server_threads(q_from_srvr_to_clnt, q_bin_from_srvr_to_clnt, q_from_clnt_to_srvr,
 			thrds_started, verbose);
 
-	std::string cpu_diag_str, cpu_diag_flds;
 	if (options.load_replay_file) {
 		do_load_replay(verbose);
 		//goto load_replay_file;
@@ -5491,7 +5500,7 @@ int main(int argc, char **argv)
 			printf("messed up fopen of flnm= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
 			exit(1);
 		}
-		cpu_diag_flds = "cpu_diagram_flds=";
+		cpu_diag_flds = cpu_diag_flds_beg;
 		while(!file2.eof()) {
 			std::getline (file2, line2);
 			cpu_diag_flds += line2 + "\n";
