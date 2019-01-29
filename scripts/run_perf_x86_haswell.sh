@@ -160,6 +160,13 @@ STALLS_L2_MISS_PEND="cpu/name='cycle_activity.stalls_l2_pending',umask=0x05,cmas
 STALLS_MEM_MISS_PEND="cpu/name='cycle_activity.stalls_ldm_pending',umask=0x06,cmask=0x06,event=0xa3/"
 #  cycle_activity.stalls_ldm_pending [Execution stalls due to memory subsystem] cpu/umask=0x6,(null)=0x1e8483,cmask=0x6,event=0xa3/ 
 
+STALLS_NO_EXECUTE="cpu/name='cycle_activity.cycles_no_execute',umask=0x04,cmask=0x04,event=0xa3/"
+#  cycle_activity.cycles_no_execute [This event increments by 1 for every cycle where there was no execute for this thread] cpu/umask=0x4,(null)=0x1e8483,cmask=0x4,event=0xa3/
+
+#INST_RET="cpu/name='inst_retired.any',umask=0x04,cmask=0x04,event=0xa3/"
+INST_RET="cpu/name='inst_retired.any',umask=0x00,event=0xc0/"
+#  inst_retired.any [Instructions retired from execution Spec update: HSD140, HSD143] cpu/event=0xc0/
+
 OFFCORE_SQ_FULL="cpu/name='offcore_requests_buffer.sq_full',umask=0x01,event=0xb2/"
 #  offcore_requests_buffer.sq_full [Offcore requests buffer cannot take more entries for this thread core] cpu/umask=0x1,(null)=0x1e8483,event=0xb2/ 
 
@@ -201,10 +208,11 @@ evt_lstp5="{cpu-clock,cycles,$RAT_UOPS,$IDQ_NOT_DEL,$UOPS_RETIRED,$RET_UOPS_STAL
 evt_lstp6="{cpu-clock,cycles,$RES_STALL_ROB,$RES_STALL_RS,$RES_STALL_SB,$RAT_UOPS_STALL}:S"
 evt_lstp7="{cpu-clock,cycles,$STALLS_L1D_MISS_PEND,$STALLS_L2_MISS_PEND,$OFFCORE_SQ_FULL,$OFFCORE_RESP_ALL_L3_MISS}:S"
 #evt_lstp8="{cpu-clock,cycles,$OFFCORE_REQ_ALL_L2_RD_MISS,$L2_REQ_MISS}:S"
+#evt_lstp8="{cpu-clock,cycles,$INST_RET,$STALLS_NO_EXECUTE,$UOPS_RETIRED}:S"
 
 echo try prf2
-echo $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -e "$evt_lstp6" -e "$evt_lstp7" -o $ODIR/prf_trace2.data 
-     $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 997 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -e "$evt_lstp6" -e "$evt_lstp7" -o $ODIR/prf_trace2.data &> $ODIR/prf_trace2.out &
+echo $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 499 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -e "$evt_lstp6" -e "$evt_lstp7" -o $ODIR/prf_trace2.data
+     $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 499 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -e "$evt_lstp6" -e "$evt_lstp7" -o $ODIR/prf_trace2.data &> $ODIR/prf_trace2.out &
 PRF_CMD_PID2=$!
 echo did prf2
 #
