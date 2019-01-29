@@ -30,7 +30,7 @@ I've added a CPU block diagram feature. I've added a full sample HTML sample fil
 - compute metrics for the resource usage
 - display the resource usage info in a table (along with an estimate of whether the CPU is stalled due to the usage). Below is a PNG image of the table. The html table (but not the PNG) has popup info when you hover over fields. The table shows that:
     - the core is stalled on memory bandwidth at 55% of the max possible 25.9 GB/s BW. It is a memory bw test
-    - the SuperQueue (SQ) is full (55% for core0 and 66% core1) of the cycles (so more L2 requests can't be handled)
+    - the SuperQueue (SQ) is full (54.5% for core0 and 62.3% core1) of the cycles (so more L2 requests can't be handled)
     - the line fill buffer FB is full (30% and 51%) so lines can't be moved to L1d from L2
     - the result is that the backend is stalled (90% and 97%) of the cycles no UOPs are retired.
 ![a screen shot of the haswell cpu diagram table](images/hsw_cpu_diag_tbl.png)
