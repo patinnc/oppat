@@ -71,7 +71,6 @@ Here are some full sample visualzation html files: [windows sample html file](sa
 OPPAT viz works better in Chrome than Firefox primarily because the zoom using touchpad 2 finger scrolling works better on Chrome.
 
 <button onclick="myFunction()">Click Me</button>
-
 <div id="myDIV">
   This is my DIV element.
 </div>
