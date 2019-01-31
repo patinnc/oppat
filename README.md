@@ -70,21 +70,17 @@ Here are some full sample visualzation html files: [windows sample html file](sa
 
 OPPAT viz works better in Chrome than Firefox primarily because the zoom using touchpad 2 finger scrolling works better on Chrome.
 
-<button onclick="myFunction()">Click Me</button>
-<div id="myDIV">
-  This is my DIV element.
-</div>
-<table><tr><td>test table</td><td>cell2</td></tr></table>
-<script>
-function myFunction() {
-  var x = document.getElementById("myDIV");
-  if (x.style.display === "none") {
-    x.style.display = "block";
-  } else {
-    x.style.display = "none";
-  }
-}
-</script>
+<details><summary>CLICK to show block below... this is a test</summary>
+<p>
+
+#### yes, test out hidden blocks!
+
+```python
+print("hello world!")
+```
+
+</p>
+</details>
 
 OPPAT has 3 visualization modes:
 1. The usual chart mechanism (where OPPAT backend reads the data files and sends data to the browser)
