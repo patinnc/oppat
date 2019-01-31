@@ -6,12 +6,19 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
+#include <assert.h>
 #define pid_t int
+#else
+#include <wordexp.h>
 #endif
 
 #include <iostream>
 #include <time.h>
 #include <stdlib.h>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <cstddef>
 #include <inttypes.h>
 #include <fcntl.h>
 #include <string.h>
@@ -99,14 +106,14 @@ double dclock_vari(clockid_t clkid)
 #endif
 
 struct args_str {
-	std::string work, filename;
+	std::string work, filename, phase;
 	double spin_tm;
 	unsigned long rezult, loops, adder;
-	double tm_beg, tm_end;
+	double tm_beg, tm_end, perf, dura;
 	int id, wrk_typ;
-	char *loops_str, *adder_str;
-	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0), tm_beg(0.0), tm_end(0.0), id(-1),
-		wrk_typ(-1), loops_str(0), adder_str(0) {}
+	std::string loops_str, adder_str, units;
+	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0),
+		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1) {}
 };
 
 uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t adder, uint64_t &ops)
@@ -406,9 +413,16 @@ float disk_all(unsigned int i)
 		}
 		tm_end = dclock();
 	}
-	double dura = tm_end - tm_beg;
-	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, MiB/sec= %f\n",
-		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-6 * (double)(bytes)/(dura));
+	double dura2, dura;
+	dura2 = dura = tm_end - tm_beg;
+	if (dura2 == 0.0) {
+		dura2 = 1.0;
+	}
+	args[i].dura = dura;
+	args[i].perf = 1.0e-6 * (double)(bytes)/dura2;
+	args[i].units = "MiB/sec";
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, %s= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, args[i].units.c_str(), args[i].perf);
 	args[i].rezult = bytes;
 	args[i].tm_beg = tm_beg;
 	args[i].tm_end = tm_end;
@@ -427,10 +441,10 @@ float mem_bw(unsigned int i)
 	double tm_end, tm_beg, bytes=0.0;
 	int strd = (int)args[i].loops;
 	int arr_sz = (int)args[i].adder;
-	if (args[i].adder_str && (strstr(args[i].adder_str, "k") || strstr(args[i].adder_str, "K"))) {
+	if (args[i].adder_str.size() > 0 && (strstr(args[i].adder_str.c_str(), "k") || strstr(args[i].adder_str.c_str(), "K"))) {
 		arr_sz *= 1024;
 	}
-	if (args[i].adder_str && (strstr(args[i].adder_str, "m") || strstr(args[i].adder_str, "M"))) {
+	if (args[i].adder_str.size() > 0 && (strstr(args[i].adder_str.c_str(), "m") || strstr(args[i].adder_str.c_str(), "M"))) {
 		arr_sz *= 1024*1024;
 	}
 	if (i==0) {
@@ -469,9 +483,16 @@ float mem_bw(unsigned int i)
 		}
 		tm_end = dclock();
 	}
-	double dura = tm_end - tm_beg;
-	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, GB/sec= %f\n",
-		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, 1.0e-9 * (double)(bytes)/(dura));
+	double dura2, dura;
+	dura2 = dura = tm_end - tm_beg;
+	if (dura2 == 0.0) {
+		dura2 = 1.0;
+	}
+	args[i].dura = dura;
+	args[i].units = "GB/sec";
+	args[i].perf = 1.0e-9 * (double)(bytes)/(dura2);
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
 	args[i].rezult = rezult;
 	return rezult;
 }
@@ -499,9 +520,16 @@ float simd_dot0(unsigned int i)
 #endif
 		tm_end = dclock();
 	}
-	double dura = tm_end - tm_beg;
-	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, Gops/sec= %f\n",
-		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, 1.0e-9 * (double)(ops)/(dura));
+	double dura2, dura;
+	dura2 = dura = tm_end - tm_beg;
+	if (dura2 == 0.0) {
+		dura2 = 1.0;
+	}
+	args[i].dura = dura;
+	args[i].units = "Gops/sec";
+	args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
+	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
 	args[i].rezult = rezult;
 	return rezult;
 }
@@ -538,16 +566,301 @@ float dispatch_work(int  i)
 	return res;
 }
 
+// http://alter.org.ua/docs/win/args/
+PCHAR*
+CommandLineToArgvA(
+	PCHAR CmdLine,
+	int* _argc
+	)
+{
+	PCHAR* argv;
+	PCHAR  _argv;
+	ULONG   len;
+	ULONG   argc;
+	CHAR   a;
+	ULONG   i, j;
+
+	BOOLEAN  in_QM;
+	BOOLEAN  in_TEXT;
+	BOOLEAN  in_SPACE;
+
+	len = strlen(CmdLine);
+	i = ((len+2)/2)*sizeof(PVOID) + sizeof(PVOID);
+
+	argv = (PCHAR*)GlobalAlloc(GMEM_FIXED,
+		i + (len+2)*sizeof(CHAR));
+
+	_argv = (PCHAR)(((PUCHAR)argv)+i);
+
+	argc = 0;
+	argv[argc] = _argv;
+	in_QM = FALSE;
+	in_TEXT = FALSE;
+	in_SPACE = TRUE;
+	i = 0;
+	j = 0;
+
+	while( a = CmdLine[i] ) {
+		if(in_QM) {
+			if(a == '\"') {
+				in_QM = FALSE;
+			} else {
+				_argv[j] = a;
+				j++;
+			}
+		} else {
+			switch(a) {
+			case '\"':
+				in_QM = TRUE;
+				in_TEXT = TRUE;
+				if(in_SPACE) {
+					argv[argc] = _argv+j;
+					argc++;
+				}
+				in_SPACE = FALSE;
+				break;
+			case ' ':
+			case '\t':
+			case '\n':
+			case '\r':
+				if(in_TEXT) {
+					_argv[j] = '\0';
+					j++;
+				}
+				in_TEXT = FALSE;
+				in_SPACE = TRUE;
+				break;
+			default:
+				in_TEXT = TRUE;
+				if(in_SPACE) {
+					argv[argc] = _argv+j;
+					argc++;
+				}
+				_argv[j] = a;
+				j++;
+				in_SPACE = FALSE;
+				break;
+			}
+		}
+		i++;
+	}
+	_argv[j] = '\0';
+	argv[argc] = NULL;
+
+	(*_argc) = argc;
+	return argv;
+}
+
+// routine below from https://stackoverflow.com/questions/23340201/c-split-cmd-arguments
+char **split_commandline(const char *cmdline, int *argc)
+{
+    size_t i;
+    char **argv = NULL;
+    assert(argc);
+
+    if (!cmdline)
+    {
+        return NULL;
+    }
+
+    // Posix.
+    #ifndef _WIN32
+    {
+        int ret;
+        wordexp_t p;
+        memset(&p, 0, sizeof(p));
+
+        // Note! This expands shell variables (might be a security issue).
+        if ((ret = wordexp(cmdline, &p, 0)))
+        {
+            return NULL;
+        }
+
+        *argc = p.we_wordc;
+
+        if (!(argv = calloc(*argc, sizeof(char *))))
+        {
+            goto fail;
+        }
+
+        for (i = 0; i < p.we_wordc; i++)
+        {
+            if (!(argv[i] = strdup(p.we_wordv[i])))
+            {
+                goto fail;
+            }
+        }
+
+        // Note that on some OSX versions this does not free all memory (10.9.5)
+        wordfree(&p);
+
+        return argv;
+    fail:
+        p.we_offs = 0;
+        wordfree(&p);
+    }
+    #else // WIN32
+    #endif // WIN32
+#if 0
+    {
+        // TODO: __getmainargs is an alternative... https://msdn.microsoft.com/en-us/library/ff770599.aspx
+        wchar_t **wargs = NULL;
+        size_t needed = 0;
+        wchar_t *cmdlinew = NULL;
+        size_t len = strlen(cmdline) + 1;
+
+        if (!(cmdlinew = (wchar_t *)calloc(len, sizeof(wchar_t))))
+        {
+            goto fail;
+        }
+
+        if (!MultiByteToWideChar(CP_ACP, 0, cmdline, -1, cmdlinew, len))
+        {
+            goto fail;
+        }
+
+        if (!(wargs = CommandLineToArgvW(cmdlinew, argc)))
+        {
+            goto fail;
+        }
+
+        if (!(argv = (char **)calloc(*argc, sizeof(char *))))
+        {
+            goto fail;
+        }
+
+        // Convert from wchar_t * to ANSI char *
+        for (i = 0; i < *argc; i++)
+        {
+            // Get the size needed for the target buffer.
+            // CP_ACP = Ansi Codepage.
+            needed = WideCharToMultiByte(CP_ACP, 0, wargs[i], -1,
+                                        NULL, 0, NULL, NULL);
+
+            if (!(argv[i] = (char *)malloc(needed)))
+            {
+                goto fail;
+            }
+
+            // Do the conversion.
+            needed = WideCharToMultiByte(CP_ACP, 0, wargs[i], -1,
+                                        argv[i], needed, NULL, NULL);
+        }
+
+        if (wargs) LocalFree(wargs);
+        free(&cmdlinew);
+        return argv;
+
+    fail:
+        if (wargs) LocalFree(wargs);
+        free(&cmdlinew);
+    }
+#endif
+
+    if (argv)
+    {
+        for (i = 0; i < *argc; i++)
+        {
+            if(argv[i]) free(argv[i]);
+            argv[i] = NULL;
+        }
+
+        free(argv);
+    }
+
+    return NULL;
+}
+
+std::vector <std::string> split_cmd_line(const char *argv0, const char *cmdline, int *argc)
+{
+	std::vector <std::string> std_argv;
+	int slen = strlen(cmdline);
+	int i=0, arg = -1;
+	char *argv[256];
+	char *cp = (char *)malloc(slen+1);
+	argv[++arg] = (char *)argv0;
+	strcpy(cp, cmdline);
+	char qt[2];
+	qt[0] = 0;
+	while (i < slen) {
+		if (cp[i] != ' ') {
+			if (cp[i] == '"' || cp[i] == '\'') {
+			   qt[0] = cp[i];
+			   i++;
+			}
+			argv[++arg] = cp+i;
+			while (((cp[++i] != ' ' && qt[0] == 0) || (qt[0] != 0 && cp[i] != qt[0])) && i < slen) {
+				;
+			}
+			if (qt[0] != 0 && cp[i] == qt[0]) {
+				qt[0] = 0;
+				cp[i] = 0;
+				i++;
+			}
+		}
+		if (cp[i] == ' ') {
+			cp[i] = 0;
+			i++;
+		}
+	}
+	for (i=0; i <= arg; i++) {
+		//printf("arg[%d]= '%s'\n", i, argv[i]);
+		std_argv.push_back(argv[i]);
+	}
+	*argc = (int)std_argv.size();
+	return std_argv;
+}
+
+int read_options_file(std::string argv0, std::string opts, std::vector <std::vector <std::string>> &argvs)
+{
+	std::ifstream file2;
+	file2.open (opts.c_str(), std::ios::in);
+	if (!file2.is_open()) {
+		printf("messed up fopen of flnm= %s at %s %d\n", opts.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	std::vector <std::string> opt_lines;
+	std::string line2;
+	int i=0;
+	while(!file2.eof()){
+		std::getline (file2, line2);
+		if (line2.size() > 0) {
+			int argc;
+			std::vector <std::string> argv;
+			if (line2.size() > 0 && line2.substr(0,1) != "#") {
+				opt_lines.push_back(line2);
+				printf("line[%d]= '%s'\n", i++, line2.c_str());
+				argv = split_cmd_line(argv0.c_str(), line2.c_str(), &argc);
+#if 0
+#ifdef _WIN32
+				argv = CommandLineToArgvA((PCHAR)line2.c_str(), &argc);
+#else
+				argv = split_commandline(line2.c_str(), &argc);
+#endif
+#endif
+				argvs.push_back(argv);
+				for (uint32_t i=0; i < argv.size(); i++) {
+					printf("opts_file: argv[%d]='%s'\n", i, argv[i].c_str());
+				}
+				printf("argc= %d\n", argc);
+			}
+		}
+	}
+	file2.close();
+	return 0;
+}
+
+
 int main(int argc, char **argv)
 {
 
-	char *loops_str=NULL, *adder_str= NULL;
+	std::vector <std::vector <std::string>> argvs;
+	std::string loops_str, adder_str;
 	double t_first = dclock();
 	unsigned num_cpus = std::thread::hardware_concurrency();
-	double spin_tm = 2.0;
+	double spin_tm = 2.0, spin_tm_multi=0.0;
 	bool doing_disk = false;
 	std::mutex iomutex;
-	std::vector<std::thread> threads(num_cpus);
 	printf("t_first= %.9f\n", t_first);
 #ifdef __linux__
 	printf("t_raw= %.9f\n", dclock_vari(CLOCK_MONOTONIC_RAW));
@@ -558,91 +871,147 @@ int main(int argc, char **argv)
 	double t_start, t_end;
 	time_t c_start, c_end;
 	unsigned long adder=1, loops = 0xffffff;
-	printf("usage: %s tm_secs [work_type [ arg3 [ arg4 ]]]\n", argv[0]);
+	printf("usage: %s tm_secs[,tm_secs_multi] [work_type [ arg3 [ arg4 ]]]\n", argv[0]);
 	printf("\twork_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
 	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 
-	int i=1;
-	if (argc > i) {
-		spin_tm = atof(argv[i]);
-	}
-	i++; //2
 	uint32_t wrk_typ = WRK_SPIN;
 	std::string work = "spin";
-	if (argc > i) {
-		work = std::string(argv[i]);
-		wrk_typ = UINT32_M1;
-		for (uint32_t j=0; j < wrk_typs.size(); j++) {
-			if (work == wrk_typs[j]) {
-				wrk_typ = j;
-				printf("got work= '%s' at %s %d\n", work.c_str(), __FILE__, __LINE__);
-				break;
-			}
+
+	if (argc >= 2 && std::string(argv[1]) == "-f") {
+		read_options_file(argv[0], argv[2], argvs);
+	} else {
+		std::vector <std::string> av;
+		for (int j=0; j < argc; j++) {
+			av.push_back(argv[j]);
 		}
-		if (wrk_typ == UINT32_M1) {
-			printf("Error in arg 2. Must be 1 of:\n");
+		argvs.push_back(av);
+	}
+	for (uint32_t j=0; j < argvs.size(); j++) {
+		uint32_t i=1;
+		std::string phase;
+		if (argvs[j].size() > i) {
+			char *cpc;
+			cpc = strchr((char *)argvs[j][i].c_str(), ',');
+			spin_tm = atof(argvs[j][i].c_str());
+			if (cpc) {
+				spin_tm_multi = atof(cpc+1);
+			} else {
+				spin_tm_multi = spin_tm;
+			}
+			printf("spin_tm single_thread= %f, multi_thread= %f at %s %d\n",
+					spin_tm, spin_tm_multi, __FILE__, __LINE__);
+		}
+		i++; //2
+		if (argvs[j].size() > i) {
+			work = argvs[j][i];
+			wrk_typ = UINT32_M1;
 			for (uint32_t j=0; j < wrk_typs.size(); j++) {
-				printf("\t%s\n", wrk_typs[j].c_str());
+				if (work == wrk_typs[j]) {
+					wrk_typ = j;
+					printf("got work= '%s' at %s %d\n", work.c_str(), __FILE__, __LINE__);
+					break;
+				}
 			}
-			printf("Bye at %s %d\n", __FILE__, __LINE__);
-			exit(1);
+			if (wrk_typ == UINT32_M1) {
+				printf("Error in arg 2. Must be 1 of:\n");
+				for (uint32_t j=0; j < wrk_typs.size(); j++) {
+					printf("\t%s\n", wrk_typs[j].c_str());
+				}
+				printf("Bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+			}
+			if (wrk_typ >= WRK_DISK_RD && wrk_typ <= WRK_DISK_RDWR_DIR) {
+				doing_disk = true;
+				loops = 100;
+			}
+			if (wrk_typ == WRK_MEM_BW || wrk_typ == WRK_MEM_BW_RDWR ||
+				wrk_typ == WRK_MEM_BW_2RDWR || wrk_typ == WRK_MEM_BW_2RD ||
+				wrk_typ == WRK_MEM_BW_2RD2WR) {
+				loops = 64;
+				adder = 80*1024*1024;
+			}
 		}
-		if (wrk_typ >= WRK_DISK_RD && wrk_typ <= WRK_DISK_RDWR_DIR) {
-			doing_disk = true;
-			loops = 100;
+		i++; //3
+		if (argvs[j].size() > i) {
+			loops = atoi(argvs[j][i].c_str());
+			loops_str = argvs[j][i];
+			printf("arg3 is %s\n", loops_str.c_str());
 		}
-		if (wrk_typ == WRK_MEM_BW || wrk_typ == WRK_MEM_BW_RDWR ||
-			wrk_typ == WRK_MEM_BW_2RDWR || wrk_typ == WRK_MEM_BW_2RD ||
-			wrk_typ == WRK_MEM_BW_2RD2WR) {
-			loops = 64;
-			adder = 80*1024*1024;
+		i++; //4
+		if (argvs[j].size() > i) {
+			adder = atoi(argvs[j][i].c_str());
+			adder_str = argvs[j][i];
+			printf("arg4 is %s\n", adder_str.c_str());
 		}
-	}
-	i++; //3
-	if (argc > i) {
-		loops = atoi(argv[i]);
-		loops_str = argv[i];
-		printf("arg3 is %s\n", loops_str);
-	}
-	i++; //4
-	if (argc > i) {
-		adder = atoi(argv[i]);
-		adder_str = argv[i];
-		printf("arg4 is %s\n", adder_str);
-	}
-
-	args.resize(num_cpus);
-	for (unsigned i=0; i < num_cpus; i++) {
-		args[i].spin_tm = spin_tm;
-		args[i].id = i;
-		args[i].loops = loops;
-		args[i].adder = adder;
-		args[i].loops_str = loops_str;
-		args[i].adder_str = adder_str;
-		args[i].work = work;
-		args[i].wrk_typ = wrk_typ;
-	}
-	t_start = dclock();
-	dispatch_work(0);
-	t_end = dclock();
-	t_start = dclock();
-	printf("work= %s\n", work.c_str());
-
-	if (!doing_disk) {
-		for (unsigned i = 0; i < num_cpus; ++i) {
-			threads[i] = std::thread([&iomutex, i] {
-				dispatch_work(i);
-			});
+		i++; //5
+		if (argvs[j].size() > i) {
+			phase = argvs[j][i];
+			printf("arg5 phase '%s'\n", phase.c_str());
 		}
 
-		for (auto& t : threads) {
-			t.join();
+		std::vector<std::thread> threads(num_cpus);
+		args.resize(num_cpus);
+		for (uint32_t i=0; i < num_cpus; i++) {
+			args[i].phase   = phase;
+			args[i].spin_tm = spin_tm;
+			args[i].id = i;
+			args[i].loops = loops;
+			args[i].adder = adder;
+			args[i].loops_str = loops_str;
+			args[i].adder_str = adder_str;
+			args[i].work = work;
+			args[i].wrk_typ = wrk_typ;
+		}
+		if (spin_tm > 0.0) {
+			if (phase.size() > 0) {
+				trace_marker_write("begin phase ST "+phase);
+			}
+			t_start = dclock();
+			dispatch_work(0);
+			t_end = dclock();
+			if (phase.size() > 0) {
+				std::string str = "end phase ST "+phase+", dura= "+std::to_string(args[0].dura)+", "+args[0].units+"= "+std::to_string(args[0].perf);
+				trace_marker_write(str);
+				printf("%s\n", str.c_str());
+			}
+		}
+		for (unsigned i=0; i < num_cpus; i++) {
+			args[i].spin_tm = spin_tm_multi;
+		}
+		t_start = dclock();
+		printf("work= %s\n", work.c_str());
+
+		if (!doing_disk && spin_tm_multi > 0.0) {
+			if (phase.size() > 0) {
+				trace_marker_write("begin phase MT "+phase);
+			}
+			for (unsigned i = 0; i < num_cpus; ++i) {
+				threads[i] = std::thread([&iomutex, i] {
+					dispatch_work(i);
+				});
+			}
+
+			for (auto& t : threads) {
+				t.join();
+			}
+			double tot = 0.0;
+			for (unsigned i = 0; i < num_cpus; ++i) {
+				tot += args[i].perf;
+			}
+			if (phase.size() > 0) {
+				std::string str = "end phase MT "+phase+", dura= "+std::to_string(args[0].dura)+", "+args[0].units+"= "+std::to_string(tot);
+				trace_marker_write(str);
+				printf("%s\n", str.c_str());
+			}
+		}
+
+		t_end = dclock();
+		if (loops < 100 && !doing_disk && spin_tm_multi > 0.0) {
+			std::cout << "\nExecution time on " << num_cpus << " CPUs: " << t_end - t_start << " secs" << std::endl;
 		}
 	}
-
-	t_end = dclock();
-	if (loops < 100 && !doing_disk) {
-		std::cout << "\nExecution time on 4 CPUs: " << t_end - t_start << " secs" << std::endl;
+	if (argc > 20) {
 		for (unsigned i=0; i < num_cpus; i++) {
 			printf("rezult[%d]= %lu\n", i, args[i].rezult);
 		}
