@@ -11,7 +11,7 @@ var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
 var gcanvas_args = [];
-var g_charts_done = 0;
+var g_charts_done = {cntr:0};
 var g_cpu_diagram_flds = null;
 var g_got_cpu_diagram_svg = false;
 var gmsg_span = null;
@@ -207,6 +207,8 @@ if (!("TextDecoder" in window)) {
 }
 
 var gsync_zoom_linked = false;
+var gsync_zoom_redrawn_charts = {cntr:0, cpu_diag_redraw:0};
+var gsync_zoom_redrawn_charts_map = [];
 var gsync_zoom_active_now = false;
 var gsync_zoom_active_redraw_beg_tm = 0;
 var gsync_zoom_charts_redrawn = 0;
@@ -214,32 +216,33 @@ var gsync_zoom_charts_hash = {}
 var gsync_zoom_arr = [];
 var gsync_zoom_last_zoom = {chrt_idx:-1, x0:0.0, x1:0.0, abs_x0:0.0, abs_x1:0.0};
 var gsync_text = "Zoom/Pan: Zoom all to last";
+var gLinkZoom_iter = 0;
 
-function LinkZoom( el, cb )
+function set_zoom_all_charts(j, need_tag)
 {
-	if (typeof LinkZoom.iter == 'undefined') {
-		LinkZoom.iter = 0;
-	}
-	LinkZoom.iter++;
-	let ckd = cb.checked;
-	console.log("zoom_ck= "+ckd);
-	if (el.textContent === gsync_text) {
-		console.log(sprintf("lnk_zm: x0= %f x1= %f", gsync_zoom_last_zoom.x0, gsync_zoom_last_zoom.x1));
-		let j = gsync_zoom_last_zoom.chrt_idx;
-		let need_tag = gjson.chart_data[j].file_tag
+		//let j = gsync_zoom_last_zoom.chrt_idx;
+		//let need_tag = gjson.chart_data[j].file_tag
+		gLinkZoom_iter++;
 		if (j >= 0) {
-			console.log(sprintf("lnk_zm[%d]: x0= %f x1= %f", j, gcanvas_args[j][6], gcanvas_args[j][7]));
+			console.log(sprintf("lnk_zm[%d]: x0= %f x1= %f need_tag= %s", j, gcanvas_args[j][6], gcanvas_args[j][7], need_tag));
 		}
 		if (gsync_zoom_arr.length == 0) {
 			for (let i=0; i < gjson.chart_data.length; i++) {
 				gsync_zoom_arr.push({iter:-1, x0:-1.0, x1:0.0, file_tag:gjson.chart_data[i].file_tag});
 			}
 		}
+		gsync_zoom_redrawn_charts_map.length = gjson.chart_data.length;
+		for (let i=0; i < gjson.chart_data.length; i++) {
+			gsync_zoom_redrawn_charts_map[i] = 0;
+		}
+
+		let need_to_redraw = 0;
 		for (let i=0; i < gjson.chart_data.length; i++) {
 			if (gjson.chart_data[i].file_tag != need_tag) {
 				continue;
 			}
-			el.textContent = "Zoom/Pan: zooming i="+i;
+			need_to_redraw++;
+			//el.textContent = "Zoom/Pan: zooming i="+i;
 			let t0      = gjson.chart_data[i].ts_initial.ts;
 			let zoom_x0 = gjson.chart_data[i].x_range.min;
 			let zoom_x1 = gjson.chart_data[i].x_range.max;
@@ -253,15 +256,41 @@ function LinkZoom( el, cb )
 			}
 			gsync_zoom_arr[i].x0 = tabs_x0;
 			gsync_zoom_arr[i].x1 = tabs_x1;
-			gsync_zoom_arr[i].iter = LinkZoom.iter;
+			gsync_zoom_arr[i].iter = gLinkZoom_iter;
 			tabs_x0 -= t0;
 			tabs_x1 -= t0;
 			//console.log("Zooom ii= "+i);
 		}
-		/*
-		//function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1)
-		*/
+		gsync_zoom_redrawn_charts.cntr = 0;
+		gsync_zoom_redrawn_charts.need_to_redraw = need_to_redraw;
 		gsync_zoom_linked = true;
+}
+
+function LinkZoom( el, cb )
+{
+	let ckd = cb.checked;
+	console.log("zoom_ck= "+ckd);
+	if (el.textContent === gsync_text) {
+		console.log(sprintf("lnk_zm: x0= %f x1= %f", gsync_zoom_last_zoom.x0, gsync_zoom_last_zoom.x1));
+
+		let j = gsync_zoom_last_zoom.chrt_idx;
+		set_zoom_all_charts(gsync_zoom_last_zoom.chrt_idx, gjson.chart_data[j].file_tag);
+		let jj=0;
+		function myDelay () {           //  create a loop function
+			setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+				console.log('jj= '+jj);          //  your code here
+				jj++;                     //  increment the counter
+				if (gsync_zoom_redrawn_charts.cntr < gsync_zoom_redrawn_charts.need_to_redraw) {
+					myDelay();             //  ..  again which will trigger another 
+				} else {
+					parse_svg();
+					console.log("++++g_charts_done aft= "+g_charts_done.cntr);
+					console.log("__end LinkZoom()");
+				}
+			}, 1000)
+		}
+		//abcd
+		myDelay();
 		console.log("Zooom all done");
 		el.textContent = gsync_text;
 		cb.checked = true;
@@ -546,7 +575,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (gsync_zoom_linked) {
 			minx = zm_x0;
 			maxx = zm_x1;
-			console.log("reset_minx: set minx= "+minx+", maxx= "+maxx+", title= "+chart_data.title);
+			//console.log("reset_minx: set minx= "+minx+", maxx= "+maxx+", title= "+chart_data.title);
 		} else {
 			if (zm_x0 > chart_data.x_range.min) {
 				minx = zm_x0;
@@ -672,11 +701,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				gsync_zoom_charts_hash[chrt_idx].tms++;
 				//if (gsync_zoom_charts_hash[chrt_idx].tms == 1 ||
 				//	x0 != gsync_zoom_charts_hash[chrt_idx].x0 || x1 != gsync_zoom_charts_hash[chrt_idx].x1) {
+				if (1==20) {
 				console.log("z_h["+chrt_idx+"].tms= "+ gsync_zoom_charts_hash[chrt_idx].tms+", zido= "+
 					task.zoom_iter_last+",n= "+gsync_zoom_charts_hash[chrt_idx].zoom_iter+"xo= "+
 					gsync_zoom_charts_hash[chrt_idx].x0+"-"+gsync_zoom_charts_hash[chrt_idx].x1+", xn= "+
 					x0+"-"+x1
 					);
+				}
 					gsync_zoom_charts_hash[chrt_idx].x0 = x0;
 					gsync_zoom_charts_hash[chrt_idx].x1 = x1;
 					gsync_zoom_charts_redrawn++;
@@ -3536,6 +3567,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			console.log("__ch["+chrt_idx+"].tm(ms)= "+tm_dff.toFixed(2)+" from "+from_where+", ttl= "+chart_data.title+", fl_tm_bld= "+fl_tm_bld.toFixed(2)+", fl_tm_rpt= "+fl_tm_rpt.toFixed(2)
 					);
 		}
+		if (gsync_zoom_redrawn_charts_map[chrt_idx] == 0) {
+			gsync_zoom_redrawn_charts_map[chrt_idx] = 1;
+			gsync_zoom_redrawn_charts.cntr++;
+		}
 	}
 	function do_build_flame_rpt(ele, evt)
 	{
@@ -3933,7 +3968,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 			}
 		} else {
-			console.log("zm2nw2: "+x0+",x1="+x1+",ttl="+chart_data.title);
+			//console.log("zm2nw2: "+x0+",x1="+x1+",ttl="+chart_data.title);
 		}
 		if (x1 <= x0) {
 			return;
@@ -3953,7 +3988,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		reset_minx_maxx(args[6], args[7], args[8], args[9]);
 		if (typeof zoom_to_new_xrange.prev.x0 != 'undefined' &&
 			zoom_to_new_xrange.prev.x0 == x0 && zoom_to_new_xrange.prev.x1 == x1) {
-			console.log("skip zoom_2_new x0= "+x0+", x1= "+x1);
+			//console.log("skip zoom_2_new x0= "+x0+", x1= "+x1);
 			return;
 		}
 		if (typeof zoom_to_new_xrange.prev.x0 == 'undefined') {
@@ -4335,7 +4370,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	if (tm_dff > 500) {
 		console.log("cs time= "+tm_dff.toFixed(2));
 	}
-	g_charts_done++;
+	g_charts_done.cntr++;
 	return;
 }
 /*
@@ -4401,23 +4436,23 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 	}
 	if (i == 5) {
 		if (g_cpu_diagram_flds != null) {
-			console.log("++++g_charts_done bef= "+g_charts_done);
+			console.log("++++g_charts_done bef= "+g_charts_done.cntr);
 			let jj=0;
 			function myDelay () {           //  create a loop function
 				setTimeout(function () {    //  call a 3s setTimeout when the loop is called
 					console.log('jj= '+jj);          //  your code here
 					jj++;                     //  increment the counter
-					if (g_charts_done < gjson.chrt_data_sz) {
+					if (g_charts_done.cntr < gjson.chrt_data_sz) {
 						myDelay();             //  ..  again which will trigger another 
 					} else {
 						parse_svg();
-						console.log("++++g_charts_done aft= "+g_charts_done);
+						console.log("++++g_charts_done aft= "+g_charts_done.cntr);
 						console.log("__did parse_svg()");
 					}
 				}, 1000)
 			}
 			//abcd
-			if (g_charts_done < gjson.chrt_data_sz) {
+			if (g_charts_done.cntr < gjson.chrt_data_sz) {
 				myDelay();
 			}
 		}
@@ -4516,6 +4551,9 @@ async function start_charts() {
 	//myBarMove(0.0, chrts_started_max);
 	if (typeof gjson.pixels_high_default != 'undefined' && gjson.pixels_high_default >= 100) {
 		gpixels_high_default = gjson.pixels_high_default;
+	}
+	if (typeof gjson.phase != 'undefined') {
+		console.log(gjson.phase);
 	}
 	for (let kk=0; kk < gjson.categories.length; kk++) {
 		for (let j=0; j < ch_titles.length; j++) {
@@ -4651,6 +4689,58 @@ async function start_charts() {
 		parse_svg();
 		console.log("svg len= "+g_svg_obj.str.length);
 		webSocket.send("parse_svg="+g_svg_obj.str);
+	}
+	console.log(sprintf("gjson.chart_data.length %d g_chrts_done= %d", gjson.chart_data.length, g_charts_done.cntr));
+	let jj = 0, jjmax = 5;
+	function myDelay (lkfor_max, typ) {           //  create a loop function
+		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+			console.log('====jj= '+jj+', charts_done= '+g_charts_done.cntr+", redrw= "+gsync_zoom_redrawn_charts.cntr+", lkfor= "+lkfor_max.cntr+", typ= "+typ);
+			jj++;                     //  increment the counter
+			if (jj < jjmax && ((typ == "all_charts" && lkfor_max.cntr < gjson.chart_data.length) ||
+				(typ == "zoom_some" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw))) {
+				myDelay(lkfor_max, typ);             //  ..  again which will trigger another 
+			} else {
+				//parse_svg();
+				console.log("++++g_charts_done aft= "+gsync_zoom_redrawn_charts.cntr);
+				console.log("__did wait after parse_svg()");
+				ck_phase();
+			}
+		}, 1000, lkfor_max, typ)
+	}
+	myDelay(g_charts_done, "all_charts");
+
+	console.log("---- did myDelay(g_charts_done)");
+
+	let did_ck_phase = 0;
+	function ck_phase()
+	{
+		if (did_ck_phase == 1) {
+			console.log("exit ck_phase");
+			gsync_zoom_redrawn_charts.cpu_diag_redraw++;
+			return;
+		}
+		jj =0;
+		did_ck_phase = 1;
+		if (g_charts_done.cntr == gjson.chart_data.length) {
+			g_charts_done.cntr = 0;
+		}
+		if (typeof gjson.phase != 'undefined') {
+			for (let i=0; i < gjson.phase.length; i++) {
+				if (gjson.phase[i].zoom_to == 1) {
+					gsync_zoom_last_zoom.chrt_idx = -1;
+					gsync_zoom_last_zoom.x0 = -1;
+					gsync_zoom_last_zoom.x1 = -1;
+					gsync_zoom_last_zoom.abs_x1 = gjson.phase[i].ts_abs;
+					gsync_zoom_last_zoom.abs_x0 = gjson.phase[i].ts_abs - gjson.phase[i].dura;
+					console.log(sprintf("===zoom x0= %s, x1= %s", gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1));
+					set_zoom_all_charts(-1, gjson.phase[i].file_tag);
+					jjmax=10;
+					myDelay(gsync_zoom_redrawn_charts, "zoom_some");
+					console.log("---- did myDelay(gsync_zoom_redrawn_charts)");
+					break;
+				}
+			}
+		}
 	}
 
 	return;
@@ -6211,7 +6301,6 @@ function parse_svg()
 		}
 		return;
 	}
-	//abcd
 
 	function find_overlap(x, y) {
 		let arr = [];
@@ -6509,7 +6598,6 @@ function parse_svg()
 				}
 			}
 		}
-//abcd
 		txt_tbl.sort(function(a, b){
 			let lh = g_cpu_diagram_flds.cpu_diagram_fields[a.jidx].y_label;
 			let rh = g_cpu_diagram_flds.cpu_diagram_fields[b.jidx].y_label;
@@ -6852,5 +6940,27 @@ function parse_svg()
 	}
 
 	draw_svg([]);
+	let zoom_ckr = new TaskTimer(1000);
+
+	zoom_ckr.addTask({
+	    name: 'zoom_ck '+hvr_clr,       // unique name of the task
+	    tickInterval: 2,    // run every 5 ticks (5 x interval = 5000 ms)
+	    totalRuns: 0,      // run 10 times only. (set to 0 for unlimited times)
+	    zoom_iter_last: 0,      // run 10 times only. (set to 0 for unlimited times)
+	    callback: function (task) {
+		// code to be executed on each run
+		//if (gsync_zoom_linked && !gsync_zoom_active_now)
+			if (gsync_zoom_redrawn_charts.cpu_diag_redraw > task.zoom_iter_last) {
+				//console.log('task :'+task.name + ' id= '+task.zoom_iter_last);
+				task.zoom_iter_last = gsync_zoom_redrawn_charts.cpu_diag_redraw;
+				console.log("/// now redraw cpu_diagram");
+				draw_svg([]);
+			}
+	    }
+	});
+
+	// Start the timer
+	zoom_ckr.start();
+
 	console.log("got to end of parse_svg()");
 }
