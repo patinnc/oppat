@@ -34,6 +34,7 @@ struct options_str {
 	std::vector <std::string> root_data_dirs;
 	std::vector <path_file_str> file_list;
 	std::vector <std::string> file_tag_vec;
+	std::vector <std::string> phase;
 	double tm_clip_beg, tm_clip_end;
 	int tm_clip_beg_valid, tm_clip_end_valid;
 	int clip_mode;

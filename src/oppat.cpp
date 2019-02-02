@@ -201,6 +201,11 @@ get_opt_main (int argc, char **argv)
 		   "   If end_tm is not entered then clip end time is set to the marker 'num' absolute time\n"
 		   "   If end_tm is entered then clip end time is set to the marker 'num' absolute time + end_tm\n"
 		},
+		{"phase",      required_argument,   0, 0, "select a phase by 'string'"
+		   "   The phases are a subset of the markers. They have the strings 'end phase .*some_text.* dura= num .*'\n"
+		   "   Enter the string you want to look for in the 'some_text' part of the marker text\n"
+		   "   If end_tm used is the 'end phase' marker time and the beg_tm is end_tm - dura.\n"
+		},
 		{"charts",      required_argument,   0, 'c', "json list of charts"},
 		{"data_files",  required_argument,   0, 'd', "json list of data files\n"
 		   "   By default the file is input_files/input_data_files.json and each data dir you\n"
@@ -389,6 +394,11 @@ get_opt_main (int argc, char **argv)
 				printf ("option -marker_beg_num with value `%s', %d\n", optarg, options.marker_beg_num);
 				options.clip_mode = CLIP_LVL_2;
 				options.tm_clip_beg_valid = CLIP_LVL_2;
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "phase") == 0) {
+				options.phase.push_back(optarg);
+				printf ("option --phase %s\n", optarg);
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "end_tm") == 0) {
@@ -602,6 +612,17 @@ std::vector <std::unordered_map<std::string, int>> flnm_evt_hash;
 std::vector <std::vector <flnm_evt_str>> flnm_evt_vec;
 std::vector <std::unordered_map<std::string, int>> comm_pid_tid_hash;
 std::vector <std::vector <comm_pid_tid_str>> comm_pid_tid_vec;
+
+struct marker_str {
+	double ts_abs, dura;
+	std::string text, evt_name;
+	bool beg, end;
+	int prf_obj_idx, evt_idx_in_po, file_tag_idx, zoom_to;
+	marker_str(): ts_abs(0.0), dura(0.0), beg(false), end(false),
+		prf_obj_idx(-1), evt_idx_in_po(-1), file_tag_idx(-1), zoom_to(0) {}
+};
+
+static std::vector <marker_str> marker_vec, phase_vec;
 
 struct shape_str {
 	double x, y;
@@ -2438,7 +2459,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (chart_type != CHART_TYPE_STACKED) {
 				ls0p->y[0] = y_val[by_var_idx_val];
 				ls0p->y[1] = y_val[by_var_idx_val];
-				//abcd
 				if (tmp_verbose) {
 					printf("ckck x0= %f, x1= %f, y0= %f, y1= %f var_val= %f at %s %d\n",
 						ls0p->x[0], ls0p->x[1], ls0p->y[0], ls0p->y[1], var_val, __FILE__, __LINE__);
@@ -3107,6 +3127,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	} else {
 		json += ", \"y_label\": \"" + event_table[evt_idx].charts[chrt].y_label + "\"";
 	}
+
 	if (ch_lines.prf_obj != 0 && ch_lines.prf_obj->map_cpu_2_core.size() > 0) {
 		std::string topo;
 		topo = ", \"map_cpu_2_core\":[";
@@ -3805,7 +3826,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			did_actions_already[j] = false;
 			uint64_t flg = event_table.flds[j].flags;
 			double ts_delta = 0.0;
-			//abcd
 			if (prf_obj.has_tm_run && (flg & (uint64_t)fte_enum::FLD_TYP_TM_RUN)) {
 				ts_delta = 1.0e-9 * (double)prf_obj.samples[i].tm_run;
 				//printf("ts_delta[%d]= %f tm_run= %" PRIu64 " ts= %" PRIu64 " at %s %d\n",
@@ -4807,17 +4827,8 @@ int read_perf_event_list_dump(file_list_str &file_list)
 	return 0;
 }
 
-struct marker_str {
-	double ts_abs;
-	std::string text, evt_name;
-	bool beg, end;
-	int prf_obj_idx, evt_idx_in_po;
-	marker_str(): ts_abs(0.0), beg(false), end(false), prf_obj_idx(-1), evt_idx_in_po(-1) {}
-};
 
-static std::vector <marker_str> marker_vec;
-
-int ck_for_markers(int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <marker_str> &marker_vec)
+int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <marker_str> &marker_vec)
 {
 	//abcd
 	std::string evt_nm;
@@ -4842,6 +4853,7 @@ int ck_for_markers(int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <
 					options.tm_clip_beg = tm + options.tm_clip_beg;
 					ms.beg = true;
 				}
+				ms.text   = prf_obj[po_idx].etw_data[data_idx][2];
 				if (options.marker_end_num == i) {
 					printf("use this marker as --marker_end_num %d at %s %d\n", i, __FILE__, __LINE__);
 					got_marker_end_num = true;
@@ -4849,10 +4861,34 @@ int ck_for_markers(int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <
 					ms.end = true;
 				}
 				ms.ts_abs = tm;
-				ms.text   = prf_obj[po_idx].etw_data[data_idx][2];
 				ms.evt_name = "Mark";
 				ms.prf_obj_idx = po_idx;
+				ms.file_tag_idx = file_tag_idx;
 				ms.evt_idx_in_po = Mark_idx;
+				std::size_t pos = ms.text.find("begin phase");
+				if (pos != std::string::npos) {
+					phase_vec.push_back(ms);
+				} else {
+					pos = ms.text.find("end phase");
+					if (pos != std::string::npos) {
+						std::string lkfor = " dura= ";
+						pos = ms.text.find(lkfor);
+						if (pos != std::string::npos) {
+							ms.dura = atof(ms.text.substr(pos+lkfor.size(), std::string::npos).c_str());
+							printf("got end phase: '%s' dura= %f at %s %d\n", ms.text.c_str(), ms.dura, __FILE__, __LINE__);
+						}
+						for (uint32_t j=0; j < options.phase.size(); j++) {
+							if (j == file_tag_idx) {
+								if (ms.text.find(options.phase[j]) != std::string::npos) {
+									ms.zoom_to = 1;
+									printf("Got match on options.phase '%s' zoom_to= %d on phase text '%s' at %s %d\n",
+											options.phase[j].c_str(), ms.zoom_to, ms.text.c_str(), __FILE__, __LINE__);
+								}
+							}
+						}
+						phase_vec.push_back(ms);
+					}
+				}
 				marker_vec.push_back(ms);
 			}
 		}
@@ -4905,7 +4941,31 @@ int ck_for_markers(int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <
 					ms.text   = prf_obj[po_idx].samples[i].extra_str;
 					ms.evt_name = evt_nm;
 					ms.prf_obj_idx = po_idx;
+					ms.file_tag_idx = file_tag_idx;
 					ms.evt_idx_in_po = j;
+					std::size_t pos = ms.text.find("begin phase");
+					if (pos != std::string::npos) {
+						phase_vec.push_back(ms);
+					} else {
+						pos = ms.text.find("end phase");
+						if (pos != std::string::npos) {
+							pos = ms.text.find(" dura= ");
+							if (pos != std::string::npos) {
+								ms.dura = atof(ms.text.substr(pos+6, std::string::npos).c_str());
+								printf("got end phase: '%s' dura= %f at %s %d\n", ms.text.c_str(), ms.dura, __FILE__, __LINE__);
+							}
+						for (uint32_t j=0; j < options.phase.size(); j++) {
+							if (j == file_tag_idx) {
+								if (ms.text.find(options.phase[j]) != std::string::npos) {
+									ms.zoom_to = 1;
+									printf("Got match on options.phase '%s' zoom_to= %d on phase text '%s' at %s %d\n",
+											options.phase[j].c_str(), ms.zoom_to, ms.text.c_str(), __FILE__, __LINE__);
+								}
+							}
+						}
+							phase_vec.push_back(ms);
+						}
+					}
 					marker_vec.push_back(ms);
 					mrkr++;
 				}
@@ -5228,7 +5288,7 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		printf("prf_obj[%d].sample.size()= %d at %s %d\n", i, (int)prf_obj[i].samples.size(), __FILE__, __LINE__);
-		ck_for_markers(i, prf_obj, marker_vec);
+		ck_for_markers(file_tag_idx, i, prf_obj, marker_vec);
 	}
 	if (options.marker_beg_num != -1 && marker_vec.size() < (options.marker_beg_num+1)) {
 		fprintf(stderr, "you enter '--marker_beg_num %d' but marker array size= %d. Bye at %s %d\n",
@@ -5442,6 +5502,27 @@ int main(int argc, char **argv)
 	cats += "]";
 	printf("categories str= %s at %s %d\n", cats.c_str(), __FILE__, __LINE__);
 	cats += ", \"pixels_high_default\":" + std::to_string(chart_defaults.pixels_high_default);
+	//abcd
+	std::string phase;
+	if (phase_vec.size() > 0) {
+		phase += ", \"phase\":[";
+		for (uint32_t i=0; i < phase_vec.size(); i++) {
+			if (i > 0) {
+				phase += ",";
+			}
+			phase += "{\"ts_abs\":"+std::to_string(phase_vec[i].ts_abs)+
+				", \"dura\":"+ std::to_string(phase_vec[i].dura)+
+				", \"file_tag_idx\":"+std::to_string(phase_vec[i].file_tag_idx)+
+				", \"file_tag\":\""+file_list[phase_vec[i].file_tag_idx].file_tag+"\""+
+				", \"zoom_to\":"+std::to_string(phase_vec[i].zoom_to)+
+				", \"text\":\""+phase_vec[i].text+"\"}";
+			printf("phase[%d].zoom_to= %d at %s %d\n", i, phase_vec[i].zoom_to, __FILE__, __LINE__);
+		}
+		phase += "]";
+		cats += phase;
+		printf("phase= '%s' at %s %d\n", phase.c_str(), __FILE__, __LINE__);
+	}
+	//abcd
 	cats += "}";
 	chrts_cats = cats;
 	//chrts_json += "]" + cats + "}";
