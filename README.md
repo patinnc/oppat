@@ -40,8 +40,14 @@ I've added a CPU block diagram feature. I've added a full sample HTML sample fil
 ![a screen shot of the haswell cpu diagram L2 bw table](images/tbl_L2.png)
     - Below is a table of a spin test (no loads, just do adds in a loop).
 ![a screen shot of the haswell cpu diagram spin table](images/tbl_spin.png)
-- display the block diagram with the metric usage by the block for the resource. Below is a PNG image of the cpu_diagram canvas. The html canvas drawing (but not the PNG) displays popup info when you hover over text.
-![a PNG of the haswell cpu diagram canvas drawing](images/hsw_cpu_diag.png)
+- display the block diagram with the metric usage by the block for the resource for the memory BW test. Below is a PNG image of the cpu_diagram canvas. The html canvas drawing (but not the PNG) displays popup info when you hover over text.
+![a PNG of the haswell cpu diagram canvas drawing](images/cpu_diag_mem.png)
+- Below is a PNG image of the cpu_diagram of L3 read bandwidth test.
+![a PNG of the haswell cpu diagram canvas drawing](images/cpu_diag_L3.png)
+- Below is a PNG image of the cpu_diagram of L2 read bandwidth test.
+![a PNG of the haswell cpu diagram canvas drawing](images/cpu_diag_L2.png)
+- Below is a PNG image of the cpu_diagram of spin (just an add loop) test.
+![a PNG of the haswell cpu diagram canvas drawing](images/cpu_diag_spin.png)
 
 Currently this is only available for haswell (I don't have other systems to test on) but it shouldn't be hard to add other block diagrams.
 
