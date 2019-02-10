@@ -593,10 +593,6 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				} catch (...) { }
 				cs.tot_line_opts.yvar_fmt = tot_line_opts.yvar_fmt;
 				try {
-					tot_line_opts.HT_factor = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["HT_factor"];
-				} catch (...) { }
-				cs.tot_line_opts.HT_factor = tot_line_opts.HT_factor;
-				try {
 					uint32_t scp_sz = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["scope"].size();
 					for (uint32_t m=0; m < scp_sz; m++) {
 						tot_line_opts.scope.push_back(
@@ -624,10 +620,6 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 						cs.tot_line_opts.scope.push_back(tot_line_opts.scope[m]);
 					}
 				}
-				try {
-					tot_line_opts.post_factor = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["post_factor"];
-				} catch (...) { }
-				cs.tot_line_opts.post_factor = tot_line_opts.post_factor;
 				try {
 					tot_line_opts.desc = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["desc"];
 				} catch (...) { }
