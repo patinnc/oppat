@@ -712,8 +712,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					gsync_zoom_charts_hash[chrt_idx].x1 = x1;
 					gsync_zoom_charts_redrawn++;
 					let tm_now  = performance.now();
-					document.title = "upd grf "+gsync_zoom_charts_redrawn+",tm="+
-						tm_diff_str(0.001*(tm_now-gsync_zoom_active_redraw_beg_tm), 1, "secs");
+					//document.title = "upd grf "+gsync_zoom_charts_redrawn+",tm="+
+					//	tm_diff_str(0.001*(tm_now-gsync_zoom_active_redraw_beg_tm), 1, "secs");
 					zoom_to_new_xrange(x0, x1, false);
 				//}
 			}
@@ -1736,7 +1736,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				g_fl_obj[file_tag_idx][cs_idx].lvl_sum1 = op.sum1;
 				g_fl_obj[file_tag_idx][cs_idx].lvl_sum2 = op.sum2;
 			}
-			//g_fl_obj[file_tag_idx][cs_idx].lvl_sum, sum1:g_fl_obj[file_tag_idx][cs_idx].lvl_sum1});
 			{
 				let op = {sum0:g_fl_obj[file_tag_idx][cs_idx].sum,
 					sum1:g_fl_obj[file_tag_idx][cs_idx].sum1,
@@ -1746,7 +1745,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				g_fl_obj[file_tag_idx][cs_idx].sum1 = op.sum1;
 				g_fl_obj[file_tag_idx][cs_idx].sum2 = op.sum2;
 			}
-			//g_fl_obj[file_tag_idx][cs_idx].sum += val;
 			idx = g_fl_obj[file_tag_idx][cs_idx].sib_hsh[nm];
 			if ((i+1) == csz) {
 				let op = {sum0:g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].sum,
@@ -1782,7 +1780,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum1 = op.sum1;
 				g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum2 = op.sum2;
 			}
-			//g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].lvl_sum += val;
 			g_fl_obj[file_tag_idx][cs_idx] = g_fl_obj[file_tag_idx][cs_idx].sib_arr[idx].kids;
 		}
 		did_prt++;
@@ -2560,11 +2557,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			return ret_data;
 		}
 		let fld_1st_time = {};
-		let HT_factor = 0.0;
 		let HT_enabled = false;
 		let desc = "";
 		let map_num_den = 0;
-		let post_factor = 1.0;
 		let scope = [];
 		if (typeof chart_data.tot_line_opts_has_num_den !== 'undefined') {
 			map_num_den = +chart_data.tot_line_opts_has_num_den;
@@ -2578,14 +2573,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		desc += "See chart: " + chart_data.title;
 		desc += "\n" + "chart_tag: " + chart_data.chart_tag;
 		if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
-			chart_data.tot_line_opts_xform == 'map_cpu_2_core' &&
-			typeof chart_data.tot_line_opts_HT_factor !== 'undefined') {
+			chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
 			// I probably should have a way to indicate if really want to divide by 2 for HT
 			// The 'div by 2' is for the case where we are computing cycles/uop with HT enabled
 			// then summing core thread 0 and 1.
 			for(let cpu=0; cpu < chart_data.map_cpu_2_core.length; cpu++) {
 				if (chart_data.map_cpu_2_core[cpu] != cpu) {
-					//console.log(sprintf("HT_fctr= %f", +HT_factor));
 					HT_enabled = true;
 					break;
 				}
@@ -2617,9 +2610,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				HT_factor_num = 1.0;
 				HT_factor_den = 1.0;
 			}
-		}
-		if (typeof chart_data.tot_line_opts_post_factor !== 'undefined') {
-			post_factor = +chart_data.tot_line_opts_post_factor;
 		}
 		let num=0.0, den=0.0;
 		if (ch_type == "line" || ch_type == "stacked") {
@@ -2671,8 +2661,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				} else {
 					yval = (y1 - y0);
 				}
-				//yval *= HT_factor;
-				yval *= post_factor;
 				let relx0 = tx0 - minx;
 				let relx1 = tx1 - minx;
 				relx0 /= (maxx - minx);
@@ -3255,26 +3243,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								}
 								build_flame("GIPS", unit, cs_ret.arr, period, hvr_clr, cs_clr, event_list[fe_2].event);
 							}
-							/*if (build_flame_rpt_timeout != null) {
-								clearTimeout(build_flame_rpt_timeout);
-								build_flame_rpt_timeout = null;
-							}*/
 						}
 						if ((chart_data.chart_tag == "WAIT_TIME_BY_proc")) {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(context_switch_event+"_offcpu", unit, cs_ret.arr, period, hvr_clr, clr, null);
-							/*if (build_flame_rpt_timeout != null) {
-								clearTimeout(build_flame_rpt_timeout);
-								build_flame_rpt_timeout = null;
-							}*/
 						}
 						if ((chart_data.chart_tag == "RUN_QUEUE" || chart_data.chart_tag == "RUN_QUEUE_BY_CPU")) {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(context_switch_event+"_runqueue", unit, cs_ret.arr, period, hvr_clr, clr, null);
-							/*if (build_flame_rpt_timeout != null) {
-								clearTimeout(build_flame_rpt_timeout);
-								build_flame_rpt_timeout = null;
-							}*/
 						}
 						cs_sum += operiod;
 						build_fl_tm += performance.now() - tm_fl_here_0;
