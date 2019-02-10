@@ -686,8 +686,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2_req bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
-			"scope":["per_core","per_thread"],
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
 			"desc":"Based on 64*l2_rqsts.references/cycle. Peak on haswell is 64 bytes/cycle"
 			},
 			"chart_tag":"L2_REQ_REF_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L2_req_ref bytes/cycle"}
@@ -714,7 +714,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L1D replacment bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_thread","per_core"],
 			"desc":"Based on 64*l1d.replacement/cycle. Does not seem to count all l1d replacments."},
 			"chart_tag":"L1D_REPL_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L1D_replace bytes/cycle"}
@@ -742,7 +742,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2_trans_all bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_thread","per_core"],
 			"desc":"Based on 64*l2_trans.all_requests/cycle. Peak possible on haswell is 64 bytes/cycle. Peak on haswell is 64 bytes/cycle."},
 			"chart_tag":"L2_TRANS_ALL_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L2_trans bytes/cycle"}
@@ -771,7 +771,7 @@
 		{"category":"CPU", "title":"L3 miss bytes per cycle by CPU",  "var_name": "val",
 			"by_var": "area", "chart_tag":"L3_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
 			"tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_core"],
 			"desc":"Based on 64*offcore_response.all_requests.l3_miss.any_response/cycle. Does not seem to count all mem traffic."},
 			"y_label":"L3_miss bytes/cycle"}
@@ -800,8 +800,8 @@
 		{"category":"CPU", "title":"%sq_full per cycle by CPU",  "var_name": "val",
 			"by_var": "area", "chart_tag":"SQ_FULL_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
 			"tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
-			"scope":["per_core","per_core"],
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"scope":["per_core","per_core"], "comment":"the sq_full event counts both HT thread's cycles",
 			"desc":"Based on SQ stall cycles/total cycles: 100.0*offcore_requests_buffer.sq_full/cycle"},
 			"y_label":"%sq_full/cycle"}
 		]
@@ -829,7 +829,7 @@
 		{"category":"CPU", "title":"L3_miss_bytes_per_cycle",  "var_name": "val",
 			"by_var": "area", "chart_tag":"OFFCORE_L3_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
 			"tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_core"],
 			"desc":"Based on L3 miss bytes/total cycles: 64.0*offcore_response.all_requests.l3_miss.any_response/cycle"},
 			"y_label":"offcore L3 miss bytes/cycle"}
@@ -958,7 +958,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port0",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_0"},
 			"chart_tag":"CYCLES_PER_UOP_PORT0_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port0"}
@@ -985,7 +985,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port1",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_1"},
 			"chart_tag":"CYCLES_PER_UOP_PORT1_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port1"}
@@ -1012,7 +1012,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port2",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_2"},
 			"chart_tag":"CYCLES_PER_UOP_PORT2_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port2"}
@@ -1039,7 +1039,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port3",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_3"},
 			"chart_tag":"CYCLES_PER_UOP_PORT3_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port3"}
@@ -1066,7 +1066,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port4",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_4"},
 			"chart_tag":"CYCLES_PER_UOP_PORT4_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port4"}
@@ -1093,7 +1093,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port5",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_5"},
 			"chart_tag":"CYCLES_PER_UOP_PORT5_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port5"}
@@ -1120,7 +1120,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port6",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_6"},
 			"chart_tag":"CYCLES_PER_UOP_PORT6_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port6"}
@@ -1147,7 +1147,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uop port7",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.port_7"},
 			"chart_tag":"CYCLES_PER_UOP_PORT7_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_port7"}
@@ -1174,7 +1174,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/idq.mite_all_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/idq.mite_all_uops. I think the peak is 4 uops/cycle (or 0.25 cycles/uop)."},
 			"chart_tag":"CYCLES_PER_IDQ_ALL_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/IDQ_uop"}
@@ -1201,7 +1201,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/lsd.uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/lsd.uops. Peak loop stream detector uops/cycle = 4."},
 			"chart_tag":"CYCLES_PER_LSD_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/LSD_uop"}
@@ -1228,7 +1228,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/idq.dsb_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/idq.dsb_uops. Peak dsb uops/cycle = 4."},
 			"chart_tag":"CYCLES_PER_DSB_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/DSB_uop"}
@@ -1255,7 +1255,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/RAT uops_issued.any",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_issued.any. Minimum on haswell is 0.25 cycles/uop (4 uops/cycle)."},
 			"chart_tag":"CYCLES_PER_RAT_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/RAT_uop"}
@@ -1282,7 +1282,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cycles/uops_retired.all",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
 			"scope":["per_core","per_thread"],
 			"desc":"Based on total cycles/uop: cycles/uops_retired.all"},
 			"chart_tag":"CYCLES_PER_UOPS_RETIRED_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uops_retired"}
@@ -1309,7 +1309,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"L2 miss bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"scope":["per_thread","per_core"],
 			"desc":"Based on L2 request bytes/total_cycles: 64*l2_rqsts.miss/cycle. Peak is 32 bytes/cycle on haswell. Does not seem to count all L2<->L3 traffic."},
 			"chart_tag":"L2_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"L2_misses bytes/cycle"}
@@ -1336,8 +1336,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"BR_MISPRED_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
-			"scope":["per_thread","per_core"], "post_factor":1.0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"], "comment":"the stall cycles might be per core",
 			"desc":"Based stall cycles due to misprediction: 100*int_misc.recovery_cycles/total_cycles"},
 			"chart_tag":"MISPRED_CYCLES_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%mispred cycles/cycle"}
 		]
@@ -1363,8 +1363,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"ifetch_stall_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
-			"scope":["per_thread","per_core"], "post_factor":1.0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
 			"desc":"Based stall cycles due to icache misses: 100*icache.ifetch_stall/total_cycles"},
 			"chart_tag":"IFETCH_STALLS_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%ifetch_stall_cycles/cycle"}
 		]
@@ -1390,8 +1390,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"%l1d_pend_miss.fb_full/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0, "post_factor":1.0,
-			"scope":["per_thread","per_core"],
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"scope":["per_core","per_core"], "comment":"the stall cycles seems to be per core but I don't really know",
 			"desc":"Based stall cycles due to fill buffer full: 100*l1d_pend_miss.fb_full/total_cycles"},
 		"chart_tag":"L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%l1d_pend_miss.fb_full_stall_cycles/tot_cycle"}
 		]
@@ -1417,8 +1417,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"%uops_issued.core_stall_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
-			"post_factor":1.0, "scope":["per_core","per_core"],
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"scope":["per_core","per_core"],
 			"desc":"Cycles when Resource Allocation Table (RAT) does not issue Uops to Reservation Station (RS): 100*uops_issued.core_stall_cycles/total_cycles"},
 		"chart_tag":"UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%uops_issued.core_stall_cycles/tot_cycle"}
 		]
@@ -1444,8 +1444,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"%resource_stalls.rob/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d", "HT_factor":0,
-			"post_factor":1.0, "scope":["per_thread","per_core"],
+		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
 			"desc":"stall cycles due to ROB is full: 100*resource_stalls.rob/total_cycles"},
 		"chart_tag":"RESOURCE_STALLS.ROB_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%resource_stalls.rob/tot_cycle"}
 		]
@@ -1472,7 +1472,7 @@
 	"charts": [
 		{"category":"CPU", "title":"%resource_stalls.rs/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
 		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
-			"HT_factor":0, "post_factor":1.0, "scope":["per_thread","per_core"],
+			"scope":["per_thread","per_core"],
 			"desc":"stall cycles due to RS is full: 100*resource_stalls.rs/total_cycles"},
 		"chart_tag":"RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%resource_stalls.rs/tot_cycle"}
 		]
@@ -1499,7 +1499,7 @@
 	"charts": [
 		{"category":"CPU", "title":"%resource_stalls.sb/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
 		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
-			"HT_factor":0, "post_factor":1.0, "scope":["per_thread","per_core"],
+			"scope":["per_thread","per_core"],
 			"desc":"stall cycles due to SB store buffer is full: 100*resource_stalls.sb/total_cycles"},
 		"chart_tag":"RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%resource_stalls.sb/tot_cycle"}
 		]
@@ -1526,7 +1526,7 @@
 	"charts": [
 		{"category":"CPU", "title":"%uops_retired.core_stall_cycles/tot_cycles",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
 		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f%%", "yvar_fmt":"core%d",
-			"HT_factor":0, "post_factor":1.0, "scope":["per_core","per_core"],
+			"scope":["per_core","per_core"],
 			"desc":"% of Cycles without actually retired uops: 100*uops_retired.core_stall_cycles/total_cycles"},
 		"chart_tag":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "chart_type":"line", "use_chart":"y", "y_label":"%uops_retired.core_stall_cycles/tot_cycle"}
 		]
@@ -1553,7 +1553,7 @@
 	"charts": [
 		{"category":"CPU", "title":"uops_issued per uops_retired",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
 		"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"HT_factor":0, "post_factor":1.0, "scope":["per_thread","per_thread"],
+			"scope":["per_thread","per_thread"],
 			"desc":"ratio of uops_issued.any/uops_retired.all: uops_issued.any/uops_retired.all"},
 		"chart_tag":"UOPS_ISSUED_PER_UOP_RETIRED_CHART", "chart_type":"line", "use_chart":"y", "y_label":"uops_issued/retired"}
 		]
@@ -1579,8 +1579,8 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"icache_misse_bytes/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
-			"scope":["per_thread","per_core"], "post_factor":1.0,
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
 			"desc":"icache miss bytes/cycle: 64*icache.misses/total_cycles. Peak is 64 bytes/cycle."},
 			"chart_tag":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"icache_miss_bytes/cycle"}
 		]
@@ -1680,7 +1680,7 @@
 			"chart_type":"line", "use_chart":"y", "tot_line":"__total__"},
 		{"category":"DRAM", "title":"% peak haswell mem BW",  "var_name": "PCT_PK_BW", "by_var": "area", "chart_tag":"UNC_HASWELL_PEAK_BW_CHART",
 			"chart_type":"line", "use_chart":"y", "y_fmt":"%.1f%%", "y_label":"%max_haswell_mem_BW", "tot_line":"__total__",
-			"tot_line_options":{"yval_fmt":"%.1f%%", "HT_factor":0,
+			"tot_line_options":{"yval_fmt":"%.1f%%",
 			"desc":"Based on 64 (bytes/req) * unc_arb_trk_requests.all (reqs) * 100 (for pct) * 1e-9 (to GB) / 25.9 GB/s (haswell peak mem bw)"
 			}
 		}
@@ -2013,7 +2013,7 @@
 	"charts": [
 		{"category":"PERF", "title":"spin mem bw",  "var_name": "val", "by_var":"area", "chart_tag":"SPIN_MEM_BW",
 			"chart_type":"line", "use_chart":"y", "y_label":"GB/sec", "tot_line":"__total__",
-			"tot_line_options":{ "yval_fmt":"%.1f", "yvar_fmt":"core%d", "HT_factor":0,
+			"tot_line_options":{ "yval_fmt":"%.1f", "yvar_fmt":"core%d",
 			"desc":"Based on data from spin.txt file"}
 		}
 		]
