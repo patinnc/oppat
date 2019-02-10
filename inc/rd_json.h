@@ -68,8 +68,6 @@ struct lag_str {
 struct tot_line_opts_str {
 	std::string xform, yval_fmt, yvar_fmt, desc;
 	std::vector <std::string> scope;
-	double HT_factor, post_factor;
-	tot_line_opts_str(): HT_factor(1.0), post_factor(1.0) {}
 };
 
 struct chart_str {
