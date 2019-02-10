@@ -3082,10 +3082,6 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	if (event_table[evt_idx].charts[chrt].tot_line_opts.desc.size() > 0) {
 		json += ", \"tot_line_opts_desc\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.desc + "\"";
 	}
-	if (event_table[evt_idx].charts[chrt].tot_line.size() > 0) {
-		std::string s = ", \"tot_line_opts_HT_factor\": "+ std::to_string(event_table[evt_idx].charts[chrt].tot_line_opts.HT_factor);
-		json += s;
-	}
 	if (ch_lines.line.size() > 0 && ch_lines.line[0].use_num_denom > -1) {
 		std::string s = ", \"tot_line_opts_has_num_den\":1";
 		json += s;
@@ -3103,11 +3099,6 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		}
 		s += "]";
 		printf("scope= '%s' at %s %d\n", s.c_str(), __FILE__, __LINE__);
-		json += s;
-	}
-	if (event_table[evt_idx].charts[chrt].tot_line.size() > 0) {
-		std::string s = ", \"tot_line_opts_post_factor\": "+ std::to_string(event_table[evt_idx].charts[chrt].tot_line_opts.post_factor);
-		printf("post_factor= '%s' at %s %d\n", s.c_str(), __FILE__, __LINE__);
 		json += s;
 	}
 	json += ", \"pixels_high\": "+ std::to_string(event_table[evt_idx].charts[chrt].pixels_high);
