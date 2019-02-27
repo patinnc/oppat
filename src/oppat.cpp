@@ -1570,6 +1570,15 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			fprintf(stdout, "skip idle= true, var_idx= %d at %s %d\n", var_idx, __FILE__, __LINE__);
 		skip_idle = true;
 	}
+	uint32_t tot_samples= 0;
+	for (uint32_t i=0; i < prf_obj.events.size(); i++) {
+		if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
+		printf("event[%d]: %s, count= %d at %s %d\n",
+			i, prf_obj.events[i].event_name_w_area.c_str(), prf_obj.events[i].evt_count, __FILE__, __LINE__);
+		}
+		tot_samples += prf_obj.events[i].evt_count;
+	}
+	printf("tot_evts= %d, tot_samples= %d at %s %d\n", (int32_t)prf_obj.events.size(), tot_samples, __FILE__, __LINE__);
 	if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
 		doing_pct_busy_by_cpu = 1;
 	}
@@ -2798,6 +2807,16 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 	}
 
 	if (prf_obj.file_type != FILE_TYP_ETW) {
+		if (chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed > 0 &&
+			tot_samples > chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed) {
+			static int first_tm = 1;
+			if (first_tm == 1) {
+				fprintf(stderr, "skipping adding other events to cpu_busy chart due to sample count(%d) > %d at %s %d\n",
+					tot_samples, chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed, __FILE__, __LINE__);
+				first_tm = 0;
+			}
+			return 0;
+		}
 		for (uint32_t i=0; i < prf_obj.samples.size(); i++) {
 			if (prf_obj.samples[i].evt_idx == event_table[evt_idx].event_idx_in_file) {
 				// already did these events so skip
@@ -5323,7 +5342,14 @@ int main(int argc, char **argv)
 					str, prf_obj[k].filename_bin, prf_obj[k].filename_text,  evt_nm, k, j, -1) - 1;
 				//printf("fe_idx= %d, str= '%s' at %s %d\n", fe_idx, str.c_str(), __FILE__, __LINE__);
 				flnm_evt_vec[file_tag_idx][fe_idx].evt_tbl_idx = (uint32_t)grp_list[g];
-				do_json(UINT32_M1, evt_nm, chart_file, json_evt_chrt_str, event_table[grp_list[g]], prf_obj[k].features_cpuid, options.verbose);
+				int sz_max = chart_defaults.drop_event_if_samples_exceed;
+				if (sz_max > 0 && prf_obj[k].events[j].evt_count > sz_max) {
+					fprintf(stderr, "skipping event %s due to event count (%d) exceeding max allowed %d at %s %d\n",
+						evt_nm.c_str(), prf_obj[k].events[j].evt_count, sz_max, __FILE__, __LINE__);
+				} else {
+					do_json(UINT32_M1, evt_nm, chart_file, json_evt_chrt_str, event_table[grp_list[g]], 
+						prf_obj[k].features_cpuid, options.verbose);
+				}
 				if (get_signal() == 1) {
 					fprintf(stderr, "got control-c or 'quit' command from browser. Bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
@@ -5622,8 +5648,8 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 	}
-	fprintf(stderr, "entering oppat loop to wait for browser to request data. Connect browser to http://localhost:%d\n",
-			options.web_port);
+	fprintf(stderr, "entering oppat loop at elap_tm %.3f to wait for browser to request data. Connect browser to http://localhost:%d\n",
+		dclock()-tm_beg, options.web_port);
 
 	{
 		static std::string svg_str;
