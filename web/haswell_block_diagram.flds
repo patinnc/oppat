@@ -4,14 +4,14 @@
 "cpu_diagram_hdr": {"max_x":1016,"max_y":1386.8284248803116},
 
 "cpu_diagram_fields":[
-  {"fld":{"x":80,  "y":922}, "chart":"CYCLES_PER_UOP_PORT0_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":160, "y":922}, "chart":"CYCLES_PER_UOP_PORT1_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":240, "y":922}, "chart":"CYCLES_PER_UOP_PORT5_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":334, "y":922}, "chart":"CYCLES_PER_UOP_PORT6_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":419, "y":922}, "chart":"CYCLES_PER_UOP_PORT2_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":505, "y":922}, "chart":"CYCLES_PER_UOP_PORT3_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":591, "y":922}, "chart":"CYCLES_PER_UOP_PORT4_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":677, "y":922}, "chart":"CYCLES_PER_UOP_PORT7_CHART", "rng":{"green": 4, "yellow":10}}
+  {"fld":{"x":80,  "y":922}, "chart":"CYCLES_PER_UOP_port_0_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":160, "y":922}, "chart":"CYCLES_PER_UOP_port_1_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":240, "y":922}, "chart":"CYCLES_PER_UOP_port_5_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":334, "y":922}, "chart":"CYCLES_PER_UOP_port_6_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":419, "y":922}, "chart":"CYCLES_PER_UOP_port_2_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":505, "y":922}, "chart":"CYCLES_PER_UOP_port_3_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":591, "y":922}, "chart":"CYCLES_PER_UOP_port_4_CHART", "rng":{"green": 4, "yellow":10}}
+, {"fld":{"x":677, "y":922}, "chart":"CYCLES_PER_UOP_port_7_CHART", "rng":{"green": 4, "yellow":10}}
 , {"fld":{"x":460, "y":560}, "chart":"CYCLES_PER_IDQ_ALL_UOPS_CHART", "rng":{"green": 4, "yellow":10}}
 , {"fld":{"x":260, "y":665}, "chart":"CYCLES_PER_RAT_UOPS_CHART", "rng":{"green": 4, "yellow":10}}
 , {"fld":{"x":100, "y":668}, "chart":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}}
