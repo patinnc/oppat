@@ -170,6 +170,76 @@ int ck_json(std::string str, std::string from_where, const char *file, int line,
 	return 0;
 }
 
+static uint32_t do_macro_event_array(json &j, int verbose)
+{
+	uint32_t sz;
+	sz = j["macro_event_array"].size();
+	std::vector <json> evt_new;
+	printf("try macro_event_array at %s %d\n", __FILE__, __LINE__);
+	for (uint32_t i=0; i < sz; i++) {
+		try {
+			std::vector <std::string> str_new;
+			std::string old = j["macro_event_array"][i]["substitute"]["old"];
+			uint32_t ksz = j["macro_event_array"][i]["substitute"]["new"].size();
+			for (uint32_t k=0; k < ksz; k++) {
+				str_new.push_back(j["macro_event_array"][i]["substitute"]["new"][k]);
+			}
+			std::string evt = j["macro_event_array"][i]["target"].dump();
+			if (verbose > 0) {
+				printf("try macro_event_array ksz= %d at %s %d\n", ksz, __FILE__, __LINE__);
+				printf("prv_evt= '%s' at %s %d\n", evt.c_str(), __FILE__, __LINE__);
+			}
+			for (uint32_t k=0; k < ksz; k++) {
+				if (verbose > 0) {
+					printf("try macro_event_array k= %d at %s %d\n", k, __FILE__, __LINE__);
+				}
+				std::string str_t = evt;
+				replace_substr(str_t, old, str_new[k], verbose);
+				evt_new.push_back(json::parse(str_t));
+				if (verbose > 0) {
+				printf("json macro_event_array did sub[%d] old= %s new= %s at %s %d\n",
+					k, old.c_str(), str_new[k].c_str(), __FILE__, __LINE__);
+				printf("prv_nevt[%d]= '%s' at %s %d\n", k, str_t.c_str(), __FILE__, __LINE__);
+				}
+			}
+		} catch (...) { }
+	}
+	sz = j["event_array"].size();
+	if (verbose > 0) {
+		printf("event_array sz= %d at %s %d\n", sz, __FILE__, __LINE__);
+	}
+	uint32_t k=0;
+	for (uint32_t i=0; i < sz; i++) {
+		try {
+			std::string t = j["event_array"][i]["event"]["evt_name"];
+			k++;
+		} catch (...) { }
+	}
+	if (verbose > 0) {
+		printf("event_array k= %d sz= %d at %s %d\n", k, sz, __FILE__, __LINE__);
+	}
+	std::string str_old;
+	for (uint32_t i=0; i < evt_new.size(); i++) {
+		j["event_array"].push_back(evt_new[i]);
+	}
+	sz = j["event_array"].size();
+	k=0;
+	for (uint32_t i=0; i < sz; i++) {
+		try {
+			std::string t = j["event_array"][i]["event"]["evt_name"];
+			k++;
+		} catch (...) { }
+	}
+	if (verbose > 0) {
+		printf("event_array k= %d sz= %d at %s %d\n", k, sz, __FILE__, __LINE__);
+	}
+#if 0
+	printf("bye at %s %d\n", __FILE__, __LINE__);
+	exit(1);
+#endif
+	return 0;
+}
+
 int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose)
 {
 	if (verbose > 0)
@@ -233,6 +303,8 @@ int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbo
 			}
 		} catch (...) { }
 	}
+
+	do_macro_event_array(j, verbose);
 	sz = j["event_array"].size();
 	return sz;
 }
@@ -277,6 +349,18 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 		pixels_high_default = ck_pixels_high(json_file, "set defaults", fld, pxls_high, __LINE__);
 	} catch (...) { };
 	chart_defaults.pixels_high_default;
+	int32_t drop_event_if_samples_exceed = 200000;
+	try {
+		std::string fld = "drop_event_if_samples_exceed";
+		drop_event_if_samples_exceed = j[fld];
+	} catch (...) { };
+	chart_defaults.drop_event_if_samples_exceed = drop_event_if_samples_exceed;
+	int32_t dont_show_events_on_cpu_busy_if_samples_exceed = 500000;
+	try {
+		std::string fld = "dont_show_events_on_cpu_busy_if_samples_exceed";
+		dont_show_events_on_cpu_busy_if_samples_exceed = j[fld];
+	} catch (...) { };
+	chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed = dont_show_events_on_cpu_busy_if_samples_exceed;
 	try {
 		std::string use_def = j["chart_use_default"];
 		if (use_def == "y") {
@@ -285,7 +369,9 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			use_charts_default = false;
 		}
 	} catch (...) { };
+	do_macro_event_array(j, verbose);
 	sz = j["event_array"].size();
+	printf("event_array.sz= %d at %s %d\n", sz, __FILE__, __LINE__);
 	std::vector <std::string> evt_aliases;
 	std::string po_arch;
 	if (features_cpuid.size() > 0) {

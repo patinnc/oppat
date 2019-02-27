@@ -99,7 +99,10 @@ struct chart_cat_str {
 
 struct chart_defaults_str {
 	int32_t pixels_high_default;
-	chart_defaults_str(): pixels_high_default(250) {}
+	int32_t drop_event_if_samples_exceed;
+	int32_t dont_show_events_on_cpu_busy_if_samples_exceed;
+	chart_defaults_str(): pixels_high_default(250), drop_event_if_samples_exceed(200000),
+		dont_show_events_on_cpu_busy_if_samples_exceed(500000) {}
 };
 
 struct evt_derived_str {
