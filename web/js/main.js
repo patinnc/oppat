@@ -534,7 +534,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	tot_line.yarray2 = [];
 	tot_line.evt_str_base_val_arr = [];
 	if (chart_data.tot_line != "") {
-		//if (chart_data.chart_tag == "CYCLES_PER_UOP_PORT0_CHART")
+		//if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART")
 		if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
 			chart_data.tot_line_opts_xform == "map_cpu_2_core") {
 			let u_hsh = {};
@@ -1037,7 +1037,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let use_mx_cat = mx_cat + arr_len+1;
 				chart_data.subcat_rng.push({x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:use_fe_idx, event:tot_line.evt_str[myi],
 					 total:big_val, is_tot_line:true, cat:use_mx_cat, subcat:0, cat_text:tot_line.evt_str[myi]});
-				if (chart_data.chart_tag == "CYCLES_PER_UOP_PORT0_CHART") {
+				if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART") {
 				console.log(sprintf("==tot_line: fe_idx= %d, mx_cat= %d, bef_len= %d", use_fe_idx, use_mx_cat, bef_len));
 				}
 				//tot_line.subcat_rng_idx = chart_data.subcat_rng.length-1;
@@ -1075,7 +1075,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (typeof event_list[j].is_tot_line !== 'undefined') {
 					event_list[j].total = 1.0e-6; // can't set it all the way to zero or else it will get dropped later
 					tot_line.event_list_idx.push(j);
-					if (chart_data.chart_tag == "CYCLES_PER_UOP_PORT0_CHART") {
+					if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART") {
 					console.log(sprintf("==evt_lst[%d], tl.eli.len= %d", j, tot_line.event_list_idx.length));
 					}
 					//console.log("zero out total for mx_cat= "+mx_cat+",j= "+j+",idx= "+event_list[j].idx);
@@ -2554,6 +2554,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (tot_line.evt_str.length == 0) {
 			return ret_data;
 		}
+		maxy_new = null;
 		let fld_1st_time = {};
 		let HT_enabled = false;
 		let desc = "";
@@ -2583,15 +2584,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 		}
 		let HT_factor_num = 1.0, HT_factor_den = 1.0;
-		if (1==20 && HT_enabled) {
-			if (map_num_den == 1.0) {
-				// so the numerator is 'sum-able'
-				HT_factor_den = 0.5; // so divide the denominator by 2
-			}
-			if (map_num_den == 2.0) {
-				HT_factor_num = 0.5; // so divide the denominator by 2
-			}
-		}
 		if (typeof chart_data.tot_line_opts_scope !== 'undefined') {
 			scope = chart_data.tot_line_opts_scope;
 		}
@@ -2617,125 +2609,124 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				tot_line.yarray2[sci].length = tot_line.divisions+1;
 				tot_line.yarray[sci].length = tot_line.divisions+1;
 				//console.log(chart_data.map_cpu_2_core);
-			for (let j=0; j < tot_line.yarray[sci].length; j++) {
-				tot_line.yarray[sci][j] = 0.0;
-				tot_line.yarray2[sci][j] = 0.0;
-				tot_line.xarray2[sci][j] = 0.0;
-				tot_line.xarray[j] = 0.0;
-			}
-			for (let i=0; i < chart_data.myshapes.length; i++) {
-				let x0 = chart_data.myshapes[i].pts[PTS_X0];
-				let x1 = chart_data.myshapes[i].pts[PTS_X1];
-				let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
-				if (tot_line.evt_str_base_val_arr.length > 0) {
-					if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
-						chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
-						let core = chart_data.map_cpu_2_core[cpu];
-						if (tot_line.evt_str_base_val_arr[sci] != core) {
-							continue;
+				for (let j=0; j < tot_line.yarray[sci].length; j++) {
+					tot_line.yarray[sci][j] = 0.0;
+					tot_line.yarray2[sci][j] = 0.0;
+					tot_line.xarray2[sci][j] = 0.0;
+					tot_line.xarray[j] = 0.0;
+				}
+				for (let i=0; i < chart_data.myshapes.length; i++) {
+					let x0 = chart_data.myshapes[i].pts[PTS_X0];
+					let x1 = chart_data.myshapes[i].pts[PTS_X1];
+					let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
+					if (tot_line.evt_str_base_val_arr.length > 0) {
+						if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
+							chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
+							let core = chart_data.map_cpu_2_core[cpu];
+							if (tot_line.evt_str_base_val_arr[sci] != core) {
+								continue;
+							}
+						}
+					}
+					if (x1 < minx || x0 > maxx) {
+						continue;
+					}
+					let tx0 = x0;
+					let tx1 = x1;
+					if (x0 < minx) {
+						tx0 = minx;
+					}
+					if (x1 > maxx) {
+						tx1 = maxx;
+					}
+					let y0 = chart_data.myshapes[i].pts[PTS_Y0];
+					let y1 = chart_data.myshapes[i].pts[PTS_Y1];
+					let yval, num, den;
+					if (ch_type == "line") {
+						yval = y1;
+						if (map_num_den > 0) {
+							num = chart_data.myshapes[i].num;
+							den = chart_data.myshapes[i].den;
+						}
+					} else {
+						yval = (y1 - y0);
+					}
+					let relx0 = tx0 - minx;
+					let relx1 = tx1 - minx;
+					relx0 /= (maxx - minx);
+					relx1 /= (maxx - minx);
+					let nrx0 = tot_line.divisions * relx0;
+					let nrx1 = tot_line.divisions * relx1;
+					let xbeg = Math.floor(nrx0);
+					let xend = Math.ceil(nrx1);
+					let ibeg = Math.trunc(xbeg);
+					let iend = Math.trunc(xend);
+					//console.log("i= "+i+", beg= "+ibeg+", end= "+iend);
+					for (let j=ibeg; j < iend; j++) {
+						let xcur0, xcur1;
+						if (j == ibeg) {
+							xcur0 = nrx0/tot_line.divisions;
+						} else {
+							xcur0 = j/tot_line.divisions;
+						}
+						if ((j+1) == iend) {
+							xcur1 = nrx1/tot_line.divisions;
+						} else {
+							xcur1 = (j+1)/tot_line.divisions;
+						}
+						if (map_num_den > 0) {
+							tot_line.yarray2[sci][j] += HT_factor_num * num * (xcur1 - xcur0) * tot_line.divisions;
+							tot_line.xarray2[sci][j] += HT_factor_den * den * (xcur1 - xcur0) * tot_line.divisions;
+							tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
+						} else {
+							tot_line.yarray[sci][j] += yval * (xcur1 - xcur0) * tot_line.divisions;
 						}
 					}
 				}
-				if (x1 < minx || x0 > maxx) {
-					continue;
-				}
-				let tx0 = x0;
-				let tx1 = x1;
-				if (x0 < minx) {
-					tx0 = minx;
-				}
-				if (x1 > maxx) {
-					tx1 = maxx;
-				}
-				let y0 = chart_data.myshapes[i].pts[PTS_Y0];
-				let y1 = chart_data.myshapes[i].pts[PTS_Y1];
-				let yval, num, den;
-				if (ch_type == "line") {
-					yval = y1;
-					if (map_num_den > 0) {
-						num = chart_data.myshapes[i].num;
-						den = chart_data.myshapes[i].den;
-					}
-				} else {
-					yval = (y1 - y0);
-				}
-				let relx0 = tx0 - minx;
-				let relx1 = tx1 - minx;
-				relx0 /= (maxx - minx);
-				relx1 /= (maxx - minx);
-				let nrx0 = tot_line.divisions * relx0;
-				let nrx1 = tot_line.divisions * relx1;
-				let xbeg = Math.floor(nrx0);
-				let xend = Math.ceil(nrx1);
-				let ibeg = Math.trunc(xbeg);
-				let iend = Math.trunc(xend);
-				//console.log("i= "+i+", beg= "+ibeg+", end= "+iend);
-				for (let j=ibeg; j < iend; j++) {
-					let xcur0, xcur1;
-					if (j == ibeg) {
-						xcur0 = nrx0/tot_line.divisions;
-					} else {
-						xcur0 = j/tot_line.divisions;
-					}
-					if ((j+1) == iend) {
-						xcur1 = nrx1/tot_line.divisions;
-					} else {
-						xcur1 = (j+1)/tot_line.divisions;
-					}
-					if (map_num_den > 0) {
-						tot_line.yarray2[sci][j] += HT_factor_num * num * (xcur1 - xcur0) * tot_line.divisions;
-						tot_line.xarray2[sci][j] += HT_factor_den * den * (xcur1 - xcur0) * tot_line.divisions;
-						tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
-					} else {
-						tot_line.yarray[sci][j] += yval * (xcur1 - xcur0) * tot_line.divisions;
+				let tot_avg = 0, tot_avg2= 0;
+				let tot_avg2_num = 0;
+				let tot_avg2_den = 0;
+				for (let j=0; j < tot_line.divisions+1; j++) {
+					tot_line.xarray[j] = minx + j * (maxx - minx) / tot_line.divisions;
+					tot_avg += tot_line.yarray[sci][j];
+					tot_avg2_num += tot_line.yarray2[sci][j];
+					tot_avg2_den += tot_line.xarray2[sci][j];
+					if (maxy_new == null || maxy_new <= tot_line.yarray[sci][j]) {
+						maxy_new = tot_line.yarray[sci][j];
+						ret_data = {maxy_new: maxy_new, typ: "ck"}
 					}
 				}
-			}
-			maxy_new = null;
-			let tot_avg = 0, tot_avg2= 0;
-			let tot_avg2_num = 0;
-			let tot_avg2_den = 0;
-			for (let j=0; j < tot_line.divisions+1; j++) {
-				tot_line.xarray[j] = minx + j * (maxx - minx) / tot_line.divisions;
-				tot_avg += tot_line.yarray[sci][j];
-				tot_avg2_num += tot_line.yarray2[sci][j];
-				tot_avg2_den += tot_line.xarray2[sci][j];
-				if (maxy_new == null || maxy_new <= tot_line.yarray[sci][j]) {
-					maxy_new = tot_line.yarray[sci][j];
-					ret_data = {maxy_new: maxy_new, typ: "ck"}
-				}
-			}
-			if (tot_line.divisions > 0) {
-				tot_avg /= tot_line.divisions;
-				tot_avg2 = tot_avg2_num/tot_avg2_den;
-				//console.log(sprintf("tot_avg[%d]= %.3f title= %s\n", sci, tot_avg, chart_data.title));
-				if (g_cpu_diagram_flds != null) {
-					for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
-						if (chart_data.chart_tag == g_cpu_diagram_flds.cpu_diagram_fields[j].chart) {
-							if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined'
-								|| typeof fld_1st_time[j] === 'undefined') {
-								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr = [];
-								fld_1st_time[j] = 1;
+				if (tot_line.divisions > 0) {
+					tot_avg /= tot_line.divisions;
+					tot_avg2 = tot_avg2_num/tot_avg2_den;
+					//console.log(sprintf("tot_avg[%d]= %.3f title= %s\n", sci, tot_avg, chart_data.title));
+					if (g_cpu_diagram_flds != null) {
+						for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+							if (chart_data.chart_tag == g_cpu_diagram_flds.cpu_diagram_fields[j].chart) {
+								if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined'
+									|| typeof fld_1st_time[j] === 'undefined') {
+									g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr = [];
+									fld_1st_time[j] = 1;
+								}
+								if (map_num_den == 0) {
+									g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.push(tot_avg);
+								} else {
+									g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.push(tot_avg2);
+								}
+								let y_fmt = "%.3f";
+								if (typeof chart_data.tot_line_opts_yval_fmt !== 'undefined') {
+									y_fmt = chart_data.tot_line_opts_yval_fmt;
+								}
+								g_cpu_diagram_flds.cpu_diagram_fields[j].y_label = chart_data.y_label;
+								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt = y_fmt;
+								g_cpu_diagram_flds.cpu_diagram_fields[j].desc = desc;
+								g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag = chart_data.chart_tag;
+								g_cpu_diagram_flds.cpu_diagram_fields[j].map_cpu_2_core = chart_data.map_cpu_2_core;
+								//console.log("got cpu_diagram chart match= "+chart_data.chart_tag);
 							}
-							if (map_num_den == 0) {
-								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.push(tot_avg);
-							} else {
-								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.push(tot_avg2);
-							}
-							let y_fmt = "%.3f";
-							if (typeof chart_data.tot_line_opts_yval_fmt !== 'undefined') {
-								y_fmt = chart_data.tot_line_opts_yval_fmt;
-							}
-							g_cpu_diagram_flds.cpu_diagram_fields[j].y_label = chart_data.y_label;
-							g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt = y_fmt;
-							g_cpu_diagram_flds.cpu_diagram_fields[j].desc = desc;
-							g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag = chart_data.chart_tag;
-							g_cpu_diagram_flds.cpu_diagram_fields[j].map_cpu_2_core = chart_data.map_cpu_2_core;
-							//console.log("got cpu_diagram chart match= "+chart_data.chart_tag);
 						}
 					}
 				}
-			}
 			}
 			//console.log(tot_line.xarray);
 			//console.log(tot_line.yarray);
@@ -6747,7 +6738,7 @@ function parse_svg()
 			t += lkup_fillin(ret, flds_max, "RAT: cycles per RAT uop issued. Min possible is 0.25 cycles/uop. Compare to the DSB, LSD, IDQ cycles/uop to see which path is probably mostly feeding the RAT", 2);
 		}
 		for (let i=0; i < 8; i++) {
-			ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_UOP_PORT"+i+"_CHART");
+			ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_UOP_port_"+i+"_CHART");
 			if (ret.i > -1) {
 				t += lkup_fillin(ret, flds_max, "port"+i+": cycles/uop on port"+i+". Big values may mean port is not used much", 4);
 			}
