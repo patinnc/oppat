@@ -208,7 +208,7 @@ struct tp_event_str {
 };
 
 struct file_list_str {
-	std::string file_bin, file_txt, wait_txt, file_tag, lua_file, lua_rtn, perf_event_list_dump, path;
+	std::string file_bin, file_txt, wait_txt, file_tag, lua_file, lua_rtn, perf_event_list_dump, path, options;
 	std::vector <lst_ft_fmt_str> lst_ft_fmt_vec;
 	std::vector <tp_event_str> tp_events;
 	std::unordered_map<int, int> tp_id_2_event_indxp1;

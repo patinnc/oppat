@@ -1070,9 +1070,8 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 			printf("cur_dir= '%s' at %s %d\n", cur_dir.c_str(), __FILE__, __LINE__);
 			continue;
 		} catch (...) { }
-		std::vector <std::string> flds= {"bin_file", "txt_file", "wait_file", "type", "tag", "lua_file", "lua_rtn"};
+		std::vector <std::string> flds= {"bin_file", "txt_file", "wait_file", "type", "tag", "lua_file", "lua_rtn", "options"};
 		std::vector <std::string> vals;
-		std::string lua_file, lua_rtn;
 		uint32_t file_typ = UINT32_M1;
 		vals.resize(flds.size());
 		for (uint32_t fld=0; fld < flds.size(); fld++) {
@@ -1129,6 +1128,9 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 		}
 		if (vals[6].size() > 0) {
 			fls.lua_rtn   = vals[6];
+		}
+		if (vals[7].size() > 0) {
+			fls.options   = vals[7];
 		}
 		if (use_file_tag.size() > 0) {
 			for (uint32_t ft=0; ft < use_file_tag.size(); ft++) {
