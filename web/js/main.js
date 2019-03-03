@@ -276,7 +276,8 @@ function LinkZoom( el, cb )
 		let jj=0;
 		function myDelay () {           //  create a loop function
 			setTimeout(function () {    //  call a 3s setTimeout when the loop is called
-				console.log('jj= '+jj);          //  your code here
+				console.log(sprintf('rdw.cntr= %d, needRdw= %d jj= %d', 
+					gsync_zoom_redrawn_charts.cntr, gsync_zoom_redrawn_charts.need_to_redraw, jj));
 				jj++;                     //  increment the counter
 				if (gsync_zoom_redrawn_charts.cntr < gsync_zoom_redrawn_charts.need_to_redraw) {
 					myDelay();             //  ..  again which will trigger another 
@@ -287,7 +288,6 @@ function LinkZoom( el, cb )
 				}
 			}, 1000)
 		}
-		//abcd
 		myDelay();
 		console.log("Zooom all done");
 		el.textContent = gsync_text;
@@ -3532,6 +3532,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			console.log("__ch["+chrt_idx+"].tm(ms)= "+tm_dff.toFixed(2)+" from "+from_where+", ttl= "+chart_data.title+", fl_tm_bld= "+fl_tm_bld.toFixed(2)+", fl_tm_rpt= "+fl_tm_rpt.toFixed(2)
 					);
 		}
+		ck_if_need_to_set_zoom_redrawn_cntr();
+	}
+	function ck_if_need_to_set_zoom_redrawn_cntr()
+	{
 		if (gsync_zoom_redrawn_charts_map[chrt_idx] == 0) {
 			gsync_zoom_redrawn_charts_map[chrt_idx] = 1;
 			gsync_zoom_redrawn_charts.cntr++;
@@ -3831,7 +3835,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					str4 = "<br>abs.T= "+intrvl_x0+ " - " + intrvl_x1;
 				}
 				let rel_nx0 = nx0 + chart_data.ts_initial.tm_beg_offset_due_to_clip;
-				set_chart_text(myhvr_clr_txt, myhvr_clr_txt_btn, "x= " + x + ", rel.T= "+rel_nx0+", T= "+(nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x)+str4+str2+str3);
+				let abs_ts = (nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
+				let str5 = get_phase_indx(abs_ts);
+				console.log(sprintf("abs_ts= %f str5= %s", abs_ts, str5));
+				if (str5 != "") {
+					str5 = "<br>Phase= "+str5;
+				}
+				set_chart_text(myhvr_clr_txt, myhvr_clr_txt_btn, "x= " + x + ", rel.T= "+rel_nx0+", T= "+(nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x)+str4+str5+str2+str3);
 				nx0_prev = nx0;
 			} else {
 				let idx = chrt_idx;
@@ -3936,11 +3946,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//console.log("zm2nw2: "+x0+",x1="+x1+",ttl="+chart_data.title);
 		}
 		if (x1 <= x0) {
+			ck_if_need_to_set_zoom_redrawn_cntr();
 			return;
 		}
 		//console.log("for 04, x1= "+x1);
 		if (x0 == minx && x1 == maxx && minx == chart_data.x_range.min && maxx == chart_data.x_range.max) {
 			// nothing to do, zoomed out to max;
+			ck_if_need_to_set_zoom_redrawn_cntr();
 			return;
 		}
 		if (update_gsync_zoom) {
@@ -3954,6 +3966,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (typeof zoom_to_new_xrange.prev.x0 != 'undefined' &&
 			zoom_to_new_xrange.prev.x0 == x0 && zoom_to_new_xrange.prev.x1 == x1) {
 			//console.log("skip zoom_2_new x0= "+x0+", x1= "+x1);
+			ck_if_need_to_set_zoom_redrawn_cntr();
 			return;
 		}
 		if (typeof zoom_to_new_xrange.prev.x0 == 'undefined') {
@@ -4153,6 +4166,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						// so we're doing a rectangle
 						let tm_dff = tm_diff_str(x1-x0, 6, 'secs');
 						str += "-"+sprintf("%.6f", x1)+", dura="+tm_dff+", proc= "+nm+", cpu= "+cpu;
+						{
+							let x1 = 1.0 * x;
+							let xdiff1= +(x1 - xPadding) / (px_wide - xPadding);
+							let nx1 = +minx+(xdiff1 * (maxx - minx));
+							let abs_ts = (nx1 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
+							let str5 = get_phase_indx(abs_ts);
+							if (str5 != "") {
+							//console.log(sprintf("x=  %f, nx1= %f, df= %f abs_ts= %f, str= %s", x, nx1, xdiff1, abs_ts, str5));
+							str += "<br>Phase= "+str5;
+							}
+						}
 						if (ch_type == "line" || ch_type == "stacked") {
 							str += ",<br>"+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
 							let val_str = fmt_val(val);
@@ -4416,7 +4440,6 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 					}
 				}, 1000)
 			}
-			//abcd
 			if (g_charts_done.cntr < gjson.chrt_data_sz) {
 				myDelay();
 			}
@@ -4709,6 +4732,22 @@ async function start_charts() {
 	}
 
 	return;
+}
+
+
+function get_phase_indx(ts_abs)
+{
+	if (typeof gjson.phase == 'undefined') {
+		return "";
+	}
+	for (let i=0; i < gjson.phase.length; i++) {
+		let tm_beg = gjson.phase[i].ts_abs - gjson.phase[i].dura;
+		if (tm_beg <= ts_abs && ts_abs <= gjson.phase[i].ts_abs) {
+			//console.log(sprintf("phase= %s ts_abs= %f", gjson.phase[i].text, ts_abs));
+			return gjson.phase[i].text;
+		}
+	}
+	return "";
 }
 
 function parse_chart_data(ch_data_str)
@@ -5119,6 +5158,9 @@ function parse_svg()
 	var svgObject = document.getElementById('cpu_diagram_svg');
 	let shapes = [];
 	let svg_gs = svgObject.getElementsByTagName('svg');
+	if (typeof svg_gs == 'undefined' || svg_gs == null || svg_gs.length == 0) {
+		return;
+	}
 	let rect_prev = -1;
 	let rects=0;
 	let texts=0;
@@ -5270,7 +5312,6 @@ function parse_svg()
 	svgObject.style.display = 'none';
 	console.log(sprintf("rects= %d, texts= %d", cntr.rects, cntr.texts));
 	console.log(sprintf("svg: width= %s, height= %s", svg_xmax, svg_ymax));
-	//abcd
 	let hvr_clr = 'mysvg';
 	let win_sz = get_win_wide_high();
 	let px_wide = win_sz.width - 30;
@@ -6466,100 +6507,137 @@ function parse_svg()
 		}
 		let txt_tbl = [];
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
-			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
+			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
 				continue;
 			}
-			let cp_str = "";
-			let val_arr = [];
-			for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
-				let str = sprintf(g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt,
-					g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[ii]);
-				val_arr.push(str);
-				cp_str += (ii > 0 ? " ":"") + str;
-			}
-			let text_align = 'left';
-			let text_anchor = 'bottom';
-			let nfont_sz = 11;
-			let font_sz = "11px";
-			nfont_sz *= scale_ratio;
-			let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
-			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
-			let x0 = svg_xmax * g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x/fmxx;
-			let y0 = svg_ymax * g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y/fmxy;
-			let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null);
-			let rot = 0;
-			let angle = 0.0;
-			ctx.beginPath();
-			ctx.textAlign = text_align;
-			ctx.textBaseline = text_anchor;
-			ctx.fillStyle = 'black';
-			//ctx.font = font_sz + ' Arial';
-			ctx.font = sprintf("%.3fpx sans-serif", nfont_sz);
-			//ctx.font = font_sz + ' sans-serif';
-			let str = cp_str;
-			if (str.indexOf('&amp;') >= 0) {
-				str = str.replace('&amp;', '&');
-			}
-			let twidth = ctx.measureText(str).width;
-			let xb, xe, yb, ye;
-			if (text_align == 'start' || text_align == 'left') {
-				xb = p0[0];
-				xe = xb + twidth;
-			} else if (text_align == 'end' || text_align == 'right') {
-				xe = p0[0];
-				xb = xe - twidth;
-			} else if (text_align == 'center') {
-				xb = p0[0] - 0.5*twidth;
-				xe = p0[0] + 0.5*twidth;
-			} else {
-				console.log("unknown text_align= "+text_align);
-				xb = p0[0];
-				xe = xb + twidth;
-			}
-			if (text_anchor == 'top' || text_anchor == 'hanging') {
-				yb = p0[1];
-				ye = yb - nfont_sz;
-			} else if (text_anchor == 'bottom' || text_anchor == 'alphabetic') {
-				ye = p0[1];
-				yb = ye - nfont_sz;
-			} else if (text_anchor == 'middle') {
-				yb = p0[1] - 0.5*nfont_sz;
-				ye = p0[1] + 0.5*nfont_sz;
-			} else {
-				console.log("unknown text_anchor= "+text_anchor);
-				ye = p0[1];
-				yb = ye - nfont_sz;
-			}
-			//console.log(sprintf("txt %s %s", text_align, text_anchor));
-			//console.log(shapes[i].box);
-
-			ctx.fillText(str, p0[0], p0[1]);
-			g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
-			let iidx = txt_tbl.length;
-			txt_tbl.push({jidx:j, iidx:iidx, txt:[]});
-			for (let k=0; k < val_arr.length; k++) {
-				txt_tbl[iidx].txt.push(val_arr[k]);
-			}
-			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].rng !== 'undefined') {
-				let off = 0.0;
-				let hi = 0.4 * (ye - yb);
-				for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
-				ctx.beginPath();
-				ctx.arc(xe+2+off+hi, yb+hi, hi, 0, 2 * Math.PI, false);
-				if (g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[0] <=
-					g_cpu_diagram_flds.cpu_diagram_fields[j].rng.green) {
-					ctx.fillStyle = 'green';
-				} else if (g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[0] <=
-					g_cpu_diagram_flds.cpu_diagram_fields[j].rng.yellow) {
-					ctx.fillStyle = 'yellow';
-				} else {
-					ctx.fillStyle = 'red';
+			for (let jj=0; jj < 2; jj++) {
+				let cp_str = "";
+				let val_arr = [];
+				let ux, uy;
+				if (jj == 0 && typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tfld == 'undefined') {
+					continue;
 				}
-				off += 2.0*hi;
-				ctx.fill();
-				ctx.lineWidth = 1;
-				ctx.strokeStyle = 'black';
-				ctx.stroke();
+	//abcd
+				if (jj == 0) {
+					ux = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.x;
+					uy = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.y;
+					cp_str = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.text;
+				} else {
+					let pfx = "";
+					if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].pfx != 'undefined') {
+						pfx = g_cpu_diagram_flds.cpu_diagram_fields[j].pfx;
+					}
+					cp_str = pfx;
+					ux = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x;
+					uy = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y;
+				for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
+					let str = sprintf(g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt,
+						g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[ii]);
+					val_arr.push(str);
+					cp_str += (ii > 0 ? " ":"") + str;
+				}
+				}
+				let text_align = 'left';
+				let text_anchor = 'bottom';
+				let nfont_sz = 11;
+				let font_sz = "11px";
+				nfont_sz *= scale_ratio;
+				let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
+				let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
+				let x0 = svg_xmax * ux/fmxx;
+				let y0 = svg_ymax * uy/fmxy;
+				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null);
+				let rot = 0;
+				let angle = 0.0;
+				ctx.beginPath();
+				ctx.textAlign = text_align;
+				ctx.textBaseline = text_anchor;
+				ctx.fillStyle = 'black';
+				//ctx.font = font_sz + ' Arial';
+				ctx.font = sprintf("%.3fpx sans-serif", nfont_sz);
+				//ctx.font = font_sz + ' sans-serif';
+				let str = cp_str;
+				if (str.indexOf('&amp;') >= 0) {
+					str = str.replace('&amp;', '&');
+				}
+				let twidth = ctx.measureText(str).width;
+				let xb, xe, yb, ye;
+				if (text_align == 'start' || text_align == 'left') {
+					xb = p0[0];
+					xe = xb + twidth;
+				} else if (text_align == 'end' || text_align == 'right') {
+					xe = p0[0];
+					xb = xe - twidth;
+				} else if (text_align == 'center') {
+					xb = p0[0] - 0.5*twidth;
+					xe = p0[0] + 0.5*twidth;
+				} else {
+					console.log("unknown text_align= "+text_align);
+					xb = p0[0];
+					xe = xb + twidth;
+				}
+				if (text_anchor == 'top' || text_anchor == 'hanging') {
+					yb = p0[1];
+					ye = yb - nfont_sz;
+				} else if (text_anchor == 'bottom' || text_anchor == 'alphabetic') {
+					ye = p0[1];
+					yb = ye - nfont_sz;
+				} else if (text_anchor == 'middle') {
+					yb = p0[1] - 0.5*nfont_sz;
+					ye = p0[1] + 0.5*nfont_sz;
+				} else {
+					console.log("unknown text_anchor= "+text_anchor);
+					ye = p0[1];
+					yb = ye - nfont_sz;
+				}
+				//console.log(sprintf("txt %s %s", text_align, text_anchor));
+				//console.log(shapes[i].box);
+
+				ctx.fillText(str, p0[0], p0[1]);
+				if (jj == 0) {
+					continue;
+				}
+				g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
+				let iidx = txt_tbl.length;
+				txt_tbl.push({jidx:j, iidx:iidx, txt:[]});
+				for (let k=0; k < val_arr.length; k++) {
+					txt_tbl[iidx].txt.push(val_arr[k]);
+				}
+				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].rng !== 'undefined') {
+					let off = 0.0;
+					let hi = 0.4 * (ye - yb);
+					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
+						ctx.beginPath();
+						ctx.arc(xe+2+off+hi, yb+hi, hi, 0, 2 * Math.PI, false);
+						let cmp_le = true;
+						let rng = g_cpu_diagram_flds.cpu_diagram_fields[j].rng;
+						if (typeof rng.cmp != 'undefined' && rng.cmp == 'ge') {
+							cmp_le = false;
+						}
+						let dv = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[0];
+						if (cmp_le) {
+							if (dv <= rng.green) {
+								ctx.fillStyle = 'green';
+							} else if (dv <= rng.yellow) {
+								ctx.fillStyle = 'yellow';
+							} else {
+								ctx.fillStyle = 'red';
+							}
+						} else {
+							if (dv >= rng.green) {
+								ctx.fillStyle = 'green';
+							} else if (dv >= rng.yellow) {
+								ctx.fillStyle = 'yellow';
+							} else {
+								ctx.fillStyle = 'red';
+							}
+						}
+						off += 2.0*hi;
+						ctx.fill();
+						ctx.lineWidth = 1;
+						ctx.strokeStyle = 'black';
+						ctx.stroke();
+					}
 				}
 			}
 		}
@@ -6607,6 +6685,9 @@ function parse_svg()
 		let stall = "";
 		let txt     = "";
 		let t = "";
+		if (typeof ret.rng == 'undefined') {
+			return t;
+		}
 		let prefix = "";
 		if (typeof prfx != "undefined") {
 			for (let i=0; i < prfx; i++) {
@@ -6741,6 +6822,12 @@ function parse_svg()
 			ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_UOP_port_"+i+"_CHART");
 			if (ret.i > -1) {
 				t += lkup_fillin(ret, flds_max, "port"+i+": cycles/uop on port"+i+". Big values may mean port is not used much", 4);
+			}
+		}
+		for (let i=0; i < 8; i++) {
+			ret = lkup_chrt(lkup, txt_tbl, "GUOPS_port_"+i+"_CHART");
+			if (ret.i > -1) {
+				t += lkup_fillin(ret, flds_max, "port"+i+": uops/nsec on port"+i+". Small values may mean port is not used much", 4);
 			}
 		}
 		t += "</table>";
