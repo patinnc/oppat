@@ -46,24 +46,34 @@ evt_units_hash = {}
 function read_file(ts0, flnm)
    local rows = 0
    local ts_prev = -1.0
+   local ts_last = {}
    local tm = {}
    local tm_prev = {}
    local units = ""
    local evt
    local imc_sum = 0
    local imc_state = 0
+   local try_lines = 0
+   local extr_j = 0
+   local skipped_rows =0
    for line in io.lines(flnm) do
       if (string.len(line) > 30 and string.sub(line, 1, 1) ~= "#") then
 	local t = {}
 	local str
         local j = 0
-	local extr_j = 0
+   	try_lines = try_lines + 1
+	j = -1
+        extr_j = 0
         for i in string.gmatch(line, "%S+") do
+           j = j + 1
 	   if (j == 0) then
 	      --printf("i= %s, ts0= %s, line= %s\n", i, ts0, line)
               t[col.ts] = tonumber(i)+ts0  -- time offset + ts0
+              ts_last[1] = i 
+              ts_last[2] = t[col.ts]
 	   elseif (j == 1) then
               if i == "<not" then
+                 skipped_rows = skipped_rows + 1
                  break -- event <not supported> by perf
               end
               t[col.watts] = tonumber(i) -- joules
@@ -115,7 +125,8 @@ function read_file(ts0, flnm)
 			imc_state = imc_state | 2
 			imc_sum = imc_sum + t[col.watts]
 		else
-			break
+			printf("unhandled lua evt %s in %s\n", i, flnm);
+			--break
 		end
 		if evt_hash[evt] == nil then
 			evt_hash[evt] = 0
@@ -138,7 +149,7 @@ function read_file(ts0, flnm)
               t[col.dura] = elap
               -- printf("%.9f %s %.9f %.9f evt= %s\n", t[col.ts], t[col.area], t[col.watts], t[col.dura], evt)
               table.insert(data_table, t)
-		if imc_state == 3 then
+              if imc_state == 3 then
               		--tm_prev[t[col.area]] = t[col.ts]
 			local t2 = {}
               		t2[col.dura] = elap
@@ -154,16 +165,19 @@ function read_file(ts0, flnm)
 			evt_hash[evt] = evt_hash[evt] + 1
 			evt_units_hash[evt] = units
               		table.insert(data_table, t2)
+                        rows = rows + 1
 			imc_state = 0
 			imc_sum   = 0
-		end
+              end
+              ts_last[3] = t[col.ts]
               tm_prev[t[col.area]] = t[col.ts]
               rows = rows + 1
            end
-           j = j + 1
         end
       end
    end
+   printf("lua_file %s ts_last ts[1]= %f, ts[2]= %s, ts[3]= %s try_lines= %d, rows= %d, skipped= %d, trws= %d\n",
+      flnm, ts_last[1], ts_last[2], ts_last[3], try_lines, rows, skipped_rows, skipped_rows+rows);
    return rows
 end
 
@@ -187,10 +201,12 @@ function myprt(t_in)
 	--t[col.event] = evt
     printf("begin lua data table myprt after sort\n")
     local k, v
+    local rws = 0
     for k,t in ipairs(t_in) do
         printf("%.9f %s %.9f %.9f evt= %s\n", t[col.ts], t[col.area], t[col.watts], t[col.dura], t[col.event])
+	rws = rws + 1
     end
-    printf("end lua data table myprt\n")
+    printf("end lua data table myprt, rws= %d\n", rws)
 end
 
 function do_tst(flnm_energy, flnm_energy2, flnm_wait, verbose)
@@ -221,11 +237,15 @@ function do_tst(flnm_energy, flnm_energy2, flnm_wait, verbose)
    local events = 0
    local event_nms = {}
    local k, v, evt
+   local rows_energy = 0
    if filename_energy_txt ~= "" then
-   	rows = rows + read_file(ts0, filename_energy_txt)
+   	rows_energy = read_file(ts0, filename_energy_txt)
+   	rows = rows + rows_energy
    end
+   local rows_energy2 = 0
    if filename_energy2_txt ~= "" then
-   	rows = rows + read_file(ts0, filename_energy2_txt)
+   	rows_energy2 = read_file(ts0, filename_energy2_txt)
+   	rows = rows + rows_energy2
    end
    mysort(data_table)
    if verbose > 0 then
@@ -249,6 +269,7 @@ function do_tst(flnm_energy, flnm_energy2, flnm_wait, verbose)
        data_shape['event_name'][k] = event_nms[k]
    end
    data_shape['events'] = events
+   printf("rows= %d, rows_energy= %d rows_energy2= %d\n", rows, rows_energy, rows_energy2)
    data_shape['rows'] = rows;
    data_shape['cols'] = cols
    data_shape['event_area'] = 'lua'
