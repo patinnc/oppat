@@ -1,7 +1,7 @@
 {
   "chart_use_default":"y",
   "pixels_high_default":250,
-  "drop_event_if_samples_exceed":0,
+  "drop_event_if_samples_exceed":470000,
   "dont_show_events_on_cpu_busy_if_samples_exceed":500000,
   "chart_category_priority":[
 	{"name":"PERF",    "priority":0},
@@ -97,9 +97,9 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU",
-			"chart_type":"block", "use_chart":"d"},
+			"chart_type":"block", "use_chart":"n"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"proc", "chart_tag":"PCT_BUSY_BY_SYSTEM",
-			"chart_type":"stacked", "use_chart":"d", "y_fmt":"%.1f%%", "tot_line":"__total__"}
+			"chart_type":"line", "use_chart":"n", "y_fmt":"%.1f%%", "tot_line":"__total__"}
 		]
 	}
   },
@@ -120,7 +120,6 @@
   {"event":
 	{
 	"evt_name": "sched:sched_switch", "evt_type": "ftrace",
-	"comment":"abcd",
 	"evt_flds": [
 		{"name":"ncomm", "lkup":"next_comm", "lkup_typ": "TYP_TRC_BIN|TYP_STR"},
 		{"name":"npid",  "lkup":"next_pid", "lkup_typ": "TYP_TRC_BIN|TYP_INT"},
@@ -134,7 +133,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"wait time by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line", "use_chart":"d"}
+			"chart_tag":"WAIT_TIME_BY_proc", "chart_type":"line", "use_chart":"n"}
 		]
 	}
   },
@@ -155,7 +154,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"Run queue by thread",  "var_name": "wait_dura", "by_var":"nproc",
-			"chart_tag":"RUN_QUEUE", "chart_type":"line", "y_label":"wait_time (secs)", "use_chart":"d", "tot_line":"__total__"}
+			"chart_tag":"RUN_QUEUE", "chart_type":"line", "y_label":"wait_time (secs)", "use_chart":"n", "tot_line":"__total__"}
 		]
 	}
   },
@@ -1029,6 +1028,33 @@
   },
   {"event":
 	{
+	"evt_name": "cycles_per_ms_uops", "evt_type": "ftrace", "comment":"cycles per idq.ms_uops",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"idq.ms_uops", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cycles/idq.ms_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
+			"scope":["per_core","per_thread"],
+			"desc":"Based on total cycles/uop: cycles/idq.ms_uops. Peak MS uops/cycle = 4."},
+			"chart_tag":"CYCLES_PER_MS_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/idq.ms_uops"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "cycles_per_lsd_uops", "evt_type": "ftrace", "comment":"cycles per lsd.uops",
 	"evt_derived":{
 		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"lsd.uops", "tag":"den"}],
@@ -1644,9 +1670,9 @@
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU", "chart_type":"block",
 			"use_chart":"d"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"cpu", "chart_tag":"PCT_BUSY_BY_SYSTEM",
-			"chart_type":"stacked", "use_chart":"d", "y_fmt":"%.1f%%", "tot_line":"__total__"},
+			"chart_type":"line", "use_chart":"d", "y_fmt":"%.1f%%", "tot_line":"__total__"},
 		{"category":"CPU", "title":"%busy by proc",  "var_name": "%busy_sys", "by_var":"comm_pid", "chart_tag":"PCT_BUSY_BY_proc",
-			"chart_type":"stacked", "tot_line":"__total__",
+			"chart_type":"line", "tot_line":"__total__",
 			"use_chart":"y", "y_fmt":"%.1f%%", "comment":"if you use type=stacked then this chart can use a lot of memory"}
 		]
 	}
@@ -1941,6 +1967,24 @@
 	"charts": [
 		{"category":"test", "title":"first test line",  "var_name": "line", "by_var":"area", "chart_tag":"TST_GEN_LINE1", "chart_type":"line",
 			"use_chart":"y"}
+		]
+	}
+  }
+	,
+  {"event":
+	{
+	"evt_name": "lua:gb_phase", "evt_type": "lua", "comment":"geekbench4 phase",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"marker",   "lkup":"marker",       "lkup_typ": "TYP_DBL"},
+		{"name":"area",     "lkup":"area",         "lkup_typ": "TYP_STR"},
+		{"name":"dura",     "lkup":"_DURATION_",   "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"PERF", "title":"Markers",  "var_name":"marker",
+			"chart_tag":"PHASE", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"y"},
+			"use_chart":"y", "y_label":"markers"}
 		]
 	}
   }
