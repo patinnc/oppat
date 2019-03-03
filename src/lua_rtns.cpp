@@ -218,14 +218,16 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 	prf_obj.lua_data.timestamp_idx = ts_idx;
 	prf_obj.lua_data.duration_idx = dura_idx;
 	printf("begin lua data_table rows= %d, cols= %d\n", rows, cols);
-	bool need_ts0 = true;
+	bool need_ts0 = true, need_tm_end = true;
 	prf_obj.tm_beg = 0.0;
 	prf_obj.tm_end = 0.0;
 
 	//verbose = 1; // set to 1 to enable printing the lua data_table
 	lua_data_str lds;
+	int read_rows = 0;
 	for (int i=1; i <= rows; i++) {
 		std::vector <lua_data_val_str> ldvs_vec;
+		read_rows++;
 		uint32_t evt_idx = -1;
 		for (uint32_t k=0; k < event_nms.size(); k++) {
 			for (uint32_t j=0; j < col_names[k].size(); j++) {
@@ -283,6 +285,8 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			prf_obj.tm_beg = ts_beg;
 			printf("LUA prf_obj.tm_beg= %f at %s %d\n", prf_obj.tm_beg, __FILE__, __LINE__);
 			need_ts0 = false;
+		}
+		if (need_tm_end) {
 			prf_obj.tm_end = ldvs_vec[ts_idx[evt_idx]].dval;
 		}
 		if (prf_obj.tm_end < ldvs_vec[ts_idx[evt_idx]].dval) {
@@ -291,7 +295,7 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 		prf_obj.lua_data.data_rows.push_back(ldvs_vec);
 		lua_push_sample(prf_obj, verbose, evt_idx, 1e9*(ldvs_vec[ts_idx[evt_idx]].dval - dura));
 	}
-	printf("end lua data_table rows= %d, cols= %d\n", rows, cols);
+	printf("end lua data_table rows= %d, cols= %d read_rows= %d, prf_obj.tm_end= %f\n", rows, cols, read_rows, prf_obj.tm_end);
 
 	//std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
 	std::cout << std::endl;
