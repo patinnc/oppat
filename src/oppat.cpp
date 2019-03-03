@@ -1612,8 +1612,26 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		if (flg & (uint64_t)fte_enum::FLD_TYP_PID) {
 			var_pid_idx = (int)j;
 		}
-		if (flg & (uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA) {
+		if (flg & (uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA || event_table[evt_idx].flds[j].name == "extra_str") {
 			add_2_extra.push_back(j);
+		}
+		if (event_table[evt_idx].flds[j].name == "extra_str") {
+//LUA
+			printf("got fld[%d].name= extra_str for FILE_TYP= %d at %s %d\n",
+				j, prf_obj.file_type, __FILE__, __LINE__);
+		}
+	}
+	std::vector <uint32_t> lua_col_map;
+	if (prf_obj.file_type == FILE_TYP_LUA) {
+		lua_col_map.resize(fsz, -1);
+		for (uint32_t j=0; j < fsz; j++) {
+			uint32_t k;
+			for (k=0; k < prf_obj.lua_data.col_names[evt_idx].size(); k++) {
+				if (event_table[evt_idx].flds[j].lkup == prf_obj.lua_data.col_names[evt_idx][k]) {
+					lua_col_map[j] = k;
+					break;
+				}
+			}
 		}
 	}
 	bool have_filter_regex = false;
@@ -2458,11 +2476,29 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					}
 				}
 			}
-			if (prf_obj.file_type != FILE_TYP_ETW) {
+//LUA
+			if (prf_obj.file_type != FILE_TYP_ETW && prf_obj.file_type != FILE_TYP_LUA) {
 				if (add_2_extra.size() > 0) {
 					int prf_idx = event_table[evt_idx].data.prf_sample_idx[i];
-					ls0p->text += ", line " + std::to_string(prf_obj.samples[prf_idx].line_num);
+					ls0p->text += ", line_a " + std::to_string(prf_obj.samples[prf_idx].line_num);
 					ls0p->text += "<br>" + prf_obj.samples[prf_idx].extra_str;
+				}
+			}
+			if (prf_obj.file_type == FILE_TYP_LUA) {
+				if (add_2_extra.size() > 0) {
+					uint32_t k = lua_col_map[add_2_extra[0]];
+					int prf_idx = event_table[evt_idx].data.prf_sample_idx[i];
+					ls0p->text += ", line_b " + std::to_string(prf_obj.samples[prf_idx].line_num);
+					if (prf_idx >= prf_obj.lua_data.data_rows.size()) {
+						printf("=========== mess up, prf_idx= %d, sz= %d, add2ex= %d at %s %d\n", 
+							prf_idx, (uint32_t)prf_obj.lua_data.data_rows.size(), k, __FILE__, __LINE__);
+						exit(0);
+					}
+					printf("=========== extra_str, prf_idx= %d, sz= %d, add2ex= %d str= %s at %s %d\n", 
+							prf_idx, (uint32_t)prf_obj.lua_data.data_rows.size(),
+							k, prf_obj.lua_data.data_rows[prf_idx][k].str.c_str(),
+							__FILE__, __LINE__);
+					ls0p->text += "<br>" + prf_obj.lua_data.data_rows[prf_idx][k].str;
 				}
 			}
 			if (chart_type != CHART_TYPE_STACKED) {
@@ -4086,7 +4122,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 				continue;
 			}
-			if (prf_obj.file_type != FILE_TYP_ETW &&
+			if (prf_obj.file_type != FILE_TYP_ETW && prf_obj.file_type != FILE_TYP_LUA &&
 				(flg & (uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA) && 
 				(flg & (uint64_t)fte_enum::FLD_TYP_STR)) {
 				if (prf_obj.samples[i].extra_str.size() == 0) {
@@ -4840,7 +4876,6 @@ int read_perf_event_list_dump(file_list_str &file_list)
 
 int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <marker_str> &marker_vec)
 {
-	//abcd
 	std::string evt_nm;
 	bool got_marker_beg_num = false, got_marker_end_num = false;
 	uint32_t Mark_idx = UINT32_M1;
@@ -4985,6 +5020,59 @@ int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_
 	return (int)marker_vec.size();
 }
 
+#if 1
+static int phase_parse_text(std::string options, prf_obj_str &prf_obj, uint32_t po_idx, uint32_t file_tag_idx)
+{
+	std::string str;
+	uint32_t ts_idx   = prf_obj.lua_data.timestamp_idx.size();
+	if (ts_idx != 1) {
+		printf("expected lua phase data to have timestamp_idx sz to be 1. Got %d. Bye at %s %d\n",
+			ts_idx, __FILE__, __LINE__);
+		exit(1);
+	}
+	ts_idx   = prf_obj.lua_data.timestamp_idx[0];
+	uint32_t dura_idx = prf_obj.lua_data.duration_idx.size();
+	if (dura_idx != 1) {
+		printf("expected lua phase data to have duration_idx sz to be 1. Got %d. Bye at %s %d\n",
+			dura_idx, __FILE__, __LINE__);
+		exit(1);
+	}
+	dura_idx = prf_obj.lua_data.duration_idx[0];
+	printf("lua phase: ts_idx= %d, dura_idx= %d, sz= %d at %s %d\n",
+		ts_idx, dura_idx, (uint32_t)prf_obj.lua_data.data_rows.size(), __FILE__, __LINE__);
+	if (prf_obj.lua_data.col_names.size() != 1) {
+		printf("expected lua phase col_names to have sz == 1. Got %d. Bye at %s %d\n",
+			(uint32_t)prf_obj.lua_data.col_names.size(), __FILE__, __LINE__);
+		exit(1);
+	}
+	uint32_t extra_str_idx = UINT32_M1;
+	if (options.find("USE_EXTRA_STR") != std::string::npos) {
+		for (uint32_t i=0; i < prf_obj.lua_data.col_names[0].size(); i++) {
+			if (prf_obj.lua_data.col_names[0][i] == "extra_str") {
+				extra_str_idx = i;
+				break;
+			}
+		}
+	}
+//abcd
+	for (uint32_t i=0; i < prf_obj.lua_data.data_rows.size(); i++) {
+		marker_str ms;
+		ms.ts_abs = prf_obj.lua_data.data_rows[i][ts_idx].dval;
+		ms.dura   = prf_obj.lua_data.data_rows[i][dura_idx].dval;
+		if (extra_str_idx == UINT32_M1) {
+			ms.text = "Phase " + std::to_string(i);
+		} else {
+			ms.text = prf_obj.lua_data.data_rows[i][extra_str_idx].str;
+		}
+		ms.evt_name = "Marker";
+		ms.prf_obj_idx = po_idx;
+		ms.file_tag_idx = file_tag_idx;
+		ms.evt_idx_in_po = 0;
+		phase_vec.push_back(ms);
+	}
+	return 0;
+}
+#endif
 
 int main(int argc, char **argv)
 {
@@ -5264,8 +5352,7 @@ int main(int argc, char **argv)
 			tc_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, prf_obj_prv, file_list[file_list_1st[i]]);
 			tc_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
 			printf("\nafter tc_read_data_bin(%s) at %s %d\n", file_list[i].file_bin.c_str(), __FILE__, __LINE__);
-		}
-		else if (file_list[i].typ == FILE_TYP_PERF) {
+		} else if (file_list[i].typ == FILE_TYP_PERF) {
 			if (verbose)
 				fprintf(stderr, "begin prf_read_data_bin(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 			prf_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, file_list[file_list_1st[i]]);
@@ -5275,16 +5362,18 @@ int main(int argc, char **argv)
 			prf_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
 			fprintf(stderr, "after prf_parse_text(i=%d) elap= %f flnm= %s at %s %d\n",
 					i, dclock()-tm_beg, file_list[i].file_bin.c_str(), __FILE__, __LINE__);
-		}
-		else if (file_list[i].typ == FILE_TYP_LUA) {
+		} else if (file_list[i].typ == FILE_TYP_LUA) {
 			if (verbose)
 				fprintf(stderr, "begin lua_read__data(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 			lua_read_data(file_list[i].file_bin, file_list[i].file_txt,
 					file_list[i].wait_txt, prf_obj[i], file_list[i].lua_file, file_list[i].lua_rtn, verbose); // need to pass lua script filename and lua routine name
 			fprintf(stderr, "begin lua_read_data(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
+			if (file_list[i].options.find("USE_AS_PHASE") != std::string::npos) {
+				phase_parse_text(file_list[i].options, prf_obj[i], i, file_tag_idx);
+				printf("\nafter phase_read_data_txt(%s) at %s %d\n", file_list[i].file_txt.c_str(), __FILE__, __LINE__);
+			}
 			//fprintf(stderr, "after prf_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
-		}
-		else if (file_list[i].typ == FILE_TYP_ETW) {
+		} else if (file_list[i].typ == FILE_TYP_ETW) {
 			if (verbose)
 				fprintf(stderr, "begin etw_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 			etw_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
@@ -5519,7 +5608,6 @@ int main(int argc, char **argv)
 	cats += "]";
 	printf("categories str= %s at %s %d\n", cats.c_str(), __FILE__, __LINE__);
 	cats += ", \"pixels_high_default\":" + std::to_string(chart_defaults.pixels_high_default);
-	//abcd
 	std::string phase;
 	if (phase_vec.size() > 0) {
 		phase += ", \"phase\":[";
@@ -5539,7 +5627,6 @@ int main(int argc, char **argv)
 		cats += phase;
 		printf("phase= '%s' at %s %d\n", phase.c_str(), __FILE__, __LINE__);
 	}
-	//abcd
 	cats += "}";
 	chrts_cats = cats;
 	//chrts_json += "]" + cats + "}";
