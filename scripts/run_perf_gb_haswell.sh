@@ -6,6 +6,7 @@ PRF_CMD=perf
 PRF_CMD=~/bin/perf
 BASE=spin7
 BASE=L2_bw7
+BASE=gb8
 BASE=gb8_nopf
 PFX=lnx
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
@@ -64,11 +65,12 @@ function ck_cmd_pid_threads_oper {
 #$TRC_CMD record -C local -e thermal:thermal_power_cpu_get_power -e power:cpu_frequency -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 #$TRC_CMD record -C local -e thermal:thermal_power_cpu_get_power -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 #$TRC_CMD record -C mono -e syscalls:sys_enter_write -e syscalls:sys_exit_write -e syscalls:sys_enter_read -e syscalls:sys_exit_read -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
+TC_DISK_EVT=" -e block:block_rq_issue -e block:block_rq_insert -e block:block_rq_complete -e ext4:ext4_direct_IO_enter -e ext4:ext4_direct_IO_exit -e ext4:ext4_da_write_begin -e ext4:ext4_da_write_end -e ext4:ext4_write_begin -e ext4:ext4_write_end "
 DO_CPU_IDLE=" -e power:cpu_idle "
 # gb is too long and get too many cpu_idle events
 DO_CPU_IDLE=
 #$TRC_CMD record -C mono -e irq:irq_handler_entry -e irq:irq_handler_exit -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $DO_CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
-$TRC_CMD record -C mono  -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $DO_CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
+$TRC_CMD record -C mono $TC_DISK_EVT -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $DO_CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
 PID_TRC_CMD=$!
 
 # it takes a few seconds to get the trace cmd threads up
