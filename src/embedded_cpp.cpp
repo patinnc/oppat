@@ -58,6 +58,8 @@ int ck_cmd(const char *data, int data_len, const char *ck_str)
 	return 0;
 }
 
+static std::string msg_data; // yes, this needs to be per client.
+
 #ifdef USE_WEBSOCKET
 class WebSocketHandler : public CivetWebSocketHandler {
 
@@ -96,9 +98,30 @@ class WebSocketHandler : public CivetWebSocketHandler {
 	                        char *data,
 	                        size_t data_len) {
 		uint32_t sz = data_len;
+		int is_eom   = ((bits & 0x80) != 0);
+		int is_text  = ((bits & 0xf) == MG_WEBSOCKET_OPCODE_TEXT);
+		int is_bin   = ((bits & 0xf) == MG_WEBSOCKET_OPCODE_BINARY);
+		int is_ping  = ((bits & 0xf) == MG_WEBSOCKET_OPCODE_PING);
+		int is_pong  = ((bits & 0xf) == MG_WEBSOCKET_OPCODE_PONG);
+		int is_close = ((bits & 0xf) == MG_WEBSOCKET_OPCODE_CONNECTION_CLOSE);
+		int is_cont  = ((bits & 0xf) == MG_WEBSOCKET_OPCODE_CONTINUATION);
 		printf("WS got %lu bytes: ", (long unsigned)data_len);
 		if (sz > 100) {
 			sz = 100;
+		}
+		printf("msg bits= 0x%x is_eom= %d is_text= %d, bin= %d, ping= %d, pong= %d, close= %d cont= %d at %s %d\n",
+				bits, is_eom, is_text, is_bin, is_ping, is_pong, is_close, is_cont, __FILE__, __LINE__);
+		if(is_cont) {
+			//printf("got cont image data_len= %d from client at %s %d\n", (int)(data_len), __FILE__, __LINE__);
+			std::string msg;
+			msg = data;
+			msg = msg.substr(0, data_len);
+			msg_data += msg;
+			if (is_eom) {
+				q_from_clnt_to_srvr->push(msg_data);
+				msg_data = "";
+			}
+			return 1;
 		}
 		if (sz > 2) {
 			fwrite(data, 1, sz, stdout);
@@ -116,6 +139,18 @@ class WebSocketHandler : public CivetWebSocketHandler {
 		if(ck_cmd(data, data_len, "Ready") > 0) {
 			printf("got Ready from client at %s %d\n", __FILE__, __LINE__);
 			q_from_clnt_to_srvr->push("Ready");
+			return 1;
+		}
+		if(ck_cmd(data, data_len, "image,") > 0) {
+			printf("got image data_len= %d from client at %s %d\n", (int)(data_len), __FILE__, __LINE__);
+			std::string msg;
+			msg = data;
+			msg = msg.substr(0, data_len);
+			if (is_eom) {
+				q_from_clnt_to_srvr->push(msg);
+			} else {
+				msg_data = msg; // yes, this needs to be per client.
+			}
 			return 1;
 		}
 		if(ck_cmd(data, data_len, "parse_svg") > 0) {
