@@ -115,12 +115,12 @@ function read_file(ts0, flnm)
                  	t[col.area] = 'uncore'
 			evt = "unc_bytes"
 		elseif i == "uncore_imc/data_reads/" then
-               		t[col.area] = 'imc_reads'
+               		t[col.area] = 'read'
 			evt = "imc_bw"
 			imc_state = imc_state | 1
 			imc_sum = imc_sum + t[col.watts]
 		elseif i == "uncore_imc/data_writes/" then
-                 	t[col.area] = 'imc_writes'
+                 	t[col.area] = 'write'
 			evt = "imc_bw"
 			imc_state = imc_state | 2
 			imc_sum = imc_sum + t[col.watts]
@@ -157,7 +157,7 @@ function read_file(ts0, flnm)
                  	evt = 'imc_bw'
 	      		t2[evt_units_hash[evt]] = t2[col.watts]
 			t2[col.event] = evt
-                 	t2[col.area] = 'imc_sum'
+                 	t2[col.area] = 'sum'
 			t2[col.ts] = t[col.ts]
 			if evt_hash[evt] == nil then
 				evt_hash[evt] = 0
