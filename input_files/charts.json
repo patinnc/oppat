@@ -44,7 +44,7 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"UOPS/nsec %PORTNUM%",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
 			"scope":["per_thread","per_core"],
 			"desc":"Based on uops/nanosec: uops_dispatched_port.%PORTNUM%/nsec"},
 			"chart_tag":"GUOPS_%PORTNUM%_CHART", "chart_type":"line", "use_chart":"y", "y_label":"uop_%PORTNUM%/nsec"}
@@ -55,9 +55,9 @@
   ,{"substitute":{"old":"%PORTNUM%", "new":["port_0", "port_1", "port_2", "port_3", "port_4", "port_5", "port_6", "port_7"]},
 	"target": {"event":
 	{
-	"evt_name": "cycles_per_uop_%PORTNUM%", "evt_type": "ftrace", "arch":"Intel", "comment":"cycles per uops_dispatched_port.%PORTNUM%",
+	"evt_name": "uops_%PORTNUM%_per_cycle", "evt_type": "ftrace", "arch":"Intel", "comment":"uops_dispatched_port.%PORTNUM% per cycle",
 	"evt_derived":{
-		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_dispatched_port.%PORTNUM%", "tag":"den"}],
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"uops_dispatched_port.%PORTNUM%", "tag":"num"}],
 		"evt_trigger":"__EMIT__",
 		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
@@ -72,11 +72,11 @@
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"cycles/uop %PORTNUM%",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_thread"],
-			"desc":"Based on total cycles/uop: cycles/uops_dispatched_port.%PORTNUM%"},
-			"chart_tag":"CYCLES_PER_UOP_%PORTNUM%_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/uop_%PORTNUM%"}
+		{"category":"CPU", "title":"uops %PORTNUM%/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on uops_dispatched_port.%PORTNUM%/cycle"},
+			"chart_tag":"UOPS_%PORTNUM%_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"uops_%PORTNUM%/cycle"}
 		]
 	}
   }
@@ -97,9 +97,12 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"cpu busy",  "var_name": "cpu_busy", "by_var": "cpu", "chart_tag":"PCT_BUSY_BY_CPU",
-			"chart_type":"block", "use_chart":"n"},
+			"chart_type":"block", "use_chart":"y"},
 		{"category":"CPU", "title":"%busy system",  "var_name": "%busy_sys", "by_var":"proc", "chart_tag":"PCT_BUSY_BY_SYSTEM",
-			"chart_type":"line", "use_chart":"n", "y_fmt":"%.1f%%", "tot_line":"__total__"}
+			"chart_type":"line", "use_chart":"y", "y_fmt":"%.1f%%", "tot_line":"__total__",
+			"tot_line_options":{"yval_fmt":"%.1f%%", "yvar_fmt":"%system_busy",
+			"desc":"Based on non-idle sched_switch ftrace event. 100% means 1 cpu is busy, 400% means 4 cpus busy, etc."}
+		}
 		]
 	}
   },
@@ -168,7 +171,11 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"freq from cycles (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu",
-			"chart_tag":"FREQ_BY_CPU", "chart_type":"line", "use_chart":"y", "options":"DROP_1ST"}
+			"chart_tag":"FREQ_BY_CPU", "chart_type":"line", "use_chart":"y", "options":"DROP_1ST",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__: %.1f", "yvar_fmt":"avg.%s",
+			"desc":"Based on freq (GHz) per cpu from cycles event"}
+		}
 		]
 	}
   },
@@ -1001,9 +1008,9 @@
   },
   {"event":
 	{
-	"evt_name": "cycles_per_idq_all_uops", "evt_type": "ftrace", "comment":"cycles per idq.mite_all_uops",
+	"evt_name": "idq_all_uops_per_cycle", "evt_type": "ftrace", "comment":"idq.mite_all_uops per cycle",
 	"evt_derived":{
-		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"idq.mite_all_uops", "tag":"den"}],
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"idq.mite_all_uops", "tag":"num"}],
 		"evt_trigger":"__EMIT__",
 		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
 		"lua_file":"gen_div_pair.lua",
@@ -1018,119 +1025,119 @@
 		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
 		],
 	"charts": [
-		{"category":"CPU", "title":"cycles/idq.mite_all_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_thread"],
-			"desc":"Based on total cycles/uop: cycles/idq.mite_all_uops. I think the peak is 4 uops/cycle (or 0.25 cycles/uop)."},
-			"chart_tag":"CYCLES_PER_IDQ_ALL_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/IDQ_uop"}
-		]
-	}
-  },
-  {"event":
-	{
-	"evt_name": "cycles_per_ms_uops", "evt_type": "ftrace", "comment":"cycles per idq.ms_uops",
-	"evt_derived":{
-		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"idq.ms_uops", "tag":"den"}],
-		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
-		"lua_file":"gen_div_pair.lua",
-		"lua_rtn":"gen_div_pair"
-	},
-	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
-		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
-		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
-		],
-	"charts": [
-		{"category":"CPU", "title":"cycles/idq.ms_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_thread"],
-			"desc":"Based on total cycles/uop: cycles/idq.ms_uops. Peak MS uops/cycle = 4."},
-			"chart_tag":"CYCLES_PER_MS_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/idq.ms_uops"}
-		]
-	}
-  },
-  {"event":
-	{
-	"evt_name": "cycles_per_lsd_uops", "evt_type": "ftrace", "comment":"cycles per lsd.uops",
-	"evt_derived":{
-		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"lsd.uops", "tag":"den"}],
-		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
-		"lua_file":"gen_div_pair.lua",
-		"lua_rtn":"gen_div_pair"
-	},
-	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
-		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
-		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
-		],
-	"charts": [
-		{"category":"CPU", "title":"cycles/lsd.uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_thread"],
-			"desc":"Based on total cycles/uop: cycles/lsd.uops. Peak loop stream detector uops/cycle = 4."},
-			"chart_tag":"CYCLES_PER_LSD_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/LSD_uop"}
-		]
-	}
-  },
-  {"event":
-	{
-	"evt_name": "cycles_per_idq.dsb_uops", "evt_type": "ftrace", "comment":"cycles per idq.dsb_uops",
-	"evt_derived":{
-		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"idq.dsb_uops", "tag":"den"}],
-		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
-		"lua_file":"gen_div_pair.lua",
-		"lua_rtn":"gen_div_pair"
-	},
-	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
-		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
-		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
-		],
-	"charts": [
-		{"category":"CPU", "title":"cycles/idq.dsb_uops",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_thread"],
-			"desc":"Based on total cycles/uop: cycles/idq.dsb_uops. Peak dsb uops/cycle = 4."},
-			"chart_tag":"CYCLES_PER_DSB_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/DSB_uop"}
-		]
-	}
-  },
-  {"event":
-	{
-	"evt_name": "cycles_per_rat_uops", "evt_type": "ftrace", "comment":"cycles per uops_issued.any",
-	"evt_derived":{
-		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_issued.any", "tag":"den"}],
-		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
-		"lua_file":"gen_div_pair.lua",
-		"lua_rtn":"gen_div_pair"
-	},
-	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
-		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
-		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
-		],
-	"charts": [
-		{"category":"CPU", "title":"cycles/RAT uops_issued.any",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+		{"category":"CPU", "title":"idq.mite_all_uops/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
 			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_thread"],
-			"desc":"Based on total cycles/uop: cycles/uops_issued.any. Minimum on haswell is 0.25 cycles/uop (4 uops/cycle)."},
-			"chart_tag":"CYCLES_PER_RAT_UOPS_CHART", "chart_type":"line", "use_chart":"y", "y_label":"cycles/RAT_uop"}
+			"scope":["per_thread","per_core"],
+			"desc":"Based on uops/cycle: idq.mite_all_uops/cycle. I think the peak is 4 uops/cycle."},
+			"chart_tag":"IDQ_ALL_UOPS_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"IDQ_uops/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "ms_uops_per_cycle", "evt_type": "ftrace", "comment":"idq.ms_uops/cycle",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"idq.ms_uops", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"idq.ms_uops/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on total uop/cycle: idq.ms_uops/cycle. Peak MS uops/cycle = 4."},
+			"chart_tag":"MS_UOPS_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"idq.ms_uops/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lsd_uops_per_cycle", "evt_type": "ftrace", "comment":"lsd.uops/cycle",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"lsd.uops", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"lsd.uops/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on uop/cycle: lsd.uops/cycle. Peak loop stream detector uops/cycle = 4."},
+			"chart_tag":"LSD_UOPS_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"LSD_uop/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "idq.dsb_uops_per_cycle", "evt_type": "ftrace", "comment":"idq.dsb_uops/cycle",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"idq.dsb_uops", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"idq.dsb_uops/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on total uop/cycle: idq.dsb_uops/cycle. Peak dsb uops/cycle = 4."},
+			"chart_tag":"DSB_UOPS_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"DSB_uops/cycle"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "rat_uops_per_cycle", "evt_type": "ftrace", "comment":"uops_issued.any per cycle",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"uops_issued.any", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"RAT uops_issued.any/cycle",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on total uops/cycle: uops_issued.any/cycle. Maximum on haswell is 4 uops/cycle."},
+			"chart_tag":"RAT_UOPS_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"RAT_uops/cycle"}
 		]
 	}
   },
@@ -1498,6 +1505,9 @@
 		],
 	"charts": [
 		{"category":"power", "title":"RAPL power (Watts) by area",  "var_name": "power (W)", "by_var": "area",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__ %.1f", "yvar_fmt":"avg.%s",
+			"desc":"Based on RAPL power MSRs"},
 			"chart_tag":"RAPL_POWER_BY_AREA", "chart_type":"line", "use_chart":"d"}
 		]
 	}
@@ -1531,7 +1541,11 @@
 		],
 	"charts": [
 		{"category":"DRAM", "title":"imc BW (MB/sec)",  "var_name": "BW", "by_var": "area", "chart_tag":"BW_BY_TYPE",
-			"chart_type":"line", "use_chart":"y"}
+			"chart_type":"line", "use_chart":"y",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__: %.1f", "yvar_fmt":"avg.%s",
+			"desc":"Memory controller Bandwidth MB/s based on perf stat imc bytes read/write"}
+		}
 		]
 	}
   },
@@ -1571,7 +1585,11 @@
 		],
 	"charts": [
 		{"category":"thermal", "title":"Temperature(C) by zone",  "var_name": "Temp(C)", "by_var": "thermal_zone",
-			"chart_tag":"TEMPERATURE_BY_ZONE", "chart_type":"line", "use_chart":"d"}
+			"chart_tag":"TEMPERATURE_BY_ZONE", "chart_type":"line", "use_chart":"d",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__: %.1f", "yvar_fmt":"avg.%s",
+			"desc":"Temperatue by zone in deg C. Based on ftrace event thermal:thermal_temperature"}
+		}
 		]
 	}
   },
@@ -1596,6 +1614,31 @@
 	"charts": [
 		{"category":"Disk", "title":"Disk BW MiB/sec ext4_da_write",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW",
 			"chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "block_rq", "evt_type": "ftrace", "comment":"derived event for block_rq_insert and block_rq_complete",
+	"evt_derived":{
+		"evts_used":["ext4:block_rq_insert", "ext4:block_rq_complete"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["__EMIT__", "MiB/s", "bytes", "duration", "area"],
+		"lua_file":"tc_block_rq.lua",
+		"lua_rtn":"block_rq"
+	},
+	"evt_flds": [
+		{"name":"MiB/s", "lkup": "MiB/s",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1.0e-6}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"bytes", "lkup": "bytes",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"Disk", "title":"Disk BW MiB/sec block_rq",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW_BLOCK_RQ",
+			"chart_type":"line", "use_chart":"y",
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.3f", "desc":"Based on ftrace block_rq_issue/complete"}
+		}
 		]
 	}
   },
