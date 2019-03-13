@@ -4,14 +4,20 @@
 "cpu_diagram_hdr": {"max_x":1016,"max_y":1386.8284248803116},
 
 "cpu_diagram_fields":[
-  {"fld":{"x":10,  "y":922}, "chart":"CYCLES_PER_UOP_port_0_CHART", "rng":{"green": 4, "yellow":10}, "pfx":"cycles/uop: "}
-, {"fld":{"x":160, "y":922}, "chart":"CYCLES_PER_UOP_port_1_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":240, "y":922}, "chart":"CYCLES_PER_UOP_port_5_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":334, "y":922}, "chart":"CYCLES_PER_UOP_port_6_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":419, "y":922}, "chart":"CYCLES_PER_UOP_port_2_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":505, "y":922}, "chart":"CYCLES_PER_UOP_port_3_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":591, "y":922}, "chart":"CYCLES_PER_UOP_port_4_CHART", "rng":{"green": 4, "yellow":10}}
-, {"fld":{"x":677, "y":922}, "chart":"CYCLES_PER_UOP_port_7_CHART", "rng":{"green": 4, "yellow":10}}
+  {"fld":{"x":10,  "y":60}, "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
+, {"fld":{"x":10,  "y":72}, "chart":"DISK_BW_BLOCK_RQ", "pfx":"disk BW MB/s: "}
+, {"fld":{"x":10,  "y":84}, "chart":"TEMPERATURE_BY_ZONE", "pfx":"Temp (C): "}
+, {"fld":{"x":10,  "y":128}, "chart":"FREQ_BY_CPU", "pfx":"CPU Freq Ghz: "}
+, {"fld":{"x":10,  "y":140}, "chart":"RAPL_POWER_BY_AREA", "pfx":"power (W): "}
+, {"fld":{"x":10,  "y":152}, "chart":"BW_BY_TYPE", "pfx":"Mem BW (MB/s): "}
+, {"fld":{"x":10,  "y":922}, "chart":"UOPS_port_0_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}, "pfx":"uops/cycle: "}
+, {"fld":{"x":160, "y":922}, "chart":"UOPS_port_1_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}}
+, {"fld":{"x":240, "y":922}, "chart":"UOPS_port_5_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}}
+, {"fld":{"x":334, "y":922}, "chart":"UOPS_port_6_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}}
+, {"fld":{"x":419, "y":922}, "chart":"UOPS_port_2_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}}
+, {"fld":{"x":505, "y":922}, "chart":"UOPS_port_3_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}}
+, {"fld":{"x":591, "y":922}, "chart":"UOPS_port_4_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}}
+, {"fld":{"x":677, "y":922}, "chart":"UOPS_port_7_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}}
 , {"fld":{"x":10,  "y":944}, "chart":"GUOPS_port_0_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "pfx":"uops/nsec: "}
 , {"fld":{"x":160, "y":944}, "chart":"GUOPS_port_1_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}}
 , {"fld":{"x":240, "y":944}, "chart":"GUOPS_port_5_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}}
@@ -20,16 +26,16 @@
 , {"fld":{"x":505, "y":944}, "chart":"GUOPS_port_3_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}}
 , {"fld":{"x":591, "y":944}, "chart":"GUOPS_port_4_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}}
 , {"fld":{"x":677, "y":944}, "chart":"GUOPS_port_7_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}}
-, {"fld":{"x":420, "y":569}, "chart":"CYCLES_PER_IDQ_ALL_UOPS_CHART", "rng":{"green": 4, "yellow":10}, "tfld":{"x":420,"y":555,"text":"cycles/IDQ_uop:"}}
-, {"fld":{"x":260, "y":667}, "chart":"CYCLES_PER_RAT_UOPS_CHART", "rng":{"green": 4, "yellow":10}, "tfld":{"x":260,"y":655,"text":"cycles/RAT_uop:"}}
+, {"fld":{"x":420, "y":569}, "chart":"IDQ_ALL_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green":0.5, "yellow":0.1}, "tfld":{"x":420,"y":555,"text":"IDQ_uops/cycle:"}}
+, {"fld":{"x":260, "y":667}, "chart":"RAT_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "tfld":{"x":260,"y":655,"text":"RAT_uops/cycle:"}}
 , {"fld":{"x":100, "y":668}, "chart":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":100,"y":654,"text":"RAT uop_retire %stalled:"}}
 , {"fld":{"x":100, "y":709}, "chart":"UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART",  "rng":{"green": 10, "yellow":40}, "tfld":{"x":100,"y":695,"text":"RAT uop_issued %stalled:"}}
 , {"fld":{"x":450, "y":839}, "chart":"RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":450,"y":825,"text":"RS %stalled cycles:"}}
 , {"fld":{"x":660,"y":1220}, "chart":"RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":660,"y":1206,"text":"%SBstalled cycles:"}}
 , {"fld":{"x":200, "y":780}, "chart":"RESOURCE_STALLS.ROB_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":200,"y":766,"text":"%ROB stalled:"}}
-, {"fld":{"x":260, "y":544}, "chart":"CYCLES_PER_DSB_UOPS_CHART", "rng":{"green": 4, "yellow":10}, "tfld":{"x":260,"y":530,"text":"cycles/DSB_uop:"}}
-, {"fld":{"x":200, "y":614}, "chart":"CYCLES_PER_LSD_UOPS_CHART", "rng":{"green": 4, "yellow":10}, "tfld":{"x":200,"y":600,"text":"cycles/LSD_uop:"}}
-, {"fld":{"x":250, "y":460}, "chart":"CYCLES_PER_MS_UOPS_CHART", "rng":{"green": 4, "yellow":10}, "tfld":{"x":250,"y":446,"text":"cycles/idq.ms_uop:"}}
+, {"fld":{"x":260, "y":544}, "chart":"DSB_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "tfld":{"x":260,"y":530,"text":"DSB_uops/cycle:"}}
+, {"fld":{"x":200, "y":614}, "chart":"LSD_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "tfld":{"x":200,"y":600,"text":"LSD_uops/cycle:"}}
+, {"fld":{"x":250, "y":460}, "chart":"MS_UOPS_PER_CYCLE_CHART",  "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "tfld":{"x":250,"y":446,"text":"idq.ms_uops/cycle:"}}
 , {"fld":{"x":160, "y":277}, "chart":"MISPRED_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":160,"y":265,"text":"%mispred_cycles:"}}
 , {"fld":{"x":370, "y":177}, "chart":"IFETCH_STALLS_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":370,"y":165,"text":"%ifetch_stalled:"}}
 , {"fld":{"x":850, "y":262}, "chart":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 16, "yellow":32}, "tfld":{"x":850,"y":250,"text":"icache_miss_bytes/cycle:"}}
@@ -40,5 +46,5 @@
 , {"fld":{"x":920,"y":1142}, "chart":"SQ_FULL_PER_CYCLE_CHART", "rng":{"green": 10, "yellow":20}, "tfld":{"x":920,"y":1128,"text":"%SQ full cycles:"}}
 , {"fld":{"x":850,"y":1284}, "chart":"L2_TRANS_ALL_PER_CYCLE_CHART", "rng":{"green": 16, "yellow":32}, "tfld":{"x":850,"y":1270,"text":"L2transBytes/cycle:"}}
 , {"fld":{"x":450,"y":1220}, "chart":"L1D_REPL_BYTES_PER_CYCLE_CHART", "rng":{"green": 16, "yellow":32}, "tfld":{"x":450,"y":1206,"text":"L1DreplBytes/cycle:"}}
-, {"fld":{"x":700,"y":1384}, "chart":"L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":20}, "tfld":{"x":700,"y":1370,"text":"%L1DpendingFBfull stall cycles:"}}
+, {"fld":{"x":700,"y":1384}, "chart":"L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":20}, "tfld":{"x":700,"y":1370,"text":"%FBfull stall cycles:"}}
 ]}
