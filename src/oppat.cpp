@@ -201,10 +201,29 @@ get_opt_main (int argc, char **argv)
 		   "   If end_tm is not entered then clip end time is set to the marker 'num' absolute time\n"
 		   "   If end_tm is entered then clip end time is set to the marker 'num' absolute time + end_tm\n"
 		},
-		{"phase",      required_argument,   0, 0, "select a phase by 'string'"
+		{"ph_step_int",      required_argument,   0, 0, "start at above phase, step by interval and save canvas"
+		   "   Arg to ph_step_int is step_sz[,tms_to_step] where step_sz is size in seconds and tms_to_step is integer\n"
+		   "   for how many times to shift interval. This is intended for making gifs.\n"
+		   "   So '--phase_step_int 0.1,10' would start at above phase but use interval 0.1 secs, draw the canvas\n"
+		   "   then increment the beg,end tm by 0.1 secs and redraw for 9 more times.\n"
+		   "   See --ph_image below for option to create gif files.\n"
+		   "   If tms_to_step is not entered then number of intervals ('end time' - 'beg time')/step_sz.\n"
+		},
+		{"phase0",      required_argument,   0, 0, "select a phase by 'string'"
 		   "   The phases are a subset of the markers. They have the strings 'end phase .*some_text.* dura= num .*'\n"
 		   "   Enter the string you want to look for in the 'some_text' part of the marker text\n"
 		   "   If end_tm used is the 'end phase' marker time and the beg_tm is end_tm - dura.\n"
+		},
+		{"phase1",     required_argument,   0, 0, "select an ending phase by 'string'"
+		   "   If you select a '--phase0 phs_num0' and '--phase1 phs_num1' then the starting time is the start\n"
+		   "   of phs_num0 and the ending time is the end of phs_num1.\n"
+		   "   if --phase1 is not specified and --ph_step_int not specified then the start time is the start\n"
+		   "   of phs_num0 and the end time is the end of phs_num0.\n"
+		},
+		{"ph_image",      required_argument,   0, 0, "save cpu_diagram canvas using ph_image filename"
+		   "   Arg to ph_image is a filename. The cpu_diagram canvas will be converted to png (after ph_step_int actions)\n"
+		   "   and then sent to oppat and saved to filename. A number will be appended to the filename.\n"
+		   "   So '--ph_image c:\\tmp\\cpu_diag_' will create c:\\tmp\\cpu_diag_000.png, c:\\tmp\\cpu_diag_001.png etc\n"
 		},
 		{"charts",      required_argument,   0, 'c', "json list of charts"},
 		{"data_files",  required_argument,   0, 'd', "json list of data files\n"
@@ -396,9 +415,24 @@ get_opt_main (int argc, char **argv)
 				options.tm_clip_beg_valid = CLIP_LVL_2;
 				break;
 			}
-			if (strcmp(long_options[option_index].name, "phase") == 0) {
+			if (strcmp(long_options[option_index].name, "phase0") == 0) {
 				options.phase.push_back(optarg);
-				printf ("option --phase %s\n", optarg);
+				printf ("option --phase0 %s\n", optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "phase1") == 0) {
+				options.phase_end.push_back(optarg);
+				printf ("option --phase1 %s\n", optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "ph_step_int") == 0) {
+				options.ph_step_int.push_back(optarg);
+				printf ("option --ph_step_int %s\n", optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "ph_image") == 0) {
+				options.ph_image.push_back(optarg);
+				printf ("option --ph_image %s\n", optarg);
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "end_tm") == 0) {
@@ -617,9 +651,9 @@ struct marker_str {
 	double ts_abs, dura;
 	std::string text, evt_name;
 	bool beg, end;
-	int prf_obj_idx, evt_idx_in_po, file_tag_idx, zoom_to;
+	int prf_obj_idx, evt_idx_in_po, file_tag_idx, zoom_to, zoom_end;
 	marker_str(): ts_abs(0.0), dura(0.0), beg(false), end(false),
-		prf_obj_idx(-1), evt_idx_in_po(-1), file_tag_idx(-1), zoom_to(0) {}
+		prf_obj_idx(-1), evt_idx_in_po(-1), file_tag_idx(-1), zoom_to(0), zoom_end(0) {}
 };
 
 static std::vector <marker_str> marker_vec, phase_vec;
@@ -3126,7 +3160,9 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		event_table[evt_idx].charts[chrt].tot_line.c_str(), 
 		event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 	if (event_table[evt_idx].charts[chrt].tot_line_opts.xform.size() > 0) {
-		json += ", \"tot_line_opts_xform\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.xform + "\"";
+		std::string xf = ", \"tot_line_opts_xform\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.xform + "\"";
+		json += xf;
+		printf("got xform= '%s' at %s %d\n", xf.c_str(), __FILE__, __LINE__);
 	}
 	if (event_table[evt_idx].charts[chrt].tot_line_opts.yval_fmt.size() > 0) {
 		json += ", \"tot_line_opts_yval_fmt\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.yval_fmt + "\"";
@@ -3306,11 +3342,11 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	json += "," + build_flnm_evt_string(evt_tbl_idx, evt_idx, event_table, verbose);
 	if (verbose)
 		printf("title= %s\n",  event_table[evt_idx].charts[chrt].title.c_str());
-	json += ", \"subcat_rng\":[";
+	std::string sc_rng = ", \"subcat_rng\":[";
 	bool did_line=false;
 	for (uint32_t i=0; i < ch_lines.range.subcat_rng.size(); i++) {
 		for (uint32_t j=0; j < ch_lines.range.subcat_rng[i].size(); j++) {
-			if (did_line) { json += ", "; }
+			if (did_line) { sc_rng += ", "; }
 			std::string legnd, sbcat;
 			std::string ev = "evt unknown";
 			uint32_t file_tag_idx = UINT32_M1;
@@ -3395,7 +3431,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				(int)i, legnd.c_str(),
 				ch_lines.range.subcat_rng[i][j].initd
 				);
-			json += "{ \"x0\":" + std::to_string(ux0) +
+			sc_rng += "{ \"x0\":" + std::to_string(ux0) +
 				", \"x1\":" + std::to_string(ux1) +
 				", \"y0\":" + std::to_string(ch_lines.range.subcat_rng[i][j].y0) +
 				", \"y1\":" + std::to_string(ch_lines.range.subcat_rng[i][j].y1) +
@@ -3410,7 +3446,9 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 			did_line = true;
 		}
 	}
-	json += "]";
+	sc_rng += "]";
+	printf("subcat_rng= '%s' at %s %d\n", sc_rng.c_str(), __FILE__, __LINE__);
+	json += sc_rng;
 	json += "}";
 	// below can print lots
 	if (options.show_json > 0) {
@@ -4922,15 +4960,6 @@ int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_
 							ms.dura = atof(ms.text.substr(pos+lkfor.size(), std::string::npos).c_str());
 							printf("got end phase: '%s' dura= %f at %s %d\n", ms.text.c_str(), ms.dura, __FILE__, __LINE__);
 						}
-						for (uint32_t j=0; j < options.phase.size(); j++) {
-							if (j == file_tag_idx) {
-								if (ms.text.find(options.phase[j]) != std::string::npos) {
-									ms.zoom_to = 1;
-									printf("Got match on options.phase '%s' zoom_to= %d on phase text '%s' at %s %d\n",
-											options.phase[j].c_str(), ms.zoom_to, ms.text.c_str(), __FILE__, __LINE__);
-								}
-							}
-						}
 						phase_vec.push_back(ms);
 					}
 				}
@@ -4999,15 +5028,6 @@ int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_
 								ms.dura = atof(ms.text.substr(pos+6, std::string::npos).c_str());
 								printf("got end phase: '%s' dura= %f at %s %d\n", ms.text.c_str(), ms.dura, __FILE__, __LINE__);
 							}
-						for (uint32_t j=0; j < options.phase.size(); j++) {
-							if (j == file_tag_idx) {
-								if (ms.text.find(options.phase[j]) != std::string::npos) {
-									ms.zoom_to = 1;
-									printf("Got match on options.phase '%s' zoom_to= %d on phase text '%s' at %s %d\n",
-											options.phase[j].c_str(), ms.zoom_to, ms.text.c_str(), __FILE__, __LINE__);
-								}
-							}
-						}
 							phase_vec.push_back(ms);
 						}
 					}
@@ -5402,7 +5422,8 @@ int main(int argc, char **argv)
 
 	event_table.resize(grp_list.size());
 
-	printf("\nbefore fill_data_table: grp_list.size()= %d at %s %d\n", (int)grp_list.size(), __FILE__, __LINE__);
+	fprintf(stderr, "before fill_data_table: grp_list.size()= %d elap_tm= %.3f at %s %d\n",
+			(int)grp_list.size(), dclock() - tm_beg, __FILE__, __LINE__);
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t k=0; k < file_list.size(); k++) {
 			if (verbose)
@@ -5503,7 +5524,8 @@ int main(int argc, char **argv)
 	}
 
 
-	printf("\nbefore report_chart_data:\n");
+	fprintf(stderr, "before report_chart_data: elap_tm= %.3f at %s %d\n",
+			dclock() - tm_beg, __FILE__, __LINE__);
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t i=0; i < event_table[grp_list[g]].size(); i++) {
 			printf("before build_chart_data:: evt= %s, event_table[%d][%d].data.vals.size()= %d at %s %d\n",
@@ -5524,7 +5546,8 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-	printf("\nafter  report_chart_data\n");
+	fprintf(stderr, "after  report_chart_data, elap_tm= %.3f at %s %d\n",
+			dclock() - tm_beg, __FILE__, __LINE__);
 
 	{
 		std::unordered_map<std::string, uint32_t> hsh_str_chrt_already_done_for_file_tag;
@@ -5610,6 +5633,73 @@ int main(int argc, char **argv)
 	cats += ", \"pixels_high_default\":" + std::to_string(chart_defaults.pixels_high_default);
 	std::string phase;
 	if (phase_vec.size() > 0) {
+		uint32_t got_zoom_to = UINT32_M1, got_zoom_end = UINT32_M1;
+		for (uint32_t i=0; i < phase_vec.size(); i++) {
+			for (uint32_t j=0; j < options.phase.size(); j++) {
+				if (j == phase_vec[i].file_tag_idx) {
+					if (phase_vec[i].text.find(options.phase[j]) != std::string::npos) {
+						phase_vec[i].zoom_to = 1;
+						got_zoom_to = i;
+						printf("Got match on options.phase '%s' zoom_beg= %d on phase text '%s' at %s %d\n",
+								options.phase[j].c_str(), phase_vec[i].zoom_to, phase_vec[i].text.c_str(), __FILE__, __LINE__);
+						break;
+					}
+				}
+			}
+		}
+		for (uint32_t i=0; i < phase_vec.size(); i++) {
+			for (uint32_t j=0; j < options.phase_end.size(); j++) {
+				if (j == phase_vec[i].file_tag_idx) {
+					if (phase_vec[i].text.find(options.phase_end[j]) != std::string::npos) {
+						phase_vec[i].zoom_end = 1;
+						got_zoom_end = i;
+						printf("Got match on options.phase_end '%s' zoom_end= %d on phase text '%s' at %s %d\n",
+								options.phase_end[j].c_str(), phase_vec[i].zoom_to, phase_vec[i].text.c_str(), __FILE__, __LINE__);
+						break;
+					}
+				}
+			}
+		}
+		if (got_zoom_to == UINT32_M1 && options.phase.size() > 0) {
+				fprintf(stderr, "missed phase to zoom to. looked for options.phase[0]= '%s'. problem at %s %d\n",
+						options.phase[0].c_str(), __FILE__, __LINE__);
+				printf("didn't find string '%s' in phases: at %s %d\n", options.phase[0].c_str(), __FILE__, __LINE__);
+				for (uint32_t j=0; j < phase_vec.size(); j++) {
+					printf("phase[%d]= '%s'\n", j, phase_vec[j].text.c_str());
+				}
+				printf("bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+		}
+		if (got_zoom_end == UINT32_M1 && options.phase_end.size() > 0) {
+				fprintf(stderr, "missed phase_end for zoom end. looked for options.phase_end[0]= '%s'. problem at %s %d\n",
+						options.phase_end[0].c_str(), __FILE__, __LINE__);
+				printf("didn't find string '%s' in phases: at %s %d\n", options.phase_end[0].c_str(), __FILE__, __LINE__);
+				for (uint32_t j=0; j < phase_vec.size(); j++) {
+					printf("phase[%d]= '%s'\n", j, phase_vec[j].text.c_str());
+				}
+				printf("bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+		}
+		if (got_zoom_to != UINT32_M1 && got_zoom_end != UINT32_M1 && got_zoom_to > got_zoom_end) {
+				fprintf(stderr, "It seems that the cmdline --phase0 beg_time '%s' is > --phase1 end_end '%s'. problem at %s %d\n",
+						options.phase[0].c_str(), options.phase_end[0].c_str(), __FILE__, __LINE__);
+				printf("begin phase0 indx= %d and end phase1 indx= %d. phases: at %s %d\n", got_zoom_to, got_zoom_end, __FILE__, __LINE__);
+				for (uint32_t j=0; j < phase_vec.size(); j++) {
+					printf("phase[%d]= '%s'\n", j, phase_vec[j].text.c_str());
+				}
+				printf("bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+		}
+		if (got_zoom_to == UINT32_M1 && got_zoom_end != UINT32_M1) {
+				fprintf(stderr, "You entered --phase1 (the end phase) but didn't enter --phase0 (the begin phase). problem at %s %d\n",
+						__FILE__, __LINE__);
+				printf("end phase indx= %d. phases: at %s %d\n", got_zoom_end, __FILE__, __LINE__);
+				for (uint32_t j=0; j < phase_vec.size(); j++) {
+					printf("phase[%d]= '%s'\n", j, phase_vec[j].text.c_str());
+				}
+				printf("bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+		}
 		phase += ", \"phase\":[";
 		for (uint32_t i=0; i < phase_vec.size(); i++) {
 			if (i > 0) {
@@ -5620,10 +5710,29 @@ int main(int argc, char **argv)
 				", \"file_tag_idx\":"+std::to_string(phase_vec[i].file_tag_idx)+
 				", \"file_tag\":\""+file_list[phase_vec[i].file_tag_idx].file_tag+"\""+
 				", \"zoom_to\":"+std::to_string(phase_vec[i].zoom_to)+
+				", \"zoom_end\":"+std::to_string(phase_vec[i].zoom_end)+
 				", \"text\":\""+phase_vec[i].text+"\"}";
-			printf("phase[%d].zoom_to= %d at %s %d\n", i, phase_vec[i].zoom_to, __FILE__, __LINE__);
+			printf("phase[%d].zoom_to= %d, zoom_end= %d at %s %d\n", i, phase_vec[i].zoom_to, phase_vec[i].zoom_end, __FILE__, __LINE__);
 		}
 		phase += "]";
+		if (options.ph_step_int.size() > 0) {
+			if (got_zoom_to == UINT32_M1) {
+				fprintf(stderr, "missed phase to zoom to so we can't do --ph_step_in %s at %s %d\n",
+						options.ph_step_int[0].c_str(), __FILE__, __LINE__);
+				exit(1);
+			} else {
+				phase += ", \"ph_step_int\":[" + options.ph_step_int[0] + "]";
+			}
+		}
+		if (options.ph_image.size() > 0) {
+			if (got_zoom_to == UINT32_M1) {
+				fprintf(stderr, "missed phase to zoom to so we can't do --ph_image %s at %s %d\n",
+						options.ph_image[0].c_str(), __FILE__, __LINE__);
+				exit(1);
+			} else {
+				phase += ", \"ph_image\":[1]";
+			}
+		}
 		cats += phase;
 		printf("phase= '%s' at %s %d\n", phase.c_str(), __FILE__, __LINE__);
 	}
@@ -5748,7 +5857,11 @@ int main(int argc, char **argv)
 		while(thrd_status == THRD_RUNNING && get_signal() == 0) {
 			if (!q_from_clnt_to_srvr.is_empty()) {
 				std::string msg = q_from_clnt_to_srvr.pop();
-				printf("msg[%d] from clnt= %s at %s %d\n", i, msg.c_str(), __FILE__, __LINE__);
+				if (msg.size() < 100) {
+					printf("msg[%d] from clnt= %s at %s %d\n", i, msg.c_str(), __FILE__, __LINE__);
+				} else {
+					printf("msg[%d] from clnt= %s at %s %d\n", i, msg.substr(0, 100).c_str(), __FILE__, __LINE__);
+				}
 				i++;
 				uint32_t msg_len = msg.size();
 				if (msg == "Ready") {
@@ -5766,8 +5879,53 @@ int main(int argc, char **argv)
 					double tm_aft = dclock();
 					fprintf(stderr, "q_from_srvr_to_clnt.push(chrts_json) size= %d txt_sz= %d push_tm= %f at %s %d\n",
 						(int)chrts_json.size(), (int)callstack_sz, tm_aft-tm_bef, __FILE__, __LINE__);
+				} else if (msg_len > 6 &&  msg.substr(0, 6) == "image,") {
+					fprintf(stderr, "got image msg %s %d", __FILE__, __LINE__);
+					std::string img_str = msg.substr(6, msg.size());
+					size_t pos = img_str.find("lp=");
+					pos = img_str.find("imagedata:");
+					if (pos != std::string::npos) {
+						fprintf(stderr, "image %s\n", img_str.substr(0, pos).c_str());
+						std::string hdr0 = img_str.substr(0, pos);
+						size_t pos1 = hdr0.find("lp=");
+						int lp = atoi(hdr0.substr(pos1+3,hdr0.size()).c_str());
+						char str[64];
+						sprintf(str, "%.5d", lp);
+						std::string flnm_pfx = "image_";
+						if (options.ph_image.size() > 0 && options.ph_image[0].size() > 0) {
+							flnm_pfx = options.ph_image[0];
+						}
+						std::string flnm = flnm_pfx + std::string(str) + ".png";
+						std::string lkfor = ";base64,";
+						size_t pos2 = img_str.find(lkfor);
+						if (pos2 == std::string::npos) {
+							fprintf(stderr, "missed str= '%s' in image data file %s. bye at %s %d\n",
+									lkfor.c_str(), flnm.c_str(), __FILE__, __LINE__);
+						}
+						std::string data = img_str.substr(pos2+lkfor.size(), img_str.size());
+
+						int ln = Base64decode_len(data.c_str());
+						char *dst = (char *)malloc(ln+1);
+						int rc = Base64decode(dst, data.c_str());
+						fprintf(stderr, "lp= %d at %s %d\n", lp, __FILE__, __LINE__);
+						{
+							std::ofstream file;
+							//long pos = 0;
+							file.open (flnm.c_str(), std::ios::out | std::ios::binary);
+							if (!file.is_open()) {
+								fprintf(stderr, "messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
+								exit(1);
+							}
+							//file << img_str.substr(pos+10, img_str.size());
+							file.write(dst,ln);
+							file.close();
+							fprintf(stderr, "wrote flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
+						}
+					}
+					fflush(stdout);
+					//ck_json(svg_str, "check parse_svg json str", __FILE__, __LINE__, options.verbose);
 				} else if (msg_len >= 9 &&  msg.substr(0, 9) == "parse_svg") {
-					fprintf(stderr, "got svg msg %s %d", __FILE__, __LINE__);
+					fprintf(stderr, "got svg msg %s %d\n", __FILE__, __LINE__);
 					svg_str = msg.substr(10, msg.size());
 					fprintf(stdout, "%s\n", svg_str.c_str());
 					fflush(stdout);
