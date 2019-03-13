@@ -11,11 +11,15 @@ var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
 var gcanvas_args = [];
-var g_charts_done = {cntr:0};
+var g_charts_done = {cntr:0, typ:""};
 var g_cpu_diagram_flds = null;
+var g_cpu_diagram_canvas = null;
+var g_cpu_diagram_canvas_ctx = null;
+var g_cpu_diagram_draw_svg = null;
 var g_got_cpu_diagram_svg = false;
 var gmsg_span = null;
 var gpixels_high_default = 250;
+var g_tot_line_divisions = {max:100};
 var doc_title_def = "OPPAT: Open Power/Performance Analysis Tool";
 var gjson = {};
 var gjson_str_pool = null;
@@ -205,7 +209,7 @@ if (!("TextDecoder" in window)) {
 }
 
 var gsync_zoom_linked = false;
-var gsync_zoom_redrawn_charts = {cntr:0, cpu_diag_redraw:0};
+var gsync_zoom_redrawn_charts = {cntr:0, cpu_diag_redrawn:0, cpu_diag_redraw_requests:0, typ:""};
 var gsync_zoom_redrawn_charts_map = [];
 var gsync_zoom_active_now = false;
 var gsync_zoom_active_redraw_beg_tm = 0;
@@ -246,17 +250,15 @@ function set_zoom_all_charts(j, need_tag)
 			let zoom_x1 = gjson.chart_data[i].x_range.max;
 			let tabs_x0 = t0 + zoom_x0;
 			let tabs_x1 = t0 + zoom_x1;
-			if (tabs_x0 < gsync_zoom_last_zoom.abs_x0) {
+			if (tabs_x0 != gsync_zoom_last_zoom.abs_x0) {
 				tabs_x0 = gsync_zoom_last_zoom.abs_x0;
 			}
-			if (tabs_x1 > gsync_zoom_last_zoom.abs_x1) {
+			if (tabs_x1 != gsync_zoom_last_zoom.abs_x1) {
 				tabs_x1 = gsync_zoom_last_zoom.abs_x1;
 			}
 			gsync_zoom_arr[i].x0 = tabs_x0;
 			gsync_zoom_arr[i].x1 = tabs_x1;
 			gsync_zoom_arr[i].iter = gLinkZoom_iter;
-			tabs_x0 -= t0;
-			tabs_x1 -= t0;
 			//console.log("Zooom ii= "+i);
 		}
 		gsync_zoom_redrawn_charts.cntr = 0;
@@ -557,6 +559,29 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				tot_line.yarray2.push([]);
 				tot_line.xarray2.push([]);
 			}
+		} else if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
+			chart_data.tot_line_opts_xform == "select_vars") {
+			let u_hsh = {};
+			let u_arr = [];
+			let num_events = chart_data.subcat_rng.length;
+			for (let j=0; j < num_events; j++) {
+				let nm     = chart_data.subcat_rng[j].cat_text;
+				console.log(sprintf("xform sel_var[%d] %s", j, nm));
+				u_hsh[j] = nm;
+				u_arr.push(j);
+			}
+			for (let i=0; i < u_arr.length; i++) {
+				let str = u_hsh[u_arr[i]];
+				tot_line.evt_str_base_val_arr.push(u_arr[i]);
+				if (typeof chart_data.tot_line_opts_yvar_fmt !== 'undefined') {
+					str = sprintf(chart_data.tot_line_opts_yvar_fmt, str);
+				}
+				tot_line.evt_str.push(str);
+				tot_line.yarray.push([]);
+				tot_line.yarray2.push([]);
+				tot_line.xarray2.push([]);
+			}
+			console.log("sel_var tot_line.evt_str.len= "+ tot_line.evt_str.length);
 		} else {
 			tot_line.evt_str.push(chart_data.tot_line);
 			tot_line.yarray.push([]);
@@ -699,13 +724,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				gsync_zoom_charts_hash[chrt_idx].tms++;
 				//if (gsync_zoom_charts_hash[chrt_idx].tms == 1 ||
 				//	x0 != gsync_zoom_charts_hash[chrt_idx].x0 || x1 != gsync_zoom_charts_hash[chrt_idx].x1) {
-				if (1==20) {
-				console.log("z_h["+chrt_idx+"].tms= "+ gsync_zoom_charts_hash[chrt_idx].tms+", zido= "+
-					task.zoom_iter_last+",n= "+gsync_zoom_charts_hash[chrt_idx].zoom_iter+"xo= "+
-					gsync_zoom_charts_hash[chrt_idx].x0+"-"+gsync_zoom_charts_hash[chrt_idx].x1+", xn= "+
-					x0+"-"+x1
-					);
-				}
 					gsync_zoom_charts_hash[chrt_idx].x0 = x0;
 					gsync_zoom_charts_hash[chrt_idx].x1 = x1;
 					gsync_zoom_charts_redrawn++;
@@ -1102,9 +1120,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		event_list[j].color = gcolor_def;
 		event_lkup[idx] = j;
 		for (let sci= 0; sci < tot_line.event_list_idx.length; sci++) {
-		if (tot_line.event_list_idx[sci] == j) {
-			tot_line.event_lkup_idx = idx;
-		}
+			if (tot_line.event_list_idx[sci] == j) {
+				tot_line.event_lkup_idx = idx;
+			}
 		}
 
 		//console.log("evt= "+event_list[j].event+", tot= "+event_list[j].total+", lkup idx= "+idx+", j="+j);
@@ -1205,7 +1223,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let cpi_cycles2 = "";
 		for (let j=0; j < event_list.length; j++) {
 			let nm = event_list[j].event;
-			//if (ev != "CSwitch" && ev != "sched:sched_switch" && ev != "cpu-clock") {
 			if (!event_list[j].has_callstacks) {
 				continue;
 			}
@@ -1480,6 +1497,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		} else {
 			let prev_state = event_select[proc_idx][1];
 			event_select[proc_idx] = [i, 'highlight'];
+			console.log("legend hover id= "+ele_nm+", rank= "+i+", proc_idx= "+proc_idx+", typ= "+typ);
+			console.log(sprintf("legend hover event_select[%d] = [%d, %s]", proc_idx, i, 'highlight'));
 			chart_redraw("lgnd_hvr_hghlght_evnt");
 			event_select[proc_idx] = [i, prev_state];
 		}
@@ -1504,9 +1523,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			console.log("__legend_mouse_enter id= "+evt.target.parentNode.id+", rank= "+i+", proc_idx= "+
 				proc_idx+", typ= "+typ+",nm="+event_list[i].event);
 		}
-		if (1==20) {
-			console.log("__legend_mouse_enter ele= "+ele_nm);
-		}
+		//console.log("__legend_mouse_enter ele= "+ele_nm);
 		// this is a delay so we don't redraw a bunch when all we are doing is passing over the legend entries.
 		last_legend_timeout = setTimeout(legend_hover, 200, evt);
 		return;
@@ -2544,8 +2561,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	}
 
-	tot_line.divisions = 100.0;
-	tot_line.xdelta    = (maxx - minx) / tot_line.divisions;
+	tot_line.divisions = g_tot_line_divisions.max;
 	function tot_line_get_values()
 	{
 		let ret_data = {};
@@ -2603,12 +2619,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		let num=0.0, den=0.0;
 		if (ch_type == "line" || ch_type == "stacked") {
+			if (tot_line.divisions != (g_tot_line_divisions.max)) {
+				tot_line.divisions = g_tot_line_divisions.max;
+			}
 			tot_line.xarray.length = tot_line.divisions+1;
 			for (let sci= 0; sci < tot_line.evt_str.length; sci++) {
 				tot_line.xarray2[sci].length = tot_line.divisions+1;
 				tot_line.yarray2[sci].length = tot_line.divisions+1;
 				tot_line.yarray[sci].length = tot_line.divisions+1;
-				//console.log(chart_data.map_cpu_2_core);
 				for (let j=0; j < tot_line.yarray[sci].length; j++) {
 					tot_line.yarray[sci][j] = 0.0;
 					tot_line.yarray2[sci][j] = 0.0;
@@ -2624,6 +2642,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
 							let core = chart_data.map_cpu_2_core[cpu];
 							if (tot_line.evt_str_base_val_arr[sci] != core) {
+								continue;
+							}
+						}
+						if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
+							chart_data.tot_line_opts_xform == 'select_vars') {
+							let icat = chart_data.myshapes[i].ival[IVAL_CAT];
+							if (tot_line.evt_str_base_val_arr[sci] != icat) {
 								continue;
 							}
 						}
@@ -2677,7 +2702,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						if (map_num_den > 0) {
 							tot_line.yarray2[sci][j] += HT_factor_num * num * (xcur1 - xcur0) * tot_line.divisions;
 							tot_line.xarray2[sci][j] += HT_factor_den * den * (xcur1 - xcur0) * tot_line.divisions;
-							tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
+							if (tot_line.xarray2[sci][j] > 0.0) {
+								tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
+							} else {
+								tot_line.yarray[sci][j] = 0.0;
+							}
 						} else {
 							tot_line.yarray[sci][j] += yval * (xcur1 - xcur0) * tot_line.divisions;
 						}
@@ -2686,7 +2715,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let tot_avg = 0, tot_avg2= 0;
 				let tot_avg2_num = 0;
 				let tot_avg2_den = 0;
-				for (let j=0; j < tot_line.divisions+1; j++) {
+				for (let j=0; j < (tot_line.divisions+1); j++) {
 					tot_line.xarray[j] = minx + j * (maxx - minx) / tot_line.divisions;
 					tot_avg += tot_line.yarray[sci][j];
 					tot_avg2_num += tot_line.yarray2[sci][j];
@@ -2698,7 +2727,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 				if (tot_line.divisions > 0) {
 					tot_avg /= tot_line.divisions;
-					tot_avg2 = tot_avg2_num/tot_avg2_den;
+					if (tot_avg2_den > 0.0) {
+						tot_avg2 = tot_avg2_num/tot_avg2_den;
+					} else {
+						tot_avg2 = 0.0;
+					}
 					//console.log(sprintf("tot_avg[%d]= %.3f title= %s\n", sci, tot_avg, chart_data.title));
 					if (g_cpu_diagram_flds != null) {
 						for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
@@ -2720,6 +2753,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								g_cpu_diagram_flds.cpu_diagram_fields[j].y_label = chart_data.y_label;
 								g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt = y_fmt;
 								g_cpu_diagram_flds.cpu_diagram_fields[j].desc = desc;
+								g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx = chrt_idx;
+								g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line = tot_line;
 								g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag = chart_data.chart_tag;
 								g_cpu_diagram_flds.cpu_diagram_fields[j].map_cpu_2_core = chart_data.map_cpu_2_core;
 								//console.log("got cpu_diagram chart match= "+chart_data.chart_tag);
@@ -3436,6 +3471,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				ctx.lineWidth = 5;
 			}
 			let pts_max = tot_line.yarray[sci].length-1;
+
 			let yPxlzero = canvas_px_high(null) - yPadding;
 			if (do_event) {
 				for (let i=0; i < pts_max; i++) {
@@ -3836,7 +3872,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 				let rel_nx0 = nx0 + chart_data.ts_initial.tm_beg_offset_due_to_clip;
 				let abs_ts = (nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
-				let str5 = get_phase_indx(abs_ts);
+				let str5 = get_phase_indx(abs_ts, false);
 				console.log(sprintf("abs_ts= %f str5= %s", abs_ts, str5));
 				if (str5 != "") {
 					str5 = "<br>Phase= "+str5;
@@ -3910,17 +3946,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let idx = chrt_idx;
     		//console.log("pan x0= "+x0+", x1= "+x1);
 		let xdiff = +0.5 * (maxx - minx);
-		/*
-		if (x0 > maxx) {
-			let xd = x1 - x0;
-			x0 = maxx;
-			x1 = maxx + xd;
-		} else if (x1 < minx) {
-			let xd = x1 - x0;
-			x1 = minx;
-			x0 = minx - xd;
-		}
-		*/
 		//console.log("for 01, x1= "+x1);
 		if (update_gsync_zoom) {
 			//console.log("zm2nw1: "+x0+",x1="+x1+",ttl="+chart_data.title);
@@ -4171,7 +4196,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							let xdiff1= +(x1 - xPadding) / (px_wide - xPadding);
 							let nx1 = +minx+(xdiff1 * (maxx - minx));
 							let abs_ts = (nx1 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
-							let str5 = get_phase_indx(abs_ts);
+							let str5 = get_phase_indx(abs_ts, false);
 							if (str5 != "") {
 							//console.log(sprintf("x=  %f, nx1= %f, df= %f abs_ts= %f, str= %s", x, nx1, xdiff1, abs_ts, str5));
 							str += "<br>Phase= "+str5;
@@ -4476,6 +4501,44 @@ function doJob(i, grf, chrts_started_max, tm_beg)
   });
 }
 
+function draw_text_w_bk(ctx, str, font, font_hi, x, y)
+{
+    /// lets save current state as we make a lot of changes        
+    ctx.save();
+    ctx.font = font;
+    ctx.textBaseline = 'top';
+    /// color for background
+    ctx.fillStyle = 'white';
+    /// get width of text
+    var width = ctx.measureText(str).width;
+    /// draw background rect assuming height of font
+    ctx.fillRect(x, y, width, font_hi);
+    /// text color
+    ctx.fillStyle = 'black';
+    /// draw text on top
+    ctx.fillText(str, x, y);
+    /// restore original state
+    ctx.restore();
+}
+
+function draw_svg_header(lp, xbeg, xend, verbose)
+{
+	let strm = get_phase_indx(xbeg + 0.5*(xend-xbeg), verbose);
+	let strb = get_phase_indx(xbeg, verbose);
+	let stre = get_phase_indx(xend, verbose);
+	let str5;
+	if (strb != stre) {
+		str5 = strb + " - " + stre;
+	} else {
+		str5 = strm;
+	}
+	let str = sprintf("lp= %d; phase: %s; T.abs_beg= %.3f; T.abs_end= %.3f;", lp, str5, xbeg, xend);
+	let font_sz = 14;
+	let font = font_sz + 'px Arial';
+	draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, 0);
+	return str;
+}
+		
 async function start_charts() {
 	let tm_beg = performance.now();
 	let tm_now = performance.now();
@@ -4486,6 +4549,13 @@ async function start_charts() {
 		chart_did_image.push(null);
 		ch_did_it.push(false);
 	}
+	if (typeof gjson.phase != 'undefined') {
+		for (let i=0; i < gjson.phase.length; i++) {
+			gjson.phase[i].text.indexOf("tracing_mark_write: ");
+			gjson.phase[i].text = gjson.phase[i].text.replace("tracing_mark_write: ", "");
+		}
+	}
+
 	let ch_titles = [];
 	let got_match;
 	//console.log(gjson.categories);
@@ -4678,56 +4748,248 @@ async function start_charts() {
 		console.log("svg len= "+g_svg_obj.str.length);
 		webSocket.send("parse_svg="+g_svg_obj.str);
 	}
+	let save_g_tot_line_division_max = g_tot_line_divisions.max;
 	console.log(sprintf("gjson.chart_data.length %d g_chrts_done= %d", gjson.chart_data.length, g_charts_done.cntr));
+	console.log("ph_step_int: ", gjson.ph_step_int);
+	console.log("ph_image: ", gjson.ph_image);
 	let jj = 0, jjmax = 5;
-	function myDelay (lkfor_max, typ) {           //  create a loop function
-		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
-			console.log('====jj= '+jj+', charts_done= '+g_charts_done.cntr+", redrw= "+gsync_zoom_redrawn_charts.cntr+", lkfor= "+lkfor_max.cntr+", typ= "+typ);
-			jj++;                     //  increment the counter
-			if (jj < jjmax && ((typ == "all_charts" && lkfor_max.cntr < gjson.chart_data.length) ||
-				(typ == "zoom_some" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw))) {
-				myDelay(lkfor_max, typ);             //  ..  again which will trigger another 
-			} else {
-				//parse_svg();
-				console.log("++++g_charts_done aft= "+gsync_zoom_redrawn_charts.cntr);
-				console.log("__did wait after parse_svg()");
-				ck_phase();
-			}
-		}, 1000, lkfor_max, typ)
+	let ph_step = 0.0, ph_loops = -1;
+	if (typeof gjson.ph_step_int != 'undefined') {
+		ph_step = gjson.ph_step_int[0];
+		if (gjson.ph_step_int.length > 1) {
+			ph_loops= gjson.ph_step_int[1];
+		} else {
+			ph_loops = -1;
+		}
 	}
-	myDelay(g_charts_done, "all_charts");
-
-	console.log("---- did myDelay(g_charts_done)");
-
 	let did_ck_phase = 0;
-	function ck_phase()
+	let phobj = {lp:0, step:ph_step, lp_max:ph_loops};
+
+	let ibeg = -1, iend= -1;
+	let divisions = phobj.lp_max;
+	for (let i=0; i < gjson.phase.length; i++) {
+		if (gjson.phase[i].zoom_to == 1) {
+			ibeg = i;
+		}
+		if (gjson.phase[i].zoom_end == 1) {
+			iend = i;
+		}
+	}
+	console.log(sprintf("ibeg= %d, iend= %d", ibeg, iend));
+	let xbeg = -1, xend= -1;
+			if (ibeg != -1 && iend == -1) {
+				// so --phase0 entered and --phase1 not entered
+				xend  = gjson.phase[ibeg].ts_abs;
+				xbeg  = xend;
+				xbeg -= gjson.phase[ibeg].dura;
+				if (phobj.lp_max > 0 && phobj.step > 0) {
+					xend = xbeg + phobj.lp_max * phobj.step;
+				}
+				if (phobj.lp_max > 0) {
+					divisions = phobj.lp_max;
+					if (phobj.step <= 0.0) {
+						phobj.step = (xend - xbeg)/divisions;
+					}
+				} else if (phobj.step > 0) {
+					divisions = Math.ceil((xend - xbeg)/phobj.step);
+				}
+				console.log(sprintf("xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
+							xbeg, xend, phobj.step, divisions));
+			}
+			if (ibeg != -1 && iend != -1) {
+				// so both --phase0 and --phase1 entered
+				xbeg  = gjson.phase[ibeg].ts_abs;
+				xbeg -= gjson.phase[ibeg].dura;
+				xend  = gjson.phase[iend].ts_abs;
+				if (phobj.lp_max > 0) {
+					divisions = phobj.lp_max;
+					if (phobj.step <= 0.0) {
+						phobj.step = (xend - xbeg)/divisions;
+					}
+				} else if (phobj.step > 0) {
+					divisions = Math.ceil((xend - xbeg)/phobj.step);
+				}
+				console.log(sprintf("xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
+							xbeg, xend, phobj.step, divisions));
+			}
+			//g_tot_line_divisions.max = gjson.ph_step_int[1];
+			if (divisions > 0) {
+			g_tot_line_divisions.max = divisions;
+			}
+			phobj.lp_max = divisions;
+	function myblob(can_ele, str5)
 	{
-		if (did_ck_phase == 1) {
-			console.log("exit ck_phase");
-			gsync_zoom_redrawn_charts.cpu_diag_redraw++;
-			return;
+		can_ele.toBlob(function(blob) {
+			var reader = new FileReader();
+			reader.readAsDataURL(blob); 
+			reader.onloadend = function() {
+				let base64data = reader.result;                
+				webSocket.send(str5+base64data);
+				let buf_amt = webSocket.bufferedAmount;
+				console.log("ws sent bytes= "+base64data.length+", buf_amt= "+buf_amt);
+			}
+		}, 'image/png', 1.0);
+	}
+
+	let skip_obj = {skip_if_idle:true, idle_cur:-1.0, idle_skip_if_less_than:50.0, lp:-1, lp_prev:-2, idle_prev:51.0};
+
+	function ck_if_skip_due_to_idle(lp, so)
+	{
+		so.skip_if_idle = false;
+		let idle_dvals = g_cpu_diagram_flds.lkup_dvals_for_chart_tag["PCT_BUSY_BY_SYSTEM"];
+		if (typeof idle_dvals == 'undefined') {
+			return false;
+		} else {
+			let jidx = idle_dvals[0]; // can only handle 1 indx for now. If chart appears > 1 in has*.flds then broken
+			let mx = g_cpu_diagram_flds.cpu_diagram_fields[jidx].data_val_arr.length;
+			if (mx > 0) {
+				console.log(sprintf("tl.yarr2.sz= %d, j.sz= %d",
+					g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray2.length,
+					g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray2[0].length));
+				so.skip_if_idle = true;
+				//idle_cur = g_cpu_diagram_flds.cpu_diagram_fields[jidx].data_val_arr[0];
+				so.idle_cur = g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray[0][lp];
+				if (lp > 0) {
+					so.idle_prev = g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray[0][lp-1];
+				}
+				console.log(sprintf("lp= %d, %%idle= %.3f%%, ax0= %.3f, ax1= %.3f",
+							lp, so.idle_cur, gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1));
+			}
 		}
-		jj =0;
-		did_ck_phase = 1;
-		if (g_charts_done.cntr == gjson.chart_data.length) {
-			g_charts_done.cntr = 0;
+		let do_skip = false;
+		if (so.skip_if_idle && so.idle_cur < so.idle_skip_if_less_than && so.idle_prev < so.idle_skip_if_less_than) {
+			do_skip = true;
 		}
-		if (typeof gjson.phase != 'undefined') {
-			for (let i=0; i < gjson.phase.length; i++) {
-				if (gjson.phase[i].zoom_to == 1) {
-					gsync_zoom_last_zoom.chrt_idx = -1;
-					gsync_zoom_last_zoom.x0 = -1;
-					gsync_zoom_last_zoom.x1 = -1;
-					gsync_zoom_last_zoom.abs_x1 = gjson.phase[i].ts_abs;
-					gsync_zoom_last_zoom.abs_x0 = gjson.phase[i].ts_abs - gjson.phase[i].dura;
-					console.log(sprintf("===zoom x0= %s, x1= %s", gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1));
-					set_zoom_all_charts(-1, gjson.phase[i].file_tag);
-					jjmax=10;
-					myDelay(gsync_zoom_redrawn_charts, "zoom_some");
-					console.log("---- did myDelay(gsync_zoom_redrawn_charts)");
-					break;
+		return do_skip;
+	}
+
+	function send_blob_backend(po, xbeg)
+	{
+		let x0 = xbeg + po.step*po.lp;
+		let x1 = xbeg + po.step*(po.lp+1);
+		let str = draw_svg_header(po.lp, x0, x1, false);
+		myblob(g_cpu_diagram_canvas, "image,"+str+",imagedata:");
+	}
+	// so we need to wait for the initial draw of the charts to complete
+	// Then we need to check if a phase is selected,
+	//A) if so, set typ= wait_for_zoom_to_phase and redraw all the charts to the zoom interval
+	//   wait for the redraws to finish so the tot_lines values are recomputed for the zoom interval for the cpu_diagram
+	//   then set typ= zoom_cpu_diag and wait for redraw of the cpu_diagram
+	//   then, if requested, save the image and send to server
+	//   then, if more zooms are requested then go to A)
+	//let idle_skip_if_less_than = 50.0; // half a cpu is busy.
+	//let idle_prev = idle_skip_if_less_than + 1; // so the first compare won't be 'idle'
+	function myDelay (lkfor_max, po) {           //  create a loop function
+		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+			console.log('====jj= '+jj+', charts_done= '+g_charts_done.cntr+", redrw= "+
+				gsync_zoom_redrawn_charts.cntr+", lkfor= "+lkfor_max.cntr+", typ= "+lkfor_max.typ);
+			jj++;                     //  increment the counter
+			if (jj < jjmax && ((lkfor_max.typ == "wait_for_initial_draw" && lkfor_max.cntr < gjson.chart_data.length) ||
+				(lkfor_max.typ == "wait_for_initial_draw2" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw) ||
+				(lkfor_max.typ == "wait_for_zoom_to_phase" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw) ||
+				(lkfor_max.typ == "zoom_cpu_diag" && 
+				gsync_zoom_redrawn_charts.cpu_diag_redrawn < gsync_zoom_redrawn_charts.cpu_diag_redraw_requests))) {
+				myDelay(lkfor_max, po);             //  ..  again which will trigger another 
+			} else {
+				if ((lkfor_max.typ == "wait_for_initial_draw2" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw) ||
+					(lkfor_max.typ == "wait_for_zoom_to_phase" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw)) {
+					gsync_zoom_linked = false;
+				}
+				if (jj >= jjmax) {
+					console.log("problem with myDelay rtn: jj >= jjmax("+jjmax+"). typ= "+lkfor_max.typ);
+					return;
+				}
+				console.log(sprintf("++++typ= %s, gs_zm_rd.cntr= %d, cpu_diag_rd= %d, lp= %d, lpmx= %d ax0= %.3f ax1= %.3f %%",
+					lkfor_max.typ, gsync_zoom_redrawn_charts.cntr, gsync_zoom_redrawn_charts.cpu_diag_redrawn, po.lp, po.lp_max,
+							gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1));
+				did_ck_phase = 0;
+				let bump_lp = 1;
+				if (lkfor_max.typ != "zoom_cpu_diag") {
+					bump_lp = 0;
+				}
+				if (lkfor_max.typ == "wait_for_initial_draw2") {
+					let idle_dvals = g_cpu_diagram_flds.lkup_dvals_for_chart_tag["PCT_BUSY_BY_SYSTEM"];
+					let jidx = idle_dvals[0];
+					console.log("typ= "+lkfor_max.typ+", tot_line.yarray: ", 
+									g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray);
+					console.log(g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.xarray);
+					if (lkfor_max.typ == "wait_for_initial_draw2") {
+						return;
+					}
+				}
+				jj = 0;
+				if (po.lp < po.lp_max) {
+					if (bump_lp > 0 && g_cpu_diagram_canvas != null) {
+						let do_skip = ck_if_skip_due_to_idle(po.lp, skip_obj);
+						if (!do_skip) {
+							send_blob_backend(po, xbeg);
+							/*
+							let str5 = get_phase_indx(xbeg + (po.lp+0.5) * phobj.step);
+							let str = sprintf("lp= %d; phase: %s; T.abs_beg= %.3f; T.abs_end= %.3f;", po.lp, str5,
+								xbeg + po.lp*po.step, xbeg+(po.lp+1)*po.step);
+							let font_sz = 14;
+							let font = font_sz + 'px Arial';
+							draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, 0);
+							myblob(g_cpu_diagram_canvas, "image,"+str+",imagedata:");
+							*/
+						} else {
+							console.log("skip due to 2+ idles; lp= "+po.lp);
+						}
+					}
+					if ((po.lp) < po.lp_max) {
+						po.lp = po.lp + bump_lp;
+						if ((po.lp) < po.lp_max) {
+							ck_phase(lkfor_max, po);
+						}
+					}
+				}
+				if (po.lp >= po.lp_max) {
 				}
 			}
+		}, 500, lkfor_max, po)
+	}
+	g_charts_done.typ = "wait_for_initial_draw";
+	myDelay(g_charts_done, phobj);
+	console.log("---- did myDelay(g_charts_done)");
+	console.log("---- try setting divisions= "+phobj.lp_max);
+
+	function ck_phase(lkfor_max, po)
+	{
+		jj=0;
+		jjmax=10;
+		function do_draws(po)
+		{
+			// if we don't put in a sleep then the websocket.send's never get started and we bomb off (eventually)
+			setTimeout(function () {
+				if (po.lp < po.lp_max) {
+					let do_skip = ck_if_skip_due_to_idle(po.lp, skip_obj);
+					if (!do_skip) {
+						g_cpu_diagram_draw_svg([], po.lp);
+						send_blob_backend(po, xbeg);
+					}
+					po.lp++;
+					do_draws(po);
+				} else {
+					g_tot_line_divisions.max = save_g_tot_line_division_max;
+					g_cpu_diagram_draw_svg([], -1);
+				}
+			}, 50, po);
+		}
+		if ((lkfor_max.typ == "wait_for_zoom_to_phase" || lkfor_max.typ == "zoom_cpu_diag") && g_cpu_diagram_canvas != null) {
+			do_draws(po);
+		} else if (lkfor_max.typ == "wait_for_initial_draw" && typeof gjson.phase != 'undefined') {
+			let old_typ = gsync_zoom_redrawn_charts.typ;
+			gsync_zoom_last_zoom.chrt_idx = -1;
+			gsync_zoom_last_zoom.x0 = -1;
+			gsync_zoom_last_zoom.x1 = -1;
+			gsync_zoom_last_zoom.abs_x0 = xbeg;
+			gsync_zoom_last_zoom.abs_x1 = xend;
+			console.log(sprintf("===zoom x0= %s, x1= %s lp= %d %%",
+						gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1, po.lp));
+			set_zoom_all_charts(-1, gjson.phase[0].file_tag);
+			gsync_zoom_redrawn_charts.typ = "wait_for_zoom_to_phase";
+			myDelay(gsync_zoom_redrawn_charts, po);
+			console.log("---- did myDelay("+old_typ+")");
 		}
 	}
 
@@ -4735,18 +4997,41 @@ async function start_charts() {
 }
 
 
-function get_phase_indx(ts_abs)
+function get_phase_indx(ts_abs, verbose)
 {
 	if (typeof gjson.phase == 'undefined') {
 		return "";
 	}
+	let smallest_diff_idx = -1, smallest_diff=0;
 	for (let i=0; i < gjson.phase.length; i++) {
 		let tm_beg = gjson.phase[i].ts_abs - gjson.phase[i].dura;
-		if (tm_beg <= ts_abs && ts_abs <= gjson.phase[i].ts_abs) {
+		let tm_end = gjson.phase[i].ts_abs;
+		let dist0 = Math.abs(tm_beg - ts_abs);
+		let dist1 = Math.abs(tm_end - ts_abs);
+		if (smallest_diff_idx = -1) {
+			smallest_diff = dist0;
+			smallest_diff_idx = i;
+		}
+		if (smallest_diff > dist0) {
+			smallest_diff = dist0;
+			smallest_diff_idx = i;
+		}
+		if (smallest_diff > dist1) {
+			smallest_diff = dist1;
+			smallest_diff_idx = i;
+		}
+		if (verbose) {
+			console.log(sprintf("ck phase[%d]: beg= %.3f, ts= %.3f, end= %.3f", i, tm_beg, ts_abs, tm_end));
+		}
+		if (tm_beg <= ts_abs && ts_abs <= tm_end) {
 			//console.log(sprintf("phase= %s ts_abs= %f", gjson.phase[i].text, ts_abs));
 			return gjson.phase[i].text;
 		}
 	}
+	if (smallest_diff_idx != -1) {
+		return "near " + gjson.phase[smallest_diff_idx].text;
+	}
+	// now handle non-overlapping cases
 	return "";
 }
 
@@ -5325,6 +5610,8 @@ function parse_svg()
 	let mytable   = document.getElementById("tbl_"+hvr_clr);
 	let tt_prv_x=-2, tt_prv_y=-2;
 	let ctx = mycanvas.getContext("2d");
+	g_cpu_diagram_canvas = mycanvas;
+	g_cpu_diagram_canvas_ctx = ctx;
 
 	function xlate_rotate(xin, yin, degrees) {
 		let xout = xin;
@@ -5752,9 +6039,12 @@ function parse_svg()
 		}
 	}
 
-	function draw_svg(hilite_arr) {
+	function draw_svg(hilite_arr, whch_txt) {
+		g_cpu_diagram_draw_svg = draw_svg;
 		build_poly();
 		ctx.clearRect(0, 0, mycanvas.width, mycanvas.height);
+		ctx.fillStyle = 'white';
+		ctx.fillRect(0, 0, mycanvas.width, mycanvas.height);
 		let drew_rect = 0;
 		let drew_text = 0;
 		let drew_path = 0;
@@ -6250,10 +6540,10 @@ function parse_svg()
 			}
 		}
 		// end of drawing
-		draw_svg_txt_flds();
+		draw_svg_txt_flds(whch_txt);
 	}
 
-	draw_svg([]);
+	draw_svg([], -1);
 
 	ck_text_enclosing_boxes();
 
@@ -6500,12 +6790,32 @@ function parse_svg()
 
 	g_svg_obj = build_svg_json_file();
 
-	function draw_svg_txt_flds()
+	function draw_svg_txt_flds(whch_txt)
 	{
 		if (g_cpu_diagram_flds == null) {
 			return;
 		}
 		let txt_tbl = [];
+		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
+				continue;
+			}
+			if (whch_txt == -1) {
+				let len = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.xarray.length;
+				g_cpu_diagram_flds.xbeg = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.xarray[0];
+				g_cpu_diagram_flds.xend = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.xarray[len-1];
+			} else {
+				g_cpu_diagram_flds.xbeg = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.xarray[whch_txt];
+				g_cpu_diagram_flds.xend = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.xarray[whch_txt+1];
+			}
+			let ci     = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
+			let cd     = gcanvas_args[ci][2]; // chart_data
+			let t0     = cd.ts_initial.ts;
+			g_cpu_diagram_flds.xbeg += t0;
+			g_cpu_diagram_flds.xend += t0;
+			break;
+		}
+		let hdr_str = draw_svg_header(whch_txt, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, false);
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
 				continue;
@@ -6517,7 +6827,6 @@ function parse_svg()
 				if (jj == 0 && typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tfld == 'undefined') {
 					continue;
 				}
-	//abcd
 				if (jj == 0) {
 					ux = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.x;
 					uy = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.y;
@@ -6530,12 +6839,37 @@ function parse_svg()
 					cp_str = pfx;
 					ux = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x;
 					uy = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y;
-				for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
-					let str = sprintf(g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt,
-						g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[ii]);
-					val_arr.push(str);
-					cp_str += (ii > 0 ? " ":"") + str;
-				}
+					let fmt_str = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt;
+					let det_arr = [];
+					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
+						let val;
+						if (whch_txt == -1) {
+							val = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[ii];
+						} else {
+							val = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.yarray[ii][whch_txt];
+						}
+						let fmt_str1 = fmt_str;
+						if (fmt_str1.indexOf("__VARNM__") >= 0) {
+							//abcd
+							fmt_str1 = fmt_str1.replace('__VARNM__', g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str[ii]);
+						} else if (fmt_str1.indexOf("__BASEVARNM__") >= 0) {
+							let nm_idx = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str_base_val_arr[ii];
+							let ci     = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
+							let cd     = gcanvas_args[ci][2]; // chart_data
+							let nm     = cd.subcat_rng[nm_idx].cat_text;
+							//abcd
+							fmt_str1 = fmt_str1.replace('__BASEVARNM__', nm);
+							//fmt_str1 = "ii= "+ii+", nmidx= "+nm_idx+", "+fmt_str1;
+						}
+						let str = sprintf(fmt_str1, val);
+						det_arr.push(str);
+						//cp_str += (ii > 0 ? ",":"") + str;
+					}
+					det_arr.sort();
+					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
+						val_arr.push(det_arr[ii]);
+						cp_str += (ii > 0 ? ",":"") + val_arr[ii];
+					}
 				}
 				let text_align = 'left';
 				let text_anchor = 'bottom';
@@ -6614,7 +6948,13 @@ function parse_svg()
 						if (typeof rng.cmp != 'undefined' && rng.cmp == 'ge') {
 							cmp_le = false;
 						}
-						let dv = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[0];
+						//let dv = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[ii];
+						let dv;
+						if (whch_txt == -1) {
+							dv = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[ii];
+						} else {
+							dv = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.yarray[ii][whch_txt];
+						}
 						if (cmp_le) {
 							if (dv <= rng.green) {
 								ctx.fillStyle = 'green';
@@ -6699,13 +7039,34 @@ function parse_svg()
 			let cir = ""; 
 			if (i < ret.vals.length) {
 				str = ret.tvals[i];
+				let cmp_le = true;
+				if (typeof ret.rng.cmp != 'undefined' && ret.rng.cmp == 'ge') {
+					cmp_le = false;
+				}
+				if (cmp_le) {
+					if (ret.vals[i] <= ret.rng.green) {
+						cir = "<span class='dot_green'>n</span>";
+					} else if (ret.vals[i] <= ret.rng.yellow) {
+						cir = "<span class='dot_yellow'>?</span>";
+					} else {
+						cir = "<span class='dot_red'>y</span>";
+					}
+				} else {
+					if (ret.vals[i] >= ret.rng.green) {
+						cir = "<span class='dot_green'>n</span>";
+					} else if (ret.vals[i] >= ret.rng.yellow) {
+						cir = "<span class='dot_yellow'>?</span>";
+					} else {
+						cir = "<span class='dot_red'>y</span>";
+					}
+				}
+				/*
 				if (ret.vals[i] <= ret.rng.green) {
-					cir = "<span class='dot_green'>n</span>";
 				} else if (ret.vals[i] <= ret.rng.yellow) {
-					cir = "<span class='dot_yellow'>?</span>";
 				} else {
 					cir = "<span class='dot_red'>y</span>";
 				}
+				*/
 			}
 			stall += "<td title='"+ret.desc+"'>"+cir+"</td>";
 			txt += "<td align='right' title='"+ret.desc+"'><span class='nowrap'>"+str+ "</span></td>";
@@ -6725,13 +7086,23 @@ function parse_svg()
 		}
 		let lkup = {};
 		let flds_max = 0;
+		g_cpu_diagram_flds.lkup_dvals_for_chart_tag = {};
 		for (let i=0; i < txt_tbl.length; i++) {
 			let j  = txt_tbl[i].jidx;
 			let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			if (typeof lkup[ct] == 'undefined') {
+				g_cpu_diagram_flds.lkup_dvals_for_chart_tag[ct] = [j];
+			} else {
+				g_cpu_diagram_flds.lkup_dvals_for_chart_tag[ct].push(j);
+			}
 			lkup[ct] = i;
 			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
-			if (flds_max < mx) {
-				flds_max = mx;
+			let ci = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
+			let cd = gcanvas_args[ci][2]; // chart_data
+			if (typeof cd.tot_line_opts_xform == 'undefined' || cd.tot_line_opts_xform != 'select_vars') {
+				if (flds_max < mx) {
+					flds_max = mx;
+				}
 			}
 		}
 		let t = "<table border='1' style='float: left'>";
@@ -6789,17 +7160,21 @@ function parse_svg()
 		if (ret.i > -1) {
 			t += lkup_fillin(ret, flds_max, "Branch prediction Unit: %cycles allocator stalled due to mispredict or memory nuke", 2);
 		}
-		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_DSB_UOPS_CHART");
+		ret = lkup_chrt(lkup, txt_tbl, "DSB_UOPS_PER_CYCLE_CHART");
 		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "Decode Stream Buffer: cycles per uop to Instr Decode Queue IDQ from DSB path. Min possible is 0.25 cycles/uop", 2);
+			t += lkup_fillin(ret, flds_max, "Decode Stream Buffer: uops to Instr Decode Queue IDQ from DSB path per cycle. Max possible is 4 uops/cycle", 2);
 		}
-		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_IDQ_ALL_UOPS_CHART");
+		ret = lkup_chrt(lkup, txt_tbl, "IDQ_ALL_UOPS_PER_CHART_CHART");
 		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "IDQ: cycles per uop to IDQ from MITE path. Min possible is 0.25 cycles/uop", 2);
+			t += lkup_fillin(ret, flds_max, "IDQ: uop to IDQ from MITE path/cycle. Max possible is 4 uops/cycle", 2);
 		}
-		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_LSD_UOPS_CHART");
+		ret = lkup_chrt(lkup, txt_tbl, "LSD_UOPS_PER_CYCLE_CHART");
 		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "LSD: cycles per Loop Stream Detector uop to IDQ. Min possible is 0.25 cycles/uop. ", 2);
+			t += lkup_fillin(ret, flds_max, "LSD: Loop Stream Detector uop to IDQ/cycle. Max possible is 4 uops/cycle. ", 2);
+		}
+		ret = lkup_chrt(lkup, txt_tbl, "MS_UOPS_PER_CYCLE_CHART");
+		if (ret.i > -1) {
+			t += lkup_fillin(ret, flds_max, "MS_UOPS: Microcode Sequencer uops to mux. Max possible is 4 uops/cycle. ", 2);
 		}
 		t += "<tr><td>Execution Engine</td></tr>";
 		ret = lkup_chrt(lkup, txt_tbl, "UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART");
@@ -6814,14 +7189,15 @@ function parse_svg()
 		if (ret.i > -1) {
 			t += lkup_fillin(ret, flds_max, "RS: pct of total cycles stalled due to no eligible Reservation Station entry available", 2);
 		}
-		ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_RAT_UOPS_CHART");
+		ret = lkup_chrt(lkup, txt_tbl, "RAT_UOPS_PER_CYCLE_CHART");
 		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "RAT: cycles per RAT uop issued. Min possible is 0.25 cycles/uop. Compare to the DSB, LSD, IDQ cycles/uop to see which path is probably mostly feeding the RAT", 2);
+			t += lkup_fillin(ret, flds_max, "RAT:  RAT uop issued/cycle. Max possible is 4 uops issued/cycles. Compare to the DSB, LSD, IDQ uops/cycle to see which path is probably mostly feeding the RAT", 2);
 		}
 		for (let i=0; i < 8; i++) {
-			ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_UOP_port_"+i+"_CHART");
+			//ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_UOP_port_"+i+"_CHART");
+			ret = lkup_chrt(lkup, txt_tbl, "UOPS_port_"+i+"_PER_CYCLE_CHART");
 			if (ret.i > -1) {
-				t += lkup_fillin(ret, flds_max, "port"+i+": cycles/uop on port"+i+". Big values may mean port is not used much", 4);
+				t += lkup_fillin(ret, flds_max, "port"+i+": uops/cycle on port"+i+". Bigger values means port used more", 4);
 			}
 		}
 		for (let i=0; i < 8; i++) {
@@ -6967,11 +7343,11 @@ function parse_svg()
 			arr = follow_paths(i, arr);
 		}
 		if (arr.length > 0) {
-			draw_svg(arr);
+			draw_svg(arr, -1);
 			did_svg_highlight = true;
 		} else {
 			if (did_svg_highlight) {
-				draw_svg([]);
+				draw_svg([], -1);
 				did_svg_highlight = false;
 			}
 		}
@@ -6991,8 +7367,8 @@ function parse_svg()
 		return c;
 	}
 
-	draw_svg([]);
-	let zoom_ckr = new TaskTimer(1000);
+	draw_svg([], -1);
+	let zoom_ckr = new TaskTimer(500);
 
 	zoom_ckr.addTask({
 	    name: 'zoom_ck '+hvr_clr,       // unique name of the task
@@ -7002,11 +7378,12 @@ function parse_svg()
 	    callback: function (task) {
 		// code to be executed on each run
 		//if (gsync_zoom_linked && !gsync_zoom_active_now)
-			if (gsync_zoom_redrawn_charts.cpu_diag_redraw > task.zoom_iter_last) {
+			if (gsync_zoom_redrawn_charts.cpu_diag_redrawn < gsync_zoom_redrawn_charts.cpu_diag_redraw_requests) {
 				//console.log('task :'+task.name + ' id= '+task.zoom_iter_last);
-				task.zoom_iter_last = gsync_zoom_redrawn_charts.cpu_diag_redraw;
 				console.log("/// now redraw cpu_diagram");
-				draw_svg([]);
+				let txt_idx = gsync_zoom_redrawn_charts.cpu_diag_redraw_text_indx;
+				draw_svg([], txt_idx);
+				gsync_zoom_redrawn_charts.cpu_diag_redrawn = gsync_zoom_redrawn_charts.cpu_diag_redraw_requests;
 			}
 	    }
 	});
