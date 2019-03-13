@@ -289,7 +289,6 @@ do_page_hdr:
 			} else {
 				do_part2 = true;
 			}
-			// abcd
 		} else {
 			do_part2 = true;
 			did_read_cmn_hdr = false;
@@ -1254,6 +1253,139 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 
 static double tm_lua_derived = 0.0;
 
+static void gen_div_ck_idx(uint32_t idx, std::string col, std::string evt_nm, int line)
+{
+	if (idx == UINT32_M1) {
+		fprintf(stderr, "didn't find new_col '%s' in event %s fields from charts.json. Bye at %s %d\n",
+			col.c_str(), evt_nm.c_str(), __FILE__, line);
+		exit(1);
+	}
+}
+
+static double gen_div_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i,
+		std::vector <evts_derived_str> &evts_derived, uint32_t j, uint32_t k,
+		std::vector <std::string> &new_vals,
+		uint32_t &emit_var, int verbose)
+{
+	//abcd
+	std::string evt_nm  = prf_obj.events[new_idx].event_name;
+	struct prf_samples_str &samples = prf_obj.samples[i];
+	uint32_t cpu = samples.cpu, num_cpus = prf_obj.features_nr_cpus_online;
+	uint64_t ts  = samples.ts;
+	
+	if (evts_derived[j].gen_div.det.size() == 0) {
+		evts_derived[j].gen_div.det.resize(num_cpus);
+		printf("new_cols.sz= %d at %s %d\n", (int)evts_derived[j].new_cols.size(), __FILE__, __LINE__);
+		for(uint32_t ii=0; ii < evts_derived[j].new_cols.size(); ii++) {
+		//evts_derived[j].new_cols = {"val", "__EMIT__", "duration", "area", "numerator", "denominator"};
+			if (evts_derived[j].new_cols[ii] == "val") { evts_derived[j].gen_div.col_val_idx = ii; }
+			else if (evts_derived[j].new_cols[ii] == "__EMIT__") { evts_derived[j].gen_div.col_emt_idx = ii; }
+			else if (evts_derived[j].new_cols[ii] == "duration") { evts_derived[j].gen_div.col_dur_idx = ii; }
+			else if (evts_derived[j].new_cols[ii] == "area")     { evts_derived[j].gen_div.col_area_idx = ii; }
+			else if (evts_derived[j].new_cols[ii] == "numerator"){ evts_derived[j].gen_div.col_num_idx = ii; }
+			else if (evts_derived[j].new_cols[ii] == "denominator"){ evts_derived[j].gen_div.col_den_idx = ii; }
+			printf("evts_derived[%d] new_col[%d]= %s at %s %d\n", j, ii, evts_derived[j].new_cols[ii].c_str(), __FILE__, __LINE__);
+		}
+		gen_div_ck_idx(evts_derived[j].gen_div.col_val_idx,  "val",         evt_nm, __LINE__);
+		gen_div_ck_idx(evts_derived[j].gen_div.col_emt_idx,  "__EMIT__",    evt_nm, __LINE__);
+		gen_div_ck_idx(evts_derived[j].gen_div.col_dur_idx,  "duration",    evt_nm, __LINE__);
+		gen_div_ck_idx(evts_derived[j].gen_div.col_area_idx, "area",        evt_nm, __LINE__);
+		gen_div_ck_idx(evts_derived[j].gen_div.col_num_idx,  "numerator",   evt_nm, __LINE__);
+		gen_div_ck_idx(evts_derived[j].gen_div.col_den_idx,  "denominator", evt_nm, __LINE__);
+	}
+	if (evts_derived[j].gen_div.det.size() < (cpu+1)) {
+		fprintf(stderr, "mess up at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	uint32_t aidx= 0, idx = UINT32_M1;
+	if (evts_derived[j].evts_tags[k] == "num") {
+		idx  = 0;
+		aidx = 1;
+	} else if (evts_derived[j].evts_tags[k] == "den") {
+		idx  = 1;
+		aidx = 0;
+	} else {
+		fprintf(stderr, "mess up here at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	if (idx == UINT32_M1) {
+		fprintf(stderr, "expected num or den tags at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	bool first_time = false;
+	if (evts_derived[j].gen_div.det[cpu].paired == -1) {
+		first_time = true;
+		evts_derived[j].gen_div.det[cpu].paired = 0;
+	}
+	int32_t shft = (1 << idx);
+#if 0
+	if (evts_derived[j].gen_div.det[cpu].ts[idx] != ts) {
+		// if new ts 
+		if ((evts_derived[j].gen_div.det[cpu].paired & (1 < idx)) != 0) {
+			evts_derived[j].gen_div.det[cpu].paired -= (1 < idx);
+		}
+	}
+	if (evts_derived[j].gen_div.det[cpu].ts[aidx] != ts) {
+		if ((evts_derived[j].gen_div.det[cpu].paired & (1 < aidx)) != 0) {
+			evts_derived[j].gen_div.det[cpu].paired -= (1 < aidx);
+		}
+	}
+#endif
+	//if ((evts_derived[j].gen_div.det[cpu].paired & shft) == 0) {
+		// so this value is not valid
+		evts_derived[j].gen_div.det[cpu].paired |= shft;
+		evts_derived[j].gen_div.det[cpu].ts_prev[idx] = evts_derived[j].gen_div.det[cpu].ts[idx];
+		evts_derived[j].gen_div.det[cpu].ts[idx] = ts;
+		evts_derived[j].gen_div.det[cpu].val[idx] = samples.period;
+#if 0
+		printf("got gen_div_der_evt() set idx= %d ts= %.0f val= %.0f shft= 0x%x paired= 0x%x at %s %d\n",
+				idx, (double)ts, (double)samples.period, shft,
+				evts_derived[j].gen_div.det[cpu].paired,
+				__FILE__, __LINE__);
+#endif
+	//}
+#if 0
+	printf("ed[%d].det[%d].paired= 0x%x ts[%d]= %.0f, val= %.0f at %s %d\n",
+			j, cpu, evts_derived[j].gen_div.det[cpu].paired, idx,
+			(double)evts_derived[j].gen_div.det[cpu].ts[idx],
+			(double)evts_derived[j].gen_div.det[cpu].val[idx], __FILE__, __LINE__);
+#endif
+	emit_var = 0;
+	new_vals[evts_derived[j].gen_div.col_emt_idx]  = "0";
+	if (evts_derived[j].gen_div.det[cpu].ts[0] ==
+		evts_derived[j].gen_div.det[cpu].ts[1] &&
+		evts_derived[j].gen_div.det[cpu].ts_prev[0] != 0) {
+		// so valid pair
+		double dura=0;
+		double val = 0;
+		if (evts_derived[j].gen_div.det[cpu].val[1] != 0) {
+			val = (double)evts_derived[j].gen_div.det[cpu].val[0]/(double)evts_derived[j].gen_div.det[cpu].val[1];
+		}
+		if (!first_time) {
+			emit_var = 1;
+			dura = 1e-9 * (double)(evts_derived[j].gen_div.det[cpu].ts[0] -
+						evts_derived[j].gen_div.det[cpu].ts_prev[0]);
+			new_vals[evts_derived[j].gen_div.col_val_idx]  = std::to_string(val);
+			new_vals[evts_derived[j].gen_div.col_emt_idx]  = "1";
+			new_vals[evts_derived[j].gen_div.col_dur_idx]  = std::to_string(dura);
+			new_vals[evts_derived[j].gen_div.col_area_idx] = std::to_string(cpu);
+			new_vals[evts_derived[j].gen_div.col_num_idx]  = std::to_string(evts_derived[j].gen_div.det[cpu].val[0]);
+			new_vals[evts_derived[j].gen_div.col_den_idx]  = std::to_string(evts_derived[j].gen_div.det[cpu].val[1]);
+#if 1
+			if (dura > 2.0) {
+			printf("new_vals ed[%d].cpu[%d]: val= %f, new_vals[%d]= %s, dura= %f at %s %d\n",
+					j, cpu, val, evts_derived[j].gen_div.col_dur_idx, new_vals[evts_derived[j].gen_div.col_dur_idx].c_str(),
+					dura, __FILE__, __LINE__);
+			}
+#endif
+		}
+	}
+	if (evts_derived[j].gen_div.det[cpu].paired == 3) {
+		evts_derived[j].gen_div.det[cpu].paired = 0;
+	}
+	return 0;
+}
+
 void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose, std::vector <evt_str> &evt_tbl2,
 	std::vector <prf_samples_str> &samples, std::vector <evts_derived_str> &evts_derived)
 {
@@ -1282,9 +1414,14 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 				new_vals.resize(new_sz);
 
 				double tm_beg = dclock();
-				uint32_t emit_var;
-				lua_derived_tc_prf(lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
+				uint32_t emit_var=0;
+				if (lua_file.find("gen_div_pair.lua") != std::string::npos) {
+					//abcd
+					gen_div_der_evt(prf_obj, new_idx, i, evts_derived, j, k, new_vals, emit_var, verbose);
+				} else {
+					lua_derived_tc_prf(lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
 						evts_derived[j].new_cols, new_vals, emit_var, evts_derived[j].evts_tags[k], verbose);
+				}
 				double tm_end = dclock();
 				tm_lua_derived += tm_end - tm_beg;
 				if (trig_idx == evt_idx || (trig_idx == UINT32_M2 && emit_var == 1)) {
