@@ -34,7 +34,9 @@ struct options_str {
 	std::vector <std::string> root_data_dirs;
 	std::vector <path_file_str> file_list;
 	std::vector <std::string> file_tag_vec;
-	std::vector <std::string> phase;
+	std::vector <std::string> phase, phase_end;
+	std::vector <std::string> ph_step_int;
+	std::vector <std::string> ph_image;
 	double tm_clip_beg, tm_clip_end;
 	int tm_clip_beg_valid, tm_clip_end_valid;
 	int clip_mode;
@@ -116,8 +118,21 @@ struct lua_data_str {
 	std::vector <int> timestamp_idx, duration_idx;
 };
 
+struct gen_div_det_str {
+	uint64_t ts[2], ts_prev[2], val[2];
+	int32_t paired;
+	gen_div_det_str(): paired(-1), ts{0, 0}, ts_prev{0, 0} {}
+};
+
+struct gen_div_str {
+	uint32_t col_val_idx, col_emt_idx, col_dur_idx, col_area_idx, col_num_idx, col_den_idx;
+	std::vector <gen_div_det_str> det;
+	gen_div_str(): col_val_idx(-1), col_emt_idx(-1), col_dur_idx(-1), col_area_idx(-1), col_num_idx(-1), col_den_idx(-1) {}
+};
+
 struct evts_derived_str {
 	uint32_t evt_tbl2_idx, trigger_idx, evt_new_idx;
+	struct gen_div_str gen_div;
 	std::vector <uint32_t> evts_used;
 	std::vector <std::string> evts_tags;
 	std::vector <std::string> new_cols;
