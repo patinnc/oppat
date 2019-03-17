@@ -24,7 +24,11 @@ The project web page is [https://patinnc.github.io](https://patinnc.github.io)
 
 The source code repo is [https://github.com/patinnc/oppat](https://github.com/patinnc/oppat)
 
-I've added a CPU block diagram feature. I've added a full sample HTML sample file below. See [Intel Haswell with CPU diagram 4-CPU chip, linux OS, html file with 50+ hw events via perf sampling](sample_html_files/lnx_haswell_cpu_diagram_mem_bw7.html). cpu_diagram features:
+I've added a CPU block diagram feature.
+Here is a video of running Geekbench on Haswell:
+[![Geekbench - the movie](https://youtu.be/-4nzrBCmFw4)](https://youtu.be/-4nzrBCmFw4 "Geekbench - the movie")
+
+I've added a full sample HTML sample file below. See [Intel Haswell with CPU diagram 4-CPU chip, linux OS, html file with 50+ hw events via perf sampling](sample_html_files/lnx_haswell_cpu_diagram_mem_bw7.html). cpu_diagram features:
 - start with a block diagram svg,
 - look at the resource constraints (such as max BW, max bytes/cycle on various paths, minimum cycles/uop, etc),
 - compute metrics for the resource usage
