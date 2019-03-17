@@ -566,7 +566,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let num_events = chart_data.subcat_rng.length;
 			for (let j=0; j < num_events; j++) {
 				let nm     = chart_data.subcat_rng[j].cat_text;
-				console.log(sprintf("xform sel_var[%d] %s", j, nm));
+				//console.log(sprintf("xform sel_var[%d] %s", j, nm));
 				u_hsh[j] = nm;
 				u_arr.push(j);
 			}
@@ -4503,21 +4503,14 @@ function doJob(i, grf, chrts_started_max, tm_beg)
 
 function draw_text_w_bk(ctx, str, font, font_hi, x, y)
 {
-    /// lets save current state as we make a lot of changes        
     ctx.save();
     ctx.font = font;
     ctx.textBaseline = 'top';
-    /// color for background
     ctx.fillStyle = 'white';
-    /// get width of text
     var width = ctx.measureText(str).width;
-    /// draw background rect assuming height of font
     ctx.fillRect(x, y, width, font_hi);
-    /// text color
     ctx.fillStyle = 'black';
-    /// draw text on top
     ctx.fillText(str, x, y);
-    /// restore original state
     ctx.restore();
 }
 
@@ -4533,12 +4526,42 @@ function draw_svg_header(lp, xbeg, xend, verbose)
 		str5 = strm;
 	}
 	let str = sprintf("lp= %d; phase: %s; T.abs_beg= %.3f; T.abs_end= %.3f;", lp, str5, xbeg, xend);
-	let font_sz = 14;
+	let font_sz = 20;
 	let font = font_sz + 'px Arial';
 	draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, 0);
+	font_sz = 12;
+	font = font_sz + 'px Arial';
+	for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+		if (g_cpu_diagram_flds.cpu_diagram_fields[j].chart == "__TEXT_BLOCK__") {
+			let x = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x;
+			let y = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y;
+			draw_text_w_bk(g_cpu_diagram_canvas_ctx, "phase beg: "+strb, font, font_sz, x, y);
+			draw_text_w_bk(g_cpu_diagram_canvas_ctx, "phase end: "+stre, font, font_sz, x, y+font_sz);
+			let str_beg = sprintf("phase beg tm_abs: %.3f", xbeg);
+			let str_end = sprintf("phase end tm_abs: %.3f", xend);
+			draw_text_w_bk(g_cpu_diagram_canvas_ctx, str_beg, font, font_sz, x, y+2*font_sz);
+			draw_text_w_bk(g_cpu_diagram_canvas_ctx, str_end, font, font_sz, x, y+3*font_sz);
+			break;
+		}
+	}
+	//abcd
 	return str;
 }
-		
+
+function draw_svg_footer(xmx, ymx, copyright)
+{
+	let str = sprintf("%s; See %s;", copyright.text, copyright.website);
+	let font_sz = 12;
+	let font = font_sz + 'px Arial';
+	let y = ymx - font_sz;
+	draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, y);
+	str = sprintf("SVG from %s", copyright.SVG_URL);
+	y = ymx - 2*font_sz;
+	draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, y);
+	//abcd
+	return str;
+}
+
 async function start_charts() {
 	let tm_beg = performance.now();
 	let tm_now = performance.now();
@@ -4550,9 +4573,19 @@ async function start_charts() {
 		ch_did_it.push(false);
 	}
 	if (typeof gjson.phase != 'undefined') {
+		// replace fixed strings in phase text. the fixed strings don't provide much info and make the phase string unnecessarily long
+		let str_arr = [
+			["tracing_mark_write: begin phase ", ""],
+			["tracing_mark_write: end phase ", ""],
+			["tracing_mark_write: ", ""]
+		   ];
 		for (let i=0; i < gjson.phase.length; i++) {
-			gjson.phase[i].text.indexOf("tracing_mark_write: ");
-			gjson.phase[i].text = gjson.phase[i].text.replace("tracing_mark_write: ", "");
+			for (let j=0; j < str_arr.length; j++) {
+				let idx = gjson.phase[i].text.indexOf(str_arr[j][0]);
+				if (idx >= 0) {
+					gjson.phase[i].text = gjson.phase[i].text.replace(str_arr[j][0], str_arr[j][1]);
+				}
+			}
 		}
 	}
 
@@ -4752,7 +4785,7 @@ async function start_charts() {
 	console.log(sprintf("gjson.chart_data.length %d g_chrts_done= %d", gjson.chart_data.length, g_charts_done.cntr));
 	console.log("ph_step_int: ", gjson.ph_step_int);
 	console.log("ph_image: ", gjson.ph_image);
-	let jj = 0, jjmax = 5;
+
 	let ph_step = 0.0, ph_loops = -1;
 	if (typeof gjson.ph_step_int != 'undefined') {
 		ph_step = gjson.ph_step_int[0];
@@ -4777,46 +4810,49 @@ async function start_charts() {
 	}
 	console.log(sprintf("ibeg= %d, iend= %d", ibeg, iend));
 	let xbeg = -1, xend= -1;
-			if (ibeg != -1 && iend == -1) {
-				// so --phase0 entered and --phase1 not entered
-				xend  = gjson.phase[ibeg].ts_abs;
-				xbeg  = xend;
-				xbeg -= gjson.phase[ibeg].dura;
-				if (phobj.lp_max > 0 && phobj.step > 0) {
-					xend = xbeg + phobj.lp_max * phobj.step;
-				}
-				if (phobj.lp_max > 0) {
-					divisions = phobj.lp_max;
-					if (phobj.step <= 0.0) {
-						phobj.step = (xend - xbeg)/divisions;
-					}
-				} else if (phobj.step > 0) {
-					divisions = Math.ceil((xend - xbeg)/phobj.step);
-				}
-				console.log(sprintf("xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
-							xbeg, xend, phobj.step, divisions));
+
+	// calc how many divisions to put between the begin and end
+	if (ibeg != -1 && iend == -1) {
+		// so --phase0 entered and --phase1 not entered
+		xend  = gjson.phase[ibeg].ts_abs;
+		xbeg  = xend;
+		xbeg -= gjson.phase[ibeg].dura;
+		if (phobj.lp_max > 0 && phobj.step > 0) {
+			xend = xbeg + phobj.lp_max * phobj.step;
+		}
+		if (phobj.lp_max > 0) {
+			divisions = phobj.lp_max;
+			if (phobj.step <= 0.0) {
+				phobj.step = (xend - xbeg)/divisions;
 			}
-			if (ibeg != -1 && iend != -1) {
-				// so both --phase0 and --phase1 entered
-				xbeg  = gjson.phase[ibeg].ts_abs;
-				xbeg -= gjson.phase[ibeg].dura;
-				xend  = gjson.phase[iend].ts_abs;
-				if (phobj.lp_max > 0) {
-					divisions = phobj.lp_max;
-					if (phobj.step <= 0.0) {
-						phobj.step = (xend - xbeg)/divisions;
-					}
-				} else if (phobj.step > 0) {
-					divisions = Math.ceil((xend - xbeg)/phobj.step);
-				}
-				console.log(sprintf("xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
-							xbeg, xend, phobj.step, divisions));
+		} else if (phobj.step > 0) {
+			divisions = Math.ceil((xend - xbeg)/phobj.step);
+		}
+		console.log(sprintf("xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
+					xbeg, xend, phobj.step, divisions));
+	} else if (ibeg != -1 && iend != -1) {
+		// so both --phase0 and --phase1 entered
+		xbeg  = gjson.phase[ibeg].ts_abs;
+		xbeg -= gjson.phase[ibeg].dura;
+		xend  = gjson.phase[iend].ts_abs;
+		if (phobj.lp_max > 0) {
+			divisions = phobj.lp_max;
+			if (phobj.step <= 0.0) {
+				phobj.step = (xend - xbeg)/divisions;
 			}
-			//g_tot_line_divisions.max = gjson.ph_step_int[1];
-			if (divisions > 0) {
-			g_tot_line_divisions.max = divisions;
-			}
-			phobj.lp_max = divisions;
+		} else if (phobj.step > 0) {
+			divisions = Math.ceil((xend - xbeg)/phobj.step);
+		}
+		console.log(sprintf("xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
+					xbeg, xend, phobj.step, divisions));
+	}
+
+	if (divisions > 0) {
+		g_tot_line_divisions.max = divisions;
+	}
+
+	phobj.lp_max = divisions;
+
 	function myblob(can_ele, str5)
 	{
 		can_ele.toBlob(function(blob) {
@@ -4843,17 +4879,17 @@ async function start_charts() {
 			let jidx = idle_dvals[0]; // can only handle 1 indx for now. If chart appears > 1 in has*.flds then broken
 			let mx = g_cpu_diagram_flds.cpu_diagram_fields[jidx].data_val_arr.length;
 			if (mx > 0) {
-				console.log(sprintf("tl.yarr2.sz= %d, j.sz= %d",
-					g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray2.length,
-					g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray2[0].length));
+				//console.log(sprintf("tl.yarr2.sz= %d, j.sz= %d",
+				//	g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray2.length,
+				//	g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray2[0].length));
 				so.skip_if_idle = true;
 				//idle_cur = g_cpu_diagram_flds.cpu_diagram_fields[jidx].data_val_arr[0];
 				so.idle_cur = g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray[0][lp];
 				if (lp > 0) {
 					so.idle_prev = g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray[0][lp-1];
 				}
-				console.log(sprintf("lp= %d, %%idle= %.3f%%, ax0= %.3f, ax1= %.3f",
-							lp, so.idle_cur, gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1));
+				//console.log(sprintf("lp= %d, %%idle= %.3f%%, ax0= %.3f, ax1= %.3f",
+				//			lp, so.idle_cur, gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1));
 			}
 		}
 		let do_skip = false;
@@ -4865,34 +4901,39 @@ async function start_charts() {
 
 	function send_blob_backend(po, xbeg)
 	{
-		let x0 = xbeg + po.step*po.lp;
-		let x1 = xbeg + po.step*(po.lp+1);
-		let str = draw_svg_header(po.lp, x0, x1, false);
+		let x0, x1, str;
+		if (xbeg == -1.0) {
+			str = "lp= -2";
+		} else {
+			x0 = xbeg + po.step*po.lp;
+			x1 = xbeg + po.step*(po.lp+1);
+			str = draw_svg_header(po.lp, x0, x1, false);
+		}
 		myblob(g_cpu_diagram_canvas, "image,"+str+",imagedata:");
 	}
-	// so we need to wait for the initial draw of the charts to complete
-	// Then we need to check if a phase is selected,
-	//A) if so, set typ= wait_for_zoom_to_phase and redraw all the charts to the zoom interval
-	//   wait for the redraws to finish so the tot_lines values are recomputed for the zoom interval for the cpu_diagram
-	//   then set typ= zoom_cpu_diag and wait for redraw of the cpu_diagram
-	//   then, if requested, save the image and send to server
-	//   then, if more zooms are requested then go to A)
-	//let idle_skip_if_less_than = 50.0; // half a cpu is busy.
-	//let idle_prev = idle_skip_if_less_than + 1; // so the first compare won't be 'idle'
+
+	/*
+	 *  We need to wait for the initial draw of the charts to complete before we do anything else.
+	 *  Then we need to check if a phase is selected,
+	 *A) if so, set typ= wait_for_zoom_to_phase and redraw all the charts to the zoom interval
+	 *   wait for the redraws to finish so the tot_lines values are recomputed for the zoom interval for the cpu_diagram
+	 *   then set typ= zoom_cpu_diag and wait for redraw of the cpu_diagram
+	 *   then, if requested, save the image and send to server
+	 *   then, if more zooms are requested then go to A)
+	 */
+
+	let jj = 0, jjmax = 5;
 	function myDelay (lkfor_max, po) {           //  create a loop function
 		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
 			console.log('====jj= '+jj+', charts_done= '+g_charts_done.cntr+", redrw= "+
 				gsync_zoom_redrawn_charts.cntr+", lkfor= "+lkfor_max.cntr+", typ= "+lkfor_max.typ);
 			jj++;                     //  increment the counter
 			if (jj < jjmax && ((lkfor_max.typ == "wait_for_initial_draw" && lkfor_max.cntr < gjson.chart_data.length) ||
-				(lkfor_max.typ == "wait_for_initial_draw2" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw) ||
-				(lkfor_max.typ == "wait_for_zoom_to_phase" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw) ||
-				(lkfor_max.typ == "zoom_cpu_diag" && 
-				gsync_zoom_redrawn_charts.cpu_diag_redrawn < gsync_zoom_redrawn_charts.cpu_diag_redraw_requests))) {
+				(lkfor_max.typ == "wait_for_zoom_to_phase" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw)
+				)) {
 				myDelay(lkfor_max, po);             //  ..  again which will trigger another 
 			} else {
-				if ((lkfor_max.typ == "wait_for_initial_draw2" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw) ||
-					(lkfor_max.typ == "wait_for_zoom_to_phase" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw)) {
+				if ((lkfor_max.typ == "wait_for_zoom_to_phase" && lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw)) {
 					gsync_zoom_linked = false;
 				}
 				if (jj >= jjmax) {
@@ -4903,35 +4944,13 @@ async function start_charts() {
 					lkfor_max.typ, gsync_zoom_redrawn_charts.cntr, gsync_zoom_redrawn_charts.cpu_diag_redrawn, po.lp, po.lp_max,
 							gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1));
 				did_ck_phase = 0;
-				let bump_lp = 1;
-				if (lkfor_max.typ != "zoom_cpu_diag") {
-					bump_lp = 0;
-				}
-				if (lkfor_max.typ == "wait_for_initial_draw2") {
-					let idle_dvals = g_cpu_diagram_flds.lkup_dvals_for_chart_tag["PCT_BUSY_BY_SYSTEM"];
-					let jidx = idle_dvals[0];
-					console.log("typ= "+lkfor_max.typ+", tot_line.yarray: ", 
-									g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.yarray);
-					console.log(g_cpu_diagram_flds.cpu_diagram_fields[jidx].tot_line.xarray);
-					if (lkfor_max.typ == "wait_for_initial_draw2") {
-						return;
-					}
-				}
+				let bump_lp = 0;
 				jj = 0;
 				if (po.lp < po.lp_max) {
 					if (bump_lp > 0 && g_cpu_diagram_canvas != null) {
 						let do_skip = ck_if_skip_due_to_idle(po.lp, skip_obj);
 						if (!do_skip) {
 							send_blob_backend(po, xbeg);
-							/*
-							let str5 = get_phase_indx(xbeg + (po.lp+0.5) * phobj.step);
-							let str = sprintf("lp= %d; phase: %s; T.abs_beg= %.3f; T.abs_end= %.3f;", po.lp, str5,
-								xbeg + po.lp*po.step, xbeg+(po.lp+1)*po.step);
-							let font_sz = 14;
-							let font = font_sz + 'px Arial';
-							draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, 0);
-							myblob(g_cpu_diagram_canvas, "image,"+str+",imagedata:");
-							*/
 						} else {
 							console.log("skip due to 2+ idles; lp= "+po.lp);
 						}
@@ -4961,6 +4980,10 @@ async function start_charts() {
 		{
 			// if we don't put in a sleep then the websocket.send's never get started and we bomb off (eventually)
 			setTimeout(function () {
+				if (po.lp == 0) {
+					g_cpu_diagram_draw_svg([], -2);
+					send_blob_backend(po, -1.0);
+				}
 				if (po.lp < po.lp_max) {
 					let do_skip = ck_if_skip_due_to_idle(po.lp, skip_obj);
 					if (!do_skip) {
@@ -4975,7 +4998,7 @@ async function start_charts() {
 				}
 			}, 50, po);
 		}
-		if ((lkfor_max.typ == "wait_for_zoom_to_phase" || lkfor_max.typ == "zoom_cpu_diag") && g_cpu_diagram_canvas != null) {
+		if (lkfor_max.typ == "wait_for_zoom_to_phase" && g_cpu_diagram_canvas != null) {
 			do_draws(po);
 		} else if (lkfor_max.typ == "wait_for_initial_draw" && typeof gjson.phase != 'undefined') {
 			let old_typ = gsync_zoom_redrawn_charts.typ;
@@ -5004,24 +5027,33 @@ function get_phase_indx(ts_abs, verbose)
 	}
 	let smallest_diff_idx = -1, smallest_diff=0;
 	for (let i=0; i < gjson.phase.length; i++) {
-		let tm_beg = gjson.phase[i].ts_abs - gjson.phase[i].dura;
+		let dura   = gjson.phase[i].dura;
+		if (dura < 1.0e-5) {
+			continue;
+		}
+		let tm_beg = gjson.phase[i].ts_abs - dura;
 		let tm_end = gjson.phase[i].ts_abs;
 		let dist0 = Math.abs(tm_beg - ts_abs);
 		let dist1 = Math.abs(tm_end - ts_abs);
-		if (smallest_diff_idx = -1) {
+		if (smallest_diff_idx == -1) {
 			smallest_diff = dist0;
 			smallest_diff_idx = i;
 		}
 		if (smallest_diff > dist0) {
+			//console.log(sprintf("near0[%d]: beg= %.3f, ts= %.3f, end= %.3f sm= %.2f, d0= %.2f",
+			//			i, tm_beg, ts_abs, tm_end, smallest_diff, dist0));
 			smallest_diff = dist0;
 			smallest_diff_idx = i;
 		}
 		if (smallest_diff > dist1) {
+			//console.log(sprintf("near1[%d]: beg= %.3f, ts= %.3f, end= %.3f sm= %.2f, d1= %.2f",
+			//			i, tm_beg, ts_abs, tm_end, smallest_diff, dist1));
 			smallest_diff = dist1;
 			smallest_diff_idx = i;
 		}
 		if (verbose) {
-			console.log(sprintf("ck phase[%d]: beg= %.3f, ts= %.3f, end= %.3f", i, tm_beg, ts_abs, tm_end));
+			console.log(sprintf("ck phase[%d]: beg= %.3f, ts= %.3f, end= %.3f nearest= %d, diff= %.2f",
+						i, tm_beg, ts_abs, tm_end, smallest_diff_idx, smallest_diff));
 		}
 		if (tm_beg <= ts_abs && ts_abs <= tm_end) {
 			//console.log(sprintf("phase= %s ts_abs= %f", gjson.phase[i].text, ts_abs));
@@ -5029,7 +5061,31 @@ function get_phase_indx(ts_abs, verbose)
 		}
 	}
 	if (smallest_diff_idx != -1) {
-		return "near " + gjson.phase[smallest_diff_idx].text;
+		let i = smallest_diff_idx;
+		let dura   = gjson.phase[i].dura;
+		let tm_beg = gjson.phase[i].ts_abs - dura;
+		let tm_end = gjson.phase[i].ts_abs;
+		let dist0 = tm_beg - ts_abs;
+		let dist1 = tm_end - ts_abs;
+		let adist0 = Math.abs(tm_beg - ts_abs);
+		let adist1 = Math.abs(tm_end - ts_abs);
+		let b_or_e = "";
+		let ck_dst;
+		//console.log(sprintf("ck_nr[%d], tm_beg= %.3f, ts= %.3f, tm_end= %.3f dura= %.3f", i, tm_beg, ts_abs, tm_end, dura));
+		//console.log(sprintf("ck_nr[%d], d0= %.3f, d1= %.3f, a0= %.3f, a1= %.3f", i, dist0, dist1, adist0, adist1));
+		if (adist0 < adist1) {
+			b_or_e = "beg ";
+			ck_dst = dist0;
+		} else {
+			b_or_e = "end ";
+			ck_dst = dist1;
+		}
+		if (ck_dst < -0.001) {
+			b_or_e = "aft " + b_or_e;
+		} else if (ck_dst > 0.001) {
+			b_or_e = "bef " + b_or_e;
+		}
+		return b_or_e + gjson.phase[i].text;
 	}
 	// now handle non-overlapping cases
 	return "";
@@ -6795,6 +6851,12 @@ function parse_svg()
 		if (g_cpu_diagram_flds == null) {
 			return;
 		}
+		let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
+		let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
+		let ftr_str = draw_svg_footer(fmxx, fmxy, g_cpu_diagram_flds.cpu_diagram_copyright);
+		if (whch_txt < -1) {
+			return;
+		}
 		let txt_tbl = [];
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
@@ -6850,7 +6912,6 @@ function parse_svg()
 						}
 						let fmt_str1 = fmt_str;
 						if (fmt_str1.indexOf("__VARNM__") >= 0) {
-							//abcd
 							fmt_str1 = fmt_str1.replace('__VARNM__', g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str[ii]);
 						} else if (fmt_str1.indexOf("__BASEVARNM__") >= 0) {
 							let nm_idx = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str_base_val_arr[ii];
@@ -6876,8 +6937,6 @@ function parse_svg()
 				let nfont_sz = 11;
 				let font_sz = "11px";
 				nfont_sz *= scale_ratio;
-				let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
-				let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 				let x0 = svg_xmax * ux/fmxx;
 				let y0 = svg_ymax * uy/fmxy;
 				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null);
