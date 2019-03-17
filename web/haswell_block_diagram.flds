@@ -2,11 +2,13 @@
 {
 
 "cpu_diagram_hdr": {"max_x":1016,"max_y":1386.8284248803116},
+"cpu_diagram_copyright": {"text":"(c) 2013-2019 WikiChip.org, used with permission", "SVG_URL":"https://en.wikichip.org/w/images/c/c7/haswell_block_diagram.svg", "website":"https://WikiChip.org"},
 
 "cpu_diagram_fields":[
-  {"fld":{"x":10,  "y":60}, "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
-, {"fld":{"x":10,  "y":72}, "chart":"DISK_BW_BLOCK_RQ", "pfx":"disk BW MB/s: "}
-, {"fld":{"x":10,  "y":84}, "chart":"TEMPERATURE_BY_ZONE", "pfx":"Temp (C): "}
+  {"fld":{"x":10,  "y":298}, "chart":"__TEXT_BLOCK__"}
+, {"fld":{"x":10,  "y":60},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
+, {"fld":{"x":10,  "y":72},  "chart":"DISK_BW_BLOCK_RQ", "pfx":"disk BW MB/s: "}
+, {"fld":{"x":10,  "y":84},  "chart":"TEMPERATURE_BY_ZONE", "pfx":"Temp (C): "}
 , {"fld":{"x":10,  "y":128}, "chart":"FREQ_BY_CPU", "pfx":"CPU Freq Ghz: "}
 , {"fld":{"x":10,  "y":140}, "chart":"RAPL_POWER_BY_AREA", "pfx":"power (W): "}
 , {"fld":{"x":10,  "y":152}, "chart":"BW_BY_TYPE", "pfx":"Mem BW (MB/s): "}
