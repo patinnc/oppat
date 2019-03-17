@@ -5890,7 +5890,11 @@ int main(int argc, char **argv)
 						size_t pos1 = hdr0.find("lp=");
 						int lp = atoi(hdr0.substr(pos1+3,hdr0.size()).c_str());
 						char str[64];
-						sprintf(str, "%.5d", lp);
+						if (lp == -2) {
+							sprintf(str, "_base");
+						} else {
+							sprintf(str, "%.5d", lp);
+						}
 						std::string flnm_pfx = "image_";
 						if (options.ph_image.size() > 0 && options.ph_image[0].size() > 0) {
 							flnm_pfx = options.ph_image[0];
