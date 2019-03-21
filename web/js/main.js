@@ -4550,6 +4550,9 @@ function draw_svg_header(lp, xbeg, xend, gen_jtxt, verbose)
 		if (g_cpu_diagram_flds.cpu_diagram_fields[j].chart == "__TEXT_BLOCK__") {
 			let x = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x;
 			let y = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y;
+			let ymx = g_cpu_diagram_canvas.height;
+			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
+			y = y * ymx / fmxy;
 			draw_text_w_bk(g_cpu_diagram_canvas_ctx, "phase beg: "+strb, font, font_sz, x, y);
 			draw_text_w_bk(g_cpu_diagram_canvas_ctx, "phase end: "+stre, font, font_sz, x, y+font_sz);
 			let str_beg = sprintf("phase beg tm_abs: %.3f", xbeg);
@@ -4567,6 +4570,7 @@ function draw_svg_footer(xmx, ymx, copyright)
 	let str = sprintf("%s; See %s;", copyright.text, copyright.website);
 	let font_sz = 12;
 	let font = font_sz + 'px Arial';
+	ymx = g_cpu_diagram_canvas.height;
 	let y = ymx - font_sz;
 	draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, y);
 	str = sprintf("SVG from %s", copyright.SVG_URL);
