@@ -27,6 +27,8 @@ The source code repo is [https://github.com/patinnc/oppat](https://github.com/pa
 I've added a CPU block diagram feature.
 Here is a video of running Geekbench on Haswell:
 [![Geekbench - the movie](https://youtu.be/-4nzrBCmFw4)](https://youtu.be/-4nzrBCmFw4 "Geekbench - the movie")
+Try 2 movie [![Geekbench - the movie](images/geekbench_the_movie.png)](https://youtu.be/-4nzrBCmFw4)
+
 And here is an excel file of the data in the movie:  [excel file from geekbench the movie](geekbench_movie.xlsx)
 
 I've added a full sample HTML sample file below. See [Intel Haswell with CPU diagram 4-CPU chip, linux OS, html file with 50+ hw events via perf sampling](sample_html_files/lnx_haswell_cpu_diagram_mem_bw7.html). cpu_diagram features:
