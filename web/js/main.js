@@ -4514,7 +4514,7 @@ function draw_text_w_bk(ctx, str, font, font_hi, x, y)
     ctx.restore();
 }
 
-function draw_svg_header(lp, xbeg, xend, verbose)
+function draw_svg_header(lp, xbeg, xend, gen_jtxt, verbose)
 {
 	let strm = get_phase_indx(xbeg + 0.5*(xend-xbeg), verbose);
 	let strb = get_phase_indx(xbeg, verbose);
@@ -4525,7 +4525,22 @@ function draw_svg_header(lp, xbeg, xend, verbose)
 	} else {
 		str5 = strm;
 	}
+	let cma = ", ";
+	let ret = {};
 	let str = sprintf("lp= %d; phase: %s; T.abs_beg= %.3f; T.abs_end= %.3f;", lp, str5, xbeg, xend);
+	ret.str = str;
+	if (gen_jtxt) {
+		//g_cpu_diagram_canvas.json_text += ', "lp":'+lp;
+		g_cpu_diagram_canvas.json_text += ', "phase0":"'+strb+'"';
+		g_cpu_diagram_canvas.json_text += ', "phase1":"'+stre+'"';
+		g_cpu_diagram_canvas.json_text += ', "t.abs_beg":'+xbeg;
+		g_cpu_diagram_canvas.json_text += ', "t.abs_end":'+xend;
+	}
+	ret.ph0 = strb;
+	ret.ph1 = stre;
+	ret.tm0 = xbeg;
+	ret.tm1 = xend;
+
 	let font_sz = 20;
 	let font = font_sz + 'px Arial';
 	draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, 0);
@@ -4544,8 +4559,7 @@ function draw_svg_header(lp, xbeg, xend, verbose)
 			break;
 		}
 	}
-	//abcd
-	return str;
+	return ret;
 }
 
 function draw_svg_footer(xmx, ymx, copyright)
@@ -4558,9 +4572,22 @@ function draw_svg_footer(xmx, ymx, copyright)
 	str = sprintf("SVG from %s", copyright.SVG_URL);
 	y = ymx - 2*font_sz;
 	draw_text_w_bk(g_cpu_diagram_canvas_ctx, str, font, font_sz, 0, y);
-	//abcd
 	return str;
 }
+
+	function myblob(can_ele, str5)
+	{
+		can_ele.toBlob(function(blob) {
+			let reader = new FileReader();
+			reader.readAsDataURL(blob); 
+			reader.onloadend = function() {
+				let base64data = reader.result;                
+				webSocket.send(str5+base64data);
+				let buf_amt = webSocket.bufferedAmount;
+				//console.log("ws sent bytes= "+base64data.length+", buf_amt= "+buf_amt);
+			}
+		}, 'image/png', 1.0);
+	}
 
 async function start_charts() {
 	let tm_beg = performance.now();
@@ -4853,19 +4880,6 @@ async function start_charts() {
 
 	phobj.lp_max = divisions;
 
-	function myblob(can_ele, str5)
-	{
-		can_ele.toBlob(function(blob) {
-			var reader = new FileReader();
-			reader.readAsDataURL(blob); 
-			reader.onloadend = function() {
-				let base64data = reader.result;                
-				webSocket.send(str5+base64data);
-				let buf_amt = webSocket.bufferedAmount;
-				console.log("ws sent bytes= "+base64data.length+", buf_amt= "+buf_amt);
-			}
-		}, 'image/png', 1.0);
-	}
 
 	let skip_obj = {skip_if_idle:true, idle_cur:-1.0, idle_skip_if_less_than:50.0, lp:-1, lp_prev:-2, idle_prev:51.0};
 
@@ -4907,7 +4921,8 @@ async function start_charts() {
 		} else {
 			x0 = xbeg + po.step*po.lp;
 			x1 = xbeg + po.step*(po.lp+1);
-			str = draw_svg_header(po.lp, x0, x1, false);
+			let ret_obj = draw_svg_header(po.lp, x0, x1, false, false);
+			str = ret_obj.str;
 		}
 		myblob(g_cpu_diagram_canvas, "image,"+str+",imagedata:");
 	}
@@ -4962,7 +4977,17 @@ async function start_charts() {
 						}
 					}
 				}
-				if (po.lp >= po.lp_max) {
+				if (po.lp_max == -1) {
+					console.log(sprintf("+++1 lp= %d, lp_max= %d", po.lp, po.lp_max));
+					if (po.lp == 0) {
+						po.lp = po.lp + 1;
+						lkfor_max.typ == "wait_for_zoom_to_phase";
+						myDelay(lkfor_max, po);             //  ..  again which will trigger another 
+					}
+					if (po.lp == 1) {
+						console.log(sprintf("+++2 lp= %d, lp_max= %d", po.lp, po.lp_max));
+						//send_svg_tbl();
+					}
 				}
 			}
 		}, 500, lkfor_max, po)
@@ -4993,8 +5018,18 @@ async function start_charts() {
 					po.lp++;
 					do_draws(po);
 				} else {
-					g_tot_line_divisions.max = save_g_tot_line_division_max;
-					g_cpu_diagram_draw_svg([], -1);
+					console.log(sprintf("typ= %s, lp= %d, lpmx= %d", lkfor_max.typ, po.lp, po.lp_max));
+					if (po.lp == po.lp_max) {
+						g_tot_line_divisions.max = save_g_tot_line_division_max;
+						g_cpu_diagram_draw_svg([], -1);
+						po.lp++;
+						do_draws(po);
+						g_cpu_diagram_canvas.json_text += ']}';
+						//document.getElementById('msg_span').innerText = g_cpu_diagram_canvas.json_text;
+						webSocket.send("json_table="+g_cpu_diagram_canvas.json_text);
+						console.log("sent json_table to server");
+						//console.log(g_cpu_diagram_canvas.json_text);
+					} 
 				}
 			}, 50, po);
 		}
@@ -5007,6 +5042,7 @@ async function start_charts() {
 			gsync_zoom_last_zoom.x1 = -1;
 			gsync_zoom_last_zoom.abs_x0 = xbeg;
 			gsync_zoom_last_zoom.abs_x1 = xend;
+			g_cpu_diagram_canvas.json_text = null;
 			console.log(sprintf("===zoom x0= %s, x1= %s lp= %d %%",
 						gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1, po.lp));
 			set_zoom_all_charts(-1, gjson.phase[0].file_tag);
@@ -5231,7 +5267,12 @@ function openSocket(port_num) {
 function send(){
 	//used by the Send button
 	var text = document.getElementById("messageinput").value;
-	webSocket.send(text);
+	if (text == "html2canvas") {
+		console.log("you entered "+text);
+		//try_doing_html2canvas();
+	} else {
+		webSocket.send(text);
+	}
 }
 function bootside_menu_setup(div_nm, which_side) {
 	$('#'+div_nm).BootSideMenu({
@@ -6439,7 +6480,7 @@ function parse_svg()
 				//ctx.font = font_sz + ' sans-serif';
 				let str = shapes[i].text;
 				if (str.indexOf('&amp;') >= 0) {
-					str = str.replace('&amp;', '&');
+					str = str.replace(/&amp;/g, '&');
 				}
 				let twidth = ctx.measureText(str).width;
 				let xb, xe, yb, ye;
@@ -6877,7 +6918,19 @@ function parse_svg()
 			g_cpu_diagram_flds.xend += t0;
 			break;
 		}
-		let hdr_str = draw_svg_header(whch_txt, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, false);
+		//abcd
+		let jtxt = g_cpu_diagram_canvas.json_text;
+		if (typeof g_cpu_diagram_canvas.json_text == 'undefined' || g_cpu_diagram_canvas.json_text == null) {
+			g_cpu_diagram_canvas.json_text = '{"txt":[';
+		}
+		if (whch_txt == 0) {
+			g_cpu_diagram_canvas.json_text += "{";
+		} else {
+			g_cpu_diagram_canvas.json_text += ", {";
+		}
+		g_cpu_diagram_canvas.json_text += '"lp":'+whch_txt;
+		let hdr_obj = draw_svg_header(whch_txt, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, true, false);
+		g_cpu_diagram_canvas.json_text += ', "key_val_arr":[';
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
 				continue;
@@ -6903,6 +6956,7 @@ function parse_svg()
 					uy = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y;
 					let fmt_str = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt;
 					let det_arr = [];
+					let do_sort = false;
 					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
 						let val;
 						if (whch_txt == -1) {
@@ -6913,20 +6967,24 @@ function parse_svg()
 						let fmt_str1 = fmt_str;
 						if (fmt_str1.indexOf("__VARNM__") >= 0) {
 							fmt_str1 = fmt_str1.replace('__VARNM__', g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str[ii]);
+							do_sort = true;
 						} else if (fmt_str1.indexOf("__BASEVARNM__") >= 0) {
+							do_sort = true;
 							let nm_idx = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str_base_val_arr[ii];
 							let ci     = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
 							let cd     = gcanvas_args[ci][2]; // chart_data
 							let nm     = cd.subcat_rng[nm_idx].cat_text;
-							//abcd
 							fmt_str1 = fmt_str1.replace('__BASEVARNM__', nm);
 							//fmt_str1 = "ii= "+ii+", nmidx= "+nm_idx+", "+fmt_str1;
 						}
 						let str = sprintf(fmt_str1, val);
 						det_arr.push(str);
 						//cp_str += (ii > 0 ? ",":"") + str;
+						//g_cpu_diagram_canvas.json_text += ', "'+cp_str+" "+g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str[ii]+" "+str+'":'+val;
 					}
-					det_arr.sort();
+					if (do_sort) {
+						det_arr.sort();
+					}
 					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
 						val_arr.push(det_arr[ii]);
 						cp_str += (ii > 0 ? ",":"") + val_arr[ii];
@@ -6951,7 +7009,7 @@ function parse_svg()
 				//ctx.font = font_sz + ' sans-serif';
 				let str = cp_str;
 				if (str.indexOf('&amp;') >= 0) {
-					str = str.replace('&amp;', '&');
+					str = str.replace(/&amp;/g, '&');
 				}
 				let twidth = ctx.measureText(str).width;
 				let xb, xe, yb, ye;
@@ -7055,37 +7113,44 @@ function parse_svg()
 			tbl_str += "<tr>";
 			tbl_str += "<td title='"+desc+"\nchart_tag:"+ct+"'>" +g_cpu_diagram_flds.cpu_diagram_fields[j].y_label + "</td>";
 			if (typeof txt_tbl[i] != 'undefined') {
-			for (let k=0; k < txt_tbl[i].txt.length; k++) {
-				let txt = txt_tbl[i].txt[k];
-				tbl_str += "<td align='right' title='"+ desc + "'>" + txt + "</td>";
-			}
+				for (let k=0; k < txt_tbl[i].txt.length; k++) {
+					let txt = txt_tbl[i].txt[k];
+					tbl_str += "<td align='right' title='"+ desc + "'>" + txt + "</td>";
+				}
 			}
 			tbl_str += "</tr>";
 		}
 		tbl_str += "</table>";
-		let tbl_str2 = parse_resource_stalls(txt_tbl);
+		let tbl_str2 = parse_resource_stalls(txt_tbl, hdr_obj);
+		g_cpu_diagram_canvas.json_text += ']} ';
 		//mytable.innerHTML = tbl_str2 + tbl_str;
 		mytable.innerHTML = tbl_str2;
 	}
 
-	function lkup_chrt(lkup, txt_tbl, chrt) {
+	function lkup_chrt(lkup, txt_tbl, chrt, use_pfx) {
 		if (typeof lkup[chrt] != 'undefined') {
 			let i = lkup[chrt];
 			let j = txt_tbl[i].jidx;
+			let pfx = g_cpu_diagram_flds.cpu_diagram_fields[j].y_label;
+			if (use_pfx && typeof g_cpu_diagram_flds.cpu_diagram_fields[j].pfx != 'undefined') {
+				pfx = g_cpu_diagram_flds.cpu_diagram_fields[j].pfx;
+			}
 			return {j:txt_tbl[i].jidx, i:i, desc:g_cpu_diagram_flds.cpu_diagram_fields[j].desc,
-				ylab:g_cpu_diagram_flds.cpu_diagram_fields[j].y_label,
+				//ylab:g_cpu_diagram_flds.cpu_diagram_fields[j].y_label,
+				ylab:pfx,
 				vals:g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr,
 				rng: g_cpu_diagram_flds.cpu_diagram_fields[j].rng,
 				tvals:txt_tbl[i].txt};
 		}
 		return {j:-1, i:-1};
 	}
-	function lkup_fillin(ret, flds_max, resource, prfx) {
+
+	function lkup_fillin(ret, flds_max, resource, prfx, cma) {
 		let stall = "";
 		let txt     = "";
 		let t = "";
 		if (typeof ret.rng == 'undefined') {
-			return t;
+			//return t;
 		}
 		let prefix = "";
 		if (typeof prfx != "undefined") {
@@ -7093,53 +7158,106 @@ function parse_svg()
 				prefix += "&nbsp;";
 			}
 		}
+		let jtxt = '"vals":[';
+		let ys_ar = [];
+		let yv_ar = [];
 		for (let i=0; i < flds_max; i++) {
 			let str = "";
 			let cir = ""; 
 			if (i < ret.vals.length) {
 				str = ret.tvals[i];
-				let cmp_le = true;
-				if (typeof ret.rng.cmp != 'undefined' && ret.rng.cmp == 'ge') {
-					cmp_le = false;
-				}
-				if (cmp_le) {
-					if (ret.vals[i] <= ret.rng.green) {
-						cir = "<span class='dot_green'>n</span>";
-					} else if (ret.vals[i] <= ret.rng.yellow) {
-						cir = "<span class='dot_yellow'>?</span>";
-					} else {
-						cir = "<span class='dot_red'>y</span>";
+				let sml_str = str.trim();
+				let spc_idx = sml_str.lastIndexOf(" ");
+				if (spc_idx >= 0) {
+					let end = sml_str.substr(spc_idx+1);
+					yv_ar.push(end);
+					let beg = sml_str.substr(0, spc_idx);
+					sml_str = end;
+					beg = beg.trim();
+					if (beg.endsWith(":") || beg.endsWith("=")) {
+						beg = beg.substr(0, beg.length-1);
 					}
-				} else {
-					if (ret.vals[i] >= ret.rng.green) {
-						cir = "<span class='dot_green'>n</span>";
-					} else if (ret.vals[i] >= ret.rng.yellow) {
-						cir = "<span class='dot_yellow'>?</span>";
+					ys_ar.push(beg);
+				}
+				jtxt += (i > 0 ? ", " : "") + sml_str;
+				if (typeof ret.rng != 'undefined') {
+					let cmp_le = true;
+					if (typeof ret.rng.cmp != 'undefined' && ret.rng.cmp == 'ge') {
+						cmp_le = false;
+					}
+					if (cmp_le) {
+						if (ret.vals[i] <= ret.rng.green) {
+							cir = "<span class='dot_green'>n</span>";
+						} else if (ret.vals[i] <= ret.rng.yellow) {
+							cir = "<span class='dot_yellow'>?</span>";
+						} else {
+							cir = "<span class='dot_red'>y</span>";
+						}
 					} else {
-						cir = "<span class='dot_red'>y</span>";
+						if (ret.vals[i] >= ret.rng.green) {
+							cir = "<span class='dot_green'>n</span>";
+						} else if (ret.vals[i] >= ret.rng.yellow) {
+							cir = "<span class='dot_yellow'>?</span>";
+						} else {
+							cir = "<span class='dot_red'>y</span>";
+						}
 					}
 				}
-				/*
-				if (ret.vals[i] <= ret.rng.green) {
-				} else if (ret.vals[i] <= ret.rng.yellow) {
-				} else {
-					cir = "<span class='dot_red'>y</span>";
-				}
-				*/
 			}
 			stall += "<td title='"+ret.desc+"'>"+cir+"</td>";
-			txt += "<td align='right' title='"+ret.desc+"'><span class='nowrap'>"+str+ "</span></td>";
+			txt += "<td align='right' title='"+ret.desc+"' nowrap='nowrap'>"+str+"</td>";
 		}
+		if (jtxt.indexOf("%") > 0) {
+			jtxt = jtxt.replace(/%/g, "");
+		}
+		jtxt += ']';
 		t += "<tr>";
 		t += "<td title='"+ret.desc+"'>" +prefix+ret.ylab + "</td>";
+		let jdesc = ret.desc;
+		if (jdesc.indexOf("\n") > 0) {
+			jdesc = jdesc.replace(/\n/g, "; ");
+		}
+		//abcd
+		let rj = ret.j;
+		let tl_estr = g_cpu_diagram_flds.cpu_diagram_fields[rj].tot_line.evt_str;
+		let etxt = '"yvar":[';
+		if (ys_ar.length > 0) {
+			for (let i=0; i < ys_ar.length; i++) {
+				let str = '"' + ys_ar[i] + '"';
+				etxt += (i > 0 ? ", " : "") + str;
+			}
+		} else {
+			for (let i=0; i < tl_estr.length; i++) {
+				let str = '"' + tl_estr[i] + '"';
+				etxt += (i > 0 ? ", " : "") + str;
+			}
+		}
+		etxt += ']';
+		g_cpu_diagram_canvas.json_text += cma.t + ' {"key":"'+ret.ylab+'", '+jtxt+', '+etxt+', "desc":"'+jdesc+'"}';
+		cma.t = ",";
 		t += txt;
-		t += stall;
+		if (typeof ret.rng != 'undefined') {
+			t += stall;
+		}
 		t += "<td title='"+ret.desc+"'>" +resource + "</td>";
 		t += "</tr>";
 		return t;
 	}
 
-	function parse_resource_stalls(txt_tbl) {
+	function run_tbl(tbl, txt_tbl, lkup, flds_max, indnt, cma, use_pfx)
+	{
+		let txt = "";
+		for (let i=0; i < tbl.length; i++) {
+			let ret = lkup_chrt(lkup, txt_tbl, tbl[i][0], use_pfx);
+			if (ret.i > -1) {
+				txt += lkup_fillin(ret, flds_max, tbl[i][1], indnt, cma);
+			}
+		}
+		return txt;
+	}
+
+	function parse_resource_stalls(txt_tbl, hdr_obj)
+	{
 		if (svg_name != "haswell_block_diagram.svg") {
 			return "";
 		}
@@ -7164,8 +7282,49 @@ function parse_svg()
 				}
 			}
 		}
-		let t = "<table border='1' style='float: left'>";
-		t += "<tr><td>Haswell CPU diagram metric</td>";
+		let cma = {"t":""};
+
+		cma = {"t":""};
+		let sys_tbl = [
+			["PCT_BUSY_BY_SYSTEM", "Percent busy system"]
+			,["DISK_BW_BLOCK_RQ", "Disk bandwidth"]
+			,["TEMPERATURE_BY_ZONE", "temperature (degrees C) by zone"]
+			,["FREQ_BY_CPU", "Frequency in GHz by CPU"]
+			,["RAPL_POWER_BY_AREA", "Power (W) by chip area"]
+			,["BW_BY_TYPE", "Memory bandwidth (MB/sec) by type"]
+			];
+		let flds_max_sys = -1;
+		for (let k=0; k < sys_tbl.length; k++) {
+			let ct = sys_tbl[k][0];
+			if (typeof lkup[ct] == 'undefined') {
+				continue;
+			}
+			let i = lkup[ct];
+			let j  = txt_tbl[i].jidx;
+			//let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
+			if (flds_max_sys < mx) {
+				flds_max_sys = mx;
+			}
+		}
+		let t = "";
+		t += "<table border='1' style='float: left'>";
+		t += "<tr><td>Haswell system metrics</td></tr>";
+		t += "<tr><td>Phase (time abs secs)</td><td align='right'>"+sprintf("%.3f", hdr_obj.tm0)+"</td><td align='right'>"+sprintf("%.3f", hdr_obj.tm1)+"</td>";
+		for (let i=0; i < flds_max_sys-2; i++) {
+			t += "<td></td>";
+		}
+		let pht = "<td>"+hdr_obj.ph0;
+		if (hdr_obj.ph0 != hdr_obj.ph1) {
+			pht += " - " + hdr_obj.ph1;
+		}
+		pht += "</td></tr>";
+		t += pht;
+		t += run_tbl(sys_tbl, txt_tbl, lkup, flds_max_sys, 2, cma, true);
+
+		t += "</table>";
+		t += "<table border='1' style='float: left'>";
+		t += "<tr><td>Haswell CPU diagram metrics</td>";
 		for (let i=0; i < flds_max; i++) {
 			t += "<td title='Value of the computed metric for core or system'>core"+i+" val</td>";
 		}
@@ -7174,97 +7333,49 @@ function parse_svg()
 		}
 		t += "<td>Resource utilization description</td></tr>";
 		t += "<tr><td>Memory Subsystem </td></tr>";
-		let ret = lkup_chrt(lkup, txt_tbl, "UNC_HASWELL_PEAK_BW_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "DRAM: pct of max possible memory BW 25.9 GB/s", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "L3_MISS_BYTES_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L3_misses: max L3 misses about 10 bytes/cycle", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "SQ_FULL_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L2_misses: pct of cycles SuperQueue full so can't take more requests", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "L2_MISS_BYTES_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L2_misses: path to L3 64 bytes/cycle max", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "L2_TRANS_ALL_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L2_traffic: path L1d to L2 64 bytes/cycle max", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "ICACHE_MISS_BYTES_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L2_traffic: path icache to L2 64 bytes/cycle max", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "FB stalls: pct cycles L1d demand request blocked due to Fill Buffer (FB) full", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "L1D_REPL_BYTES_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L1d: L1d to load buffer: 2 paths of 32 bytes/cycle", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L1d: L1d to store buffer: %cycles stalled due store buffer full", 2);
-		}
+
+		let mem_tbl = [
+			["UNC_HASWELL_PEAK_BW_CHART", "DRAM: pct of max possible memory BW 25.9 GB/s"],
+			["L3_MISS_BYTES_PER_CYCLE_CHART", "L3_misses: max L3 misses about 10 bytes/cycle"],
+			["SQ_FULL_PER_CYCLE_CHART", "L2_misses: pct of cycles SuperQueue full so can't take more requests"],
+			["L2_MISS_BYTES_PER_CYCLE_CHART", "L2_misses: path to L3 64 bytes/cycle max"],
+			["L2_TRANS_ALL_PER_CYCLE_CHART", "L2_traffic: path L1d to L2 64 bytes/cycle max"],
+			["ICACHE_MISS_BYTES_PER_CYCLE_CHART", "L2_traffic: path icache to L2 64 bytes/cycle max"],
+			["L1D_PENDING_MISS_FB_FULL_PER_TOT_CYCLES_CHART", "FB stalls: pct cycles L1d demand request blocked due to Fill Buffer (FB) full"],
+			["L1D_REPL_BYTES_PER_CYCLE_CHART", "L1d: L1d to load buffer: 2 paths of 32 bytes/cycle"],
+			["RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART", "L1d: L1d to store buffer: %cycles stalled due store buffer full"]
+		];
+		t += run_tbl(mem_tbl, txt_tbl, lkup, flds_max, 2, cma, true);
+
 		t += "<tr><td>Front End</td></tr>";
-		ret = lkup_chrt(lkup, txt_tbl, "IFETCH_STALLS_PER_TOT_CYCLES_CHART", 2);
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "L1i: %cycles stalled due to L1 icache miss", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "MISPRED_CYCLES_PER_TOT_CYCLES_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "Branch prediction Unit: %cycles allocator stalled due to mispredict or memory nuke", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "DSB_UOPS_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "Decode Stream Buffer: uops to Instr Decode Queue IDQ from DSB path per cycle. Max possible is 4 uops/cycle", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "IDQ_ALL_UOPS_PER_CHART_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "IDQ: uop to IDQ from MITE path/cycle. Max possible is 4 uops/cycle", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "LSD_UOPS_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "LSD: Loop Stream Detector uop to IDQ/cycle. Max possible is 4 uops/cycle. ", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "MS_UOPS_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "MS_UOPS: Microcode Sequencer uops to mux. Max possible is 4 uops/cycle. ", 2);
-		}
+
+		let fe_tbl = [
+			["IFETCH_STALLS_PER_TOT_CYCLES_CHART", "L1i: %cycles stalled due to L1 icache miss"],
+			["MISPRED_CYCLES_PER_TOT_CYCLES_CHART", "Branch prediction Unit: %cycles allocator stalled due to mispredict or memory nuke"],
+			["DSB_UOPS_PER_CYCLE_CHART", "Decode Stream Buffer: uops to Instr Decode Queue IDQ from DSB path per cycle. Max possible is 4 uops/cycle"],
+			["IDQ_ALL_UOPS_PER_CHART_CHART", "IDQ: uop to IDQ from MITE path/cycle. Max possible is 4 uops/cycle"],
+			["LSD_UOPS_PER_CYCLE_CHART", "LSD: Loop Stream Detector uop to IDQ/cycle. Max possible is 4 uops/cycle. "],
+			["MS_UOPS_PER_CYCLE_CHART", "MS_UOPS: Microcode Sequencer uops to mux. Max possible is 4 uops/cycle. "]
+		];
+		t += run_tbl(fe_tbl, txt_tbl, lkup, flds_max, 2, cma, true);
+
 		t += "<tr><td>Execution Engine</td></tr>";
-		ret = lkup_chrt(lkup, txt_tbl, "UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "RAT: pct of total cycles where uops not issued by Register Allocation Table", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "EXE: pct of total cycles where uops not retired", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "RS: pct of total cycles stalled due to no eligible Reservation Station entry available", 2);
-		}
-		ret = lkup_chrt(lkup, txt_tbl, "RAT_UOPS_PER_CYCLE_CHART");
-		if (ret.i > -1) {
-			t += lkup_fillin(ret, flds_max, "RAT:  RAT uop issued/cycle. Max possible is 4 uops issued/cycles. Compare to the DSB, LSD, IDQ uops/cycle to see which path is probably mostly feeding the RAT", 2);
+		let ex_tbl = [
+			["UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "RAT: pct of total cycles where uops not issued by Register Allocation Table", 2],
+			["UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "EXE: pct of total cycles where uops not retired", 2],
+			["RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART", "RS: pct of total cycles stalled due to no eligible Reservation Station entry available"],
+			["RAT_UOPS_PER_CYCLE_CHART", "RAT:  RAT uop issued/cycle. Max possible is 4 uops issued/cycles. Compare to the DSB, LSD, IDQ uops/cycle to see which path is probably mostly feeding the RAT", 2]
+		];
+		t += run_tbl(ex_tbl, txt_tbl, lkup, flds_max, 2, cma, true);
+
+		let uop_tbl = [];
+		for (let i=0; i < 8; i++) {
+			uop_tbl.push(["UOPS_port_"+i+"_PER_CYCLE_CHART", "port"+i+": uops/cycle on port"+i+". Bigger values means port used more"]);
 		}
 		for (let i=0; i < 8; i++) {
-			//ret = lkup_chrt(lkup, txt_tbl, "CYCLES_PER_UOP_port_"+i+"_CHART");
-			ret = lkup_chrt(lkup, txt_tbl, "UOPS_port_"+i+"_PER_CYCLE_CHART");
-			if (ret.i > -1) {
-				t += lkup_fillin(ret, flds_max, "port"+i+": uops/cycle on port"+i+". Bigger values means port used more", 4);
-			}
+			uop_tbl.push(["GUOPS_port_"+i+"_CHART", "port"+i+": uops/nsec on port"+i+". Small values may mean port is not used much"]);
 		}
-		for (let i=0; i < 8; i++) {
-			ret = lkup_chrt(lkup, txt_tbl, "GUOPS_port_"+i+"_CHART");
-			if (ret.i > -1) {
-				t += lkup_fillin(ret, flds_max, "port"+i+": uops/nsec on port"+i+". Small values may mean port is not used much", 4);
-			}
-		}
+		t += run_tbl(uop_tbl, txt_tbl, lkup, flds_max, 4, cma, false);
 		t += "</table>";
 		return t;
 	}
