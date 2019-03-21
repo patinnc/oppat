@@ -153,6 +153,18 @@ class WebSocketHandler : public CivetWebSocketHandler {
 			}
 			return 1;
 		}
+		if(ck_cmd(data, data_len, "json_table=") > 0) {
+			printf("got json_table data_len= %d from client at %s %d\n", (int)(data_len), __FILE__, __LINE__);
+			std::string msg;
+			msg = data;
+			msg = msg.substr(0, data_len);
+			if (is_eom) {
+				q_from_clnt_to_srvr->push(msg);
+			} else {
+				msg_data = msg; // yes, this needs to be per client.
+			}
+			return 1;
+		}
 		if(ck_cmd(data, data_len, "parse_svg") > 0) {
 			std::string msg;
 			printf("got parse_svg from client at %s %d\n", __FILE__, __LINE__);
