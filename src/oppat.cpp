@@ -50,6 +50,7 @@
 #include "base64.h"
 #include "zlib.h"
 #include "tc_read_data.h"
+#include "xls.h"
 
 #pragma comment(lib, "Setupapi.lib")
 #pragma comment(lib, "Advapi32.lib")
@@ -224,6 +225,11 @@ get_opt_main (int argc, char **argv)
 		   "   Arg to ph_image is a filename. The cpu_diagram canvas will be converted to png (after ph_step_int actions)\n"
 		   "   and then sent to oppat and saved to filename. A number will be appended to the filename.\n"
 		   "   So '--ph_image c:\\tmp\\cpu_diag_' will create c:\\tmp\\cpu_diag_000.png, c:\\tmp\\cpu_diag_001.png etc\n"
+		},
+		{"j2x",      required_argument,   0, 0, "save json_table.json to j2x filename"
+		   "   Arg to j2x is a filename. The cpu_diagram process generates a json_table.json file.\n"
+		   "   Use this option to convert the json_table.json file to the j2x 'filename'.\n"
+		   "   So '--j2x pat' will create pat.xlsx containing an excel data\n"
 		},
 		{"charts",      required_argument,   0, 'c', "json list of charts"},
 		{"data_files",  required_argument,   0, 'd', "json list of data files\n"
@@ -433,6 +439,11 @@ get_opt_main (int argc, char **argv)
 			if (strcmp(long_options[option_index].name, "ph_image") == 0) {
 				options.ph_image.push_back(optarg);
 				printf ("option --ph_image %s\n", optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "j2x") == 0) {
+				options.j2x = optarg;
+				printf ("option --j2x %s\n", optarg);
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "end_tm") == 0) {
@@ -5122,6 +5133,32 @@ int main(int argc, char **argv)
 
 	get_opt_main (argc, argv);
 
+	if (options.j2x.size() > 0) {
+		std::string fl = "json_table.json";
+
+		int rc = ck_filename_exists(fl.c_str(), __FILE__, __LINE__, options.verbose);
+		if (rc != 0) {
+			fprintf(stderr, "you entered '--j2x %s' but didn't find input file %s. bye at %s %d\n",
+					options.j2x.c_str(), fl.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		std::ifstream file2;
+		file2.open (fl.c_str(), std::ios::in);
+		if (!file2.is_open()) {
+			printf("messed up fopen of flnm= %s at %s %d\n", fl.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		std::string json_table;
+		std::string line2;
+		while(!file2.eof()){
+			std::getline (file2, line2);
+			json_table += line2;
+		}
+		file2.close();
+		json_2_xls(json_table, options.j2x, "json_table.json data", __FILE__, __LINE__, options.verbose);
+		printf("finished converting %s to %s at %s %d\n", fl.c_str(), options.j2x.c_str(), __FILE__, __LINE__);
+		exit(0);
+	}
 	int verbose = options.verbose;
 	double tm_beg = dclock();
 	int thrd_status = start_web_server_threads(q_from_srvr_to_clnt, q_bin_from_srvr_to_clnt, q_from_clnt_to_srvr,
@@ -5927,6 +5964,22 @@ int main(int argc, char **argv)
 						}
 					}
 					fflush(stdout);
+					//ck_json(svg_str, "check parse_svg json str", __FILE__, __LINE__, options.verbose);
+				} else if (msg_len > 11 &&  msg.substr(0, 11) == "json_table=") {
+					fprintf(stderr, "got json_table msg %s %d", __FILE__, __LINE__);
+					std::ofstream file;
+					std::string flnm = "json_table.json";
+					file.open (flnm.c_str(), std::ios::out);
+					if (!file.is_open()) {
+						fprintf(stderr, "messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
+						exit(1);
+					}
+					file << msg.substr(11, msg.size()) << std::endl;
+					file.close();
+					fprintf(stderr, "wrote flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
+					fflush(stdout);
+					json_2_xls(msg.substr(11, msg.size()), "pat", "json_table.json data", __FILE__, __LINE__, options.verbose);
+					
 					//ck_json(svg_str, "check parse_svg json str", __FILE__, __LINE__, options.verbose);
 				} else if (msg_len >= 9 &&  msg.substr(0, 9) == "parse_svg") {
 					fprintf(stderr, "got svg msg %s %d\n", __FILE__, __LINE__);
