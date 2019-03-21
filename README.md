@@ -31,6 +31,8 @@ Try 2 movie [![Geekbench - the movie](images/geekbench_the_movie.png)](https://y
 
 And here is an excel file of the data in the movie:  [excel file from geekbench the movie](geekbench_movie.xlsx)
 
+And here is an HTML file of the data in the movie...See [Intel Haswell with CPU diagram 4-CPU chip running Geekbench](sample_html_files/geekbench_the_movie.html).
+
 I've added a full sample HTML sample file below. See [Intel Haswell with CPU diagram 4-CPU chip, linux OS, html file with 50+ hw events via perf sampling](sample_html_files/lnx_haswell_cpu_diagram_mem_bw7.html). cpu_diagram features:
 - start with a block diagram svg from WikiChip.org (used with permission),
 - look at the resource constraints (such as max BW, max bytes/cycle on various paths, minimum cycles/uop, etc),
