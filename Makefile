@@ -12,6 +12,8 @@ ifeq ($(OS),Windows_NT)
   RM     = rm -f
   ZLIB   = zlib-1.2.11/zlib.lib
   ZLIB_CMD = cmd.exe /c mk_zlib.bat
+  LIBXLSWRITER   = libxlswriter/src/libxlswriter.lib
+  LIBXLSWRITER_CMD = cmd.exe /c mk_xls.bat
   GCC_ARGS = /EHsc
   MY_LIBS   = 
   OBJ_EXT = obj
@@ -33,6 +35,8 @@ else
   #CC     = $(CXX)
   # The command used to delete file.
   RM     = rm -f
+  LIBXLSWRITER   = libxlswriter/src/libxlswriter.a
+  LIBXLSWRITE_CMD = $(shell cd libxlswriter; $(MAKE);)
   ZLIB   = zlib-1.2.11/libz.a
   #ZLIB_CMD = $(shell cd zlib-1.2.11 && make && cd ..)
   ZLIB_CMD = $(shell cd zlib-1.2.11; $(MAKE);)
@@ -94,9 +98,9 @@ CW_FLAGS = -DUSE_WEBSOCKET
 CW_FLAGS = -DUSE_WEBSOCKET $(CW_SSL)
 
 
-CFLAGS  = $(CBASE) -Iinc -Isrc/lua ${CW_FLAGS}  -DWITH_LUA_VERSION=503 -DUSE_LUA=1 -DWITH_DUKTAPE=1 -DWITH_DUKTAPE_VERSION=108 -DWITH_WEBSOCKET=1 -DWITH_ZLIB=1 -DWITH_CPP=1
+CFLAGS  = $(CBASE) -Iinc -Ilibxlswriter/include -Izlib-1.2.11/contrib  -Izlib-1.2.11 -Isrc/lua ${CW_FLAGS}  -DWITH_LUA_VERSION=503 -DUSE_LUA=1 -DWITH_DUKTAPE=1 -DWITH_DUKTAPE_VERSION=108 -DWITH_WEBSOCKET=1 -DWITH_ZLIB=1 -DWITH_CPP=1
 #CXXFLAGS= -Wno-strict-aliasing -g -O2 -Iinc -std=c++11 -g -Wno-write-strings -DNO_SSL -DWITH_LUA_VERSION=503 -DWITH_LUA=1 -DWITH_DUKTAPE=1 -DWITH_DUKTAPE_VERSION=108 -DWITH_WEBSOCKET=1 -DWITH_ZLIB=1 -DWITH_CPP=1
-CXXFLAGS=  $(CBASE) -Iinc  -Izlib-1.2.11 -Isrc/lua $(GCC_ARGS) $(CW_FLAGS) -DWITH_LUA_VERSION=503 -DUSE_LUA=1 -DWITH_DUKTAPE=1 -DWITH_DUKTAPE_VERSION=108 -DWITH_WEBSOCKET=1 -DWITH_ZLIB=1 -DWITH_CPP=1
+CXXFLAGS=  $(CBASE) -Iinc -Ilibxlswriter/include -Izlib-1.2.11 -Isrc/lua $(GCC_ARGS) $(CW_FLAGS) -DWITH_LUA_VERSION=503 -DUSE_LUA=1 -DWITH_DUKTAPE=1 -DWITH_DUKTAPE_VERSION=108 -DWITH_WEBSOCKET=1 -DWITH_ZLIB=1 -DWITH_CPP=1
 
 
 ETAGS = etags
@@ -225,12 +229,12 @@ ctags: $(HEADERS) $(SOURCES)
 
 # Rules for generating the executable.
 #-------------------------------------
-$(PROGRAM):$(OBJS) $(ZLIB)
+$(PROGRAM):$(OBJS) $(ZLIB) $(LIBXLSWRITER)
 ifeq ($(SRC_CXX),)              # C program
-	$(LINK.c)   $(OBJS) $(MY_LIBS) $(ZLIB) $(OEXE) $@
+	$(LINK.c)   $(OBJS) $(MY_LIBS) $(ZLIB) $(LIBXLSWRITER) $(OEXE) $@
 	@echo Type ./$@ to execute the program.
 else                            # C++ program
-	$(LINK.cxx) $(OBJS) $(MY_LIBS) $(ZLIB) $(OEXE) $@
+	$(LINK.cxx) $(OBJS) $(MY_LIBS) $(ZLIB) $(LIBXLSWRITER) $(OEXE) $@
 	@echo Type ./$@ to execute the program.
 endif
 
@@ -243,6 +247,10 @@ endif
 $(ZLIB):
 	echo try to make zlib $(ZLIB) with cmd= $(ZLIB_CMD)
 	$(ZLIB_CMD)
+
+$(LIBXLSWRITER):
+	echo try to make libxlswriter $(LIBXLSWRITER) with cmd= $(LIBXLSWRITER_CMD)
+	$(LIBXLSWRITER_CMD)
 
 clean:
 	$(RM) $(OBJS) $(PROGRAM) $(PROGRAM).exe
