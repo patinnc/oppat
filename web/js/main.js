@@ -4826,8 +4826,14 @@ async function start_charts() {
 			ph_loops = -1;
 		}
 	}
+	let by_phase = 0;
+	if (typeof gjson.by_phase != 'undefined') {
+		if (gjson.by_phase[0] == "1") {
+			by_phase = 1;
+		}
+	}
 	let did_ck_phase = 0;
-	let phobj = {lp:0, step:ph_step, lp_max:ph_loops};
+	let phobj = {lp:0, step:ph_step, lp_max:ph_loops, by_phase:by_phase};
 
 	let ibeg = -1, iend= -1;
 	let divisions = phobj.lp_max;
@@ -4843,7 +4849,16 @@ async function start_charts() {
 	let xbeg = -1, xend= -1;
 
 	// calc how many divisions to put between the begin and end
-	if (ibeg != -1 && iend == -1) {
+	if (phobj.by_phase == 1) {
+		// so both --phase0 and --phase1 entered
+		[xbeg, xend] = get_by_phase_beg_end(ibeg);
+
+		phobj.lp_max = 1+iend-ibeg; // need to do + 1 since end condition is lp < mx
+		divisions = 100;
+		console.log(sprintf("by_phase xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
+					xbeg, xend, phobj.step, divisions));
+		g_tot_line_divisions.max = divisions;
+	} else if (ibeg != -1 && iend == -1) {
 		// so --phase0 entered and --phase1 not entered
 		xend  = gjson.phase[ibeg].ts_abs;
 		xbeg  = xend;
@@ -4878,11 +4893,13 @@ async function start_charts() {
 					xbeg, xend, phobj.step, divisions));
 	}
 
-	if (divisions > 0) {
-		g_tot_line_divisions.max = divisions;
-	}
+	if (phobj.by_phase != 1) {
+		if (divisions > 0) {
+			g_tot_line_divisions.max = divisions;
+		}
 
-	phobj.lp_max = divisions;
+		phobj.lp_max = divisions;
+	}
 
 
 	let skip_obj = {skip_if_idle:true, idle_cur:-1.0, idle_skip_if_less_than:50.0, lp:-1, lp_prev:-2, idle_prev:51.0};
@@ -4917,17 +4934,24 @@ async function start_charts() {
 		return do_skip;
 	}
 
-	function send_blob_backend(po, xbeg)
+	function send_blob_backend(po, xbeg, from)
 	{
 		let x0, x1, str;
 		if (xbeg == -1.0) {
 			str = "lp= -2";
 		} else {
-			x0 = xbeg + po.step*po.lp;
-			x1 = xbeg + po.step*(po.lp+1);
-			let ret_obj = draw_svg_header(po.lp, x0, x1, false, false);
-			str = ret_obj.str;
+			if (po.by_phase == 1) {
+				[x0, x1] = get_by_phase_beg_end(po.lp);
+				let ret_obj = draw_svg_header(po.lp, x0, x1, false, false);
+				str = ret_obj.str;
+			} else {
+				x0 = xbeg + po.step*po.lp;
+				x1 = xbeg + po.step*(po.lp+1);
+				let ret_obj = draw_svg_header(po.lp, x0, x1, false, false);
+				str = ret_obj.str;
+			}
 		}
+		console.log(sprintf("send_blob by_phase= %d: lp= %d, from= %s str= %s", po.by_phase, po.lp, from, str));
 		myblob(g_cpu_diagram_canvas, "image,"+str+",imagedata:");
 	}
 
@@ -4966,10 +4990,10 @@ async function start_charts() {
 				let bump_lp = 0;
 				jj = 0;
 				if (po.lp < po.lp_max) {
-					if (bump_lp > 0 && g_cpu_diagram_canvas != null) {
+					if (bump_lp > 0 && g_cpu_diagram_canvas != null && po.by_phase != 1) {
 						let do_skip = ck_if_skip_due_to_idle(po.lp, skip_obj);
 						if (!do_skip) {
-							send_blob_backend(po, xbeg);
+							send_blob_backend(po, xbeg, "mydelay");
 						} else {
 							console.log("skip due to 2+ idles; lp= "+po.lp);
 						}
@@ -5001,6 +5025,29 @@ async function start_charts() {
 	console.log("---- did myDelay(g_charts_done)");
 	console.log("---- try setting divisions= "+phobj.lp_max);
 
+	function get_by_phase_beg_end(phs)
+	{
+		let x0, x1;
+		x0  = gjson.phase[phs].ts_abs;
+		x0 -= gjson.phase[phs].dura;
+		x0 += 0.0005; // make sure it resolves to inside phase
+		x1  = gjson.phase[phs].ts_abs - 0.005; // make sure it resolves to inside phase
+		return [x0, x1];
+	}
+	function set_zoom_xbeg_xend(po)
+	{
+		gsync_zoom_redrawn_charts.cntr = 0;
+		gsync_zoom_last_zoom.chrt_idx = -1;
+		gsync_zoom_last_zoom.x0 = -1;
+		g_cpu_diagram_canvas.json_text = null;
+		gsync_zoom_last_zoom.x1 = -1;
+		if (po.by_phase == 1) {
+			[xbeg, xend] = get_by_phase_beg_end(po.lp);
+		}
+		gsync_zoom_last_zoom.abs_x0 = xbeg;
+		gsync_zoom_last_zoom.abs_x1 = xend;
+	}
+
 	function ck_phase(lkfor_max, po)
 	{
 		jj=0;
@@ -5008,16 +5055,20 @@ async function start_charts() {
 		function do_draws(po)
 		{
 			// if we don't put in a sleep then the websocket.send's never get started and we bomb off (eventually)
+			if (po.by_phase == 1) {
+				console.log("....error....");
+				return;
+			}
 			setTimeout(function () {
 				if (po.lp == 0) {
 					g_cpu_diagram_draw_svg([], -2);
-					send_blob_backend(po, -1.0);
+					send_blob_backend(po, -1.0, "do_draws0");
 				}
 				if (po.lp < po.lp_max) {
 					let do_skip = ck_if_skip_due_to_idle(po.lp, skip_obj);
 					if (!do_skip) {
 						g_cpu_diagram_draw_svg([], po.lp);
-						send_blob_backend(po, xbeg);
+						send_blob_backend(po, xbeg, "do_draws1");
 					}
 					po.lp++;
 					do_draws(po);
@@ -5038,15 +5089,30 @@ async function start_charts() {
 			}, 50, po);
 		}
 		if (lkfor_max.typ == "wait_for_zoom_to_phase" && g_cpu_diagram_canvas != null) {
-			do_draws(po);
+			if (po.by_phase == 1) {
+				console.log(sprintf("---- by_phase: lp= %d, lpmax= %d", po.lp, po.lp_max));
+				g_cpu_diagram_draw_svg([], -1);
+				send_blob_backend(po, xbeg, "ck_phase0");
+				let old_typ = gsync_zoom_redrawn_charts.typ;
+				if (po.lp < gjson.phase.length) {
+					po.lp = po.lp + 1;
+					if (po.lp < po.lp_max) {
+						set_zoom_xbeg_xend(po);
+						set_zoom_all_charts(-1, gjson.phase[0].file_tag);
+						myDelay(gsync_zoom_redrawn_charts, po);
+					}
+				}
+			} else {
+				do_draws(po);
+			}
 		} else if (lkfor_max.typ == "wait_for_initial_draw" && typeof gjson.phase != 'undefined') {
 			let old_typ = gsync_zoom_redrawn_charts.typ;
-			gsync_zoom_last_zoom.chrt_idx = -1;
-			gsync_zoom_last_zoom.x0 = -1;
-			gsync_zoom_last_zoom.x1 = -1;
-			gsync_zoom_last_zoom.abs_x0 = xbeg;
-			gsync_zoom_last_zoom.abs_x1 = xend;
-			g_cpu_diagram_canvas.json_text = null;
+			if (po.by_phase == 1) {
+				g_cpu_diagram_draw_svg([], -2);
+				send_blob_backend(po, -1.0, "ck_phase1");
+				po.lp = 0;
+			}
+			set_zoom_xbeg_xend(po);
 			console.log(sprintf("===zoom x0= %s, x1= %s lp= %d %%",
 						gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1, po.lp));
 			set_zoom_all_charts(-1, gjson.phase[0].file_tag);
