@@ -25,15 +25,21 @@ The project web page is [https://patinnc.github.io](https://patinnc.github.io)
 The source code repo is [https://github.com/patinnc/oppat](https://github.com/patinnc/oppat)
 
 I've added a CPU block diagram feature.
-Here is a video of running Geekbench on Haswell:
-[![Geekbench - the movie](https://youtu.be/-4nzrBCmFw4)](https://youtu.be/-4nzrBCmFw4 "Geekbench - the movie")
-Try 2 movie [![Geekbench - the movie](images/geekbench_the_movie.png)](https://youtu.be/-4nzrBCmFw4)
+Here is some data for running Geekbench on Haswell CPUs:
+-  a video of the changes to Haswell cpu block diagram running Geekbench: [![Geekbench - the movie](images/geekbench_the_movie.png)](https://youtu.be/-4nzrBCmFw4)
+- an excel file of the data in the movie:  [excel file from geekbench the movie](xls/geekbench_the_movie.xlsx)
+- the HTML of the data in the movie...See [Intel Haswell with CPU diagram 4-CPU chip running Geekbench](sample_html_files/geekbench_the_movie.html).
 
-And here is an excel file of the data in the movie:  [excel file from geekbench the movie](geekbench_movie.xlsx)
+Here is some data for running my 'spin' benchmark with 4 sub-tests on Haswell CPUs:
+- The 1st subtest is a read memory bandwidth test. The L2/L3/memory block is highly used and stalled during the test. The RAT uops/cycle is low as the RAT is mostly stalled.
+- The 2nd subtest is an L3 read bandwidth test. The memory BW is now low. The L2 & L3 block is highly used and stalled during the test. The RAT uops/cycle is higher as the RAT is less stalled.
+- The 3rd subtest is an L2 read bandwidth test. The L3 and memory BW is now low. The L2 block is highly used and stalled during the test. The RAT uops/cycle is even higher as the RAT is even less stalled.
+- The 4th subtest is a spin (just an add loop) test. The L2, L3 and memory BW is near zero. The RAT uops/cycle is about 3.3 uops/cycle which is approaching the 4 uops/cycle max possible.
+- a video of the changes to the Haswell cpu block diagram running 'spin' with analysis. See [![spin - the movie](images/spin_the_movie_sml.png)](https://www.youtube.com/watch?v=QrbK-2g9rWg&feature=youtu.be)
+- an excel file of the data in the movie:  [excel file from spin the movie](spin_the_movie.xlsx)
+- the HTML of the data in the movie...See [Intel Haswell with CPU diagram 4-CPU chip running spin benchmark](sample_html_files/spin_the_movie.html).
 
-And here is an HTML file of the data in the movie...See [Intel Haswell with CPU diagram 4-CPU chip running Geekbench](sample_html_files/geekbench_the_movie.html).
-
-I've added a full sample HTML file of my spin benchmark below. See [Intel Haswell with CPU diagram 4-CPU chip, linux OS, html file with 50+ hw events via perf sampling](sample_html_files/lnx_haswell_cpu_diagram_mem_bw7.html). cpu_diagram features:
+The Intel Haswell with CPU diagram data collections are for a 4-CPU Intel chip, linux OS, html file with 50+ hw events via perf sampling and other data collected. Cpu_diagram features:
 - start with a block diagram svg from WikiChip.org (used with permission),
 - look at the resource constraints (such as max BW, max bytes/cycle on various paths, minimum cycles/uop, etc),
 - compute metrics for the resource usage
@@ -50,11 +56,6 @@ I've added a full sample HTML file of my spin benchmark below. See [Intel Haswel
     - Below is a table of a spin test (no loads, just do adds in a loop). Now there are just about zero memory subsystem stalls. The uops are coming from the Decode Stream Buffer (DSB). RAT cycles/retired_uop at 0.30 cycles/uop is near the peak possible 0.25 cycles/uop.The RAT %stalled/retired_uop is pretty low at %11.
 ![a screen shot of the haswell cpu diagram spin table](images/tbl_spin.png)
 
-Here is a movie showing the 4 subtests with analysis. See [![spin - the movie](images/spin_the_movie_sml.png)](https://www.youtube.com/watch?v=QrbK-2g9rWg&feature=youtu.be)
-- The 1st subtest is a read memory bandwidth test. The L2/L3/memory block is highly used and stalled during the test. The RAT uops/cycle is low as the RAT is mostly stalled.
-- The 2nd subtest is an L3 read bandwidth test. The memory BW is now low. The L2 & L3 block is highly used and stalled during the test. The RAT uops/cycle is higher as the RAT is less stalled.
-- The 3rd subtest is an L2 read bandwidth test. The L3 and memory BW is now low. The L2 block is highly used and stalled during the test. The RAT uops/cycle is even higher as the RAT is even less stalled.
-- The 4th subtest is a spin (just an add loop) test. The L2, L3 and memory BW is near zero. The RAT uops/cycle is about 3.3 uops/cycle which is approaching the 4 uops/cycle max possible.
 
 Currently this is only available for haswell (I don't have other systems to test on) but it shouldn't be hard to add other block diagrams.
 
