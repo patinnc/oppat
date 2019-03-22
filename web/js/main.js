@@ -4900,6 +4900,7 @@ async function start_charts() {
 
 		phobj.lp_max = divisions;
 	}
+	g_cpu_diagram_canvas.json_text = null;
 
 
 	let skip_obj = {skip_if_idle:true, idle_cur:-1.0, idle_skip_if_less_than:50.0, lp:-1, lp_prev:-2, idle_prev:51.0};
@@ -5039,7 +5040,6 @@ async function start_charts() {
 		gsync_zoom_redrawn_charts.cntr = 0;
 		gsync_zoom_last_zoom.chrt_idx = -1;
 		gsync_zoom_last_zoom.x0 = -1;
-		g_cpu_diagram_canvas.json_text = null;
 		gsync_zoom_last_zoom.x1 = -1;
 		if (po.by_phase == 1) {
 			[xbeg, xend] = get_by_phase_beg_end(po.lp);
@@ -5061,13 +5061,13 @@ async function start_charts() {
 			}
 			setTimeout(function () {
 				if (po.lp == 0) {
-					g_cpu_diagram_draw_svg([], -2);
+					g_cpu_diagram_draw_svg([], -2, -1);
 					send_blob_backend(po, -1.0, "do_draws0");
 				}
 				if (po.lp < po.lp_max) {
 					let do_skip = ck_if_skip_due_to_idle(po.lp, skip_obj);
 					if (!do_skip) {
-						g_cpu_diagram_draw_svg([], po.lp);
+						g_cpu_diagram_draw_svg([], po.lp, -1);
 						send_blob_backend(po, xbeg, "do_draws1");
 					}
 					po.lp++;
@@ -5076,11 +5076,10 @@ async function start_charts() {
 					console.log(sprintf("typ= %s, lp= %d, lpmx= %d", lkfor_max.typ, po.lp, po.lp_max));
 					if (po.lp == po.lp_max) {
 						g_tot_line_divisions.max = save_g_tot_line_division_max;
-						g_cpu_diagram_draw_svg([], -1);
+						g_cpu_diagram_draw_svg([], -1, -1);
 						po.lp++;
 						do_draws(po);
 						g_cpu_diagram_canvas.json_text += ']}';
-						//document.getElementById('msg_span').innerText = g_cpu_diagram_canvas.json_text;
 						webSocket.send("json_table="+g_cpu_diagram_canvas.json_text);
 						console.log("sent json_table to server");
 						//console.log(g_cpu_diagram_canvas.json_text);
@@ -5091,7 +5090,7 @@ async function start_charts() {
 		if (lkfor_max.typ == "wait_for_zoom_to_phase" && g_cpu_diagram_canvas != null) {
 			if (po.by_phase == 1) {
 				console.log(sprintf("---- by_phase: lp= %d, lpmax= %d", po.lp, po.lp_max));
-				g_cpu_diagram_draw_svg([], -1);
+				g_cpu_diagram_draw_svg([], -1, po.lp);
 				send_blob_backend(po, xbeg, "ck_phase0");
 				let old_typ = gsync_zoom_redrawn_charts.typ;
 				if (po.lp < gjson.phase.length) {
@@ -5100,7 +5099,11 @@ async function start_charts() {
 						set_zoom_xbeg_xend(po);
 						set_zoom_all_charts(-1, gjson.phase[0].file_tag);
 						myDelay(gsync_zoom_redrawn_charts, po);
-					}
+					} else {
+						g_cpu_diagram_canvas.json_text += ']}';
+						webSocket.send("json_table="+g_cpu_diagram_canvas.json_text);
+						console.log("sent json_table to server");
+				}
 				}
 			} else {
 				do_draws(po);
@@ -5108,7 +5111,7 @@ async function start_charts() {
 		} else if (lkfor_max.typ == "wait_for_initial_draw" && typeof gjson.phase != 'undefined') {
 			let old_typ = gsync_zoom_redrawn_charts.typ;
 			if (po.by_phase == 1) {
-				g_cpu_diagram_draw_svg([], -2);
+				g_cpu_diagram_draw_svg([], -2, -1);
 				send_blob_backend(po, -1.0, "ck_phase1");
 				po.lp = 0;
 			}
@@ -6206,7 +6209,7 @@ function parse_svg()
 		}
 	}
 
-	function draw_svg(hilite_arr, whch_txt) {
+	function draw_svg(hilite_arr, whch_txt, subtst) {
 		g_cpu_diagram_draw_svg = draw_svg;
 		build_poly();
 		ctx.clearRect(0, 0, mycanvas.width, mycanvas.height);
@@ -6707,10 +6710,10 @@ function parse_svg()
 			}
 		}
 		// end of drawing
-		draw_svg_txt_flds(whch_txt);
+		draw_svg_txt_flds(whch_txt, subtst);
 	}
 
-	draw_svg([], -1);
+	draw_svg([], -1, -1);
 
 	ck_text_enclosing_boxes();
 
@@ -6957,7 +6960,7 @@ function parse_svg()
 
 	g_svg_obj = build_svg_json_file();
 
-	function draw_svg_txt_flds(whch_txt)
+	function draw_svg_txt_flds(whch_txt, subtst)
 	{
 		if (g_cpu_diagram_flds == null) {
 			return;
@@ -6993,13 +6996,17 @@ function parse_svg()
 		if (typeof g_cpu_diagram_canvas.json_text == 'undefined' || g_cpu_diagram_canvas.json_text == null) {
 			g_cpu_diagram_canvas.json_text = '{"txt":[';
 		}
-		if (whch_txt == 0) {
+		if (whch_txt == 0 || subtst == 0) {
 			g_cpu_diagram_canvas.json_text += "{";
 		} else {
 			g_cpu_diagram_canvas.json_text += ", {";
 		}
-		g_cpu_diagram_canvas.json_text += '"lp":'+whch_txt;
-		let hdr_obj = draw_svg_header(whch_txt, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, true, false);
+		let whch_txt_idx = whch_txt;
+		if (subtst != -1) {
+			whch_txt_idx = subtst;
+		}
+		g_cpu_diagram_canvas.json_text += '"lp":'+whch_txt_idx;
+		let hdr_obj = draw_svg_header(whch_txt_idx, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, true, false);
 		g_cpu_diagram_canvas.json_text += ', "key_val_arr":[';
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
@@ -7583,11 +7590,11 @@ function parse_svg()
 			arr = follow_paths(i, arr);
 		}
 		if (arr.length > 0) {
-			draw_svg(arr, -1);
+			draw_svg(arr, -1, -1);
 			did_svg_highlight = true;
 		} else {
 			if (did_svg_highlight) {
-				draw_svg([], -1);
+				draw_svg([], -1, -1);
 				did_svg_highlight = false;
 			}
 		}
@@ -7607,7 +7614,7 @@ function parse_svg()
 		return c;
 	}
 
-	draw_svg([], -1);
+	draw_svg([], -1, -1);
 	let zoom_ckr = new TaskTimer(500);
 
 	zoom_ckr.addTask({
@@ -7622,7 +7629,7 @@ function parse_svg()
 				//console.log('task :'+task.name + ' id= '+task.zoom_iter_last);
 				console.log("/// now redraw cpu_diagram");
 				let txt_idx = gsync_zoom_redrawn_charts.cpu_diag_redraw_text_indx;
-				draw_svg([], txt_idx);
+				draw_svg([], txt_idx, -1);
 				gsync_zoom_redrawn_charts.cpu_diag_redrawn = gsync_zoom_redrawn_charts.cpu_diag_redraw_requests;
 			}
 	    }
