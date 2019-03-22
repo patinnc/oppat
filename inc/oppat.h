@@ -36,6 +36,7 @@ struct options_str {
 	std::vector <std::string> file_tag_vec;
 	std::vector <std::string> phase, phase_end;
 	std::vector <std::string> ph_step_int;
+	std::vector <std::string> by_phase;
 	std::vector <std::string> ph_image;
 	std::string j2x;
 	double tm_clip_beg, tm_clip_end;

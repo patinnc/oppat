@@ -202,14 +202,6 @@ get_opt_main (int argc, char **argv)
 		   "   If end_tm is not entered then clip end time is set to the marker 'num' absolute time\n"
 		   "   If end_tm is entered then clip end time is set to the marker 'num' absolute time + end_tm\n"
 		},
-		{"ph_step_int",      required_argument,   0, 0, "start at above phase, step by interval and save canvas"
-		   "   Arg to ph_step_int is step_sz[,tms_to_step] where step_sz is size in seconds and tms_to_step is integer\n"
-		   "   for how many times to shift interval. This is intended for making gifs.\n"
-		   "   So '--phase_step_int 0.1,10' would start at above phase but use interval 0.1 secs, draw the canvas\n"
-		   "   then increment the beg,end tm by 0.1 secs and redraw for 9 more times.\n"
-		   "   See --ph_image below for option to create gif files.\n"
-		   "   If tms_to_step is not entered then number of intervals ('end time' - 'beg time')/step_sz.\n"
-		},
 		{"phase0",      required_argument,   0, 0, "select a phase by 'string'"
 		   "   The phases are a subset of the markers. They have the strings 'end phase .*some_text.* dura= num .*'\n"
 		   "   Enter the string you want to look for in the 'some_text' part of the marker text\n"
@@ -220,6 +212,19 @@ get_opt_main (int argc, char **argv)
 		   "   of phs_num0 and the ending time is the end of phs_num1.\n"
 		   "   if --phase1 is not specified and --ph_step_int not specified then the start time is the start\n"
 		   "   of phs_num0 and the end time is the end of phs_num0.\n"
+		},
+		{"ph_step_int",      required_argument,   0, 0, "start at above phase, step by interval and save canvas"
+		   "   Arg to ph_step_int is step_sz[,tms_to_step] where step_sz is size in seconds and tms_to_step is integer\n"
+		   "   for how many times to shift interval. This is intended for making gifs.\n"
+		   "   So '--phase_step_int 0.1,10' would start at above phase but use interval 0.1 secs, draw the canvas\n"
+		   "   then increment the beg,end tm by 0.1 secs and redraw for 9 more times.\n"
+		   "   See --ph_image below for option to create gif files.\n"
+		   "   If tms_to_step is not entered then number of intervals ('end time' - 'beg time')/step_sz.\n"
+		   "   Contrast this with --by_phase below.\n"
+		},
+		{"by_phase",      no_argument,   0, 0, "step by full phase instead of by time step."
+		   "   1st draw the whole of phase0, then the whole of the next phase, until you get to the end phase.\n"
+		   "   This is different that --ph_step_int which steps from phase0 to phase1 by a time step.\n"
 		},
 		{"ph_image",      required_argument,   0, 0, "save cpu_diagram canvas using ph_image filename"
 		   "   Arg to ph_image is a filename. The cpu_diagram canvas will be converted to png (after ph_step_int actions)\n"
@@ -436,6 +441,11 @@ get_opt_main (int argc, char **argv)
 				printf ("option --ph_step_int %s\n", optarg);
 				break;
 			}
+			if (strcmp(long_options[option_index].name, "by_phase") == 0) {
+				options.by_phase.push_back("1");
+				printf ("option --by_phase\n");
+				break;
+			}
 			if (strcmp(long_options[option_index].name, "ph_image") == 0) {
 				options.ph_image.push_back(optarg);
 				printf ("option --ph_image %s\n", optarg);
@@ -592,6 +602,11 @@ get_opt_main (int argc, char **argv)
 		options.tm_clip_beg, options.tm_clip_beg_valid,
 		options.tm_clip_end, options.tm_clip_end_valid,
 		__FILE__, __LINE__);
+
+	if (options.by_phase.size() > 0 && (options.phase.size() == 0 || options.phase_end.size() == 0)) {
+		fprintf(stderr, "you entered --by_phase but you didn't enter --phase0 or --phase1. bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
 
 	if (options.file_list.size() > 0) {
 		// everything in this routine below this point should be for just filling in list of files
@@ -4961,7 +4976,7 @@ int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_
 				ms.evt_idx_in_po = Mark_idx;
 				std::size_t pos = ms.text.find("begin phase");
 				if (pos != std::string::npos) {
-					phase_vec.push_back(ms);
+					//phase_vec.push_back(ms);
 				} else {
 					pos = ms.text.find("end phase");
 					if (pos != std::string::npos) {
@@ -5030,7 +5045,7 @@ int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_
 					ms.evt_idx_in_po = j;
 					std::size_t pos = ms.text.find("begin phase");
 					if (pos != std::string::npos) {
-						phase_vec.push_back(ms);
+						//phase_vec.push_back(ms);
 					} else {
 						pos = ms.text.find("end phase");
 						if (pos != std::string::npos) {
@@ -5754,11 +5769,20 @@ int main(int argc, char **argv)
 		phase += "]";
 		if (options.ph_step_int.size() > 0) {
 			if (got_zoom_to == UINT32_M1) {
-				fprintf(stderr, "missed phase to zoom to so we can't do --ph_step_in %s at %s %d\n",
+				fprintf(stderr, "missed phase to zoom to so we can't do --ph_step_int %s at %s %d\n",
 						options.ph_step_int[0].c_str(), __FILE__, __LINE__);
 				exit(1);
 			} else {
 				phase += ", \"ph_step_int\":[" + options.ph_step_int[0] + "]";
+			}
+		}
+		if (options.by_phase.size() > 0) {
+			if (got_zoom_to == UINT32_M1) {
+				fprintf(stderr, "missed phase to zoom to so we can't do --by_phase option at %s %d\n",
+						__FILE__, __LINE__);
+				exit(1);
+			} else {
+				phase += ", \"by_phase\":[\"" + options.by_phase[0] + "\"]";
 			}
 		}
 		if (options.ph_image.size() > 0) {
