@@ -2,15 +2,34 @@ import glob
 import sys
 import imageio
 
+gb = 1
+fpsn=10
+bmark = "Geekbench"
+bmarkf = "Geekbench4"
+pdir = "../gb_pngs/"
+if len(sys.argv) > 1:
+    print("args= ", sys.argv)
+    for j in range(1, len(sys.argv)):
+        print("arg[%d]= %s" % (j, sys.argv[j]))
+        if sys.argv[j] == "spin":
+            print("got spin")
+            gb = 0
+            fpsn = 1
+            bmark = "spin_test"
+            bmarkf = bmark
+            pdir = "./"
+
 #fileList = []
-fileList_orig = glob.glob("../gb_pngs/pat*.png")
+fileList_orig = glob.glob(pdir+"pat0*.png")
 #for file in os.listdir(path):
 #    if file.startswith(name):
 #        complete_path = path + file
 #        fileList.append(complete_path)
 
 
-writer = imageio.get_writer('test.mp4', fps=10)
+#sys.exit(0)
+
+writer = imageio.get_writer('test.mp4', fps=fpsn)
 
 fileList = fileList_orig
 img_dta = imageio.imread(fileList[0])
@@ -38,7 +57,10 @@ draw = ImageDraw.Draw(img)
 sz = 60
 row = [0, 10, 60]
 offx = 40
-draw.text((offx, gety(row)), "Geekbench - the movie", (0,0,0), font=fontb)
+if gb == 1:
+    draw.text((offx, gety(row)), bmark+" - the movie", (0,0,0), font=fontb)
+else:
+    draw.text((offx, gety(row)), "spin_test - the movie", (0,0,0), font=fontb)
 draw.text((offx, gety(row)), "Created using OPPAT", (0,0,0), font=font)
 draw.text((offx, gety(row)), "Open Power/Performance Analysis Tool", (0,0,0), font=font)
 draw.text((offx, gety(row)), "See https://patinnc.github.io/", (0,0,0), font=font)
@@ -47,7 +69,7 @@ sz = fsz + 4
 font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
 row[1] += 30
 row[2] = sz
-draw.text((offx, gety(row)), "The power/perf data is from a single run of geekbench4 on a", (0,0,0), font=font)
+draw.text((offx, gety(row)), "The power/perf data is from a single run of "+bmarkf+" on a", (0,0,0), font=font)
 draw.text((offx, gety(row)), "4 CPU (2 core) Intel Haswell CPU.", (0,0,0), font=font)
 draw.text((offx, gety(row)), "The cpu diagram shows resource constraints on Haswell such as", (0,0,0), font=font)
 draw.text((offx, gety(row)), "the max UOPS/cycle (4) from the RAT. OPPAT calculates the current", (0,0,0), font=font)
@@ -85,7 +107,7 @@ img.save("a_test.png")
 #06/30/2015  03:23 PM           181,124 ARIALNI.TTF
 #06/30/2015  03:23 PM        23,275,812 ARIALUNI.TTF
 
-imgd = Image.open("../gb_pngs/pat00000.png")
+imgd = Image.open(pdir+"pat00000.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
 x, y = (10, 50 - fsz)
@@ -111,7 +133,7 @@ drawd.rectangle([x,y,x+600,y+280], width = rct_brdr, outline="#0000ff")
 
 imgd.save('b_test.png')
 
-imgd = Image.open("../gb_pngs/pat_base.png")
+imgd = Image.open(pdir+"pat_base.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
 x, y = (10, 50 - fsz)
@@ -137,7 +159,7 @@ drawd.rectangle([x,y,x+600,y+280], width = rct_brdr, outline="#0000ff")
 
 imgd.save('c_test.png')
 
-imgd = Image.open("../gb_pngs/pat_base.png")
+imgd = Image.open(pdir+"pat_base.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
 x, y = (0, 0)
@@ -157,7 +179,7 @@ drawd.rectangle([240,650,335, 710], width = rct_brdr, outline="#0000ff")
 drawd.rectangle([850,1150,950,1270], width = rct_brdr, outline="#0000ff")
 imgd.save('d_test.png')
 
-imgd = Image.open("../gb_pngs/pat00000.png")
+imgd = Image.open(pdir+"pat00000.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
 x, y = (0, 0)
@@ -182,7 +204,7 @@ drawd.rectangle([650,1175,775,1230], width = rct_brdr, outline="#0000ff")
 drawd.rectangle([680,1342,827,1400], width = rct_brdr, outline="#0000ff")
 imgd.save('e_test.png')
 
-imgd = Image.open("../gb_pngs/pat00000.png")
+imgd = Image.open(pdir+"pat00000.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
 x, y = (0, 0 )
@@ -194,7 +216,7 @@ drawd.text((x+rct_brdr, y), text, fill='white', font=font)
 drawd.rectangle([0,y+h,360, 170], width = rct_brdr, outline="#0000ff")
 
 x, y = (0, 250 )
-text = "Display begin/end geekbench sub-benchmark for interval, score, metric"
+text = "Display begin/end "+bmarkf+" sub-benchmark for interval, score, metric"
 w, h = font.getsize(text)
 drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
 drawd.text((x+rct_brdr, y), text, fill='white', font=font)
@@ -209,14 +231,14 @@ drawd.rectangle([800,y+h,1030,1150], width = rct_brdr, outline="#0000ff")
 
 imgd.save('f_test.png')
 
-imgd = Image.open("../gb_pngs/pat00000.png")
+imgd = Image.open(pdir+"pat00000.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
 x, y = (0, 0 )
 fsz = 50
 sz = fsz + 4
 font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
-text = "Geekbench - the movie"
+text = bmark+" - the movie"
 w, h = font.getsize(text)
 x = szx/2 - w/2 - 100
 y = szy/10
@@ -243,21 +265,245 @@ imgd.save('t_test.png')
 
 addList = ("t_test.png", "a_test.png", "c_test.png", "d_test.png", "e_test.png", "f_test.png")
 whch = -1
-for j in range(len(addList)-1, -1, -1):
-    whch += 1
-    for i in range(10):
-        fileList.insert(0, addList[j])
+#for j in range(len(addList)-1, -1, -1):
+#    whch += 1
+#    for i in range(fpsn):
+#        fileList.insert(0, addList[j])
 
 i = 0
-for im in fileList:
+for im in addList:
     img_dta = imageio.imread(im)
-    if 1==20 and i > 100:
-        #print(img_dta.shape)
-        #else:
-        break
-    i += 1
-    #img_dta = imageio.imread('black.png').shape
-    #writer.append_data(imageio.imread(im))
-    writer.append_data(img_dta)
+    for i in range(fpsn):
+        writer.append_data(img_dta)
+
+if gb == 1:
+    i = 0
+    for im in fileList:
+        img_dta = imageio.imread(im)
+        #if 1==20 and i > 100:
+            #print(img_dta.shape)
+            #else:
+            #break
+        i += 1
+        #img_dta = imageio.imread('black.png').shape
+        #writer.append_data(imageio.imread(im))
+        writer.append_data(img_dta)
+    writer.close()
+    sys.exit(0)
+
+
+#img_dta = imageio.imread(fileList[0])
+imgd = Image.open(fileList[0])
+drawd = ImageDraw.Draw(imgd)
+rct_brdr = 10
+x, y = (0, 0 )
+text = "spin: 1st subtest is read memory BW test"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+drawd.rectangle([0,y+h,360, 170], width = rct_brdr, outline="#0000ff")
+
+x, y = (0, 288-fsz)
+text = "Display "+bmarkf+" sub-benchmark for interval, BW"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+#drawd.rectangle([0,288,400, 350], width = rct_brdr, outline="#0000ff")
+
+x, y = (szx, 822 )
+text = "L2 miss, L3 miss, 73% Peak BW, SQueue 54% full"
+w, h = font.getsize(text)
+drawd.rectangle((x-w-2*rct_brdr, y, x, y + h), fill='black')
+drawd.text((x-w-rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([800,y+h,1030,1150], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+writer.append_data(img_dta)
+
+x, y = (0, 623-fsz)
+text = "Stalls: due to resource saturation/starvation:"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#x, y = (0, y+h)
+#text = "no fill buffers, no store buffers or no reserveration station entries"
+#w, h = font.getsize(text)
+#drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+#drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+
+#drawd.rectangle([350,140,480, 190], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([ 80,623,245, 720], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([180,740,305, 790], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([435,800,575, 850], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([905,1105,1015,1155], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([650,1175,775,1230], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([680,1342,827,1400], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+writer.append_data(img_dta)
+
+imgd = Image.open(fileList[1])
+drawd = ImageDraw.Draw(imgd)
+rct_brdr = 10
+x, y = (0, 0 )
+text = "spin: 2nd subtest is L3 read BW test"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#drawd.rectangle([0,y+h,360, 170], width = rct_brdr, outline="#0000ff")
+
+x, y = (0, 288-fsz)
+text = "Display "+bmarkf+" sub-benchmark for interval, BW"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+#drawd.rectangle([0,288,400, 350], width = rct_brdr, outline="#0000ff")
+
+x, y = (szx, 850 )
+text = "Hi L2miss byte/cyc, lo L3 miss & memBW, SQ 29% full"
+w, h = font.getsize(text)
+drawd.rectangle((x-w-2*rct_brdr, y, x, y + h), fill='black')
+drawd.text((x-w-rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([800,y+h,1030,1150], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+writer.append_data(img_dta)
+
+x, y = (0, 623-fsz)
+text = "Stalls: SQ, FB, RAT_uops/cycle, hi L1<->L2 traffic"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#x, y = (0, y+h)
+#text = "no fill buffers, no store buffers or no reserveration station entries"
+#w, h = font.getsize(text)
+#drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+#drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+
+#drawd.rectangle([350,140,480, 190], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([ 80,623,245, 720], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([180,740,305, 790], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([435,800,575, 850], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([905,1105,1015,1155], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([650,1175,775,1230], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([680,1342,827,1400], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+
+imgd = Image.open(fileList[2])
+drawd = ImageDraw.Draw(imgd)
+rct_brdr = 10
+x, y = (0, 0 )
+text = "spin: 3nd subtest is L2 read BW test"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#drawd.rectangle([0,y+h,360, 170], width = rct_brdr, outline="#0000ff")
+
+x, y = (0, 288-fsz)
+text = "Display "+bmarkf+" sub-benchmark for interval, BW"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+#drawd.rectangle([0,288,400, 350], width = rct_brdr, outline="#0000ff")
+
+x, y = (szx, 850 )
+text = "lo L2miss, L3 miss, memBW, SQ %full"
+w, h = font.getsize(text)
+drawd.rectangle((x-w-2*rct_brdr, y, x, y + h), fill='black')
+drawd.text((x-w-rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([800,y+h,1030,1150], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+writer.append_data(img_dta)
+
+x, y = (0, 623-fsz)
+text = "Stalls: hi FB, better RATuops/c, hi L1<->L2 traffic"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#x, y = (0, y+h)
+#text = "no fill buffers, no store buffers or no reserveration station entries"
+#w, h = font.getsize(text)
+#drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+#drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+
+#drawd.rectangle([350,140,480, 190], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([ 80,623,245, 720], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([180,740,305, 790], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([435,800,575, 850], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([905,1105,1015,1155], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([650,1175,775,1230], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([680,1342,827,1400], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+writer.append_data(img_dta)
+
+imgd = Image.open(fileList[3])
+drawd = ImageDraw.Draw(imgd)
+rct_brdr = 10
+x, y = (0, 0 )
+text = "spin: 4th subtest is spin (add loop) test"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#drawd.rectangle([0,y+h,360, 170], width = rct_brdr, outline="#0000ff")
+
+x, y = (0, 288-fsz)
+text = "Display "+bmarkf+" sub-benchmark for interval, BW"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+#drawd.rectangle([0,288,400, 350], width = rct_brdr, outline="#0000ff")
+
+x, y = (szx, 850 )
+text = "lo L2miss, L3 miss, memBW, SQ %full"
+w, h = font.getsize(text)
+drawd.rectangle((x-w-2*rct_brdr, y, x, y + h), fill='black')
+drawd.text((x-w-rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([800,y+h,1030,1150], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+writer.append_data(img_dta)
+
+x, y = (0, 623-fsz)
+text = "Stalls: lo FB, RAT, L1/L2 use; RATuops/cyc ~4 max pos"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#x, y = (0, y+h)
+#text = "no fill buffers, no store buffers or no reserveration station entries"
+#w, h = font.getsize(text)
+#drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+#drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+x, y = (0, 720)
+text = "RATuops/cyc is 3.3, close to ~4 max uops/cyc"
+w, h = font.getsize(text)
+drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+
+#drawd.rectangle([350,140,480, 190], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([ 80,623,345, 720], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([180,740,305, 790], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([435,800,575, 850], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([905,1105,1015,1155], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([650,1175,775,1230], width = rct_brdr, outline="#0000ff")
+#drawd.rectangle([680,1342,827,1400], width = rct_brdr, outline="#0000ff")
+imgd.save('test.png')
+img_dta = imageio.imread('test.png')
+writer.append_data(img_dta)
+
 writer.close()
 
