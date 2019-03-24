@@ -2562,6 +2562,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 
 	tot_line.divisions = g_tot_line_divisions.max;
+	if (chart_data.chart_tag == "PCT_BUSY_BY_SYSTEM") {
+		console.log("++cpu_busy= "+g_tot_line_divisions.max);
+	}
 	function tot_line_get_values()
 	{
 		let ret_data = {};
@@ -4565,6 +4568,26 @@ function draw_svg_header(lp, xbeg, xend, gen_jtxt, verbose)
 	return ret;
 }
 
+function get_cpu_busy_divisions()
+{
+	let cd = null;
+	for (let i=0; i < gjson.chart_data.length; i++) {
+		if (gjson.chart_data[i].chart_tag == "PCT_BUSY_BY_SYSTEM") {
+			cd = gjson.chart_data[i];
+			break;
+		}
+	}
+	if (cd != null) {
+		let xdff = cd.x_range.max - cd.x_range.min;
+		let j = xdff / 0.01;
+		j = Math.ceil(j) + 1;
+		console.log(sprintf("cpu_busy rng: dff= %.3f, %.3f - %.3f, div= %d", 
+			xdff, cd.x_range.min, cd.x_range.max, j));
+		return j;
+	}
+	return -1;
+}
+
 function draw_svg_footer(xmx, ymx, copyright)
 {
 	let str = sprintf("%s; See %s;", copyright.text, copyright.website);
@@ -4665,6 +4688,17 @@ async function start_charts() {
 				}
 				chrts_started++;
 				//update_status("started graph "+chrts_started);
+			}
+		}
+	}
+	let save_g_tot_line_division_max = g_tot_line_divisions.max;
+	let by_phase = 0;
+	if (typeof gjson.by_phase != 'undefined') {
+		if (gjson.by_phase[0] == "1") {
+			by_phase = 1;
+			let j = get_cpu_busy_divisions();
+			if (g_tot_line_divisions.max < j) {
+				g_tot_line_divisions.max = j;
 			}
 		}
 	}
@@ -4812,7 +4846,6 @@ async function start_charts() {
 		console.log("svg len= "+g_svg_obj.str.length);
 		webSocket.send("parse_svg="+g_svg_obj.str);
 	}
-	let save_g_tot_line_division_max = g_tot_line_divisions.max;
 	console.log(sprintf("gjson.chart_data.length %d g_chrts_done= %d", gjson.chart_data.length, g_charts_done.cntr));
 	console.log("ph_step_int: ", gjson.ph_step_int);
 	console.log("ph_image: ", gjson.ph_image);
@@ -4826,10 +4859,10 @@ async function start_charts() {
 			ph_loops = -1;
 		}
 	}
-	let by_phase = 0;
 	if (typeof gjson.by_phase != 'undefined') {
 		if (gjson.by_phase[0] == "1") {
 			by_phase = 1;
+			//let j = get_cpu_busy_divisions();
 		}
 	}
 	let did_ck_phase = 0;
@@ -4855,7 +4888,12 @@ async function start_charts() {
 
 		phobj.lp_max = 1+iend-ibeg; // need to do + 1 since end condition is lp < mx
 		divisions = 100;
-		console.log(sprintf("by_phase xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
+		let try_divi = get_cpu_busy_divisions();
+		if (divisions < try_divi) {
+			divisions = try_divi;
+		}
+		g_tot_line_divisions.max = divisions;
+		console.log(sprintf("++cpu_busy by_phase xbeg= %.3f, xend= %.3f, step= %.5f, divisions= %d",
 					xbeg, xend, phobj.step, divisions));
 		g_tot_line_divisions.max = divisions;
 	} else if (ibeg != -1 && iend == -1) {
@@ -4965,6 +5003,14 @@ async function start_charts() {
 	 *   then, if requested, save the image and send to server
 	 *   then, if more zooms are requested then go to A)
 	 */
+	let cd_cpu_busy = null;
+	let cpu_busy_tot_line = null;
+	for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+		if (g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
+			cd_cpu_busy = g_cpu_diagram_flds.cpu_diagram_fields[j];
+			break;
+		}
+	}
 
 	let jj = 0, jjmax = 5;
 	function myDelay (lkfor_max, po) {           //  create a loop function
@@ -5043,6 +5089,43 @@ async function start_charts() {
 		gsync_zoom_last_zoom.x1 = -1;
 		if (po.by_phase == 1) {
 			[xbeg, xend] = get_by_phase_beg_end(po.lp);
+			//if (skip_obj.skip_if_idle && po.lp > -1 && cd_cpu_busy != null && cpu_busy_tot_line.xdiff > 0.0) 
+			if (po.lp > -1 && cd_cpu_busy != null && cpu_busy_tot_line.xdiff > 0.0) {
+				let cdi = cd_cpu_busy.chrt_idx;
+				let cd   = gjson.chart_data[cdi];
+				let ts   = cd.ts_initial.ts;
+				let ts0x = cd.ts_initial.ts0x;
+				let x0 = cpu_busy_tot_line.sv_xarray[0];
+				let xb = xbeg - x0;
+				let i = Math.floor(xb/cpu_busy_tot_line.xdiff);
+				let xe = xend - x0;
+				let ie = Math.floor(xe/cpu_busy_tot_line.xdiff);
+				if (i >= 0 && ie > (i+1)) {
+					let got_busy = false;
+					let chg_rng  = false;
+					let tval = cpu_busy_tot_line.sv_yarray[i];
+					//console.log(sprintf("++ck phs[%d] x0= %.3f ts= %.3f, 0x= %.3f, o=%.3f-%.3f, i= %d, ie= %d, len= %d, b0= %f, skp_if= %f", po.lp,
+					//	x0, ts, ts0x, xbeg, xend, i, ie, cpu_busy_tot_line.sv_yarray.length, tval, skip_obj.idle_skip_if_less_than));
+					for (let j=i; j < ie; j++) {
+						//abcd
+						let x_cur    = cpu_busy_tot_line.sv_xarray[j];
+						let busy_cur = cpu_busy_tot_line.sv_yarray[j];
+						let busy_nxt = cpu_busy_tot_line.sv_yarray[j+1];
+						if (busy_cur > skip_obj.idle_skip_if_less_than) {
+							got_busy = true;
+						}
+						if (got_busy && busy_cur < skip_obj.idle_skip_if_less_than && busy_nxt < skip_obj.idle_skip_if_less_than) {
+							console.log(sprintf("++cut phs[%d] o=%.3f-%.3f n=%.3f-%3f", po.lp, xbeg, xend, xbeg, x_cur));
+							xend = x_cur;
+							chg_rng = true;
+							break;
+						}
+					}
+					if (!chg_rng) {
+					console.log(sprintf("++nocut phs[%d] o=%.3f-%.3f", po.lp, xbeg, xend));
+					}
+				}
+			}
 		}
 		gsync_zoom_last_zoom.abs_x0 = xbeg;
 		gsync_zoom_last_zoom.abs_x1 = xend;
@@ -5099,11 +5182,16 @@ async function start_charts() {
 						set_zoom_xbeg_xend(po);
 						set_zoom_all_charts(-1, gjson.phase[0].file_tag);
 						myDelay(gsync_zoom_redrawn_charts, po);
+						if (cd_cpu_busy != null) {
+							console.log("++cpu_busy.yarray.len= ", cpu_busy_tot_line.sv_yarray.length);
+					console.log(sprintf("++cpu_busy xdiff= %.5f, yarr[829]= %f", 
+						cpu_busy_tot_line.xdiff, cpu_busy_tot_line.sv_yarray[829]));
+						}
 					} else {
 						g_cpu_diagram_canvas.json_text += ']}';
 						webSocket.send("json_table="+g_cpu_diagram_canvas.json_text);
 						console.log("sent json_table to server");
-				}
+					}
 				}
 			} else {
 				do_draws(po);
@@ -5111,6 +5199,30 @@ async function start_charts() {
 		} else if (lkfor_max.typ == "wait_for_initial_draw" && typeof gjson.phase != 'undefined') {
 			let old_typ = gsync_zoom_redrawn_charts.typ;
 			if (po.by_phase == 1) {
+				g_tot_line_divisions.max = save_g_tot_line_division_max;
+				if (cd_cpu_busy != null) {
+					console.log("++cpu_busy.yarray.len= ",  cd_cpu_busy.tot_line.yarray[0].length);
+					if (cpu_busy_tot_line == null) {
+					cpu_busy_tot_line = {};
+					cpu_busy_tot_line.sv_xarray  = [];
+					cpu_busy_tot_line.sv_yarray  = [];
+					let cdi = cd_cpu_busy.chrt_idx;
+					let cd   = gjson.chart_data[cdi];
+					let ts   = cd.ts_initial.ts;
+					let ts0x = cd.ts_initial.ts0x;
+					let xoff = ts - ts0x;
+					//abcd
+					for (let ii=0; ii < cd_cpu_busy.tot_line.yarray[0].length; ii++) {
+						cpu_busy_tot_line.sv_xarray.push(cd_cpu_busy.tot_line.xarray[ii]+xoff);
+						cpu_busy_tot_line.sv_yarray.push(cd_cpu_busy.tot_line.yarray[0][ii]);
+					}
+					//console.log(cpu_busy_tot_line.sv_yarray);
+					cpu_busy_tot_line.xdiff = cpu_busy_tot_line.sv_xarray[1] - cpu_busy_tot_line.sv_xarray[0];
+					console.log(sprintf("++cpu_busy xdiff= %.5f, yarr[829]= %f", 
+						cpu_busy_tot_line.xdiff, cpu_busy_tot_line.sv_yarray[829]));
+					}
+				}
+				
 				g_cpu_diagram_draw_svg([], -2, -1);
 				send_blob_backend(po, -1.0, "ck_phase1");
 				po.lp = 0;
@@ -5771,6 +5883,23 @@ function parse_svg()
 	let win_sz = get_win_wide_high();
 	let px_wide = win_sz.width - 30;
 	let scale_ratio = px_wide/svg_xmax;
+	if (typeof gjson.img_wxh_pxls != 'undefined' && gjson.img_wxh_pxls.length > 0) {
+		let wxh = gjson.img_wxh_pxls[0];
+		let idx = wxh.indexOf("x");
+		if (idx == -1) {
+			idx = wxh.indexOf(",");
+		}
+		if (idx == -1) {
+			console.log(sprintf("didn't find ',' nor 'x' in img_wxh_pxls str= '%s'. Ignoring --img_wxh_pxls option",
+						wxh));
+		} else {
+			let w = parseInt(wxh.substr(0, idx));
+			let h = parseInt(wxh.substr(idx+1));
+			console.log(sprintf("got img_wxh_pxls= %s, w= %d h= %d", wxh, w, h));
+			px_wide = w;
+			scale_ratio = px_wide/svg_xmax;
+		}
+	}
 	let px_high = svg_ymax/svg_xmax * px_wide;
 	let myhvr_clr = document.getElementById(hvr_clr);
 	let str = '<div id="tbl_'+hvr_clr+'"></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high)+'" style="border:1px solid #000000;"><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div>';
@@ -6991,7 +7120,6 @@ function parse_svg()
 			g_cpu_diagram_flds.xend += t0;
 			break;
 		}
-		//abcd
 		let jtxt = g_cpu_diagram_canvas.json_text;
 		if (typeof g_cpu_diagram_canvas.json_text == 'undefined' || g_cpu_diagram_canvas.json_text == null) {
 			g_cpu_diagram_canvas.json_text = '{"txt":[';
@@ -7294,7 +7422,6 @@ function parse_svg()
 		if (jdesc.indexOf("\n") > 0) {
 			jdesc = jdesc.replace(/\n/g, "; ");
 		}
-		//abcd
 		let rj = ret.j;
 		let tl_estr = g_cpu_diagram_flds.cpu_diagram_fields[rj].tot_line.evt_str;
 		let etxt = '"yvar":[';
