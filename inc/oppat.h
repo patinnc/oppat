@@ -38,6 +38,7 @@ struct options_str {
 	std::vector <std::string> ph_step_int;
 	std::vector <std::string> by_phase;
 	std::vector <std::string> ph_image;
+	std::vector <std::string> img_wxh_pxls;
 	std::string j2x;
 	double tm_clip_beg, tm_clip_end;
 	int tm_clip_beg_valid, tm_clip_end_valid;

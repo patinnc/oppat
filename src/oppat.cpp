@@ -231,6 +231,11 @@ get_opt_main (int argc, char **argv)
 		   "   and then sent to oppat and saved to filename. A number will be appended to the filename.\n"
 		   "   So '--ph_image c:\\tmp\\cpu_diag_' will create c:\\tmp\\cpu_diag_000.png, c:\\tmp\\cpu_diag_001.png etc\n"
 		},
+		{"img_wxh_pxls",      required_argument,   0, 0, "arg is WxH to generate PNG at WxH pixels"
+		   "   Arg to img_sz is a string WIDTHxHEIGHT where width and height are pixels.\n"
+		   "   The default is 1017x1388. This option is only used if ph_image is used.\n"
+		   "   So '--img_wxh_pxls 1000x1200' will create a canvas 1000 pixels wide by 1200 high from which PNGs will get generated\n"
+		},
 		{"j2x",      required_argument,   0, 0, "save json_table.json to j2x filename"
 		   "   Arg to j2x is a filename. The cpu_diagram process generates a json_table.json file.\n"
 		   "   Use this option to convert the json_table.json file to the j2x 'filename'.\n"
@@ -449,6 +454,17 @@ get_opt_main (int argc, char **argv)
 			if (strcmp(long_options[option_index].name, "ph_image") == 0) {
 				options.ph_image.push_back(optarg);
 				printf ("option --ph_image %s\n", optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "img_wxh_pxls") == 0) {
+				options.img_wxh_pxls.push_back(optarg);
+				if (options.img_wxh_pxls.back().find("x") == std::string::npos &&
+					options.img_wxh_pxls.back().find(",") == std::string::npos) {
+					fprintf(stderr, "Expected '--img_wxh_pxls %s' to have 'x' or ',' in width,height arg. Bye at %s %d\n",
+							optarg, __FILE__, __LINE__);
+					exit(1);
+				}
+				printf ("option --img_wxh_pxls %s\n", optarg);
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "j2x") == 0) {
@@ -5792,6 +5808,9 @@ int main(int argc, char **argv)
 				exit(1);
 			} else {
 				phase += ", \"ph_image\":[1]";
+			}
+			if (options.img_wxh_pxls.size() > 0) {
+				phase += ", \"img_wxh_pxls\":[\""+options.img_wxh_pxls[0] + "\"]";
 			}
 		}
 		cats += phase;
