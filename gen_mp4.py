@@ -4,9 +4,15 @@ import imageio
 
 gb = 1
 fpsn=10
+fpsn=1
+xold = 1017
+yold = 1388
+# old png x:1017 y:1388
+# new png x: 912 y:1244
 bmark = "Geekbench"
 bmarkf = "Geekbench4"
-pdir = "../gb_pngs/"
+pdir = "../gb_pngs2/"
+pdir = "./"
 if len(sys.argv) > 1:
     print("args= ", sys.argv)
     for j in range(1, len(sys.argv)):
@@ -34,6 +40,15 @@ writer = imageio.get_writer('test.mp4', fps=fpsn)
 fileList = fileList_orig
 img_dta = imageio.imread(fileList[0])
 img_shape = img_dta.shape
+szx = img_shape[1]
+szy = img_shape[0]
+xnew = szx
+ynew = szy
+xfctr = 1.0
+yfctr = 1.0
+xfctr = xnew/xold
+yfctr = ynew/yold
+print("xsz= %d, ysz= %d, xfctr= %f yfctr= %f" % (szx, szy, xfctr, yfctr))
 
 
 from PIL import Image, ImageFont, ImageDraw
@@ -42,8 +57,6 @@ font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/pri
 fontb = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialnb.ttf", 60)
 #img = Image.new("RGBA", (200,200), (120,20,20))
 
-szx = img_shape[1]
-szy = img_shape[0]
 def gety(row):
     row[1] = row[1] + row[2]
     row[0] += 1
@@ -64,8 +77,8 @@ else:
 draw.text((offx, gety(row)), "Created using OPPAT", (0,0,0), font=font)
 draw.text((offx, gety(row)), "Open Power/Performance Analysis Tool", (0,0,0), font=font)
 draw.text((offx, gety(row)), "See https://patinnc.github.io/", (0,0,0), font=font)
-fsz = 35
-sz = fsz + 4
+fsz = int(yfctr*35)
+sz = fsz + int(yfctr*4)
 font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
 row[1] += 30
 row[2] = sz
@@ -107,31 +120,31 @@ img.save("a_test.png")
 #06/30/2015  03:23 PM           181,124 ARIALNI.TTF
 #06/30/2015  03:23 PM        23,275,812 ARIALUNI.TTF
 
-imgd = Image.open(pdir+"pat00000.png")
-drawd = ImageDraw.Draw(imgd)
-rct_brdr = 10
-x, y = (10, 50 - fsz)
-text = "CPU front end: instructions from memory (L2+L3) -> UOPS for execution"
-w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([x,y,szx-10,600], width = rct_brdr, outline="#0000ff")
-
-x, y = (10, 660 - fsz)
-text = "CPU execution engine: UOPS+data execute in ports"
-w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([x,y,800,y+500], width = rct_brdr, outline="#0000ff")
-
-x, y = (330, 1100)
-text = "Data to L1 from memory (L2+L3)"
-w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([x,y,x+600,y+280], width = rct_brdr, outline="#0000ff")
-
-imgd.save('b_test.png')
+#imgd = Image.open(pdir+"pat00000.png")
+#drawd = ImageDraw.Draw(imgd)
+#rct_brdr = 10
+#x, y = (10, 50 - fsz)
+#text = "CPU front end: instructions from memory (L2+L3) -> UOPS for execution"
+#w, h = font.getsize(text)
+#drawd.rectangle((xfctr*x, yfctr*y, xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
+#drawd.text((xfctr*(x+rct_brdr), yfctr*y), text, fill='white', font=font)
+#drawd.rectangle([xfctr*x,yfctr*y,xfctr*(szx-10),yfctr*600], width = rct_brdr, outline="#0000ff")
+#
+#x, y = (10, 660 - fsz)
+#text = "CPU execution engine: UOPS+data execute in ports"
+#w, h = font.getsize(text)
+#drawd.rectangle((xfctr*x, yfctr*y, xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
+#drawd.text((xfctr*(x+rct_brdr), yfctr*y), text, fill='white', font=font)
+#drawd.rectangle([xfctr*x,yfctr*y,xfctr*800,yfctr*(y+500)], width = rct_brdr, outline="#0000ff")
+#
+#x, y = (330, 1100)
+#text = "Data to L1 from memory (L2+L3)"
+#w, h = font.getsize(text)
+#drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
+#drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+#drawd.rectangle([x,y,x+600,y+280], width = rct_brdr, outline="#0000ff")
+#
+#imgd.save('b_test.png')
 
 imgd = Image.open(pdir+"pat_base.png")
 drawd = ImageDraw.Draw(imgd)
@@ -139,23 +152,23 @@ rct_brdr = 10
 x, y = (10, 50 - fsz)
 text = "CPU front end: instructions from memory (L2+L3) -> UOPS for execution"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([x,y,szx-10,630], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*x, yfctr*y, xfctr*(x) + w + 2*rct_brdr, yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), yfctr*(y)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(szx-10),yfctr*(630)], width = rct_brdr, outline="#0000ff")
 
 x, y = (10, 620)
 text = "CPU execution engine: UOPS+data execute in ports"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y+4), text, fill='white', font=font)
-drawd.rectangle([x,y,800,y+500], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*(x), yfctr*(y), xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), yfctr*(y+4)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(800),yfctr*(y+500)], width = rct_brdr, outline="#0000ff")
 
 x, y = (330, 1100)
 text = "Data to L1 from memory (L2+L3)"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([x,y,x+600,y+280], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*(x), yfctr*(y), xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), yfctr*(y)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(x+600),yfctr*(y+280)], width = rct_brdr, outline="#0000ff")
 
 imgd.save('c_test.png')
 
