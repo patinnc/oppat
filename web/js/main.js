@@ -4938,7 +4938,9 @@ async function start_charts() {
 
 		phobj.lp_max = divisions;
 	}
-	g_cpu_diagram_canvas.json_text = null;
+	if (g_cpu_diagram_canvas != null) {
+		g_cpu_diagram_canvas.json_text = null;
+	}
 
 
 	let skip_obj = {skip_if_idle:true, idle_cur:-1.0, idle_skip_if_less_than:50.0, lp:-1, lp_prev:-2, idle_prev:51.0};
@@ -5005,10 +5007,12 @@ async function start_charts() {
 	 */
 	let cd_cpu_busy = null;
 	let cpu_busy_tot_line = null;
-	for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
-		if (g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
-			cd_cpu_busy = g_cpu_diagram_flds.cpu_diagram_fields[j];
-			break;
+	if (g_cpu_diagram_flds != null) {
+		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+			if (g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
+				cd_cpu_busy = g_cpu_diagram_flds.cpu_diagram_fields[j];
+				break;
+			}
 		}
 	}
 
