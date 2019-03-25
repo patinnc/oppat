@@ -16,6 +16,7 @@ INSTALL_DIR ?= /usr/local
 PYTEST ?= py.test
 
 OBJ_END = o
+export
 
 .PHONY: docs tags examples
 
