@@ -131,8 +131,13 @@ test_lib : libxlsxwriter_test.a
 
 # The static library.
 $(LIBXLSXWRITER_A) : $(OBJS)
+ifeq ($(OS),Windows_NT)
 	echo $(Q)$(AR) $(ARFLAGS)$@ $(MINIZIP_OBJ) $(TMPFILEPLUS_OBJ) $^
 	$(Q)$(AR) $(ARFLAGS)$@ $(MINIZIP_OBJ) $(TMPFILEPLUS_OBJ) $^
+else
+	echo $(Q)$(AR) $(ARFLAGS) $@ $(MINIZIP_OBJ) $(TMPFILEPLUS_OBJ) $^
+	$(Q)$(AR) $(ARFLAGS) $@ $(MINIZIP_OBJ) $(TMPFILEPLUS_OBJ) $^
+endif
 
 # The dynamic library.
 ifeq ($(findstring m32,$(CFLAGS)),m32)
