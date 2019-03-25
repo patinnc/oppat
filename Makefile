@@ -35,8 +35,8 @@ else
   #CC     = $(CXX)
   # The command used to delete file.
   RM     = rm -f
-  LIBXLSWRITER   = libxlswriter/src/libxlswriter.a
-  LIBXLSWRITE_CMD = $(shell cd libxlswriter; $(MAKE);)
+  LIBXLSWRITER   = libxlswriter/src/libxlsxwriter.a
+  LIBXLSWRITER_CMD = $(MAKE) -C libxlswriter
   ZLIB   = zlib-1.2.11/libz.a
   #ZLIB_CMD = $(shell cd zlib-1.2.11 && make && cd ..)
   ZLIB_CMD = $(shell cd zlib-1.2.11; $(MAKE);)
@@ -249,7 +249,7 @@ $(ZLIB):
 	$(ZLIB_CMD)
 
 $(LIBXLSWRITER):
-	echo try to make libxlswriter $(LIBXLSWRITER) with cmd= $(LIBXLSWRITER_CMD)
+	@echo try to make libxlswriter $(LIBXLSWRITER) with cmd= $(LIBXLSWRITER_CMD)
 	$(LIBXLSWRITER_CMD)
 
 clean:
