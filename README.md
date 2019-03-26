@@ -50,6 +50,10 @@ The Intel Haswell with CPU diagram data collections are for a 4-CPU Intel chip, 
     - the line fill buffer FB is full (30% and 51%) so lines can't be moved to L1d from L2
     - the result is that the backend is stalled (88% and 87%) of the cycles no UOPs are retired. uops seem to be coming from the Loop Stream Detector (since the LSD cycles/uop is about the same as the RAT uops/cycle.
 ![a screen shot of the haswell cpu diagram memory bw table](images/tbl_mem.png)
+<details> 
+  <summary>Q1: What is the best Language in the World? </summary>
+   <p> A1: JavaScript </p> 
+</details>
     - Below is a table of an L3 read bandwidth test. Now the memory BW and the L3 miss bytes/cycle are about zero. The SQ is less stalled (since we aren't waiting for memory). L2 transactions bytes/cycles is about 2x higher and about 67% of the max possible 64 bytes/cycle. The uops_retired_stalls/cycle has dropped to 66% from the mem BW test stall of 88%. Fill buffer stalls are now more than 2x higher. The uops are still coming from the LSD.
 ![a screen shot of the haswell cpu diagram L3 bw table](images/tbl_L3.png)
     - Below is a table of an L2 read bandwidth test. The L2 misses bytes/cycle is much lower than the L3 test. The uops_retired %stalled is now about half the L3 test at 34% and the FB stalls are about 17% as well. uops are still coming from the LSD.
