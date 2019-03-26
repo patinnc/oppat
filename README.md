@@ -44,18 +44,31 @@ The Intel Haswell with CPU diagram data collections are for a 4-CPU Intel chip, 
 - start with a block diagram svg from WikiChip.org (used with permission),
 - look at the resource constraints (such as max BW, max bytes/cycle on various paths, minimum cycles/uop, etc),
 - compute metrics for the resource usage
-- display the resource usage info in a table (along with an estimate of whether the CPU is stalled due to the usage). Below is a PNG image of the table. The html table (but not the PNG) has popup info when you hover over fields. The table shows that:
+- Below is a table of an memory read bandwidth test which displays the resource usage info in a table (along with an estimate of whether the CPU is stalled due to the usage). The html table (but not the PNG) has popup info when you hover over fields. The table shows that:
     - the core is stalled on memory bandwidth at 55% of the max possible 25.9 GB/s BW. It is a memory bw test
     - the SuperQueue (SQ) is full (54.5% for core0 and 62.3% core1) of the cycles (so more L2 requests can't be handled)
     - the line fill buffer FB is full (30% and 51%) so lines can't be moved to L1d from L2
-    - the result is that the backend is stalled (88% and 87%) of the cycles no UOPs are retired. uops seem to be coming from the Loop Stream Detector (since the LSD cycles/uop is about the same as the RAT uops/cycle.
-[a screen shot of the haswell cpu diagram memory bw table](images/tbl_mem.png)
-    - Below is a table of an L3 read bandwidth test. Now the memory BW and the L3 miss bytes/cycle are about zero. The SQ is less stalled (since we aren't waiting for memory). L2 transactions bytes/cycles is about 2x higher and about 67% of the max possible 64 bytes/cycle. The uops_retired_stalls/cycle has dropped to 66% from the mem BW test stall of 88%. Fill buffer stalls are now more than 2x higher. The uops are still coming from the LSD.
-[a screen shot of the haswell cpu diagram L3 bw table](images/tbl_L3.png)
-    - Below is a table of an L2 read bandwidth test. The L2 misses bytes/cycle is much lower than the L3 test. The uops_retired %stalled is now about half the L3 test at 34% and the FB stalls are about 17% as well. uops are still coming from the LSD.
-[a screen shot of the haswell cpu diagram L2 bw table](images/tbl_L2.png)
-    - Below is a table of a spin test (no loads, just do adds in a loop). Now there are just about zero memory subsystem stalls. The uops are coming from the Decode Stream Buffer (DSB). RAT retired_uops/cycle at 3.31 cycles/uop is near the max possible 4.00 uops/cycle. The RAT retired_uops %stalled is pretty low at %8.
-[a screen shot of the haswell cpu diagram spin table](images/tbl_spin.png)
+    - the result is that the backend is stalled (88% and 87%) of the cycles no UOPs are retired.
+    - uops seem to be coming from the Loop Stream Detector (since the LSD cycles/uop is about the same as the RAT uops/cycle.
+    - [a screen shot of the haswell cpu diagram memory bw table](images/tbl_mem.png)
+- Below is a table of an L3 read bandwidth test.
+    - Now the memory BW and the L3 miss bytes/cycle are about zero.
+    - The SQ is less stalled (since we aren't waiting for memory).
+    - L2 transactions bytes/cycles is about 2x higher and about 67% of the max possible 64 bytes/cycle.
+    - The uops_retired_stalls/cycle has dropped to 66% from the mem BW test stall of 88%.
+    - Fill buffer stalls are now more than 2x higher. The uops are still coming from the LSD.
+    - [a screen shot of the haswell cpu diagram L3 bw table](images/tbl_L3.png)
+- Below is a table of an L2 read bandwidth test.
+    - The L2 misses bytes/cycle is much lower than the L3 test.
+    - The uops_retired %stalled is now about half the L3 test at 34% and the FB stalls are about 17% as well.
+    - uops are still coming from the LSD.
+    - [a screen shot of the haswell cpu diagram L2 bw table](images/tbl_L2.png)
+- Below is a table of a spin test (no loads, just do adds in a loop).
+    - Now there are just about zero memory subsystem stalls.
+    - The uops are coming from the Decode Stream Buffer (DSB).
+    - RAT retired_uops/cycle at 3.31 cycles/uop is near the max possible 4.0 uops/cycle.
+    - The RAT retired_uops %stalled is pretty low at %8.
+    - [a screen shot of the haswell cpu diagram spin table](images/tbl_spin.png)
 
 
 Currently this is only available for haswell (I don't have other systems to test on) but it shouldn't be hard to add other block diagrams.
