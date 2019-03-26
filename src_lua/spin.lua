@@ -216,9 +216,9 @@ function spin(flnm_spin, flnm_energy2, flnm_wait, verbose)
 	evt_units_hash[evt_str] = "val"
 
    mysort(data_table)
-   if verbose > 0 then
-      myprt(data_table)
-   end
+   --if verbose > 0 then
+   --   myprt(data_table)
+   --end
    local events = 0
    local event_nms = {}
    data_shape['col_names'] = {}
