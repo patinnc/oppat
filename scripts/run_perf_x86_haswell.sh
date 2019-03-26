@@ -6,7 +6,7 @@ PRF_CMD=perf
 PRF_CMD=~/bin/perf
 BASE=spin7
 BASE=L2_bw7
-BASE=multi7
+BASE=multi8
 PFX=lnx
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_FIL=$0
@@ -233,6 +233,7 @@ SPIN_ARGS="4 mem_bw 64 100k"
 SPIN_ARGS="4 mem_bw"
 SPIN_ARGS="4 mem_bw_2rd 64 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
 SPIN_ARGS="-f input_files/haswell_spin_input.txt" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
+sleep 1 # it takes about a 1 second (it seems) for the previous perf cmd (with all the events) to get up and running
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
 $PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x $SPIN_ARGS > $ODIR/spin.txt
 
