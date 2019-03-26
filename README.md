@@ -36,7 +36,7 @@ Here is some data for running my 'spin' benchmark with 4 sub-tests on Haswell CP
 - The 2nd subtest is an L3 read bandwidth test. The memory BW is now low. The L2 & L3 block is highly used and stalled during the test. The RAT uops/cycle is higher as the RAT is less stalled.
 - The 3rd subtest is an L2 read bandwidth test. The L3 and memory BW is now low. The L2 block is highly used and stalled during the test. The RAT uops/cycle is even higher as the RAT is even less stalled.
 - The 4th subtest is a spin (just an add loop) test. The L2, L3 and memory BW is near zero. The RAT uops/cycle is about 3.3 uops/cycle which is approaching the 4 uops/cycle max possible.
-- a video of the changes to the Haswell cpu block diagram running 'spin' with analysis. See [![spin - the movie](images/spin_the_movie_sml.png)](https://www.youtube.com/watch?v=QrbK-2g9rWg&feature=youtu.be)
+- a video of the changes to the Haswell cpu block diagram running 'spin' with analysis. See [![spin - the movie](images/spin_the_movie_sml.png)](https://www.youtube.com/watch?v=5PHmnFnvBwA&feature=youtu.be)
 - an excel file of the data in the movie:  [excel file from spin the movie](xls/spin_the_movie.xlsx)
 - the HTML of the data in the movie...See [Intel Haswell with CPU diagram 4-CPU chip running spin benchmark](sample_html_files/spin_the_movie.html).
 
