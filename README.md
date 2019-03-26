@@ -91,10 +91,12 @@ Some of the above files are ~2 second intervals extracted from ~8 second long ru
 ## OPPAT data supported
 - Linux perf and/or trace-cmd performance files (both binary and text files),
     - perf stat output also accepted
+    - Intel PCM data,
+    - other data (imported using LUA scripts),
     - So this should work with data from regular Linux or Android
     - Currently for perf and trace-cmd data, OPPAT requires both the binary and post-processed text files and there are some restrictions on the 'record' command line and the 'perf script/trace-cmd report' command line.
     - OPPAT could be made to just use the perf/trace-cmd text output files but currently both binary and text files are required
-- Windows ETW data (collected by xperf and dumped to text),
+- Windows ETW data (collected by xperf and dumped to text) or Intel PCM data,
 - arbitrary power or performance data supported using LUA scripts (so you don't need to recompile the c++ code to import other data (unless the LUA performance becomes an issue))
 - read the data files on Linux or Windows regardless of where the files originated (so read perf/trace-cmd files on Windows or ETW text files on Linux)
 
