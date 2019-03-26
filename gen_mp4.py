@@ -44,10 +44,10 @@ szx = img_shape[1]
 szy = img_shape[0]
 xnew = szx
 ynew = szy
-xfctr = 1.0
-yfctr = 1.0
 xfctr = xnew/xold
 yfctr = ynew/yold
+xfctr = 1.0
+yfctr = 1.0
 print("xsz= %d, ysz= %d, xfctr= %f yfctr= %f" % (szx, szy, xfctr, yfctr))
 
 
