@@ -3253,15 +3253,16 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	}
 
 	if (ch_lines.prf_obj != 0 && ch_lines.prf_obj->map_cpu_2_core.size() > 0) {
-		std::string topo;
+		std::string topo, skt= ", \"socket\":0}", cor = "{ \"core\":";
 		topo = ", \"map_cpu_2_core\":[";
 		for (uint32_t i=0; i < ch_lines.prf_obj->map_cpu_2_core.size(); i++) {
-			topo += (i > 0 ? "," : "") + std::to_string(ch_lines.prf_obj->map_cpu_2_core[i]);
+			std::string cma = (i > 0 ? "," : "");
+			topo += cma + cor + std::to_string(ch_lines.prf_obj->map_cpu_2_core[i]) + skt;
 		}
 		topo += "]";
-		if (options.verbose > 0) {
+		//if (options.verbose > 0) {
 			printf("topo= '%s' at %s %d\n", topo.c_str(), __FILE__, __LINE__);
-		}
+		//}
 		json += topo;
 	}
 	json += ", \"file_tag_idx\": " + std::to_string(event_table[evt_idx].file_tag_idx);
@@ -5381,16 +5382,18 @@ int main(int argc, char **argv)
 	}
 	printf("chart_file has %d events. At %s %d\n", ck_num_events, __FILE__, __LINE__);
 	std::cout << "evt_tbl2[0].size() " << evt_tbl2[0].size() << std::endl;
-	for (uint32_t i=0; i <  evt_tbl2[0].size(); i++) {
-		printf("evt_tbl2[0].event_name[%d]= %s, type= %s\n",
-				i, evt_tbl2[0][i].event_name.c_str(), evt_tbl2[0][i].event_type.c_str());
-		if (evt_tbl2[0][i].evt_derived.evts_used.size() > 0) {
-			for (uint32_t j=0; j <  evt_tbl2[0][i].evt_derived.evts_used.size(); j++) {
-				printf("\tevt_derived.evts_used[%d]= %s\n", j, evt_tbl2[0][i].evt_derived.evts_used[j].c_str());
+	if (verbose > 0) {
+		for (uint32_t i=0; i <  evt_tbl2[0].size(); i++) {
+			printf("evt_tbl2[0].event_name[%d]= %s, type= %s\n",
+					i, evt_tbl2[0][i].event_name.c_str(), evt_tbl2[0][i].event_type.c_str());
+			if (evt_tbl2[0][i].evt_derived.evts_used.size() > 0) {
+				for (uint32_t j=0; j <  evt_tbl2[0][i].evt_derived.evts_used.size(); j++) {
+					printf("\tevt_derived.evts_used[%d]= %s\n", j, evt_tbl2[0][i].evt_derived.evts_used[j].c_str());
+				}
+				printf("\tevt_derived.evt_trigger= %s\n", evt_tbl2[0][i].evt_derived.evt_trigger.c_str());
+				printf("\tevt_derived.lua_file= %s rtn= %s\n",
+						evt_tbl2[0][i].evt_derived.lua_file.c_str(), evt_tbl2[0][i].evt_derived.lua_rtn.c_str());
 			}
-			printf("\tevt_derived.evt_trigger= %s\n", evt_tbl2[0][i].evt_derived.evt_trigger.c_str());
-			printf("\tevt_derived.lua_file= %s rtn= %s\n",
-					evt_tbl2[0][i].evt_derived.lua_file.c_str(), evt_tbl2[0][i].evt_derived.lua_rtn.c_str());
 		}
 	}
 
