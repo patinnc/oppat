@@ -17,7 +17,7 @@
 	], "comment":"chart_category_priority defines grouping names for charts and priority (order) of charts",
   "event_aliases": [
 	 {"evt_name":"CYCLES_EVENT", "arch":"Intel", "aliases":["cycles", "cpu_clk_unhalted.thread", "r0200", "r3c"]}
-	,{"evt_name":"CYCLES_EVENT", "arch":"ARM",   "aliases":["cycles", "r11"]}
+	,{"evt_name":"CYCLES_EVENT", "arch":"ARM",   "aliases":["cycles", "r11", "cpu_cycles"]}
 	,{"evt_name":"INST_EVENT", "arch":"Intel", "aliases":["instructions", "rc0"]}
 	,{"evt_name":"INST_EVENT", "arch":"ARM",   "aliases":["instructions", "r08"]}
 	,{"evt_name":"REF_CYCLES_EVENT", "arch":"Intel", "aliases":["ref-cycles","r0300"]}
@@ -81,6 +81,9 @@
 	}
   }
   }
+  ],
+  "include_event_array": [
+  	{"chart_file":"charts_arm_cortex_a53.json"}
   ],
   "event_array": [
   {"event":
@@ -173,7 +176,7 @@
 		{"category":"CPU", "title":"freq from cycles (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu",
 			"chart_tag":"FREQ_BY_CPU", "chart_type":"line", "use_chart":"y", "options":"DROP_1ST",
 			"tot_line":"__total__",
-			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__: %.1f", "yvar_fmt":"avg.%s",
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__: %.2f", "yvar_fmt":"av.%s",
 			"desc":"Based on freq (GHz) per cpu from cycles event"}
 		}
 		]
@@ -840,7 +843,7 @@
 			"by_var": "area", "chart_tag":"L3_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
 			"tot_line":"__total__",
 			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_core"],
+			"scope":["per_thread","per_core"],
 			"desc":"Based on 64*offcore_response.all_requests.l3_miss.any_response/cycle. Does not seem to count all mem traffic."},
 			"y_label":"L3_miss bytes/cycle"}
 		]
@@ -872,35 +875,6 @@
 			"scope":["per_core","per_core"], "comment":"the sq_full event counts both HT thread's cycles",
 			"desc":"Based on SQ stall cycles/total cycles: 100.0*offcore_requests_buffer.sq_full/cycle"},
 			"y_label":"%sq_full/cycle"}
-		]
-	}
-  },
-  {"event":
-	{
-	"evt_name": "offcore_response.all_requests.l3_miss.any_response_bytes_per_cycle", "evt_type": "ftrace", "arch":"Intel", 
-	"evt_derived":{
-		"evts_tags":[{"evt":"offcore_response.all_requests.l3_miss.any_response", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
-		"evt_trigger":"__EMIT__",
-		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
-		"lua_file":"gen_div_pair.lua",
-		"lua_rtn":"gen_div_pair"
-	},
-	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":200000}]},
-		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
-		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
-		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
-		],
-	"charts": [
-		{"category":"CPU", "title":"L3_miss_bytes_per_cycle",  "var_name": "val",
-			"by_var": "area", "chart_tag":"OFFCORE_L3_MISS_BYTES_PER_CYCLE_CHART", "chart_type":"line", "use_chart":"y",
-			"tot_line":"__total__",
-			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.1f", "yvar_fmt":"core%d",
-			"scope":["per_core","per_core"],
-			"desc":"Based on L3 miss bytes/total cycles: 64.0*offcore_response.all_requests.l3_miss.any_response/cycle"},
-			"y_label":"offcore L3 miss bytes/cycle"}
 		]
 	}
   },
@@ -1506,7 +1480,7 @@
 	"charts": [
 		{"category":"power", "title":"RAPL power (Watts) by area",  "var_name": "power (W)", "by_var": "area",
 			"tot_line":"__total__",
-			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__ %.1f", "yvar_fmt":"avg.%s",
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__ %.1f", "yvar_fmt":"av.%s",
 			"desc":"Based on RAPL power MSRs"},
 			"chart_tag":"RAPL_POWER_BY_AREA", "chart_type":"line", "use_chart":"d"}
 		]
