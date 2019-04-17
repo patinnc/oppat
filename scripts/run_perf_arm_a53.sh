@@ -79,7 +79,7 @@ echo started $TRC_CMD
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
 
-$PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults,page-faults -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
+$PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 #$BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 while [ ! -f $WAIT_FILE ]
 do
