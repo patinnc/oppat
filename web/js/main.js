@@ -538,13 +538,21 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	if (chart_data.tot_line != "") {
 		//if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART")
 		if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
-			chart_data.tot_line_opts_xform == "map_cpu_2_core") {
+			( chart_data.tot_line_opts_xform == "map_cpu_2_core" ||
+				chart_data.tot_line_opts_xform == "map_cpu_2_socket")) {
 			let u_hsh = {};
 			let u_arr = [];
 			for (let i=0; i < chart_data.map_cpu_2_core.length; i++) {
-				if (typeof u_hsh[chart_data.map_cpu_2_core[i]] == 'undefined') {
-					u_hsh[chart_data.map_cpu_2_core[i]] = i;
-					u_arr.push(chart_data.map_cpu_2_core[i]);
+				let val;
+				if ( chart_data.tot_line_opts_xform == "map_cpu_2_core") {
+					val = chart_data.map_cpu_2_core[i].core;
+				}
+				if (chart_data.tot_line_opts_xform == "map_cpu_2_socket") {
+					val = chart_data.map_cpu_2_core[i].socket;
+				}
+				if (typeof u_hsh[val] == 'undefined') {
+					u_hsh[val] = i;
+					u_arr.push(val);
 				}
 			}
 			u_arr.sort(function(a, b){return a - b});
@@ -559,6 +567,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				tot_line.yarray2.push([]);
 				tot_line.xarray2.push([]);
 			}
+			/*
+			if (chart_data.tot_line_opts_xform == "map_cpu_2_socket") {
+				console.log("map_c2s: es_bva: ", tot_line.evt_str_base_val_arr);
+				console.log("map_c2s: es: ", tot_line.evt_str);
+			}
+			*/
 		} else if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
 			chart_data.tot_line_opts_xform == "select_vars") {
 			let u_hsh = {};
@@ -2578,7 +2592,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let HT_enabled = false;
 		let desc = "";
 		let map_num_den = 0;
-		let scope = [];
+		let scope_arr = [];
 		if (typeof chart_data.tot_line_opts_has_num_den !== 'undefined') {
 			map_num_den = +chart_data.tot_line_opts_has_num_den;
 		}
@@ -2591,27 +2605,35 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		desc += "See chart: " + chart_data.title;
 		desc += "\n" + "chart_tag: " + chart_data.chart_tag;
 		if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
-			chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
+			(chart_data.tot_line_opts_xform == 'map_cpu_2_core' ||
+			chart_data.tot_line_opts_xform == 'map_cpu_2_socket')) {
 			// I probably should have a way to indicate if really want to divide by 2 for HT
 			// The 'div by 2' is for the case where we are computing cycles/uop with HT enabled
 			// then summing core thread 0 and 1.
 			for(let cpu=0; cpu < chart_data.map_cpu_2_core.length; cpu++) {
-				if (chart_data.map_cpu_2_core[cpu] != cpu) {
+				if (chart_data.map_cpu_2_core[cpu].core != cpu) {
 					HT_enabled = true;
 					break;
 				}
 			}
 		}
 		let HT_factor_num = 1.0, HT_factor_den = 1.0;
+		let scope = {"num":null, "den":null};
 		if (typeof chart_data.tot_line_opts_scope !== 'undefined') {
-			scope = chart_data.tot_line_opts_scope;
+			scope_arr = chart_data.tot_line_opts_scope;
 		}
-		if (scope.length > 0) {
+		if (scope_arr.length > 0) {
+			if (scope_arr.length >= 1) {
+				scope.num = scope_arr[0];
+			}
+			if (scope_arr.length >= 2) {
+				scope.den = scope_arr[1];
+			}
 			if (HT_enabled) {
-				if (scope.length >= 1 && scope[0] == 'per_core') {
+				if (scope_arr.length >= 1 && scope_arr[0] == 'per_core') {
 					HT_factor_num = 0.5;
 				}
-				if (scope.length >= 2 && scope[1] == 'per_core') {
+				if (scope_arr.length >= 2 && scope_arr[1] == 'per_core') {
 					HT_factor_den = 0.5;
 				}
 				//console.log(sprintf("n= %.1f, d= %.1f mnd= %d ttl= %s", HT_factor_num, HT_factor_den, map_num_den, chart_data.title));
@@ -2641,18 +2663,25 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					let x1 = chart_data.myshapes[i].pts[PTS_X1];
 					let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
 					if (tot_line.evt_str_base_val_arr.length > 0) {
-						if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
-							chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
-							let core = chart_data.map_cpu_2_core[cpu];
-							if (tot_line.evt_str_base_val_arr[sci] != core) {
-								continue;
+						if (typeof chart_data.tot_line_opts_xform !== 'undefined') {
+							if (chart_data.tot_line_opts_xform == 'map_cpu_2_core' ||
+								chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
+								let val;
+								if (chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
+									val = chart_data.map_cpu_2_core[cpu].core;
+								}
+								else if (chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
+									val = chart_data.map_cpu_2_core[cpu].socket;
+								}
+								if (tot_line.evt_str_base_val_arr[sci] != val) {
+									continue;
+								}
 							}
-						}
-						if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
-							chart_data.tot_line_opts_xform == 'select_vars') {
-							let icat = chart_data.myshapes[i].ival[IVAL_CAT];
-							if (tot_line.evt_str_base_val_arr[sci] != icat) {
-								continue;
+							else if (chart_data.tot_line_opts_xform == 'select_vars') {
+								let icat = chart_data.myshapes[i].ival[IVAL_CAT];
+								if (tot_line.evt_str_base_val_arr[sci] != icat) {
+									continue;
+								}
 							}
 						}
 					}
@@ -2703,18 +2732,48 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							xcur1 = (j+1)/tot_line.divisions;
 						}
 						if (map_num_den > 0) {
-							tot_line.yarray2[sci][j] += HT_factor_num * num * (xcur1 - xcur0) * tot_line.divisions;
-							tot_line.xarray2[sci][j] += HT_factor_den * den * (xcur1 - xcur0) * tot_line.divisions;
+							let y_num = HT_factor_num * num * (xcur1 - xcur0) * tot_line.divisions;
+							let x_den = HT_factor_den * den * (xcur1 - xcur0) * tot_line.divisions;
+							let use_sci_x = sci;
+							let use_sci_y = sci;
+							let use_cpu0_x = false, use_cpu0_y = false;
+							if (scope.num != null) {
+								if (scope.num == "use_cpu0") {
+									use_cpu0_y = true;
+								}
+							}
+							if (!use_cpu0_y || cpu == 0) {
+								tot_line.yarray2[sci][j] += y_num;
+							}
+							if (scope.den != null) {
+								if (scope.den == "use_cpu0") {
+									use_cpu0_x = true;
+								}
+							}
+							if (!use_cpu0_x || cpu == 0) {
+								tot_line.xarray2[sci][j] += x_den;
+							}
 							if (tot_line.xarray2[sci][j] > 0.0) {
 								tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
 							} else {
 								tot_line.yarray[sci][j] = 0.0;
 							}
+							/*
+								tot_line.yarray2[sci][j] += y_num;
+								tot_line.xarray2[sci][j] += x_den;
+								if (tot_line.xarray2[sci][j] > 0.0) {
+									tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
+								} else {
+									tot_line.yarray[sci][j] = 0.0;
+								}
+								*/
 						} else {
 							tot_line.yarray[sci][j] += yval * (xcur1 - xcur0) * tot_line.divisions;
 						}
 					}
 				}
+			}
+			for (let sci= 0; sci < tot_line.evt_str.length; sci++) {
 				let tot_avg = 0, tot_avg2= 0;
 				let tot_avg2_num = 0;
 				let tot_avg2_den = 0;
@@ -4509,6 +4568,7 @@ function draw_text_w_bk(ctx, str, font, font_hi, x, y)
     ctx.save();
     ctx.font = font;
     ctx.textBaseline = 'top';
+	ctx.textAlign = "left";
     ctx.fillStyle = 'white';
     var width = ctx.measureText(str).width;
     ctx.fillRect(x, y, width, font_hi);
@@ -4522,16 +4582,32 @@ function draw_svg_header(lp, xbeg, xend, gen_jtxt, verbose)
 	let strm = get_phase_indx(xbeg + 0.5*(xend-xbeg), verbose);
 	let strb = get_phase_indx(xbeg, verbose);
 	let stre = get_phase_indx(xend, verbose);
-	let str5;
+	let str5 = "no phase";
 	if (strb != stre) {
 		str5 = strb + " - " + stre;
 	} else {
 		str5 = strm;
 	}
+	let ok = true;
+	if (typeof lp == 'undefined') {
+		lp = 0;
+		ok = false;
+	}
+	if (typeof xbeg == 'undefined') {
+		xbeg = -1.0;
+		ok = false;
+	}
+	if (typeof xend == 'undefined') {
+		xend = -1.0;
+		ok = false;
+	}
 	let cma = ", ";
 	let ret = {};
 	let str = sprintf("lp= %d; phase: %s; T.abs_beg= %.3f; T.abs_end= %.3f;", lp, str5, xbeg, xend);
 	ret.str = str;
+	if (!ok) {
+		return ret;
+	}
 	if (gen_jtxt) {
 		//g_cpu_diagram_canvas.json_text += ', "lp":'+lp;
 		g_cpu_diagram_canvas.json_text += ', "phase0":"'+strb+'"';
@@ -4590,6 +4666,10 @@ function get_cpu_busy_divisions()
 
 function draw_svg_footer(xmx, ymx, copyright)
 {
+	if (typeof copyright == 'undefined' || copyright == null) {
+		return "";
+	}
+
 	let str = sprintf("%s; See %s;", copyright.text, copyright.website);
 	let font_sz = 12;
 	let font = font_sz + 'px Arial';
@@ -5111,7 +5191,6 @@ async function start_charts() {
 					//console.log(sprintf("++ck phs[%d] x0= %.3f ts= %.3f, 0x= %.3f, o=%.3f-%.3f, i= %d, ie= %d, len= %d, b0= %f, skp_if= %f", po.lp,
 					//	x0, ts, ts0x, xbeg, xend, i, ie, cpu_busy_tot_line.sv_yarray.length, tval, skip_obj.idle_skip_if_less_than));
 					for (let j=i; j < ie; j++) {
-						//abcd
 						let x_cur    = cpu_busy_tot_line.sv_xarray[j];
 						let busy_cur = cpu_busy_tot_line.sv_yarray[j];
 						let busy_nxt = cpu_busy_tot_line.sv_yarray[j+1];
@@ -5215,7 +5294,6 @@ async function start_charts() {
 					let ts   = cd.ts_initial.ts;
 					let ts0x = cd.ts_initial.ts0x;
 					let xoff = ts - ts0x;
-					//abcd
 					for (let ii=0; ii < cd_cpu_busy.tot_line.yarray[0].length; ii++) {
 						cpu_busy_tot_line.sv_xarray.push(cd_cpu_busy.tot_line.xarray[ii]+xoff);
 						cpu_busy_tot_line.sv_yarray.push(cd_cpu_busy.tot_line.yarray[0][ii]);
@@ -5741,6 +5819,11 @@ function parse_svg()
 	let svg_ver = svg_gs[0].getAttributeNS(null, 'version');
 	console.log("svg_name= "+svg_name+', ver= '+svg_ver);
 
+	// begin find end-points
+	let lkfor_id = null;
+	//lkfor_id = "tspan3027";
+	//lkfor_id = "tspan1293";
+
 	function svg_parse_path(path, xfrm, rect_prev, shapes, gxf_arr) {
 		let xf = path.getAttributeNS(null, 'transform');
 		if (xf == '' || xf == null) {
@@ -5801,11 +5884,17 @@ function parse_svg()
 				let x= parseFloat(txt.children[k].getAttributeNS(null, 'x'));
 				let y= parseFloat(txt.children[k].getAttributeNS(null, 'y'));
 				let style= txt.children[k].getAttributeNS(null, 'style');
+				if ((typeof style == 'undefined' || style == null) && tstyle != null) {
+					style = tstyle;
+				}
 				let id   = txt.children[k].getAttributeNS(null, 'id');
 				let t    = txt.children[k].innerHTML;
 				let xf   = txt.children[k].getAttributeNS(null, 'transform');
 				if (xf == '' || xf == null) {
 					xf = "";
+				}
+				if (lkfor_id != null && id == lkfor_id) {
+					console.log("--got id= "+id);
 				}
 				//console.log(sprintf("ts[%d].c[%d].c[%d].txt= %s, x= %s", i, j, k, t, x));
 				let shp = {typ:'text', x:x, y:y, text:t, id:id, style:style, tstyle:tstyle, rect_prev:rect_prev, xf0:[], xf1:xf, box:null};
@@ -5825,7 +5914,9 @@ function parse_svg()
 		return texts;
 	}
 
+
 	function svg_parse_g(ge, shapes, cntr, gxf_arr) {
+		let id   = ge.getAttributeNS(null, 'id');
 		let xfrm = ge.getAttributeNS(null, 'transform');
 		if (xfrm == '' || xfrm == null) {
 			xfrm = "";
@@ -5833,6 +5924,9 @@ function parse_svg()
 			if (xfrm.length > 7 && xfrm.substr(0,7) == "matrix(") {
 				//console.log("xfrm= "+xfrm);
 			}
+		}
+		if (lkfor_id != null && id == lkfor_id) {
+			console.log(sprintf("__g id= %s, xfrm= %s", id, xfrm));
 		}
 		let gxf_arr_len = gxf_arr.length;
 		gxf_arr.push(xfrm);
@@ -5855,8 +5949,13 @@ function parse_svg()
 			}
 		}
 		while(gxf_arr.length > gxf_arr_len) {
+			if (lkfor_id != null && id == lkfor_id) {
+				console.log("__pop: ",gxf_arr[gxf_arr.length-1]);
+			}
 			gxf_arr.pop();
 		}
+		/*
+		*/
 		xfrm = "";
 	}
 
@@ -5930,13 +6029,13 @@ function parse_svg()
 		yout = ynew;
 		return [xout, yout];
 	}
-	function decode_xform(xin, yin, xform, verbose) {
+	function decode_xform(xin, yin, xform, verbose, xorig, yorig) {
 		let xout = xin;
 		let yout = yin;
 		if (xform.length > 7 && xform.substr(0,7) == "rotate(") {
 			let xf = xform.substr(7, xform.length-8);
 			if (verbose) {
-				console.log("rotate angle= "+xf);
+				console.log("--rotate angle= "+xf);
 			}
 			[xout, yout] = xlate_rotate(xout, yout, xf);
 		}
@@ -5951,7 +6050,7 @@ function parse_svg()
 			let xn= xout * scl[0];
 			let yn= yout * scl[1];
 			if (verbose) {
-				console.log(sprintf("scl: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
+				console.log(sprintf("--scl: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
 			}
 			xout = xn;
 			yout = yn;
@@ -5970,26 +6069,28 @@ function parse_svg()
 			let xn= xout + scl[0];
 			let yn= yout + scl[1];
 			if (verbose) {
-				console.log(sprintf("xlt: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
+				console.log(sprintf("--xlt: %s, orig:x= %.3f,y= %.3f)", xform, xorig, yorig));
+				console.log(sprintf("--xlt: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
 			}
 			xout = xn;
 			yout = yn;
 		}
 		if (xform.length > 7 && xform.substr(0,7) == "matrix(") {
+			// matrix(1,0,0,1.1860756,223.40923,319.50555)
 			// newX = a * oldX + c * oldY + e
 			// newY = b * oldX + d * oldY + f
 			let xf = xform.substr(7, xform.length-8);
 			let scl = xf.split(",");
 			if (verbose) {
-				console.log(sprintf("got matrix.len %d, %s", scl.length, xform));
+				console.log(sprintf("--got matrix.len %d, %s", scl.length, xform));
 			}
 			for (let i=0; i < scl.length; i++) {
 				scl[i] = parseFloat(scl[i]);
 			}
-			let xn= scl[0] * xout + scl[2] * yout + scale_ratio * scl[4];
-			let yn= scl[1] * xout + scl[3] * yout + scale_ratio * scl[5];
+			let xn= scl[0] * xout + scl[2] * yout + scl[4];
+			let yn= scl[1] * xout + scl[3] * yout + scl[5];
 			if (verbose) {
-				console.log(sprintf("xlt: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
+				console.log(sprintf("--xlt: xo/n= '%f/%f', y='%f/%f'", xout, xn, yout, yn));
 			}
 			xout = xn;
 			yout = yn;
@@ -5998,27 +6099,56 @@ function parse_svg()
 		}
 		return [xout, yout];
 	}
+
+	let xlate_rng = {state:0, xmin:null, ymin:null, xmax:null, ymax:null};
+
 	function xlate(tctx, xin, yin, uminx, umaxx, uminy, umaxy, shape) {
 		//let xout = Math.trunc(px_wide * (xin - uminx)/ (umaxx - uminx));
 		//let yout = Math.trunc(px_high * (yin - uminy)/ (umaxy - uminy));
-		let xout = px_wide * (xin - uminx)/ (umaxx - uminx);
-		let yout = px_high * (yin - uminy)/ (umaxy - uminy);
+		let xout = xin;
+		let yout = yin;
 		let verbose = 0;
 		if (shape != null) {
 			let id = shape.id;
-			if (id == 'rect7914') {
-				//console.log("xlate beg id= "+id);
-				//verbose = 1;
+			if (lkfor_id != null && id == lkfor_id) {
+				let xfct = (xin - uminx)/ (umaxx - uminx);
+				console.log(sprintf("--xlate beg id= %s, xin= %.3f, xout= %.3f, umnx= %.3f, umxx= %.3f, xfct= %.3f",
+							id, xin, xout, uminx, umaxx, xfct));
+				verbose = 1;
 			}
 			if (shape.xf1 != "") {
-				[xout, yout] = decode_xform(xout, yout, shape.xf1, verbose);
+				[xout, yout] = decode_xform(xout, yout, shape.xf1, verbose, xin, yin);
 			}
 			if (shape.xf0.length > 0) {
 				for (let i=shape.xf0.length-1; i >=0; i--) {
-					[xout, yout] = decode_xform(xout, yout, shape.xf0[i], verbose);
+					[xout, yout] = decode_xform(xout, yout, shape.xf0[i], verbose, xin, yin);
 				}
 			}
+			if (lkfor_id != null && id == lkfor_id) {
+				console.log(sprintf("--xlate end id= %s, xin= %.3f, xout= %.3f", id, xin, xout));
+				verbose = 1;
+			}
 		}
+		xout = px_wide * (xout - uminx)/ (umaxx - uminx);
+		yout = px_high * (yout - uminy)/ (umaxy - uminy);
+		if (xlate_rng.state == 0) {
+			if (xlate_rng.xmin == null || xlate_rng.xmin > xout) {
+				xlate_rng.xmin = xout;
+			}
+			if (xlate_rng.ymin == null || xlate_rng.ymin > yout) {
+				xlate_rng.ymin = yout;
+			}
+			if (xlate_rng.xmax == null || xlate_rng.xmax < xout) {
+				xlate_rng.xmax = xout;
+			}
+			if (xlate_rng.ymax == null || xlate_rng.ymax < yout) {
+				xlate_rng.ymax = yout;
+			}
+		} else {
+			//xout -= xlate_rng.xmin;
+			//yout -= xlate_rng.ymin;
+		}
+
 		return [xout, yout];
 	}
 
@@ -6053,17 +6183,6 @@ function parse_svg()
 		return {x:x, y:y};
 	}
 
-	// begin find end-points
-	//let lkfor_id = 'path4777';
-	//let lkfor_id = 'path4281';
-	//let lkfor_id = 'path4688';
-	//let lkfor_id = 'path4188';
-	//let lkfor_id = 'path4760';
-	//let lkfor_id = 'path4824';
-	//let lkfor_id = 'pathxxxx';
-	//let lkfor_id = 'path4748';
-	//	let lkfor_id = 'path4188';
-	let lkfor_id = "path4651";
 
 	function build_poly() {
 		let pt  = {x:0, y:0};
@@ -6072,7 +6191,7 @@ function parse_svg()
 				continue;
 			}
 			let vrb = 0;
-			if (shapes[i].id == lkfor_id) {
+			if (lkfor_id != null && shapes[i].id == lkfor_id) {
 				vrb = 1;
 			}
 			shapes[i].poly = [];
@@ -6305,11 +6424,15 @@ function parse_svg()
 	}
 
 	function add_path_connections(i, typ, poly, x, y) {
-		let arr2 = find_overlap(x, y);
+		let arr3 = find_overlap(x, y);
+		let arr2 = [];
+		for (let j=0; j < arr3.length; j++) {
+			arr2.push(arr3[j].j);
+		}
 		if (typeof poly.im_connected_to == 'undefined') {
 			poly.im_connected_to = [];
 		}
-		if (shapes[i].id == lkfor_id) {
+		if (lkfor_id != null && shapes[i].id == lkfor_id) {
 			//console.log(sprintf("apc: id=%s", lkfor_id));
 		}
 		for (let k=arr2.length-1; k >= 0; k--) {
@@ -6342,6 +6465,192 @@ function parse_svg()
 		}
 	}
 
+	let drawPieChart = function(ctx, data, colors, grf_def_idx, do_legend, txt_tbl) {
+		// from https://codepen.io/swaroopsm/pen/qIamk
+		//let ctx = canvas.getContext('2d');
+		let px_x     = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
+		let px_y_hdr = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
+		let tpx = 13;
+		let tstr = sprintf("%dpx sans-serif", tpx);
+		let hdr_ftr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.hdr_ftr_high;
+		let px_y     = px_y_hdr + hdr_ftr;
+		let px_wide  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.wide;
+		let px_high  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.high;
+		let typ      = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.typ;
+		let grf_name = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.nm;
+		let balance  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance;
+		let balance_hdr  = null;
+		let balance_chrt = null;
+		let bal_x   = -1;
+		let bal_y   = -1;
+		if (typeof balance != 'undefined' && balance != null) {
+		   balance_hdr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.hdr;
+		   balance_chrt = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.tot_chart;
+		   bal_x = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x;
+		   bal_y = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.y;
+		}
+		let x = (px_wide / 2),
+			y = (px_high / 2);
+
+		let getTotal = function(data) {
+			let sum = 0;
+			let sum2 = 0;
+			if (balance_chrt != null) {
+				for(let i=0; i<data.length; i++) {
+					if (data[i].chart_tag == balance_chrt) {
+						sum2 = data[i].value;
+					} else {
+						sum += data[i].value;
+					}
+				}
+			} else {
+				for(let i=0; i<data.length; i++) {
+					sum += data[i].value;
+				}
+				sum2 = 100.0;
+			}
+			return [sum, sum2];
+		};
+
+		let color, startAngle, endAngle, total, total_abs;
+  
+		let calculatePercent = function(value, total) {
+			return (value / total * 100).toFixed(2);
+		};
+
+		let calculateStart = function(data, index, total) {
+			if(index === 0) {
+				return 0; //
+			}
+			return calculateEnd(data, index-1, total);
+		};
+
+		let calculateEndAngle = function(data, index, total) {
+			let angle = data[index].value / total * 360;
+			let inc = ( index === 0 ) ? 0 : calculateEndAngle(data, index-1, total);
+			return ( angle + inc );
+		};
+
+		let calculateEnd = function(data, index, total) {
+			return degreeToRadians(calculateEndAngle(data, index, total));
+		};
+
+		let degreeToRadians = function(angle) {
+			return angle * 2.0 * Math.PI / 360
+		}
+
+		//console.log("__data.len= "+data.length);
+		g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].pies = [];
+
+		let bal_hdr_str = balance_hdr;
+
+		//g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
+		for (let ch=0; ch < data.length; ch++) {
+			let data_nw = data[ch];
+			//console.log(sprintf("data_nw[%d].len= %d", ch, data_nw.length));
+			[total, total_abs] = getTotal(data_nw);
+			let do_bal = false;
+			if (balance_hdr != null && total < total_abs) {
+				let dff = total_abs - total;
+				let dff_str = sprintf(' %.1f%%;', dff);
+				bal_hdr_str += dff_str;
+				data_nw.push({label:balance_hdr, value: dff});
+				do_bal = true;
+				total = total_abs;
+			}
+			let x2 = ch * px_wide; 
+			let pie = {x:(px_x + x + x2), y:(px_y + y), wide:px_wide, high:px_high, arr:[]};
+			let arr = [];
+			let rot = 0.5 * Math.PI;
+
+			ctx.font = tstr;
+			ctx.fillStyle = 'black';
+			let uj  = txt_tbl[data_nw[0].txt_tbl_idx].jidx;
+			let ui  = txt_tbl[data_nw[0].txt_tbl_idx].iidx;
+			let uii = data_nw[0].ii;
+			let evt_str = grf_name;
+			ctx.fillText(evt_str, px_x + x2, px_y_hdr);
+			evt_str = g_cpu_diagram_flds.cpu_diagram_fields[uj].tot_line.evt_str[uii];
+			ctx.fillText(evt_str, px_x + x2, px_y+px_high+hdr_ftr);
+
+			let begA = rot;
+			let begAr = rot;
+			begA = calculateStart(data_nw, 0, total);
+			let angles = [];
+			for(let i=0; i < data_nw.length; i++) {
+				if (balance_chrt != null && data_nw[i].chart_tag == balance_chrt) {
+					angles.push({beg:endAngle, end:endAngle});
+				} else {
+					startAngle = calculateStart(data_nw, i, total);
+					endAngle = calculateEnd(data_nw, i, total);
+					angles.push({beg:startAngle, end:endAngle});
+				}
+			}
+			for(let i=0; i < data_nw.length; i++) {
+				color = colors[i];
+				startAngle = angles[i].beg;
+				endAngle   = angles[i].end;
+				let diff   = endAngle - startAngle;
+				let endA   = begA + diff;
+				let endAr  = begAr - diff;
+				startAngle = begA;
+				endAngle = endA;
+				begA = endA;
+				let begAr2 = begAr;
+				let endAr2 = endAr;
+
+				ctx.beginPath();
+				ctx.fillStyle = color;
+				ctx.moveTo(px_x + x + x2, px_y + y);
+				ctx.arc(px_x + x + x2, px_y+y, x, startAngle-rot, endAngle-rot);
+				if (grf_name != "stalls") {
+					console.log(sprintf("_grf lbl= %s, angle= %.3f",data_nw[i].label,endAngle-startAngle));
+				}
+				arr.push({value:data_nw[i].value, startAngle:begAr2,
+					endAngle:endAr2,
+					lbl:data_nw[i].label,
+					pct:(endAngle-startAngle)/(2.0*Math.PI),
+					data_nw_ent:data_nw[i],
+					txt_tbl_ent:txt_tbl[data_nw[i].txt_tbl_idx],
+					txt_tbl_idx:data_nw[i].txt_tbl_idx});
+				ctx.fill();
+				ctx.stroke();
+				if (do_legend && (ch+1) == data.length) {
+					//let atxt = sprintf(", ab= %.3f, ae= %.3f", startAngle+rot, endAngle+rot);
+					let atxt = sprintf(", ab= %.3f, ae= %.3f", begAr2, endAr2);
+					ctx.rect(px_x + px_wide + 10 + x2, px_y + i * (tpx+5), 12, 12);
+					ctx.fill();
+					ctx.font = tstr;
+					let dval = "";
+					if (!do_bal) {
+						dval = sprintf(": %.3f, ", data_nw[i].value);
+					}
+					ctx.fillText(data_nw[i].label + dval + calculatePercent(data_nw[i].value, total) + "%" + atxt,
+							px_x + px_wide + 25 + x2, px_y +  i * (tpx+5) + 10);
+				}
+				begAr = endAr;
+			}
+			pie.arr = arr;
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].pies.push(pie);
+		}
+
+		if (bal_hdr_str != null && bal_x != -1 && bal_y != -1) {
+			ctx.fillStyle = 'black';
+			ctx.fillText(bal_hdr_str, bal_x, bal_y);
+		}
+	};
+
+
+	/*
+	let pie_data = [
+	  { label: 'Food', value: 90 },
+	  { label: 'Party', value: 150 },
+	  { label: 'Rent', value: 80 },
+	  { label: 'Chocolates', value: 120 }
+	];
+	*/
+
+	//let colors = [ '#39CCCC', '#3D9970', '#001F3F', '#85144B' ];
 	function draw_svg(hilite_arr, whch_txt, subtst) {
 		g_cpu_diagram_draw_svg = draw_svg;
 		build_poly();
@@ -6473,8 +6782,7 @@ function parse_svg()
 
 
 				for (let j=0; j < shapes[i].poly.length-1; j++) {
-					if (true && shapes[i].id == lkfor_id)
-					{
+					if (lkfor_id != null && shapes[i].id == lkfor_id) {
 						let x = shapes[i].poly[j].x;
 						let y = shapes[i].poly[j].y;
 						ctx.strokeStyle = 'black';
@@ -6511,7 +6819,7 @@ function parse_svg()
 					}
 					if (angle > 135.0 && angle < 175.0)
 					{
-						if (shapes[i].id == lkfor_id) {
+						if (lkfor_id != null && shapes[i].id == lkfor_id) {
 							console.log(sprintf("w[%d] angle= %.3f", j, angle));
 						}
 					}
@@ -6523,7 +6831,7 @@ function parse_svg()
 					}
 					shapes[i].angles.push(angle);
 					let str_angle = sprintf("%.3f", angle);
-					if (shapes[i].id == lkfor_id) {
+					if (lkfor_id != null && shapes[i].id == lkfor_id) {
 						//console.log(sprintf("j[%d] angle= %.3f rght=%s", j, angle, (angle==90.0?1:0)));
 					}
 				}
@@ -6589,7 +6897,11 @@ function parse_svg()
 				let tstyle = shapes[i].tstyle;
 				let tst = tstyle.split(";");
 				let text_align = 'left';
-				let text_anchor = 'bottom';
+				let text_anchor = 'middle';
+				let str = shapes[i].text;
+				if (str.indexOf('&amp;') >= 0) {
+					str = str.replace(/&amp;/g, '&');
+				}
 				for (let j=0; j < tst.length; j++) {
 					if (tst[j].length > 11 && tst[j].substr(0,11) == "text-align:") {
 						text_align = tst[j].substr(11);
@@ -6598,26 +6910,29 @@ function parse_svg()
 						text_anchor = tst[j].substr(12);
 					}
 				}
-				let style = shapes[i].style;
-				let st = style.split(";");
+				let style = tstyle + ";" + shapes[i].style;
 				let nfont_sz = 11;
-				let line_hi = 0;
-				let font_sz = "11px";
-				for (let j=0; j < st.length; j++) {
-					if (st[j].length > 5 && st[j].substr(0,10) == "font-size:") {
-						font_sz = st[j].substr(10);
-						nfont_sz = parseFloat(font_sz.substr(0, font_sz.length-2));
-					}
-					if (st[j].length > 12 && st[j].substr(0,12) == "line-height:") {
-						line_hi = st[j].substr(12);
-						if (line_hi.indexOf('%') > 0) {
-							line_hi = line_hi.replace('%', '');
-							line_hi = parseFloat(line_hi);
-							if (line_hi >= 100.0) {
-								line_hi /= 100.0;
+				let line_hi = nfont_sz;
+				//abcd
+				let font_sz = sprintf("%dpx", nfont_sz);
+				if (typeof style != 'undefined' && style != null) {
+					let st = style.split(";");
+					for (let j=0; j < st.length; j++) {
+						if (st[j].length > 5 && st[j].substr(0,10) == "font-size:") {
+							font_sz = st[j].substr(10);
+							nfont_sz = parseFloat(font_sz.substr(0, font_sz.length-2));
+						}
+						if (st[j].length > 12 && st[j].substr(0,12) == "line-height:") {
+							line_hi = st[j].substr(12);
+							if (line_hi.indexOf('%') > 0) {
+								line_hi = line_hi.replace('%', '');
+								line_hi = parseFloat(line_hi);
+								if (line_hi >= 100.0) {
+									line_hi /= 100.0;
+								}
+							} else {
+								line_hi = parseFloat(line_hi);
 							}
-						} else {
-							line_hi = parseFloat(line_hi);
 						}
 					}
 				}
@@ -6626,8 +6941,14 @@ function parse_svg()
 				shapes[i].nfont_sz = nfont_sz;
 				let x0 = shapes[i].x;
 				let y0 = shapes[i].y;
+				if (str == "Stage 2a") {
+					console.log(sprintf("__stg2a xy= %.3f,%.3f", x0, y0));
+				}
 				if (line_hi > 1.0) {
 					y0 -= nfont_sz * (line_hi - 1.0);
+				}
+				if (str == "Stage 2a") {
+					console.log(sprintf("__stg2a xy= %.3f,%.3f, nfont_sz= %.3f, line_hi= %.3f", x0, y0, nfont_sz, line_hi));
 				}
 				//let y0 = shapes[i].y - nfont_sz;
 				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i]);
@@ -6684,10 +7005,6 @@ function parse_svg()
 				//ctx.font = font_sz + ' Arial';
 				ctx.font = sprintf("%.3fpx sans-serif", nfont_sz);
 				//ctx.font = font_sz + ' sans-serif';
-				let str = shapes[i].text;
-				if (str.indexOf('&amp;') >= 0) {
-					str = str.replace(/&amp;/g, '&');
-				}
 				let twidth = ctx.measureText(str).width;
 				let xb, xe, yb, ye;
 				if (text_align == 'start' || text_align == 'left') {
@@ -6717,6 +7034,9 @@ function parse_svg()
 					console.log("unknown text_anchor= "+text_anchor);
 					ye = p0[1];
 					yb = ye - nfont_sz;
+				}
+				if (str == "Stage 2a") {
+					console.log(sprintf("__stg2a xy= %.3f,%.3f", x0, y0));
 				}
 				shapes[i].box = {xb:xb, xe:xe, yb:yb, ye:ye, str:str};
 				//console.log(sprintf("txt %s %s", text_align, text_anchor));
@@ -6794,7 +7114,7 @@ function parse_svg()
 						add_path_connections(i, 'path', shapes[i].poly[j], shapes[i].poly[j].x, shapes[i].poly[j].y);
 						ctx.stroke();
 						ctx.closePath();
-						if (shapes[i].id == lkfor_id) {
+						if (lkfor_id != null && shapes[i].id == lkfor_id) {
 							console.log(sprintf("jj[%d] angle= %.3f", j, angle));
 						}
 					} else {
@@ -6832,7 +7152,7 @@ function parse_svg()
 							ctx.closePath();
 							add_path_connections(i, 'rect', shapes[i].poly[j], shapes[i].poly[j].endpoint_line.x1, shapes[i].poly[j].endpoint_line.y1);
 							add_path_connections(i, 'path', shapes[i].poly[j], shapes[i].poly[j].endpoint_line.x0, shapes[i].poly[j].endpoint_line.y0);
-							if (false && shapes[i].id == lkfor_id) {
+							if (lkfor_id != null && shapes[i].id == lkfor_id) {
 								console.log(sprintf("jk[%d] angle= %.3f len:jm1= %.3f, jp1= %.3f, jp1p1= %.3f, jp1m1= %.3f",
 									j, angle, shapes[i].poly[j].m1_len, shapes[i].poly[j].p1_len,
 									shapes[i].poly[jp1].p1_len, shapes[i].poly[jp1].m1_len));
@@ -6843,7 +7163,73 @@ function parse_svg()
 			}
 		}
 		// end of drawing
-		draw_svg_txt_flds(whch_txt, subtst);
+		let txt_tbl = draw_svg_txt_flds(whch_txt, subtst);
+		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def != 'undefined') {
+				let typ = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.typ;
+				if (typ == "pie") {
+					let pie_data = build_pie_data(j, whch_txt, txt_tbl);
+					drawPieChart(ctx, pie_data, gcolor_lst, j, false, txt_tbl);
+				}
+			}
+		}
+		if (xlate_rng.state == 0) {
+			xlate_rng.state = 1;
+			console.log(sprintf("ddd xlate_rng: xmn= %.3f xmx= %.3f, ymn= %.3f, ymx= %.3f",
+				xlate_rng.xmin, xlate_rng.xmax, xlate_rng.ymin, xlate_rng.ymax));
+		}
+	}
+	function build_pie_data(grf_def_idx, whch_txt, txt_tbl) {
+		let pdata = [];
+		let grf_name  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.nm;
+		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf == 'undefined' ||
+				typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf.nm == 'undefined' ||
+				g_cpu_diagram_flds.cpu_diagram_fields[j].grf.nm != grf_name) {
+					continue;
+			}
+			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
+			let pfx = null;
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].pfx != 'undefined') {
+				pfx = g_cpu_diagram_flds.cpu_diagram_fields[j].pfx;
+			}
+			let fmt_str = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt;
+			//console.log("grf["+j+"] nm mtch");
+			for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
+				if (pdata.length <= ii) {
+					pdata.push([]);
+				}
+				let val;
+				let ti=-1;
+				for (ti=0; ti < txt_tbl.length; ti++) {
+					if (txt_tbl[ti].jidx == j) {
+						break;
+					}
+				}
+				if (ti >= txt_tbl.length) {
+					continue;
+				}
+				let uii = txt_tbl[ti].iidx;
+				let jidx = txt_tbl[ti].jidx;
+				let uval = txt_tbl[ti].txt[ii].val;
+				let ct = g_cpu_diagram_flds.cpu_diagram_fields[jidx].chart_tag;
+				if (pfx == null) {
+					pfx = g_cpu_diagram_flds.cpu_diagram_fields[jidx].y_label;
+				}
+				//console.log("txt_tbl["+ti+"]:", txt_tbl[ti]);
+				/*
+				if (whch_txt == -1) {
+					val = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr[uii];
+				} else {
+					val = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.yarray[uii][whch_txt];
+				}
+				*/
+				pdata[ii].push({label: pfx, value: uval, txt_tbl_idx:ti, ii:ii, chart_tag:ct});
+			}
+		}
+		//console.log(sprintf("build_pie_data: grf_name= %s, whch_txt= %d, len= %d", grf_name, whch_txt, pdata.length));
+		//console.log("pie_data: ", pdata);
+		return pdata;
 	}
 
 	draw_svg([], -1, -1);
@@ -6869,7 +7255,11 @@ function parse_svg()
 			let x = shapes[i].box.xb + xmid;
 			let y = shapes[i].box.yb + ymid;
 			shapes[i].rect_arr = [];
-			let arr = find_overlap(x, y);
+			let arr3 = find_overlap(x, y);
+			let arr = [];
+			for (let j=0; j < arr3.length; j++) {
+				arr.push(arr3[j].j);
+			}
 			for (let j=0; j < arr.length; j++) {
 				let idx = arr[j];
 				if (idx == i || idx < 0) {
@@ -6919,7 +7309,57 @@ function parse_svg()
 					x_0 = x;
 					y_0 = y;
 					got_tbox = true;
-					arr.push(-j-1); 
+					arr.push({j:(-j-1), m:null}); 
+				}
+				//g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
+			}
+			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].pies === 'undefined') {
+					continue;
+				}
+				let pies = g_cpu_diagram_flds.cpu_diagram_fields[j].pies;
+				//console.log(sprintf("pies.len= %d", pies.length));
+				for (let m=0; m < pies.length; m++) {
+					//console.log("pies["+m+"]:", pies[m]);
+					let xb = pies[m].x - pies[m].wide/2;
+					let xe = pies[m].x + pies[m].wide/2;
+					let yb = pies[m].y - pies[m].high/2;
+					let ye = pies[m].y + pies[m].high/2;
+					if (((xb <= x && x <= xe) ||
+						 (xe <= x && x <= xb)) &&
+						((yb <= y && y <= ye) ||
+						 (ye <= y && y <= yb))) {
+							let xFromCenter = x - pies[m].x;
+							let yFromCenter = -y + pies[m].y; // because y0 is at top
+							let distanceFromCenter = Math.sqrt( Math.pow( Math.abs( xFromCenter ), 2 ) + Math.pow( Math.abs( yFromCenter ), 2 ) );
+								console.log(sprintf("try match pies[%d], dist= %.3f, radius= %.3f",
+											m, distanceFromCenter, pies[m].wide/2));
+							if (distanceFromCenter <= pies[m].wide/2) {
+								let clickAngle = Math.atan2( yFromCenter, xFromCenter );
+								if (xFromCenter < 0.0 && yFromCenter > 0.0) {
+									clickAngle = -Math.PI - (Math.PI - clickAngle);
+								}
+								console.log(sprintf("rad= %.3f, deg= %.3f", clickAngle, 360.0* clickAngle/(2.0*Math.PI)));
+								let got_slc=-1;
+								console.log(sprintf("match[%d]: arr.len= %d", m, pies[m].arr.length));
+								console.log("match: ", pies[m]);
+								for (let slc=0; slc < pies[m].arr.length; slc++) {
+									console.log(sprintf("try match[%d] ab= %.3f a= %.3f ae= %.3f val= %.3f",
+												slc, pies[m].arr[slc].startAngle, clickAngle, pies[m].arr[slc].endAngle, pies[m].arr[slc].value));
+				//arr.push({value:data_nw[i].value, startAngle:startAngle, endAngle:endAngle, txt_tbl_idx:data_nw[i].txt_tbl_idx});
+									if ((pies[m].arr[slc].startAngle <= clickAngle && clickAngle <= pies[m].arr[slc].endAngle) ||
+										(pies[m].arr[slc].startAngle >= clickAngle && clickAngle >= pies[m].arr[slc].endAngle)) {
+										console.log(sprintf("match[%d] val= %.3f", slc, pies[m].arr[slc].value));
+										got_slc=slc;
+										break;
+									}
+								}
+
+								console.log(sprintf("match pies[%d]", m));
+								got_tbox = true;
+								arr.push({j:(-j-1), m:m, slc:got_slc}); 
+							}
+					}
 				}
 				//g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
 			}
@@ -6930,12 +7370,12 @@ function parse_svg()
 					 (shapes[i].box.xe <= x && x <= shapes[i].box.xb)) &&
 					((shapes[i].box.yb <= y && y <= shapes[i].box.ye) ||
 					 (shapes[i].box.ye <= y && y <= shapes[i].box.yb))) {
-					arr.push(i);
+					arr.push({j:i, m:null});
 				}
 			}
 			if (typeof shapes[i].poly != 'undefined') {
 				if (isPointInPoly(shapes[i].poly, {x, y})) {
-					arr.push(i);
+					arr.push({j:i, m:null});
 				}
 			}
 		}
@@ -7093,16 +7533,17 @@ function parse_svg()
 
 	g_svg_obj = build_svg_json_file();
 
+
 	function draw_svg_txt_flds(whch_txt, subtst)
 	{
 		if (g_cpu_diagram_flds == null) {
-			return;
+			return [];
 		}
 		let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
 		let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 		let ftr_str = draw_svg_footer(fmxx, fmxy, g_cpu_diagram_flds.cpu_diagram_copyright);
 		if (whch_txt < -1) {
-			return;
+			return [];
 		}
 		let txt_tbl = [];
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
@@ -7140,6 +7581,20 @@ function parse_svg()
 		g_cpu_diagram_canvas.json_text += '"lp":'+whch_txt_idx;
 		let hdr_obj = draw_svg_header(whch_txt_idx, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, true, false);
 		g_cpu_diagram_canvas.json_text += ', "key_val_arr":[';
+		let text_align = 'left';
+		let text_anchor = 'bottom';
+		//let text_anchor = 'top';
+		let nfont_sz = 11;
+		if (typeof g_cpu_diagram_flds.text_defaults.textAlign != 'undefined') {
+			text_align = g_cpu_diagram_flds.text_defaults.textAlign;
+		}
+		if (typeof g_cpu_diagram_flds.text_defaults.textBaseline != 'undefined') {
+			text_anchor = g_cpu_diagram_flds.text_defaults.textBaseline;
+		}
+		if (typeof g_cpu_diagram_flds.text_defaults.font_size != 'undefined') {
+			nfont_sz = g_cpu_diagram_flds.text_defaults.font_size;
+		}
+    	ctx.save();
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
 				continue;
@@ -7148,6 +7603,7 @@ function parse_svg()
 				let cp_str = "";
 				let val_arr = [];
 				let ux, uy;
+				let vrb = 0;
 				if (jj == 0 && typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tfld == 'undefined') {
 					continue;
 				}
@@ -7157,8 +7613,15 @@ function parse_svg()
 					cp_str = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.text;
 				} else {
 					let pfx = "";
+					let grf = null;
 					if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].pfx != 'undefined') {
 						pfx = g_cpu_diagram_flds.cpu_diagram_fields[j].pfx;
+					}
+					if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf != 'undefined') {
+						grf = g_cpu_diagram_flds.cpu_diagram_fields[j].grf;
+					}
+					if (pfx == "%fe_stalled: l1i_miss:     ") {
+						vrb = 1;
 					}
 					cp_str = pfx;
 					ux = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x;
@@ -7166,6 +7629,11 @@ function parse_svg()
 					let fmt_str = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt;
 					let det_arr = [];
 					let do_sort = false;
+					function Comparator(a, b) {
+						if (a.str < b.str) return -1;
+						if (a.str > b.str) return 1;
+						return 0;
+					}
 					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
 						let val;
 						if (whch_txt == -1) {
@@ -7173,6 +7641,9 @@ function parse_svg()
 						} else {
 							val = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.yarray[ii][whch_txt];
 						}
+						//if (grf != null) {
+						//	console.log(sprintf("grf__[%d][%d] val= %f", j, ii, val));
+						//}
 						let fmt_str1 = fmt_str;
 						if (fmt_str1.indexOf("__VARNM__") >= 0) {
 							fmt_str1 = fmt_str1.replace('__VARNM__', g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str[ii]);
@@ -7187,23 +7658,20 @@ function parse_svg()
 							//fmt_str1 = "ii= "+ii+", nmidx= "+nm_idx+", "+fmt_str1;
 						}
 						let str = sprintf(fmt_str1, val);
-						det_arr.push(str);
+						det_arr.push({str:str, val:val, whch_txt:whch_txt, ii:ii});
 						//cp_str += (ii > 0 ? ",":"") + str;
 						//g_cpu_diagram_canvas.json_text += ', "'+cp_str+" "+g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str[ii]+" "+str+'":'+val;
 					}
 					if (do_sort) {
-						det_arr.sort();
+						det_arr = det_arr.sort(Comparator);
 					}
 					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
 						val_arr.push(det_arr[ii]);
-						cp_str += (ii > 0 ? ",":"") + val_arr[ii];
+						cp_str += (ii > 0 ? ";":"") + val_arr[ii].str;
 					}
 				}
-				let text_align = 'left';
-				let text_anchor = 'bottom';
-				let nfont_sz = 11;
-				let font_sz = "11px";
-				nfont_sz *= scale_ratio;
+				let font_sz = sprintf("%.3fpx", nfont_sz);
+				//nfont_sz *= scale_ratio;
 				let x0 = svg_xmax * ux/fmxx;
 				let y0 = svg_ymax * uy/fmxy;
 				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null);
@@ -7238,7 +7706,7 @@ function parse_svg()
 				}
 				if (text_anchor == 'top' || text_anchor == 'hanging') {
 					yb = p0[1];
-					ye = yb - nfont_sz;
+					ye = yb + nfont_sz;
 				} else if (text_anchor == 'bottom' || text_anchor == 'alphabetic') {
 					ye = p0[1];
 					yb = ye - nfont_sz;
@@ -7252,8 +7720,20 @@ function parse_svg()
 				}
 				//console.log(sprintf("txt %s %s", text_align, text_anchor));
 				//console.log(shapes[i].box);
+				if (yb > ye) {
+					let ybt = ye;
+					ye = yb;
+					yb = ybt;
+				}
+				if (false && vrb == 1) {
+					console.log(sprintf("__vrb: ancr= %s, x= %.3f, y= %.3f, yb= %.3f, ye= %.3f",
+								ctx.textBaseline, p0[0], p0[1], yb, ye));
+				}
 
 				ctx.fillText(str, p0[0], p0[1]);
+				/*
+				ctx.fillText(str, p0[0], yb);
+				*/
 				if (jj == 0) {
 					continue;
 				}
@@ -7265,6 +7745,9 @@ function parse_svg()
 				}
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].rng !== 'undefined') {
 					let off = 0.0;
+					if (ye < yb) {
+						ye = yb + nfont_sz;
+					}
 					let hi = 0.4 * (ye - yb);
 					for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length; ii++) {
 						ctx.beginPath();
@@ -7303,10 +7786,12 @@ function parse_svg()
 						ctx.lineWidth = 1;
 						ctx.strokeStyle = 'black';
 						ctx.stroke();
+						ctx.closePath();
 					}
 				}
 			}
 		}
+    	ctx.restore();
 		txt_tbl.sort(function(a, b){
 			let lh = g_cpu_diagram_flds.cpu_diagram_fields[a.jidx].y_label;
 			let rh = g_cpu_diagram_flds.cpu_diagram_fields[b.jidx].y_label;
@@ -7323,7 +7808,7 @@ function parse_svg()
 			tbl_str += "<td title='"+desc+"\nchart_tag:"+ct+"'>" +g_cpu_diagram_flds.cpu_diagram_fields[j].y_label + "</td>";
 			if (typeof txt_tbl[i] != 'undefined') {
 				for (let k=0; k < txt_tbl[i].txt.length; k++) {
-					let txt = txt_tbl[i].txt[k];
+					let txt = txt_tbl[i].txt[k].str;
 					tbl_str += "<td align='right' title='"+ desc + "'>" + txt + "</td>";
 				}
 			}
@@ -7334,6 +7819,7 @@ function parse_svg()
 		g_cpu_diagram_canvas.json_text += ']} ';
 		//mytable.innerHTML = tbl_str2 + tbl_str;
 		mytable.innerHTML = tbl_str2;
+		return txt_tbl;
 	}
 
 	function lkup_chrt(lkup, txt_tbl, chrt, use_pfx) {
@@ -7344,12 +7830,16 @@ function parse_svg()
 			if (use_pfx && typeof g_cpu_diagram_flds.cpu_diagram_fields[j].pfx != 'undefined') {
 				pfx = g_cpu_diagram_flds.cpu_diagram_fields[j].pfx;
 			}
+			let tv = [];
+			for (let k=0; k < txt_tbl[i].txt.length; k++) {
+				tv.push(txt_tbl[i].txt[k].str);
+			}
 			return {j:txt_tbl[i].jidx, i:i, desc:g_cpu_diagram_flds.cpu_diagram_fields[j].desc,
 				//ylab:g_cpu_diagram_flds.cpu_diagram_fields[j].y_label,
 				ylab:pfx,
 				vals:g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr,
 				rng: g_cpu_diagram_flds.cpu_diagram_fields[j].rng,
-				tvals:txt_tbl[i].txt};
+				tvals:tv};
 		}
 		return {j:-1, i:-1};
 	}
@@ -7464,8 +7954,142 @@ function parse_svg()
 		return txt;
 	}
 
+	function parse_resource_stalls_arm_cortex_a53(txt_tbl, hdr_obj)
+	{
+		if (svg_name != "arm_cortex_a53_block_diagram.svg") {
+			return "";
+		}
+		let cpu_typ_str = "ARM Cortex A53";
+		let lkup = {};
+		let flds_max = 0;
+		g_cpu_diagram_flds.lkup_dvals_for_chart_tag = {};
+		for (let i=0; i < txt_tbl.length; i++) {
+			let j  = txt_tbl[i].jidx;
+			let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			if (typeof lkup[ct] == 'undefined') {
+				g_cpu_diagram_flds.lkup_dvals_for_chart_tag[ct] = [j];
+			} else {
+				g_cpu_diagram_flds.lkup_dvals_for_chart_tag[ct].push(j);
+			}
+			lkup[ct] = i;
+			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
+			let ci = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
+			let cd = gcanvas_args[ci][2]; // chart_data
+			if (typeof cd.tot_line_opts_xform == 'undefined' || cd.tot_line_opts_xform != 'select_vars') {
+				if (flds_max < mx) {
+					flds_max = mx;
+				}
+			}
+		}
+		let cma = {"t":""};
+
+		cma = {"t":""};
+		let sys_tbl = [
+			["PCT_BUSY_BY_SYSTEM", "Percent busy system"]
+			,["DISK_BW_BLOCK_RQ", "Disk bandwidth"]
+			,["TEMPERATURE_BY_ZONE", "temperature (degrees C) by zone"]
+			,["FREQ_BY_CPU", "Frequency in GHz by CPU"]
+			// ,["RAPL_POWER_BY_AREA", "Power (W) by chip area"]  // don't have on arm
+			,["BW_BY_TYPE", "Memory bandwidth (MB/sec) by type"] // don't have on arm (yet) but could
+			];
+		let flds_max_sys = -1;
+		for (let k=0; k < sys_tbl.length; k++) {
+			let ct = sys_tbl[k][0];
+			if (typeof lkup[ct] == 'undefined') {
+				continue;
+			}
+			let i = lkup[ct];
+			let j  = txt_tbl[i].jidx;
+			//let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
+			if (flds_max_sys < mx) {
+				flds_max_sys = mx;
+			}
+		}
+		let t = "";
+		t += "<table border='1' style='float: left'>";
+		t += "<tr><td>"+cpu_typ_str+" system metrics</td></tr>";
+		t += "<tr><td>Phase (time abs secs)</td><td align='right'>"+sprintf("%.3f", hdr_obj.tm0)+"</td><td align='right'>"+sprintf("%.3f", hdr_obj.tm1)+"</td>";
+		for (let i=0; i < flds_max_sys-2; i++) {
+			t += "<td></td>";
+		}
+		let pht = "<td>"+hdr_obj.ph0;
+		if (hdr_obj.ph0 != hdr_obj.ph1) {
+			pht += " - " + hdr_obj.ph1;
+		}
+		pht += "</td></tr>";
+		t += pht;
+		t += run_tbl(sys_tbl, txt_tbl, lkup, flds_max_sys, 2, cma, true);
+
+		t += "</table>";
+		t += "<table border='1' style='float: left'>";
+		t += "<tr><td>"+cpu_typ_str+" CPU diagram metrics</td>";
+		for (let i=0; i < flds_max; i++) {
+			t += "<td title='Value of the computed metric for core or system'>core"+i+" val</td>";
+		}
+		for (let i=0; i < flds_max; i++) {
+			t += "<td title='Some of these are guesses as to whether the core is stalled.'>core"+i+" stalled</td>";
+		}
+		t += "<td>Resource utilization description</td></tr>";
+		t += "<tr><td>Memory Subsystem </td></tr>";
+
+		// arm a53
+		let mem_tbl = [
+			["BUS_ACCESS_BYTES_PER_CYCLE_CHART", "DRAM: max possible memory BW seems to be about 1.43 bytes/cycle"],
+			["BUS_ACCESS_GBYTES_PER_SEC_CHART", "DRAM: max possible memory BW seems to be about 2.0 Gbytes/sec"],
+			["L2_MISS_BYTES_PER_CYCLE_CHART", "L2_misses: max L2 misses about 16 bytes/cycle. "],
+			["L2_ACCESS_BYTES_PER_CYCLE_CHART", "L2_accesses: calculated as 64 bytes * L2_access/cycle."],
+			["L2_ACCESS_GBYTE_PER_SEC_CHART", "L2_accesses: calculated as 1e-9 * 64 bytes * L2_access/sec."],
+			["DCACHE_MISS_PER_CYCLE_CHART", "L1d_misses: calculated as  L1d_misses/cycle."],
+			["DCACHE_MISS_BYTES_PER_CYCLE_CHART", "L1d_misses: calculated as 64 bytes * L1d_misses/cycle"],
+			["L1D_CACHE_WB_BYTES_PER_CYCLE_CHART", "L1d_writebacks: calculated as 64 bytes * L1d_writebacks/cycle"],
+			["PREF_BYTES_PER_CYCLE_CHART", "L1d_prefetches: calculated as 64 bytes * L1d_prefetches/cycle"],
+			["DCACHE_MISS_RATIO_PCT_CHART", "L1d_miss_ratio: 100 * L1d_misses/L1d_accesses."],
+			["DCACHE_TLB_MISS_PER_DCACHE_MISS_CHART", "L1d_tlb_misses: 100*L1d_tlb_miss/L1d_miss"],
+		];
+		t += run_tbl(mem_tbl, txt_tbl, lkup, flds_max, 2, cma, true);
+
+		t += "<tr><td>Front End</td></tr>";
+
+		let fe_tbl = [
+			["ICACHE_MISS_STALLS_CHART", "L1i_miss_stalls: %cycles pipeline stalled due to L1 icache miss"],
+			["IUTLB_DEP_STALLS_CHART", "L1i_tlb_stalls: %cycles pipeline stalled due to L1i TLB miss"],
+			["OTHER_IQ_DEP_STALL_PCT_CHART", "L1i other stalls: Other instruction queue pipeline stalls not due to icache misses and itlb miss"],
+			["ICACHE_BYTES_PER_CYCLE_CHART", "L1i_accesses: 16 bytes * icache_accesses/cycle. Max possible is 16 L1i_bytes/cycle. I might should multiply by 64 bytes/L1i_access"],
+			["ITLB_MISS_PER_ICACHE_MISS_CHART", "l1i_tlb_miss/L1i_miss: 100*l1i_tlb_miss/l1i_miss"],
+			["ICACHE_MISS_BYTES_PER_CYCLE_CHART", "L1i_misses: 64*L1i_miss/cycle. Max possible is 16 bytes/cycle."],
+			["BR_MIS_PRED_PCT_CHART", "%branch_mispredict: 100*branches_mispredicted/branches"]
+		];
+		t += run_tbl(fe_tbl, txt_tbl, lkup, flds_max, 2, cma, true);
+
+		t += "<tr><td>Execution Engine</td></tr>";
+		let ex_tbl = [
+			["LD_DEP_STALLS_CHART", "Load_dependent_stalls: pct of cycles that pipeline is stalled due to loads not ready."],
+			["STALL_SB_FULL_PER_CYCLE_CHART", "Store_buffer_full_stalls: pct of cycles that pipeline is stalled due to store buffer full."],
+			["ST_DEP_STALL_PER_CYCLE_CHART", "Store_dependent_stalls: pct of cycles that pipeline is stalled due to store dependency."],
+			["AGU_DEP_STALLS_CHART", "Address_gen_unit_stalls: pct of cycles that pipeline is stalled due to address generation unit dependency stall."],
+			["PRE_DECODE_ERR_PER_CYCLE_CHART", "Decoder_stalls: ratio of pre_decode_errors/cycles. Not exactly sure what a pre_decode err is."]
+		];
+		t += run_tbl(ex_tbl, txt_tbl, lkup, flds_max, 2, cma, true);
+
+		let uop_tbl = [];
+		for (let i=0; i < 8; i++) {
+			uop_tbl.push(["UOPS_port_"+i+"_PER_CYCLE_CHART", "port"+i+": uops/cycle on port"+i+". Bigger values means port used more"]);
+		}
+		for (let i=0; i < 8; i++) {
+			uop_tbl.push(["GUOPS_port_"+i+"_CHART", "port"+i+": uops/nsec on port"+i+". Small values may mean port is not used much"]);
+		}
+		t += run_tbl(uop_tbl, txt_tbl, lkup, flds_max, 4, cma, false);
+		t += "</table>";
+		return t;
+	}
+
 	function parse_resource_stalls(txt_tbl, hdr_obj)
 	{
+		if (svg_name == "arm_cortex_a53_block_diagram.svg") {
+			let t = parse_resource_stalls_arm_cortex_a53(txt_tbl, hdr_obj);
+			return t;
+		}
 		if (svg_name != "haswell_block_diagram.svg") {
 			return "";
 		}
@@ -7588,6 +8212,13 @@ function parse_svg()
 		return t;
 	}
 
+	mycanvas.onmouseup = function (evt) {
+		let rect = this.getBoundingClientRect(),
+			x = (evt.clientX - rect.left),
+			y = (evt.clientY - rect.top);
+		console.log(sprintf("x= %.3f, y= %.3f", x, y));
+	}
+
 	mycanvas.onmousemove = function(e) {
 		// important: correct mouse position:
 		let rect = this.getBoundingClientRect(),
@@ -7599,14 +8230,18 @@ function parse_svg()
 		let current_tooltip_text = "aa";
 		hvr_prv_x = x;
 		hvr_prv_y = y;
-		let arr = find_overlap(x, y);
-		if (arr.length == 0) {
+		let arr3 = find_overlap(x, y);
+		if (arr3.length == 0) {
 			//clearToolTipText(mytooltip);
 			current_tooltip_text = "";
 			tt_prv_x = -2;
 			tt_prv_y = -2;
 			mycanvas.title = "";
 			//current_tooltip_shape = -1;
+		}
+		let arr = [];
+		for (let j=0; j < arr3.length; j++) {
+			arr.push(arr3[j].j);
 		}
 		let got_neg = false;
 		for (let j=0; j < arr.length; j++) {
@@ -7623,18 +8258,42 @@ function parse_svg()
 			let i = arr[j];
 			if (i < 0) {
 				let ui= -i-1;
-				let ts= g_cpu_diagram_flds.cpu_diagram_fields[ui].y_label+ ": " +
-					g_cpu_diagram_flds.cpu_diagram_fields[ui].tbox.txt+',\n'+
-					g_cpu_diagram_flds.cpu_diagram_fields[ui].desc;
-				console.log(ts);
-				if (tt_prv_x != x || tt_prv_y != y) {
-					tt_prv_x = x;
-					tt_prv_y = y;
-					let pgx = e.pageX, pgy = e.pagey;
-				//console.log(sprintf("tooltip txt= %s, x= %.3f, y= %.3f, ttl= %s, ttr=%s ttt= %s ttb= %s",ts, x, y,
-				//mytooltip.style.left, mytooltip.style.right, mytooltip.style.top, mytooltip.style.bottom));
+				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def != 'undefined') {
+					let uj = ui;
+					let um = arr3[j].m;
+					let slc = arr3[j].slc;
+					/*
+				arr.push({value:data_nw[i].value, startAngle:begAr2,
+					endAngle:endAr2, lbl:data_nw[i].label,
+					data_nw_ent:data_nw[i],
+					txt_tbl_ent:txt_tbl[data_nw[i].txt_tbl_idx],
+					txt_tbl_idx:data_nw[i].txt_tbl_idx});
+					*/
+					let pies = g_cpu_diagram_flds.cpu_diagram_fields[uj].pies;
+				//arr.push({value:data_nw[i].value, startAngle:startAngle, endAngle:endAngle, txt_tbl_idx:data_nw[i].txt_tbl_idx});
+					let pct = sprintf("%.3f%%", pies[um].arr[slc].pct);
+					let val_txt = sprintf("%.3f%%", pies[um].arr[slc].value);
+					if (pct != val_txt) {
+						val_txt = sprintf("%.3f", pies[um].arr[slc].value);
+					}
+					pct = sprintf("%.3f%%", 100.0 * pies[um].arr[slc].pct);
+					let ts= sprintf("%s: %s, %s", pies[um].arr[slc].lbl, val_txt, pct);
+					console.log(ts);
 					mycanvas.title = ts;
-					//console.log(mytooltip);
+				} else {
+					let ts= g_cpu_diagram_flds.cpu_diagram_fields[ui].y_label+ ": " +
+						g_cpu_diagram_flds.cpu_diagram_fields[ui].tbox.txt+',\n'+
+						g_cpu_diagram_flds.cpu_diagram_fields[ui].desc;
+					console.log(ts);
+					if (tt_prv_x != x || tt_prv_y != y) {
+						tt_prv_x = x;
+						tt_prv_y = y;
+						let pgx = e.pageX, pgy = e.pagey;
+					//console.log(sprintf("tooltip txt= %s, x= %.3f, y= %.3f, ttl= %s, ttr=%s ttt= %s ttb= %s",ts, x, y,
+					//mytooltip.style.left, mytooltip.style.right, mytooltip.style.top, mytooltip.style.bottom));
+						mycanvas.title = ts;
+						//console.log(mytooltip);
+					}
 				}
 				continue;
 			}
