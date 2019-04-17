@@ -1,0 +1,6 @@
+#usage: bin\spin.exe tm_secs[,tm_secs_multi] [work_type [ arg3 [ arg4 ]]]
+#        work_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir
+#if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes
+0,2 mem_bw 64 20m "mem RD BW test"
+0,2 mem_bw 64 50k "L2 RD BW test"
+0,2 spin   64 100k "spin test"
