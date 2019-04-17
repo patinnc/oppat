@@ -88,9 +88,18 @@ function read_file(ts0, flnm)
 			extr_j = 1
 			units = "bytes"
 		end
+	   	local b2, e2 = string.find(i, "-faults")
+	    if b2 ~= nil then
+			extr_j = 1
+			units = "faults"
+		end
  	   end
 	   if ((j+extr_j) == 3) then
-		if i == "power/energy-pkg/" then
+	   	local b2, e2 = string.find(i, "-faults")
+	    if b2 ~= nil then
+			t[col.area] = i
+			evt = "faults"
+		elseif i == "power/energy-pkg/" then
 			t[col.area] = 'pkg'
 			evt = "power"
 		elseif i == "power/energy-cores/" then
@@ -176,8 +185,10 @@ function read_file(ts0, flnm)
         end
       end
    end
+   if rows > 0 then
    printf("lua_file %s ts_last ts[1]= %f, ts[2]= %s, ts[3]= %s try_lines= %d, rows= %d, skipped= %d, trws= %d\n",
       flnm, ts_last[1], ts_last[2], ts_last[3], try_lines, rows, skipped_rows, skipped_rows+rows);
+   end
    return rows
 end
 
