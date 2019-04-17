@@ -2,9 +2,10 @@
 {
 
 "cpu_diagram_hdr": {"max_x":1016,"max_y":1386.8284248803116},
-"cpu_diagram_copyright": {"text":"(c) 2013-2019 WikiChip.org, used with permission", "SVG_URL":"https://en.wikichip.org/w/images/c/c7/haswell_block_diagram.svg", "website":"https://WikiChip.org"},
+"cpu_diagram_copyright": {"text":"(c) 2013-2019 WikiChip.org, used with permission", "SVG_URL":"https://en.wikichip.org/w/images/c/c7/haswell_block_diagram.svg", "website":"https://WikiChip.org"}
 
-"cpu_diagram_fields":[
+,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"bottom"}
+,"cpu_diagram_fields":[
   {"fld":{"x":10,  "y":298}, "chart":"__TEXT_BLOCK__"}
 , {"fld":{"x":10,  "y":60},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
 , {"fld":{"x":10,  "y":72},  "chart":"DISK_BW_BLOCK_RQ", "pfx":"disk BW MB/s: "}
