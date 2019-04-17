@@ -1618,6 +1618,10 @@ static int map_cpus_to_cores(prf_obj_str &prf_obj)
 		printf("features_topology_threads[%d]= %s at %s %d\n", i, 
 			prf_obj.features_topology_threads[i].c_str(), __FILE__, __LINE__);
 		tkn_split(prf_obj.features_topology_threads[i], ",", tkns);
+		if (tkns.size() == 0) {
+			int cpu_num = atoi(prf_obj.features_topology_threads[i].c_str());
+			prf_obj.map_cpu_2_core[cpu_num] = i;
+		}
 		for (uint32_t j=0; j < tkns.size(); j++) {
 			int cpu_num = atoi(tkns[j].c_str());
 			printf("core %d cpu= %d at %s %d\n", i, cpu_num, __FILE__, __LINE__);
