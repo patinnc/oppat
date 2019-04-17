@@ -240,6 +240,122 @@ static uint32_t do_macro_event_array(json &j, int verbose)
 	return 0;
 }
 
+static std::string rd_json_file(std::string flnm, int line_num)
+{
+	std::ifstream file;
+	std::string line;
+	file.open (flnm.c_str(), std::ios::in);
+	if (!file.is_open()) {
+		printf("messed up fopen of flnm= %s from line= %d at %s %d\n", flnm.c_str(), line_num, __FILE__, __LINE__);
+		exit(1);
+	}
+	std::string tot_str;
+	while(!file.eof()){
+		std::getline (file, line);
+		tot_str += line;
+	}
+	file.close();
+	return tot_str;
+}
+
+static std::vector <std::string> json_include_event_files;
+static std::vector <json> json_include_event_array;
+
+static uint32_t do_include_event_array(json &j, int verbose)
+{
+	uint32_t sz;
+	sz = j["include_event_array"].size();
+	if (sz == 0) {
+		return 0;
+	}
+	if (json_include_event_files.size() == 0) {
+		printf("try include_event_array at %s %d\n", __FILE__, __LINE__);
+		std::vector <std::string> ch_files;
+		for (uint32_t i=0; i < sz; i++) {
+			try {
+				std::string ch_file_base = j["include_event_array"][i]["chart_file"];
+				ch_files.push_back(ch_file_base);
+				printf("found include_event_array[%d] chart json file %s at %s %d\n", i, ch_file_base.c_str(), __FILE__, __LINE__);
+			} catch (...) { }
+		}
+		for (uint32_t i=0; i < sz; i++) {
+			std::vector <std::string> tried_names;
+			std::string ch_file;
+			std::string ch_file_base = ch_files[i];
+			int rc = search_for_file(ch_file_base, ch_file, tried_names, __FILE__, __LINE__, verbose);
+			if (rc != 0) {
+				search_for_file(ch_file_base, ch_file, tried_names, __FILE__, __LINE__, 1);
+				fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
+				exit(1);
+			}
+			printf("found chart json file %s using filename= %s at %s %d\n", ch_file_base.c_str(), ch_file.c_str(), __FILE__, __LINE__);
+			json_include_event_files.push_back(ch_file);
+			std::string json_str = rd_json_file(ch_file, __LINE__);
+			ck_json(json_str, "from file "+ch_file, __FILE__, __LINE__, verbose);
+			json jt = json::parse(json_str);
+			//std::cout << "new evt array: " << jt["event_array"].dump() << std::endl;
+			json_include_event_array.push_back(jt);
+		}
+	}
+	uint32_t esz_old = j["event_array"].size();
+	if (json_include_event_files.size() > 0) {
+		for (uint32_t i=0; i < json_include_event_array.size(); i++) {
+			json jt = json_include_event_array[i];
+			//std::cout << "new evt array: " << jt["event_array"].dump() << std::endl;
+			for (uint32_t k=0; k < jt["event_array"].size(); k++) {
+				j["event_array"].push_back(jt["event_array"][k]);
+			}
+		}
+	}
+	uint32_t esz_new = j["event_array"].size();
+	uint32_t k = 0;
+	for (uint32_t i=0; i < j["event_array"].size(); i++) {
+		try {
+			std::string t = j["event_array"][i]["event"]["evt_name"];
+			k++;
+		} catch (...) { }
+	}
+	printf("tried to add new included events: event_array.size: old= %d, new= %d ck_sz= %d at %s %d\n",
+			esz_old, esz_new, k, __FILE__, __LINE__);
+	return 0;
+#if 0
+	sz = j["event_array"].size();
+	if (verbose > 0) {
+		printf("event_array sz= %d at %s %d\n", sz, __FILE__, __LINE__);
+	}
+	uint32_t k=0;
+	for (uint32_t i=0; i < sz; i++) {
+		try {
+			std::string t = j["event_array"][i]["event"]["evt_name"];
+			k++;
+		} catch (...) { }
+	}
+	if (verbose > 0) {
+		printf("event_array k= %d sz= %d at %s %d\n", k, sz, __FILE__, __LINE__);
+	}
+	std::string str_old;
+	for (uint32_t i=0; i < evt_new.size(); i++) {
+		j["event_array"].push_back(evt_new[i]);
+	}
+	sz = j["event_array"].size();
+	k=0;
+	for (uint32_t i=0; i < sz; i++) {
+		try {
+			std::string t = j["event_array"][i]["event"]["evt_name"];
+			k++;
+		} catch (...) { }
+	}
+	if (verbose > 0) {
+		printf("event_array k= %d sz= %d at %s %d\n", k, sz, __FILE__, __LINE__);
+	}
+#endif
+#if 0
+	printf("bye at %s %d\n", __FILE__, __LINE__);
+	exit(1);
+#endif
+	return 0;
+}
+
 int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose)
 {
 	if (verbose > 0)
@@ -296,15 +412,19 @@ int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbo
 			e_a.evt_name     = j["event_aliases"][i]["evt_name"];
 			e_a.arch         = j["event_aliases"][i]["arch"];
 			uint32_t sz1     = j["event_aliases"][i]["aliases"].size();
+			printf("event_alias[%d].evt_name= %s, arch= %s list=[", i, e_a.evt_name.c_str(), e_a.arch.c_str());
 			evt_aliases_vec.push_back(e_a);
 			for (uint32_t k=0; k < sz1; k++) {
 				std::string str = j["event_aliases"][i]["aliases"][k];
+				printf("%s%s", (k>0?",":""), str.c_str());
 				evt_aliases_vec.back().aliases.push_back(str);
 			}
+			printf("]\n");
 		} catch (...) { }
 	}
 
 	do_macro_event_array(j, verbose);
+	do_include_event_array(j, verbose);
 	sz = j["event_array"].size();
 	return sz;
 }
@@ -370,6 +490,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 		}
 	} catch (...) { };
 	do_macro_event_array(j, verbose);
+	do_include_event_array(j, verbose);
 	sz = j["event_array"].size();
 	printf("event_array.sz= %d at %s %d\n", sz, __FILE__, __LINE__);
 	std::vector <std::string> evt_aliases;
@@ -394,19 +515,37 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				fflush(NULL);
 			}
 			std::string evt_nm  = j["event_array"][i]["event"]["evt_name"];
+			if (verbose) {
+				printf("evt_alias ck[%d] evt_nm= %s, lkfor_evt_name= %s at %s %d\n",
+					i, evt_nm.c_str(), lkfor_evt_name.c_str(), __FILE__, __LINE__);
+			}
+			bool got_it = false;
 			for (uint32_t k=0; k < evt_aliases_vec.size(); k++) {
 				if (evt_nm == evt_aliases_vec[k].evt_name) {
+					if (verbose > 1) {
+						printf("got evt_alias1: evt_nm= %s, evt_alias_vec[%d].evt_name= %s at %s %d\n",
+							evt_nm.c_str(), k, evt_aliases_vec[k].evt_name.c_str(), __FILE__, __LINE__);
+					}
 					for (uint32_t m=0; m < evt_aliases_vec[k].aliases.size(); m++) {
+						if (verbose > 1) {
+							printf("try evt_alias2: evt_aliases_vec[%d].aliases[%d]= %s, lkfor_evt_name= %s at %s %d\n",
+								k, m, evt_aliases_vec[k].aliases[m].c_str(), lkfor_evt_name.c_str(), __FILE__, __LINE__);
+						}
 						if (evt_aliases_vec[k].aliases[m] == lkfor_evt_name) {
-							printf("evt_nm= %s, use_alias= %s num= %d at %s %d\n", 
-								evt_nm.c_str(), evt_aliases_vec[k].aliases[m].c_str(),
-								(int)m, __FILE__, __LINE__);
+							if (verbose) {
+								printf("evt_nm= %s, use_alias= %s num= %d at %s %d\n", 
+									evt_nm.c_str(), evt_aliases_vec[k].aliases[m].c_str(),
+									(int)m, __FILE__, __LINE__);
+							}
 							evt_nm = evt_aliases_vec[k].aliases[m];
 							evt_aliases_vec[k].use_alias = m;
+							got_it = true;
 							break;
 						}
 					}
-					break;
+					if (got_it) {
+						break;
+					}
 				}
 			}
 			std::string evt_typ = j["event_array"][i]["event"]["evt_type"];
@@ -453,8 +592,9 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					for (uint32_t m=0; m < evt_aliases_vec.size(); m++) {
 						if (evt_aliases_vec[m].arch.size() > 0 && evt_arch.size() > 0 &&
 							evt_aliases_vec[m].arch != evt_arch) {
-							printf("skipping evt_alias[%d] due to alias arch= %s and evt_arch= %s at %s %d\n",
-								m, evt_aliases_vec[m].arch.c_str(), evt_arch.c_str(), __FILE__, __LINE__);
+							printf("skipping evt_alias[%d]= %s due to alias arch= %s and evt_arch= %s at %s %d\n",
+								m, evt_aliases_vec[m].evt_name.c_str(),
+								evt_aliases_vec[m].arch.c_str(), evt_arch.c_str(), __FILE__, __LINE__);
 							continue;
 						}
 #if 0
@@ -698,8 +838,10 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					}
 					for (uint32_t m=0; m < scp_sz; m++) {
 						if (tot_line_opts.scope[m] != "per_thread" &&
-							tot_line_opts.scope[m] != "per_core") {
-						printf("tot_line_options.scope must be 'per_thread' or 'per_core'. got %s at %s %d\n",
+							tot_line_opts.scope[m] != "per_core" &&
+							tot_line_opts.scope[m] != "sum_all" &&
+							tot_line_opts.scope[m] != "use_cpu0") {
+						printf("tot_line_options.scope must be 'per_thread' or 'per_core' or 'sum_all' or 'use_cpu0'. got %s at %s %d\n",
 							tot_line_opts.scope[m].c_str(), __FILE__, __LINE__);
 						exit(1);
 						}
@@ -938,24 +1080,9 @@ static void bld_fld_typ(void)
 
 std::string rd_json(std::string flnm)
 {
-	std::ifstream file;
-	//long pos = 0;
 	bld_fld_typ();
 	bld_copt();
-	std::string line;
-	file.open (flnm.c_str(), std::ios::in);
-	if (!file.is_open()) {
-		printf("messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
-		exit(1);
-	}
-	std::string tot_str;
-	while(!file.eof()){
-		std::getline (file, line);
-		//uint32_t sz = line.size();
-		tot_str += line;
-	}
-	file.close();
-	return tot_str;
+	return rd_json_file(flnm, __LINE__);
 }
 
 int parse_file_list_json(std::string json_file, std::string str, std::vector <file_list_str> &file_list,
