@@ -146,6 +146,24 @@ static uint32_t find_id_in_perf_event_list_from_evt_idx(
 	return idx;
 }
 
+static std::string mk_tm_str(double ts, bool no_decimal)
+{
+	char num_buf[256];
+	double tm = (double)ts;
+	int slen;
+	if (no_decimal) {
+		slen = snprintf(num_buf, sizeof(num_buf), " %.0f: ", tm);
+	} else {
+		tm *= 1.e-9;
+		slen = snprintf(num_buf, sizeof(num_buf), " %.9f: ", tm);
+	}
+	if (slen == sizeof(num_buf)) {
+		printf("overflow for tm= %.9f at %s %d\n", tm, __FILE__, __LINE__);
+		exit(1);
+	}
+	return std::string(num_buf);
+}
+
 static int tc_read_evt(long max_pos, int cpu, long page_sz, const unsigned char *mm_buf,
 		long &pos, uint64_t &ts, int long_sz, int line, prf_obj_str &prf_obj, int verbose,
 		prf_obj_str *prf_obj_prev, file_list_str &file_list)
@@ -420,6 +438,7 @@ do_page_hdr:
 				pss.period = 1;
 				pss.mm_off = (long)mm_off;
 				pss.orig_order = orig_order++;
+#if 0
 				char num_buf[256];
 #define TRACE_CMD_CLOCK_MONO
 #ifdef TRACE_CMD_CLOCK_MONO
@@ -434,7 +453,8 @@ do_page_hdr:
 					printf("overflow for tm= %.9f at %s %d\n", tm, __FILE__, __LINE__);
 					exit(1);
 				}
-				pss.tm_str = std::string(num_buf);
+#endif
+				pss.tm_str = mk_tm_str(ts, true);
 				if (verbose > 0)
 					printf("hdr:[%d] %-16.16s %d/%d [%.3d]%s %s:\n",
 					(int)prf_obj.samples.size(), pss.comm.c_str(), pid, pid, cpu, pss.tm_str.c_str(), evt_nm.c_str());
@@ -1592,7 +1612,12 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 			int mtch=-1, nxt=-1;
 			for (int i=i_beg; i < sz; i++) {
 				//printf("ck tm[%d]= %s, line= %s\n", i, prf_obj.samples[i].tm_str.c_str(), line.c_str());
-				if (line.find(prf_obj.samples[i].tm_str) != std::string::npos) {
+				size_t pos = line.find(prf_obj.samples[i].tm_str);
+				if (pos == std::string::npos) {
+					prf_obj.samples[i].tm_str = mk_tm_str(prf_obj.samples[i].ts, false);
+					pos = line.find(prf_obj.samples[i].tm_str);
+				}
+				if (pos != std::string::npos) {
 					s_idx = i;
 					store_callstack_idx = i;
 					nxt = i+1;
@@ -1617,6 +1642,7 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 				}
 				printf("missed samples %d, s_idx= %d, i_beg= %d, tm[%d]= '%s', line= %s\nsz= %d at %s %d",
 					samples_count, s_idx, i_beg, s_idx, tm.c_str(), line.c_str(), sz, __FILE__, __LINE__);
+				//continue;
 				exit(1);
 			}
 			if (s_idx == -1) {
