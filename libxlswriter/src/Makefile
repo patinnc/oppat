@@ -123,8 +123,9 @@ TOBJS = $(patsubst %.c,%.to,$(SRCS))
 ifeq ($(OS),Windows_NT)
 all : $(LIBXLSXWRITER_A)
 else
-all : $(LIBXLSXWRITER_A) $(LIBXLSXWRITER_SO)
-	$(Q)cp $(LIBXLSXWRITER_A) $(LIBXLSXWRITER_SO) ../lib
+#all : $(LIBXLSXWRITER_A) $(LIBXLSXWRITER_SO)
+all : $(LIBXLSXWRITER_A)
+	$(Q)cp $(LIBXLSXWRITER_A) ../lib
 endif
 
 test_lib : libxlsxwriter_test.a
