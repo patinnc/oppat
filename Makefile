@@ -1,4 +1,6 @@
 
+RT_DIR := ${CURDIR}
+
 ifeq ($(OS),Windows_NT)
   $(info windows)
     #Windows stuff
@@ -36,10 +38,11 @@ else
   # The command used to delete file.
   RM     = rm -f
   LIBXLSWRITER   = libxlswriter/src/libxlsxwriter.a
-  LIBXLSWRITER_CMD = $(MAKE) -C libxlswriter
+  LIBXLSWRITER_CMD = $(MAKE) -C libxlswriter CFLAGS=" -I$(RT_DIR)/zlib-1.2.11 "
   ZLIB   = zlib-1.2.11/libz.a
   #ZLIB_CMD = $(shell cd zlib-1.2.11 && make && cd ..)
   ZLIB_CMD = $(shell cd zlib-1.2.11; $(MAKE);)
+  ZLIB_CMD = $(MAKE) -C zlib-1.2.11
   GCC_ARGS = -std=c++14 -Wno-write-strings
   MY_LIBS   = -lpthread -lz -ldl
   MY_LIBS   = -lpthread -ldl
