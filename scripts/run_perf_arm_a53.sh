@@ -212,12 +212,13 @@ evt_lstp2="{cpu-clock,cpu_cycles,$GRP2}:S"
 evt_lstp3="{cpu-clock,cpu_cycles,$GRP3}:S"
 evt_lstp4="{cpu-clock,cpu_cycles,$GRP4}:S"
 evt_lstp5="{cpu-clock,cpu_cycles,$GRP5}:S"
+evt_lstp6="{cpu-clock,cpu_cycles,$GRP6}:S"
 #evt_lstp6="{cpu-clock,cpu_cycles,$RES_STALL_ROB,$RES_STALL_RS,$RES_STALL_SB,$RAT_UOPS_STALL}:S"
 #evt_lstp7="{cpu-clock,cpu_cycles,$STALLS_L1D_MISS_PEND,$STALLS_L2_MISS_PEND,$OFFCORE_SQ_FULL,$OFFCORE_RESP_ALL_L3_MISS}:S"
 
 echo try prf2
 echo $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 499 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -o $ODIR/prf_trace2.data
-     $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 499 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -o $ODIR/prf_trace2.data &> $ODIR/prf_trace2.out &
+     $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 499 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -e "$evt_lstp6" -o $ODIR/prf_trace2.data &> $ODIR/prf_trace2.out &
 PRF_CMD_PID2=$!
 echo did prf2
 #
