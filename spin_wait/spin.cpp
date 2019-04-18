@@ -663,6 +663,7 @@ int main(int argc, char **argv)
 	printf("t_raw= %.9f\n", dclock_vari(CLOCK_MONOTONIC_RAW));
 	printf("t_coarse= %.9f\n", dclock_vari(CLOCK_MONOTONIC_COARSE));
 	printf("t_boot= %.9f\n", dclock_vari(CLOCK_BOOTTIME));
+	double proc_cputime = dclock_vari(CLOCK_PROCESS_CPUTIME_ID);
 #endif
 	std::cout << "Start Test 1 CPU" << std::endl; // prints !!!Hello World!!!
 	double t_start, t_end;
@@ -810,6 +811,10 @@ int main(int argc, char **argv)
 			std::cout << "\nExecution time on " << num_cpus << " CPUs: " << t_end - t_start << " secs" << std::endl;
 		}
 	}
+#ifdef __linux__
+	proc_cputime = dclock_vari(CLOCK_PROCESS_CPUTIME_ID) - proc_cputime;
+	printf("process cpu_time= %.6f secs at %s %d\n", proc_cputime, __FILE__, __LINE__);
+#endif
 	if (argc > 20) {
 		for (unsigned i=0; i < num_cpus; i++) {
 			printf("rezult[%d]= %lu\n", i, args[i].rezult);
