@@ -1,16 +1,16 @@
 
 {
 
-"cpu_diagram_hdr2": {"max_x":803.11267,"max_y":929.17841},
 "cpu_diagram_hdr": {"max_x":1147.757,"max_y":1326.003},
 "cpu_diagram_copyright": {"text":"(c) 2019-2019 WikiChip.org, used with permission", "SVG_URL":"https://en.wikichip.org/w/images/c/c7/arm_cortex_a53_diagram.svg", "website":"https://WikiChip.org"}
 
 ,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"top"}
 ,"cpu_diagram_fields":[
-  {"fld":{"x":10,  "y":430}, "chart":"__TEXT_BLOCK__"}
+  {"fld":{"x":10,  "y":450}, "chart":"__TEXT_BLOCK__"}
 , {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
 , {"fld":{"x":10,  "y":90},  "chart":"FREQ_BY_CPU", "pfx":"cpu freq (GHz): "}
-, {"fld":{"x":10,  "y":290},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":278}}}
+, {"fld":{"x":10,  "y":104}, "chart":"IPC_CHART",   "pfx":"Instructions/cycle: "}
+, {"fld":{"x":10,  "y":320},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":308}}}
 , {"fld":{"x":10,  "y":150},  "chart":"ICACHE_MISS_STALLS_CHART",       "pfx":"%fe_stalled: l1i_miss:     ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":164},  "chart":"IUTLB_DEP_STALLS_CHART",         "pfx":"%fe_stalled: l1i_tlb_miss: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":178},  "chart":"PRE_DECODE_ERR_PER_CYCLE_CHART", "pfx":"%fe_stalled: pre_decode:   ", "grf":{"nm":"stalls"}}
@@ -19,12 +19,15 @@
 , {"fld":{"x":10,  "y":226},  "chart":"ST_DEP_STALL_PER_CYCLE_CHART",   "pfx":"%be_stalled: store_stall:  ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":240},  "chart":"STALL_SB_FULL_PER_CYCLE_CHART",  "pfx":"%be_stalled: store_buf_full: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":254},  "chart":"AGU_DEP_STALLS_CHART",           "pfx":"%be_stalled: agu_stall: ", "grf":{"nm":"stalls"}}
-, {"fld":{"x":10,  "y":500}, "grf_def":{"typ":"pie", "nm":"L2_data_typ_access", "hdr_ftr_high":15, "wide":75, "high":75, "balance":{"hdr": "%other access ", "x":-1, "y":-1, "tot_chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART"}}}
+, {"fld":{"x":10,  "y":268},  "chart":"SIMD_DEP_STALLS_CHART",          "pfx":"%be_stalled: simd_dep: ", "grf":{"nm":"stalls"}}
+, {"fld":{"x":10,  "y":282},  "chart":"OTHER_INTERLOCK_STALLS_CHART",   "pfx":"%be_stalled: other_interlock: ", "grf":{"nm":"stalls"}}
+, {"fld":{"x":10,  "y":520}, "grf_def":{"typ":"pie", "nm":"L2_data_typ_access", "hdr_ftr_high":15, "wide":75, "high":75, "balance":{"hdr": "%other access ", "x":-1, "y":-1, "tot_chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART"}}}
 
 , {"fld":{"x":356,"y":187}, "chart":"ICACHE_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":356,"y":175,"text":"iCacheBytes/cycle:"}}
 , {"fld":{"x":700,"y":164}, "chart":"ITLB_MISS_PER_ICACHE_MISS_CHART", "rng":{"green": 1, "yellow":10}, "tfld":{ "x":700,"y":150,"text":"%l1i_tlb miss/l1i_miss:"}}
 , {"fld":{"x":700,"y":194}, "chart":"IUTLB_DEP_STALLS_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":700,"y":180,"text":"%iutlb stalls:"}}
 , {"fld":{"x":444,"y":314}, "chart":"OTHER_IQ_DEP_STALL_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":444,"y":300,"text":"%L1i_other stalls:"}}
+, {"fld":{"x":422,"y":814}, "chart":"IPC_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.2}, "tfld":{ "x":422,"y":800,"text":"instructions/cycle:"}}
 , {"fld":{"x":700,"y":314}, "chart":"BR_MIS_PRED_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":700,"y":300,"text":"%br_mis_pred:"}}
 , {"fld":{"x":1000,"y":393}, "chart":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":1000,"y":380,"text":"iCacheMissBytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
 , {"fld":{"x":1000,"y":425}, "chart":"ICACHE_MISS_STALLS_CHART", "rng":{"green": 10, "yellow":20}, "tfld":{ "x":1000,"y":410,"text":"%iCacheMissStalled/cycle:"}}
@@ -41,7 +44,9 @@
 , {"fld":{"x":605,"y":1153}, "chart":"STALL_SB_FULL_PER_CYCLE_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":605,"y":1140,"text":"%stalled_store_buf:"}}
 , {"fld":{"x":444,"y":1153}, "chart":"LD_DEP_STALLS_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":444,"y":1140,"text":"%stalled_load_buf:"}}
 , {"fld":{"x":344,"y":1046}, "chart":"ST_DEP_STALL_PER_CYCLE_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":344,"y":1032,"text":"%wr_stage_stalled:"}}
-, {"fld":{"x":547,"y":940}, "chart":"AGU_DEP_STALLS_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":547,"y":926,"text":"%agu_stalled:"}}
+, {"fld":{"x":485,"y":940}, "chart":"AGU_DEP_STALLS_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":485,"y":926,"text":"%agu_stalled:"}}
+, {"fld":{"x":124,  "y":940},  "chart":"SIMD_DEP_STALLS_CHART", "rng":{"green": 1.00, "yellow":5.0}, "tfld":{ "x":124,"y":926,"text":"%simd_stalled:"}}
+, {"fld":{"x":672,  "y":940},  "chart":"OTHER_INTERLOCK_STALLS_CHART", "rng":{"green": 1.00, "yellow":5.0}, "tfld":{ "x":672,"y":926,"text":"%alu_int_stalled:"}}
 , {"fld":{"x":780,"y":1160}, "chart":"DCACHE_TLB_MISS_PER_DCACHE_MISS_CHART", "rng":{"green": 1.0, "yellow":10.0}, "tfld":{ "x":780,"y":1146,"text":"%dtbl_miss/l1d_miss:"}}
 , {"fld":{"x":445,"y":750}, "chart":"PRE_DECODE_ERR_PER_CYCLE_CHART", "rng":{"green": 0.05, "yellow":0.1}, "tfld":{ "x":445,"y":737,"text":"%predecode_err:"}}
 ]}
