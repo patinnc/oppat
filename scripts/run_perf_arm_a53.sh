@@ -63,6 +63,7 @@ function ck_cmd_pid_threads_oper {
 #$TRC_CMD record -C local -e sched:sched_switch -o trc$BASE.dat > trace_cmd_out.txt &
 #$TRC_CMD record -C local -e thermal:thermal_power_cpu_get_power -e power:cpu_frequency -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 TC_DISK_EVT=" -e block:block_rq_issue -e block:block_rq_insert -e block:block_rq_complete -e ext4:ext4_direct_IO_enter -e ext4:ext4_direct_IO_exit -e ext4:ext4_da_write_begin -e ext4:ext4_da_write_end -e ext4:ext4_write_begin -e ext4:ext4_write_end "
+TC_DISK_EVT=  # disk events put too much load on perf and cause prf_trace2.txt to have big gaps
 #$TRC_CMD record -C local -e thermal:thermal_power_cpu_get_power -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 #$TRC_CMD record -C mono -e syscalls:sys_enter_write -e syscalls:sys_exit_write -e syscalls:sys_enter_read -e syscalls:sys_exit_read -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 CPU_IDLE=" -e power:cpu_idle "
@@ -203,7 +204,7 @@ GRP4=prefetch_linefill,l2d_cache,l2d_cache_refill,l2d_cache_wb,bus_access,mem_ac
 #   ext_mem_req [External memory request] armv8_pmuv3/event=0xc0/ 
 #   ext_mem_req_nc [Non-cacheable external memory request] armv8_pmuv3/event=0xc1/ 
 #   ext_snoop [SCU Snooped data from another CPU for this CPU] armv8_pmuv3/event=0xc8/ 
-GRP5=bus_access_rd,bus_access_wr,bus_access,ext_mem_req,ext_mem_req_nc,ext_snoop
+GRP5=bus_access_rd,bus_access_wr,bus_access,ext_mem_req,ext_snoop
 GRP6=inst_retired,simd_dep_stall,other_interlock_stall,bus_cycles,unaligned_ldst_retired,prefetch_linefill_drop
 
 evt_lstp0="{cpu-clock,cpu_cycles,$GRP0}:S"
@@ -243,6 +244,7 @@ sleep 1 # it takes about a 1 second (it seems) for the previous perf cmd (with a
 $BIN_DIR/clocks.x > $ODIR/clocks1.txt
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
 $PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x $SPIN_ARGS > $ODIR/spin.txt
+#$PRF_CMD record -a -k CLOCK_MONOTONIC  -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x $SPIN_ARGS > $ODIR/spin.txt
 
 $BIN_DIR/clocks.x > $ODIR/clocks2.txt
 kill -2 `cat $WAIT_FILE`
@@ -265,10 +267,10 @@ Fopts3=" -F comm,tid,pid,time,cpu,event,ip,sym,dso,symoff,flags,callindent"
 
 #../perf.sh script -I --ns --header -f $hwFopts $trcFopts -D -i prf_trace.data > prf_d.txt
 #$PRF_CMD script -I --ns --header -f $hwFopts $trcFopts -i $ODIR/prf_trace.data > $ODIR/prf_trace.txt
-$PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
+$PRF_CMD script -I --ns --demangle --header -f $Fopts -i $ODIR/prf_trace.data  > $ODIR/prf_trace.txt
 echo did perf script
 echo $PRF_CMD script -I --ns --header -f $Fopts -i $ODIR/prf_trace2.data _ $ODIR/prf_trace2.txt
-$PRF_CMD script -I --ns --header -f $Fopts2 -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
+$PRF_CMD script -I --ns --demangle --header -f $Fopts2 -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
 #$PRF_CMD script -I --ns --header -f $Fopts3 -i $ODIR/prf_trace2.data > $ODIR/prf_trace2.txt
 echo did perf script2
 $TRC_CMD report -t -i $ODIR/tc_trace.dat > $ODIR/tc_trace.txt
@@ -282,6 +284,9 @@ rm $ODIR/prf_*.data.old
 chmod a+rwx $SCR_DIR/dump_all_perf_events.sh
 $SCR_DIR/dump_all_perf_events.sh $ODIR
 cp $SCR_FIL $ODIR
+
+# get the cpu topology info. the power and cpufreq subdirs contain files that cause bsdtar errors
+bsdtar cjvf $ODIR/sys_devices_system_cpu.tgz --exclude "power" --exclude "cpufreq" /sys/devices/system/cpu
 
 
 echo "{\"file_list\":[" > $ODIR/file_list.json
