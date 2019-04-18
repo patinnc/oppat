@@ -884,6 +884,10 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			if (prf_obj.events[whch_evt].pea.type == PERF_TYPE_TRACEPOINT &&
 				prf_obj.events[whch_evt].lst_ft_fmt_idx == -2) {
 				prf_obj.events[whch_evt].lst_ft_fmt_idx = -1;
+				if (prf_obj.events.size() == 1 && evt_nm.size() == 0) {
+					// if only 1 event in file then we don't get an event ID
+					evt_nm = prf_obj.events[0].event_name;
+				}
 				for (uint32_t i=0; i < file_list.lst_ft_fmt_vec.size(); i++) {
 					if ((file_list.lst_ft_fmt_vec[i].event == evt_nm &&
 							file_list.lst_ft_fmt_vec[i].area == prf_obj.events[whch_evt].event_area) ||
@@ -893,8 +897,18 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 						break;
 					}
 				}
+				//pes.event_name = evt_name;
+				//prf_obj.events.push_back(pes);
 				if (prf_obj.events[whch_evt].lst_ft_fmt_idx == -1) {
-					printf("missed lst_ft_fmt: for perf event= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+					printf("error: missed lst_ft_fmt: for perf event= %s whch_evt= %d at %s %d\n",
+							evt_nm.c_str(), whch_evt, __FILE__, __LINE__);
+					std::cout << "sample events.size()= " << prf_obj.events.size() << std::endl;
+					printf("error: file bin= %s, txt= %s at %s %d\n",
+							prf_obj.filename_bin.c_str(), prf_obj.filename_text.c_str(), __FILE__, __LINE__);
+					for (uint32_t i=0; i < file_list.lst_ft_fmt_vec.size(); i++) {
+						printf("got lst_ft_fmt: prf event[%d]= %s at %s %d\n", i, 
+							file_list.lst_ft_fmt_vec[i].event.c_str(), __FILE__, __LINE__);
+					}
 					exit(1);
 				}
 			}

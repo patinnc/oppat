@@ -19,7 +19,7 @@
 	 {"evt_name":"CYCLES_EVENT", "arch":"Intel", "aliases":["cycles", "cpu_clk_unhalted.thread", "r0200", "r3c"]}
 	,{"evt_name":"CYCLES_EVENT", "arch":"ARM",   "aliases":["cycles", "r11", "cpu_cycles"]}
 	,{"evt_name":"INST_EVENT", "arch":"Intel", "aliases":["instructions", "rc0"]}
-	,{"evt_name":"INST_EVENT", "arch":"ARM",   "aliases":["instructions", "r08"]}
+	,{"evt_name":"INST_EVENT", "arch":"ARM",   "aliases":["instructions", "r08", "inst_retired"]}
 	,{"evt_name":"REF_CYCLES_EVENT", "arch":"Intel", "aliases":["ref-cycles","r0300"]}
   ],
   "macro_event_array": [
