@@ -359,7 +359,7 @@
          x="863.48669"
          y="-1558.3685"
          id="tspan4962"
-         style="font-weight:bold;font-size:16.81239891px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke:none;stroke-width:1.06666672">32Bwr/16Brd/cycle</tspan></text>
+         style="font-weight:bold;font-size:16.81239891px;line-height:1.25;font-family:sans-serif;fill:#000000;stroke:none;stroke-width:1.06666672">32Brd/16Bwr/cycle</tspan></text>
     <!--
      slash across L1 -> L2 path
 -->
@@ -823,7 +823,7 @@
          sodipodi:role="line"
          x="1266.042"
          y="749.22949"
-         style="font-weight:bold;font-size:10.66666698px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672">8B_rd/cyc</tspan></text>
+         style="font-weight:bold;font-size:10.66666698px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672">16B_rd/cyc</tspan></text>
     <g
        id="g1163"
        transform="translate(8.8236379)">
@@ -1393,7 +1393,7 @@
          sodipodi:role="line"
          x="1325.645"
          y="738.60535"
-         style="font-weight:bold;font-size:10.66666698px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672">16B_wr/cyc</tspan></text>
+         style="font-weight:bold;font-size:10.66666698px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672">8B_wr/cyc</tspan></text>
     <rect
        y="807.82629"
        x="1454.5116"
