@@ -5,7 +5,7 @@ PRF_CMD=~/bin/perf
 PRF_CMD=perf
 BASE=spin7
 BASE=L2_bw7
-BASE=arm_multi8
+BASE=arm_multi9
 PFX=lnx
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_FIL=$0
@@ -16,7 +16,7 @@ TRC_CMD=$BIN_DIR/trace-cmd
 
 ODIR=../oppat_data/$PFX/$BASE
 mkdir -p $ODIR
-chown -R 777 $ODIR
+chown -R root $ODIR
 
 if [ -f $ODIR/file_list.json ]; then
   rm $ODIR/file_list.json
@@ -151,9 +151,9 @@ done
 #x  ic_dep_stall [Cycles the DPU IQ is empty and there is an instruction cache miss being processed] armv8_pmuv3/event=0xe1/ 
 #x  iutlb_dep_stall [Cycles the DPU IQ is empty and there is an instruction micro-TLB miss being processed] armv8_pmuv3/event=0xe2/ 
 #2  ld_dep_stall [Cycles there is a stall in the Wr stage because of a load miss] armv8_pmuv3/event=0xe7/ 
-#4  other_interlock_stall [Cycles there is an interlock other than Advanced SIMD/Floating-point instructions or load/store instruction] armv8_pmuv3/event=0xe4/ 
 #x  other_iq_dep_stall [Cycles that the DPU IQ is empty and that is not because of a recent micro-TLB miss, instruction cache miss or pre-decode error] armv8_pmuv3/event=0xe0/ 
 #4  simd_dep_stall [Cycles there is an interlock for an Advanced SIMD/Floating-point operation] armv8_pmuv3/event=0xe6/ 
+#4  other_interlock_stall [Cycles there is an interlock other than Advanced SIMD/Floating-point instructions or load/store instruction] armv8_pmuv3/event=0xe4/ 
 #3  st_dep_stall [Cycles there is a stall in the Wr stage because of a store] armv8_pmuv3/event=0xe8/ 
 #3  stall_sb_full [Data Write operation that stalls the pipeline because the store buffer is full] armv8_pmuv3/event=0xc7/ 
 
@@ -204,6 +204,7 @@ GRP4=prefetch_linefill,l2d_cache,l2d_cache_refill,l2d_cache_wb,bus_access,mem_ac
 #   ext_mem_req_nc [Non-cacheable external memory request] armv8_pmuv3/event=0xc1/ 
 #   ext_snoop [SCU Snooped data from another CPU for this CPU] armv8_pmuv3/event=0xc8/ 
 GRP5=bus_access_rd,bus_access_wr,bus_access,ext_mem_req,ext_mem_req_nc,ext_snoop
+GRP6=inst_retired,simd_dep_stall,other_interlock_stall,bus_cycles,unaligned_ldst_retired,prefetch_linefill_drop
 
 evt_lstp0="{cpu-clock,cpu_cycles,$GRP0}:S"
 evt_lstp1="{cpu-clock,cpu_cycles,$GRP1}:S"
@@ -293,6 +294,6 @@ echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"ta
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
-chown -R 777 $ODIR
+chown -R root $ODIR
 
 #sudo ../perf.sh script -I --header -i perf.data -F hw:comm,tid,pid,time,cpu,event,ip,sym,dso,symoff,period -F trace:comm,tid,pid,time,cpu,event,trace,ip,sym,period -i perf.data > perf.txt
