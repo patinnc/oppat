@@ -982,6 +982,34 @@
   },
   {"event":
 	{
+	"evt_name": "IPC", "evt_type": "ftrace", "comment":"derived event for IPC (instructions/cycle)",
+	"evt_derived":{
+		"evts_tags":[{"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"INST_EVENT", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"IPC (instructions/cycle) by CPU",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"__BASEVARNM__:%.2f",  "yvar_fmt":"av.%s",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on instructions/cycle"},
+			"chart_tag":"IPC_CHART", "chart_type":"line", "use_chart":"d", "y_label":"IPC"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "idq_all_uops_per_cycle", "evt_type": "ftrace", "comment":"idq.mite_all_uops per cycle",
 	"evt_derived":{
 		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"den"}, {"evt":"idq.mite_all_uops", "tag":"num"}],
