@@ -6603,9 +6603,9 @@ function parse_svg()
 				ctx.fillStyle = color;
 				ctx.moveTo(px_x + x + x2, px_y + y);
 				ctx.arc(px_x + x + x2, px_y+y, x, startAngle-rot, endAngle-rot);
-				if (grf_name != "stalls") {
-					console.log(sprintf("_grf lbl= %s, angle= %.3f",data_nw[i].label,endAngle-startAngle));
-				}
+				//if (grf_name != "stalls") {
+				//	console.log(sprintf("_grf lbl= %s, angle= %.3f",data_nw[i].label,endAngle-startAngle));
+				//}
 				arr.push({value:data_nw[i].value, startAngle:begAr2,
 					endAngle:endAr2,
 					lbl:data_nw[i].label,
@@ -8064,22 +8064,17 @@ function parse_svg()
 
 		t += "<tr><td>Execution Engine</td></tr>";
 		let ex_tbl = [
-			["LD_DEP_STALLS_CHART", "Load_dependent_stalls: pct of cycles that pipeline is stalled due to loads not ready."],
+			["IPC_CHART", "instructions/cycle"],
+			["LD_DEP_STALLS_CHART", "Load_dependent_stalls: pct cycles stalled in the Wr stage because of a load miss."],
 			["STALL_SB_FULL_PER_CYCLE_CHART", "Store_buffer_full_stalls: pct of cycles that pipeline is stalled due to store buffer full."],
-			["ST_DEP_STALL_PER_CYCLE_CHART", "Store_dependent_stalls: pct of cycles that pipeline is stalled due to store dependency."],
-			["AGU_DEP_STALLS_CHART", "Address_gen_unit_stalls: pct of cycles that pipeline is stalled due to address generation unit dependency stall."],
+			["ST_DEP_STALL_PER_CYCLE_CHART", "Store_stalls: pct of cycles pipeline stalled in the Wr stage because of a store."],
+			["AGU_DEP_STALLS_CHART", "Address_gen_unit_stalls: pct of cycles pipeline stalled due to a load/store instruction interlocked waiting on data to calculate the address in the AGU"],
+			["SIMD_DEP_STALLS_CHART", "SIMD_stalls: pct of cycles there is an interlock for an Advanced SIMD/Floating-point operation."],
+			["OTHER_INTERLOCK_STALLS_CHART", "ALU/INT_stalls: pct of cycles there is an interlock other than Advanced SIMD/Floating-point instructions or load/store instruction."],
 			["PRE_DECODE_ERR_PER_CYCLE_CHART", "Decoder_stalls: ratio of pre_decode_errors/cycles. Not exactly sure what a pre_decode err is."]
 		];
 		t += run_tbl(ex_tbl, txt_tbl, lkup, flds_max, 2, cma, true);
 
-		let uop_tbl = [];
-		for (let i=0; i < 8; i++) {
-			uop_tbl.push(["UOPS_port_"+i+"_PER_CYCLE_CHART", "port"+i+": uops/cycle on port"+i+". Bigger values means port used more"]);
-		}
-		for (let i=0; i < 8; i++) {
-			uop_tbl.push(["GUOPS_port_"+i+"_CHART", "port"+i+": uops/nsec on port"+i+". Small values may mean port is not used much"]);
-		}
-		t += run_tbl(uop_tbl, txt_tbl, lkup, flds_max, 4, cma, false);
 		t += "</table>";
 		return t;
 	}
