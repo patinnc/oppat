@@ -477,6 +477,68 @@
   {"event":
 	{
 	"comment":"GRP2=l1d_cache,l1d_cache_refill,l1d_tlb_refill,l2d_cache_refill,agu_dep_stall,ld_dep_stall",
+	"evt_name": "simd_dep_stall_per_cycle", "evt_type": "ftrace", "arch":"ARM",
+	"evt_derived":{
+		"evts_tags":[{"evt":"simd_dep_stall", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%simd_dep_stall (%simd_dep_stall/cycles) by CPU",  "var_name": "val",  "y_fmt":"%.1f%%",
+			"by_var": "area", "chart_tag":"SIMD_DEP_STALLS_CHART", "chart_type":"line", "use_chart":"d",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.0f%%", "yvar_fmt":"av.%d",
+			"scope":["per_core","per_core"],
+			"desc":"Based on 100*simd_dep_stall/cycle"
+			},
+			"y_label":"%simd_dep_stall/cycles", "tot_line":"__total__"}
+		]
+	}
+  }
+  ,
+  {"event":
+	{
+	"comment":"GRP2=l1d_cache,l1d_cache_refill,l1d_tlb_refill,l2d_cache_refill,agu_dep_stall,ld_dep_stall",
+	"evt_name": "other_interlock_stall_per_cycle", "evt_type": "ftrace", "arch":"ARM",
+	"evt_derived":{
+		"evts_tags":[{"evt":"other_interlock_stall", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"%other_interlock_stall (%other_interlock_stall/cycle) by CPU",  "var_name": "val",  "y_fmt":"%.1f%%",
+			"by_var": "area", "chart_tag":"OTHER_INTERLOCK_STALLS_CHART", "chart_type":"line", "use_chart":"d",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.0f%%", "yvar_fmt":"av.%d",
+			"scope":["per_core","per_core"],
+			"desc":"Based on 100*other_interlock_stall/cycle"
+			},
+			"y_label":"%other_interlock_stall/cycles", "tot_line":"__total__"}
+		]
+	}
+  }
+  ,
+  {"event":
+	{
+	"comment":"GRP2=l1d_cache,l1d_cache_refill,l1d_tlb_refill,l2d_cache_refill,agu_dep_stall,ld_dep_stall",
 	"evt_name": "ld_dep_stall_per_cycle", "evt_type": "ftrace", "arch":"ARM",
 	"evt_derived":{
 		"evts_tags":[{"evt":"ld_dep_stall", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
