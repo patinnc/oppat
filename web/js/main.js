@@ -6468,8 +6468,18 @@ function parse_svg()
 	let drawPieChart = function(ctx, data, colors, grf_def_idx, do_legend, txt_tbl) {
 		// from https://codepen.io/swaroopsm/pen/qIamk
 		//let ctx = canvas.getContext('2d');
-		let px_x     = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
-		let px_y_hdr = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
+		let px_x, px_y_hdr;
+		function xlate_pie(x1, y1) {
+			let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
+			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
+			let x2 = svg_xmax * x1/fmxx;
+			let y2 = svg_ymax * y1/fmxy;
+			return xlate(ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null);
+		}
+		let x1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
+		let y1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
+		[px_x, px_y_hdr] = xlate_pie(x1, y1);
+		//abcd
 		let tpx = 13;
 		let tstr = sprintf("%dpx sans-serif", tpx);
 		let hdr_ftr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.hdr_ftr_high;
@@ -6484,10 +6494,11 @@ function parse_svg()
 		let bal_x   = -1;
 		let bal_y   = -1;
 		if (typeof balance != 'undefined' && balance != null) {
-		   balance_hdr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.hdr;
-		   balance_chrt = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.tot_chart;
-		   bal_x = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x;
-		   bal_y = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.y;
+			balance_hdr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.hdr;
+			balance_chrt = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.tot_chart;
+			bal_x = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x;
+			bal_y = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.y;
+			[bal_x, bal_y] = xlate_pie(bal_x, bal_y);
 		}
 		let x = (px_wide / 2),
 			y = (px_high / 2);
@@ -7164,12 +7175,15 @@ function parse_svg()
 		}
 		// end of drawing
 		let txt_tbl = draw_svg_txt_flds(whch_txt, subtst);
-		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
-			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def != 'undefined') {
-				let typ = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.typ;
-				if (typ == "pie") {
-					let pie_data = build_pie_data(j, whch_txt, txt_tbl);
-					drawPieChart(ctx, pie_data, gcolor_lst, j, false, txt_tbl);
+		if (txt_tbl.length > 0) {
+			// when we are generating phase pngs, the first time through has txt_tbl.len == 0
+			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def != 'undefined') {
+					let typ = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.typ;
+					if (typ == "pie") {
+						let pie_data = build_pie_data(j, whch_txt, txt_tbl);
+						drawPieChart(ctx, pie_data, gcolor_lst, j, false, txt_tbl);
+					}
 				}
 			}
 		}
@@ -8065,6 +8079,7 @@ function parse_svg()
 		t += "<tr><td>Execution Engine</td></tr>";
 		let ex_tbl = [
 			["IPC_CHART", "instructions/cycle"],
+			["CPI_CHART", "cycles/instructions"],
 			["LD_DEP_STALLS_CHART", "Load_dependent_stalls: pct cycles stalled in the Wr stage because of a load miss."],
 			["STALL_SB_FULL_PER_CYCLE_CHART", "Store_buffer_full_stalls: pct of cycles that pipeline is stalled due to store buffer full."],
 			["ST_DEP_STALL_PER_CYCLE_CHART", "Store_stalls: pct of cycles pipeline stalled in the Wr stage because of a store."],
