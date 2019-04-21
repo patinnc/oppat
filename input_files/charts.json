@@ -976,6 +976,10 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"CPI (cycles/instruction) by CPU",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"__BASEVARNM__:%.2f",  "yvar_fmt":"av.%s",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on instructions/cycle"},
 			"chart_tag":"CPI_CHART", "chart_type":"line", "use_chart":"d", "y_label":"CPI"}
 		]
 	}
