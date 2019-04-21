@@ -10,6 +10,7 @@
 , {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
 , {"fld":{"x":10,  "y":90},  "chart":"FREQ_BY_CPU", "pfx":"cpu freq (GHz): "}
 , {"fld":{"x":10,  "y":104}, "chart":"IPC_CHART",   "pfx":"Instructions/cycle: "}
+, {"fld":{"x":10,  "y":118}, "chart":"CPI_CHART",   "pfx":"Cycles/instructions: "}
 , {"fld":{"x":10,  "y":320},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":308}}}
 , {"fld":{"x":10,  "y":150},  "chart":"ICACHE_MISS_STALLS_CHART",       "pfx":"%fe_stalled: l1i_miss:     ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":164},  "chart":"IUTLB_DEP_STALLS_CHART",         "pfx":"%fe_stalled: l1i_tlb_miss: ", "grf":{"nm":"stalls"}}
@@ -27,7 +28,8 @@
 , {"fld":{"x":700,"y":164}, "chart":"ITLB_MISS_PER_ICACHE_MISS_CHART", "rng":{"green": 1, "yellow":10}, "tfld":{ "x":700,"y":150,"text":"%l1i_tlb miss/l1i_miss:"}}
 , {"fld":{"x":700,"y":194}, "chart":"IUTLB_DEP_STALLS_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":700,"y":180,"text":"%iutlb stalls:"}}
 , {"fld":{"x":444,"y":314}, "chart":"OTHER_IQ_DEP_STALL_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":444,"y":300,"text":"%L1i_other stalls:"}}
-, {"fld":{"x":422,"y":814}, "chart":"IPC_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.2}, "tfld":{ "x":422,"y":800,"text":"instructions/cycle:"}}
+, {"fld":{"x":417,"y":794}, "chart":"CPI_CHART", "rng":{"green": 2.0, "yellow":5.0}, "tfld":{ "x":417,"y":780,"text":"cycles/instruction:"}}
+, {"fld":{"x":417,"y":824}, "chart":"IPC_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.2}, "tfld":{ "x":417,"y":810,"text":"instructions/cycle:"}}
 , {"fld":{"x":700,"y":314}, "chart":"BR_MIS_PRED_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":700,"y":300,"text":"%br_mis_pred:"}}
 , {"fld":{"x":1000,"y":393}, "chart":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":1000,"y":380,"text":"iCacheMissBytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
 , {"fld":{"x":1000,"y":425}, "chart":"ICACHE_MISS_STALLS_CHART", "rng":{"green": 10, "yellow":20}, "tfld":{ "x":1000,"y":410,"text":"%iCacheMissStalled/cycle:"}}
