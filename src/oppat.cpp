@@ -5878,14 +5878,17 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		cpu_diag_flds = cpu_diag_flds_beg;
+		std::string cpu_diag_json;
 		while(!file2.eof()) {
 			std::getline (file2, line2);
 			cpu_diag_flds += line2 + "\n";
+			cpu_diag_json += line2;
 		}
 		file2.close();
-		//if (options.verbose > 0) {
+		ck_json(cpu_diag_json, "check for valid json in cpu_diagram .flds file: "+flds_file, __FILE__, __LINE__, options.verbose);
+		if (options.verbose > 0) {
 			printf("cpu_diag_flds= '%s' at %s %d\n", cpu_diag_flds.c_str(), __FILE__, __LINE__);
-		//}
+		}
 	}
 	fflush(NULL);
 	fprintf(stderr, "callstack_vec num_strings= %d, sum of strings len= %d\n", (int)callstack_vec.size(), (int)callstack_vec_len);
