@@ -102,9 +102,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="4.0000001"
-     inkscape:cx="413.93181"
-     inkscape:cy="688.73391"
+     inkscape:zoom="2.8284272"
+     inkscape:cx="394.84669"
+     inkscape:cy="207.90131"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="false"
@@ -657,107 +657,17 @@
          sodipodi:role="line"
          id="tspan3071"
          style="font-size:19.20000076px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672">32KiB 2-Way</tspan></text>
+    <path
+       sodipodi:nodetypes="cccccccc"
+       style="fill:#aaaaff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1.04032099"
+       d="m 962.9379,644.69864 8.4216,10.66751 h -3.2556 V 761.27389 H 957.772 V 655.36615 h -3.2557 z"
+       id="path1828-9"
+       inkscape:connector-curvature="0" />
     <g
        id="g1139">
       <!--
      below is port 1st arrow
 -->
-      <g
-         transform="translate(-34.000023,6)"
-         id="g1673">
-        <!--
-     below is line for port 0 to eu
--->
-        <path
-           sodipodi:nodetypes="cccccccc"
-           style="fill:#aaaaff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:1.06666672"
-           d="m 1016.2996,687.0602 8.4216,-9.378 h -3.2557 c 0,-1.22566 0,-33.90278 0,-33.90278 h -10.3319 v 33.90278 h -3.2556 z"
-           id="path4898"
-           inkscape:connector-curvature="0" />
-        <text
-           xml:space="preserve"
-           style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-           x="1016.0626"
-           y="668.27142"
-           id="text4949"><tspan
-             id="tspan4951"
-             sodipodi:role="line"
-             x="1016.0626"
-             y="668.27142"
-             style="font-weight:bold;font-size:10.66666698px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672">µOP</tspan></text>
-      </g>
-      <rect
-         y="693.96045"
-         x="933.78796"
-         height="15.525268"
-         width="97.023201"
-         id="rect4472"
-         style="fill:#d4aa00;stroke:#000000;stroke-width:1.18300211" />
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-         x="982.23657"
-         y="706.09729"
-         id="text4474"><tspan
-           style="font-size:11.73333359px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672"
-           sodipodi:role="line"
-           x="982.23657"
-           y="706.09729"
-           id="tspan4476">FP FP0</tspan></text>
-      <rect
-         style="fill:#d4aa00;stroke:#000000;stroke-width:1.18300211"
-         id="rect1675"
-         width="97.023201"
-         height="15.525268"
-         x="933.78796"
-         y="709.48572" />
-      <text
-         id="text1679"
-         y="721.62256"
-         x="982.23657"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-         xml:space="preserve"><tspan
-           id="tspan1677"
-           y="721.62256"
-           x="982.23657"
-           sodipodi:role="line"
-           style="font-size:11.73333359px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672">NEON</tspan></text>
-      <rect
-         y="725.01099"
-         x="933.78796"
-         height="15.525268"
-         width="97.023201"
-         id="rect1681"
-         style="fill:#d4aa00;stroke:#000000;stroke-width:1.18300211" />
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.73333359px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-         x="982.23083"
-         y="736.56622"
-         id="text1685"><tspan
-           style="font-size:11.73333359px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672"
-           sodipodi:role="line"
-           x="982.23083"
-           y="736.56622"
-           id="tspan1683">Crypto</tspan></text>
-      <rect
-         y="740.536258"
-         x="933.78796"
-         height="15.525268"
-         width="97.023201"
-         id="rect9681"
-         style="fill:#d4aa00;stroke:#000000;stroke-width:1.18300211" />
-      <text
-         xml:space="preserve"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:11.73333359px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-         x="982.23083"
-         y="752.03625"
-         id="text9685"><tspan
-           style="font-size:11.73333359px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672"
-           sodipodi:role="line"
-           x="982.23083"
-           y="752.03625"
-           id="tspan9683">Stage 4</tspan></text>
       <!--
 	below wr writeback stage box
 -->
@@ -791,24 +701,6 @@
       <!--
      line from port4 agu wr path to L1
 -->
-      <rect
-         style="fill:#87deaa;stroke:#000000;stroke-width:0.9368428"
-         id="rect4406"
-         width="43.329369"
-         height="15.525268"
-         x="960.63489"
-         y="643.77942" />
-      <text
-         id="text4426"
-         y="655.81317"
-         x="982.11627"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
-         xml:space="preserve"><tspan
-           style="font-size:11.73333359px;line-height:1.25;font-family:sans-serif;stroke-width:1.06666672"
-           id="tspan4430"
-           y="655.81317"
-           x="982.11627"
-           sodipodi:role="line">Port 0?</tspan></text>
     </g>
     <!--
      below is text for agu ld/st unit read write paths
@@ -1212,6 +1104,12 @@
        width="69.616905"
        id="rect1741-9"
        style="fill:#d4aa00;stroke:#000000;stroke-width:1.0666666" />
+    <path
+       style="fill:#aaaaff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.94497335"
+       d="m 1363.4747,806.84119 -8.4199,-7.74845 h 3.2539 v -52.00893 h -46.0842 l -0.2402,-24.73514 h 10.3319 v 16.81878 h 46.3247 l -1e-4,59.92521 h 3.2558 z"
+       id="path4820"
+       inkscape:connector-curvature="0"
+       sodipodi:nodetypes="cccccccccccc" />
     <rect
        y="710.5387"
        x="1253.0782"
@@ -1371,18 +1269,6 @@
          x="1348.1053"
          sodipodi:role="line"
          id="tspan1361-2-8">Inst</tspan></text>
-    <path
-       style="fill:#aaaaff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.79873025"
-       d="m 933.967,765.53198 c -6.44226,0.0864 -7.54385,0.16138 -13.98322,-6.7e-4 V 650.93613 h -2.11457 v -2.5e-4 l 5.43736,-6.64936 5.46064,6.64936 h -2.11457 v 106.6872 l 7.3193,0.0806 0.007,-5e-5"
-       id="path4281"
-       inkscape:connector-curvature="0"
-       sodipodi:nodetypes="ccccccccccc" />
-    <path
-       style="fill:#aaaaff;fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:0.94497335"
-       d="m 1363.4747,806.84117 -8.4199,-7.35938 h 3.2539 V 750.0844 h -46.0842 l -0.2402,-23.49311 h 10.3319 v 15.97426 h 46.3247 l -1e-4,56.91617 h 3.2558 z"
-       id="path4820"
-       inkscape:connector-curvature="0"
-       sodipodi:nodetypes="cccccccccccc" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:12.80000019px;line-height:0%;font-family:sans-serif;-inkscape-font-specification:Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.06666672"
