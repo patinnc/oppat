@@ -24,6 +24,9 @@ var doc_title_def = "OPPAT: Open Power/Performance Analysis Tool";
 var gjson = {};
 var gjson_str_pool = null;
 var did_c10_colors = 0;
+var g_d3_clrs_c10 = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+var g_d3_clrs_c20 = ["#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
+  "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5" ];
 // the SHAPE_* variable values must agree with the SPARE_* enum in main.cpp
 var SHAPE_LINE = 0;
 var SHAPE_RECT = 1;
@@ -1151,7 +1154,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let event_id_begin = 10000;
 	//let c10 = d3.schemeCategory10;
 	// cmd below is what the above cmd accomplishes but I don't have to include d3 anymore
-	let c10 = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+	let c10 = g_d3_clrs_c20;
 	let c40 = gcolor_lst;
 	let use_color_list = gcolor_lst;
 	let legend_text_len = 0;
@@ -6597,8 +6600,11 @@ function parse_svg()
 					angles.push({beg:startAngle, end:endAngle});
 				}
 			}
+			let bal_slice = -1;
 			for(let i=0; i < data_nw.length; i++) {
-				color = colors[i];
+				if (balance_chrt != null && data_nw[i].chart_tag == balance_chrt) {
+					bal_slice = i;
+				}
 				startAngle = angles[i].beg;
 				endAngle   = angles[i].end;
 				let diff   = endAngle - startAngle;
@@ -6609,14 +6615,14 @@ function parse_svg()
 				begA = endA;
 				let begAr2 = begAr;
 				let endAr2 = endAr;
+				let arcLen = 0.7 * x * diff;
 
-				ctx.beginPath();
-				ctx.fillStyle = color;
-				ctx.moveTo(px_x + x + x2, px_y + y);
-				ctx.arc(px_x + x + x2, px_y+y, x, startAngle-rot, endAngle-rot);
-				//if (grf_name != "stalls") {
-				//	console.log(sprintf("_grf lbl= %s, angle= %.3f",data_nw[i].label,endAngle-startAngle));
-				//}
+				if (i==0) {
+					ctx.moveTo(px_x + x + x2, px_y + y);
+					ctx.arc(px_x + x + x2, px_y+y, x*1.2, startAngle-rot, startAngle-rot);
+					ctx.stroke();
+				}
+				//abcd
 				arr.push({value:data_nw[i].value, startAngle:begAr2,
 					endAngle:endAr2,
 					lbl:data_nw[i].label,
@@ -6624,20 +6630,81 @@ function parse_svg()
 					data_nw_ent:data_nw[i],
 					txt_tbl_ent:txt_tbl[data_nw[i].txt_tbl_idx],
 					txt_tbl_idx:data_nw[i].txt_tbl_idx});
+				let slc_num = i;
+				if (bal_slice != -1) {
+					slc_num -= 1;
+					if (bal_slice == i) {
+						continue;
+					}
+				}
+				let leg_num = i;
+				if (bal_slice != -1) {
+					leg_num -= 1;
+				}
+				color = colors[leg_num];
+				ctx.beginPath();
+				ctx.fillStyle = color;
+				ctx.moveTo(px_x + x + x2, px_y + y);
+				ctx.arc(px_x + x + x2, px_y+y, x, startAngle-rot, endAngle-rot);
 				ctx.fill();
 				ctx.stroke();
+				let tnum = sprintf("%d", slc_num);
+				let twidth = ctx.measureText(tnum).width;
+				let diff2 = endAngle - startAngle;
+				let angleHalf = startAngle + 0.5 * diff2;
 				if (do_legend && (ch+1) == data.length) {
 					//let atxt = sprintf(", ab= %.3f, ae= %.3f", startAngle+rot, endAngle+rot);
-					let atxt = sprintf(", ab= %.3f, ae= %.3f", begAr2, endAr2);
-					ctx.rect(px_x + px_wide + 10 + x2, px_y + i * (tpx+5), 12, 12);
+					ctx.save();
+					let atxt = "";
+					atxt = sprintf(", ab= %.3f, ae= %.3f ah= %.3f diff= %.1f, rot= %.1f", startAngle, endAngle, angleHalf, diff2, rot);
+					ctx.rect(px_x + px_wide + 10 + x2, px_y + leg_num * (tpx+5), 12, 12);
 					ctx.fill();
 					ctx.font = tstr;
 					let dval = "";
 					if (!do_bal) {
 						dval = sprintf(": %.3f, ", data_nw[i].value);
 					}
-					ctx.fillText(data_nw[i].label + dval + calculatePercent(data_nw[i].value, total) + "%" + atxt,
-							px_x + px_wide + 25 + x2, px_y +  i * (tpx+5) + 10);
+					let tvals = "";
+					if (data.length == 1) {
+						let tspc = "";
+						if (data_nw[i].label.length > 0 && 
+								(data_nw[i].label.substr(-1) != " " && data_nw[i].label.substr(-1) != ":")) {
+							tspc = " ";
+						}
+						//tvals = tspc + dval + calculatePercent(data_nw[i].value, total) + "%";
+						tvals = tspc + dval + sprintf("%.2f%%", 100.0*diff2/(2.0*Math.PI));
+					}
+					//tvals += atxt;
+					let lstr = tnum + " " + data_nw[i].label + tvals;
+					let leg_x = px_x + px_wide + 25 + x2;
+					let leg_y = px_y +  leg_num * (tpx+5) + 10;
+					let do_bkgrnd = false;
+					if (do_bkgrnd) {
+						ctx.fillStyle = 'white';
+						let width = ctx.measureText(lstr).width;
+						ctx.fillRect(leg_x, leg_y - tpx + 5, width, tpx);
+					}
+					ctx.fillStyle = 'black';
+					ctx.fillText(lstr, leg_x, leg_y);
+					ctx.restore();
+				}
+				if (arcLen >= (2.0 * twidth)) {
+					//ctx.save();
+					let xt = 0.7 * x * Math.cos(angleHalf-rot);
+					let yt = 0.7 * x * Math.sin(angleHalf-rot);
+					let fl = ctx.fillStyle;
+					let st = ctx.strokeStyle;
+					ctx.fillStyle = 'black';
+					ctx.strokeStyle = 'black';
+					let mytx = px_x + x + x2 + xt;
+					let myty = px_y + y + yt;
+					ctx.fillText(tnum, mytx, myty);
+					ctx.stroke();
+					ctx.fillStyle = fl;
+					ctx.strokeStyle = st;
+					//ctx.restore();
+					//console.log(sprintf("ch= %d, i= %d, twd= %.1f, arclen= %.1f, x= %.1f, y= %.1f, mytx= %.1f, y= %.1f, tnum= %s",
+					//	ch, i, twidth, arcLen, xt, yt, mytx, myty, tnum));
 				}
 				begAr = endAr;
 			}
@@ -6924,7 +6991,6 @@ function parse_svg()
 				let style = tstyle + ";" + shapes[i].style;
 				let nfont_sz = 11;
 				let line_hi = nfont_sz;
-				//abcd
 				let font_sz = sprintf("%dpx", nfont_sz);
 				if (typeof style != 'undefined' && style != null) {
 					let st = style.split(";");
@@ -7179,10 +7245,15 @@ function parse_svg()
 			// when we are generating phase pngs, the first time through has txt_tbl.len == 0
 			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def != 'undefined') {
-					let typ = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.typ;
+					let typ    = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.typ;
+					let do_leg = false;
+					if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.legend != 'undefined' &&
+						g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.legend != null) {
+						do_leg = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.legend;
+					}
 					if (typ == "pie") {
 						let pie_data = build_pie_data(j, whch_txt, txt_tbl);
-						drawPieChart(ctx, pie_data, gcolor_lst, j, false, txt_tbl);
+						drawPieChart(ctx, pie_data, g_d3_clrs_c20, j, do_leg, txt_tbl);
 					}
 				}
 			}
