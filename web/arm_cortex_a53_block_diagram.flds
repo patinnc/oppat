@@ -6,12 +6,12 @@
 
 ,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"top"}
 ,"cpu_diagram_fields":[
-  {"fld":{"x":10,  "y":450}, "chart":"__TEXT_BLOCK__"}
+  {"fld":{"x":521,  "y":544}, "chart":"__TEXT_BLOCK__"}
 , {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
 , {"fld":{"x":10,  "y":90},  "chart":"FREQ_BY_CPU", "pfx":"cpu freq (GHz): "}
 , {"fld":{"x":10,  "y":104}, "chart":"IPC_CHART",   "pfx":"Instructions/cycle: "}
 , {"fld":{"x":10,  "y":118}, "chart":"CPI_CHART",   "pfx":"Cycles/instructions: "}
-, {"fld":{"x":10,  "y":320},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":308}}}
+, {"fld":{"x":10,  "y":320},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":308}}}
 , {"fld":{"x":10,  "y":150},  "chart":"ICACHE_MISS_STALLS_CHART",       "pfx":"%fe_stalled: l1i_miss:     ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":164},  "chart":"IUTLB_DEP_STALLS_CHART",         "pfx":"%fe_stalled: l1i_tlb_miss: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":178},  "chart":"PRE_DECODE_ERR_PER_CYCLE_CHART", "pfx":"%fe_stalled: pre_decode:   ", "grf":{"nm":"stalls"}}
@@ -22,7 +22,7 @@
 , {"fld":{"x":10,  "y":254},  "chart":"AGU_DEP_STALLS_CHART",           "pfx":"%be_stalled: agu_stall: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":268},  "chart":"SIMD_DEP_STALLS_CHART",          "pfx":"%be_stalled: simd_dep: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":282},  "chart":"OTHER_INTERLOCK_STALLS_CHART",   "pfx":"%be_stalled: other_interlock: ", "grf":{"nm":"stalls"}}
-, {"fld":{"x":10,  "y":520}, "grf_def":{"typ":"pie", "nm":"L2_data_typ_access", "hdr_ftr_high":15, "wide":75, "high":75, "balance":{"hdr": "%other access ", "x":-1, "y":-1, "tot_chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART"}}}
+, {"fld":{"x":10,  "y":520}, "grf_def":{"typ":"pie", "nm":"L2_data_typ_access", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"hdr": "%other access ", "x":-1, "y":-1, "tot_chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART"}}}
 
 , {"fld":{"x":356,"y":187}, "chart":"ICACHE_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":356,"y":175,"text":"iCacheBytes/cycle:"}}
 , {"fld":{"x":700,"y":164}, "chart":"ITLB_MISS_PER_ICACHE_MISS_CHART", "rng":{"green": 1, "yellow":10}, "tfld":{ "x":700,"y":150,"text":"%l1i_tlb miss/l1i_miss:"}}
