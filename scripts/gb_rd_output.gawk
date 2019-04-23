@@ -13,25 +13,92 @@
 
 function rd_ofile(infl, sngl, mlti)
 {
+   nm_prev = "aaa";
+   gb_ver = 4;
    tfl = infl;
    nms_idx = 0;
    while ((getline line < tfl) > 0) {
+	ck_ver = index(line, "Geekbench 2.4.2");
+	if (ck_ver == 0) {
+		gb_ver = 2;
+	}
 	if (line == "<th class='name'>Single-Core Score</th>") {
 		area = sngl;
 	}
 	if (line == "<th class='name'>Multi-Core Score</th>") {
 		area = mlti;
 	}
-	if (line == "<td class='name'>") {
+	if (line == "<span class='description'>single-core scalar</span>") {
+		area = "both";
+		#printf("ln= %s %s\n", area, nm);
+	}
+	if (line == "<span class='description'>multi-core scalar</span>") {
+		area = "both";
+		#printf("ln= %s %s\n", area, nm);
+	}
+#<td class='name'>
+#Blowfish
+#<br>
+#<span class='description'>single-core scalar</span>
+#</td>
+#<td class='score'>
+#675
+#<br>
+#<span class='description'>29.7 MB/sec</span>
+
+	ck_td = index(line, "</td>");
+	if (line == "<td class='name'>" && ck_td == 0) {
    		getline line < tfl;
 		nm = line;
+		if (nm != nm_prev) {
+			gb_str = "";
+			gb_scr = "";
+		}
+		nm_prev = nm;
 		#printf("ln= %s %s\n", area, nm);
 	}
 	if (line == "<td class='score'>") {
+		#printf("got scr: %s\n", line);
    		getline line < tfl;
-		if (line == "<span class='description'></span>") {
-   			getline line < tfl;
+		if (gb_ver == 2) {
 			score = line;
+			if (gb_scr != "") {
+				gb_scr = gb_scr " " score;
+			} else {
+				gb_scr = score;
+			}
+   			getline line < tfl;
+		}
+		if (line == "<br>") {
+   			getline line < tfl;
+		}
+		bspan = "<span class='description'>";
+		espan = "</span>";
+		bth_span = bspan "" espan;
+		ck_bspan = index(line, bspan);
+		ck_espan = index(line, espan);
+		if (ck_bspan > 0 && ck_espan > 0 && line != bth_span) {
+			beg = index(line, ">");
+			end = index(line, espan);
+			str = substr(line, beg+1, end-beg-1);
+			if (gb_str != "") {
+				gb_str = gb_str " " str;
+			} else {
+				gb_str = str;
+			}
+   			#printf("spn %s\n", str);
+			nms_idx++;
+			nms[nms_idx][1] = area;
+			nms[nms_idx][2] = nm;
+			nms[nms_idx][3] = gb_scr;
+			nms[nms_idx][4] = gb_str;
+			nms_idx_arr[area " " nm] = nms_idx;
+			printf("%s %s, %s, %s\n", area, nm, gb_scr, gb_str);
+		} else if (line == bth_span) {
+   			getline line < tfl;
+			if (gb_ver != 2) {
+				score = line;
+			}
    			getline line < tfl;
 			if (line == "<br>") {
    			getline line < tfl;
@@ -90,7 +157,14 @@ BEGIN {
  area = "setup";
  web_pg = "";
  ts_1st = 0;
+ gb_ver=4;
+ #rd_ofile("/tmp/gb.html", sngl_str, mlti_str);
+ #exit(1);
 
+}
+/Geekbench 2.4.2/ {
+ gb_ver=2;
+ sngl_str = "Integer";
 }
 {
 	a="date +%s.%N";
@@ -104,6 +178,9 @@ BEGIN {
 		ck_area = index($0, sngl_str);
 		if (ck_area > 0) {
 			area = sngl_str;
+			if (gb_ver == 2) {
+				area = "both";
+			}
 		}
 	} else if (area == sngl_str) {
 		ck_area = index($0, mlti_str);
@@ -115,6 +192,10 @@ BEGIN {
 		if (ck_area > 0) {
 			area = "post";
 		}
+	}
+	if (gb_ver == 2 && web_pg == "" && index($0, "http://browser.primatelabs.com/") > 0) {
+		web_pg = $1;
+		printf("web_pg= %s\n", web_pg);
 	}
 	if (area == "post" && web_pg == "" && index($0, "http") > 0) {
 		web_pg = $1;
