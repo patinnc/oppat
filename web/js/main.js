@@ -7694,7 +7694,25 @@ function parse_svg()
 				}
 				if (jj == 0) {
 					ux = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.x;
+					if (ux < 0) {
+						if (typeof g_cpu_diagram_flds.text_defaults.same_x != 'undefined' &&
+							ux == g_cpu_diagram_flds.text_defaults.same_x) {
+							ux = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x;
+						}
+					}
 					uy = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.y;
+					if (uy < 0) {
+						if (typeof g_cpu_diagram_flds.text_defaults.row_m1 != 'undefined' &&
+							uy == g_cpu_diagram_flds.text_defaults.row_m1) {
+							uy = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y  - (1.1 * nfont_sz);
+						}
+					}
+					if (uy < 0) {
+						if (typeof g_cpu_diagram_flds.text_defaults.row_p1 != 'undefined' &&
+							uy == g_cpu_diagram_flds.text_defaults.row_p1) {
+							uy = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y  + (1.1 * nfont_sz);
+						}
+					}
 					cp_str = g_cpu_diagram_flds.cpu_diagram_fields[j].tfld.text;
 				} else {
 					let pfx = "";
