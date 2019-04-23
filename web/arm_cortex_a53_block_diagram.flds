@@ -4,7 +4,7 @@
 "cpu_diagram_hdr": {"max_x":1147.757,"max_y":1326.003},
 "cpu_diagram_copyright": {"text":"(c) 2019-2019 WikiChip.org, used with permission", "SVG_URL":"https://en.wikichip.org/w/images/c/c7/arm_cortex_a53_diagram.svg", "website":"https://WikiChip.org"}
 
-,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"top"}
+,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"top", "same_x":-1, "row_m1":-1, "row_p1":-2}
 ,"cpu_diagram_fields":[
   {"fld":{"x":521,  "y":544}, "chart":"__TEXT_BLOCK__"}
 , {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
@@ -24,31 +24,35 @@
 , {"fld":{"x":10,  "y":282},  "chart":"OTHER_INTERLOCK_STALLS_CHART",   "pfx":"%be_stalled: other_interlock: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":520}, "grf_def":{"typ":"pie", "nm":"L2_data_typ_access", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"hdr": "%other access ", "x":-1, "y":-1, "tot_chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART"}}}
 
-, {"fld":{"x":356,"y":187}, "chart":"ICACHE_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":356,"y":175,"text":"iCacheBytes/cycle:"}}
-, {"fld":{"x":700,"y":164}, "chart":"ITLB_MISS_PER_ICACHE_MISS_CHART", "rng":{"green": 1, "yellow":10}, "tfld":{ "x":700,"y":150,"text":"%l1i_tlb miss/l1i_miss:"}}
-, {"fld":{"x":700,"y":194}, "chart":"IUTLB_DEP_STALLS_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":700,"y":180,"text":"%iutlb stalls:"}}
-, {"fld":{"x":444,"y":314}, "chart":"OTHER_IQ_DEP_STALL_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":444,"y":300,"text":"%L1i_other stalls:"}}
-, {"fld":{"x":417,"y":794}, "chart":"CPI_CHART", "rng":{"green": 2.0, "yellow":5.0}, "tfld":{ "x":417,"y":780,"text":"cycles/instruction:"}}
-, {"fld":{"x":417,"y":824}, "chart":"IPC_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.2}, "tfld":{ "x":417,"y":810,"text":"instructions/cycle:"}}
-, {"fld":{"x":700,"y":314}, "chart":"BR_MIS_PRED_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":700,"y":300,"text":"%br_mis_pred:"}}
-, {"fld":{"x":1000,"y":393}, "chart":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":1000,"y":380,"text":"iCacheMissBytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
-, {"fld":{"x":1000,"y":425}, "chart":"ICACHE_MISS_STALLS_CHART", "rng":{"green": 10, "yellow":20}, "tfld":{ "x":1000,"y":410,"text":"%iCacheMissStalled/cycle:"}}
-, {"fld":{"x":1047,"y":954}, "chart":"BUS_ACCESS_BYTES_PER_CYCLE_CHART", "rng":{"green": 1, "yellow":2}, "tfld":{ "x":1047,"y":940,"text":"BusBytes/cycle:"}}
-, {"fld":{"x":1047,"y":985}, "chart":"BUS_ACCESS_GBYTES_PER_SEC_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":1047,"y":970,"text":"BusGB/sec:"}}
-, {"fld":{"x":1047,"y":1012}, "chart":"L2_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":1047,"y":1000,"text":"L2missGB/sec:"}}
-, {"fld":{"x":1000,"y":1068}, "chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":1000,"y":1055,"text":"L2accessBytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
-, {"fld":{"x":1000,"y":1104}, "chart":"L2_ACCESS_GBYTE_PER_SEC_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":1000,"y":1090,"text":"L2accessGB/sec:"}}
-, {"fld":{"x":1000,"y":1134}, "chart":"DCACHE_MISS_PER_CYCLE_CHART", "rng":{"green": 1.00, "yellow":2.0}, "tfld":{ "x":1000,"y":1120,"text":"L1d_miss/cycle:"}}
-, {"fld":{"x":1000,"y":1164}, "chart":"DCACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":1000,"y":1150,"text":"L1d_miss bytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
-, {"fld":{"x":1000,"y":1204}, "chart":"L1D_CACHE_WB_BYTES_PER_CYCLE_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":1000,"y":1190,"text":"L1d_cache_wb bytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
-, {"fld":{"x":1000,"y":1234}, "chart":"PREF_BYTES_PER_CYCLE_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":1000,"y":1220,"text":"prefetch bytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
-, {"fld":{"x":1000,"y":1264}, "chart":"DCACHE_MISS_RATIO_PCT_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":1000,"y":1250,"text":"%dcache miss:"}}
-, {"fld":{"x":605,"y":1153}, "chart":"STALL_SB_FULL_PER_CYCLE_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":605,"y":1140,"text":"%stalled_store_buf:"}}
-, {"fld":{"x":25,"y":986}, "chart":"LD_DEP_STALLS_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":25,"y":972,"text":"%wr_stage_stalled_by_loads:"}}
-, {"fld":{"x":25,"y":1016}, "chart":"ST_DEP_STALL_PER_CYCLE_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":25,"y":1002,"text":"%wr_stage_stalled_by_stores:"}}
-, {"fld":{"x":485,"y":940}, "chart":"AGU_DEP_STALLS_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":485,"y":926,"text":"%agu_stalled:"}}
-, {"fld":{"x":124,  "y":940},  "chart":"SIMD_DEP_STALLS_CHART", "rng":{"green": 1.00, "yellow":5.0}, "tfld":{ "x":124,"y":926,"text":"%simd_stalled:"}}
-, {"fld":{"x":672,  "y":940},  "chart":"OTHER_INTERLOCK_STALLS_CHART", "rng":{"green": 1.00, "yellow":5.0}, "tfld":{ "x":672,"y":926,"text":"%alu_int_stalled:"}}
-, {"fld":{"x":780,"y":1160}, "chart":"DCACHE_TLB_MISS_PER_DCACHE_MISS_CHART", "rng":{"green": 1.0, "yellow":10.0}, "tfld":{ "x":780,"y":1146,"text":"%dtbl_miss/l1d_miss:"}}
-, {"fld":{"x":445,"y":750}, "chart":"PRE_DECODE_ERR_PER_CYCLE_CHART", "rng":{"green": 0.05, "yellow":0.1}, "tfld":{ "x":445,"y":737,"text":"%predecode_err:"}}
+, {"fld":{"x":356,"y":187}, "chart":"ICACHE_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":-1,"y":-1,"text":"iCacheBytes/cycle:"}}
+, {"fld":{"x":700,"y":164}, "chart":"ITLB_MISS_PER_ICACHE_MISS_CHART", "rng":{"green": 1, "yellow":10}, "tfld":{ "x":-1,"y":-1,"text":"%l1i_tlb miss/l1i_miss:"}}
+, {"fld":{"x":700,"y":194}, "chart":"IUTLB_DEP_STALLS_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":-1,"y":-1,"text":"%iutlb stalls:"}}
+, {"fld":{"x":444,"y":314}, "chart":"OTHER_IQ_DEP_STALL_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":-1,"y":-1,"text":"%L1i_other stalls:"}}
+, {"fld":{"x":417,"y":794}, "chart":"CPI_CHART", "rng":{"green": 2.0, "yellow":5.0}, "tfld":{ "x":-1,"y":-1,"text":"cycles/instruction:"}}
+, {"fld":{"x":417,"y":824}, "chart":"IPC_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.2}, "tfld":{ "x":-1,"y":-1,"text":"instructions/cycle:"}}
+, {"fld":{"x":700,"y":314}, "chart":"BR_MIS_PRED_PCT_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":-1,"y":-1,"text":"%br_mis_pred:"}}
+, {"fld":{"x":1000,"y":393}, "chart":"ICACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":-1,"y":-1,"text":"iCacheMissBytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
+, {"fld":{"x":1000,"y":425}, "chart":"ICACHE_MISS_STALLS_CHART", "rng":{"green": 10, "yellow":20}, "tfld":{ "x":-1,"y":-1,"text":"%iCacheMissStalled/cycle:"}}
+, {"fld":{"x":1047,"y":954}, "chart":"BUS_ACCESS_BYTES_PER_CYCLE_CHART", "rng":{"green": 1, "yellow":2}, "tfld":{ "x":-1,"y":-1,"text":"BusBytes/cycle:"}}
+, {"fld":{"x":1047,"y":985}, "chart":"BUS_ACCESS_GBYTES_PER_SEC_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":-1,"y":-1,"text":"BusGB/sec:"}}
+
+, {"fld":{"x":1047,"y":1014}, "chart":"L2_MISS_GBYTES_PER_SEC_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":-1,"y":-1,"text":"L2missGB/sec:"}}
+, {"fld":{"x":1047,"y":1041}, "chart":"L2D_CACHE_WB_GBYTES_PER_SEC_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":-1,"y":-1,"text":"L2writebackGB/sec:"}}
+
+, {"fld":{"x":1000,"y":1073}, "chart":"L2_ACCESS_GBYTE_PER_SEC_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":-1,"y":-1,"text":"L2accessGB/sec:"}}
+, {"fld":{"x":1000,"y":1104}, "chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART", "rng":{"green": 0.25, "yellow":0.5}, "tfld":{ "x":-1,"y":-1,"text":"L2accessBytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
+
+, {"fld":{"x":1000,"y":1134}, "chart":"DCACHE_MISS_PER_CYCLE_CHART", "rng":{"green": 1.00, "yellow":2.0}, "tfld":{ "x":-1,"y":-1,"text":"L1d_miss/cycle:"}}
+, {"fld":{"x":1000,"y":1164}, "chart":"DCACHE_MISS_BYTES_PER_CYCLE_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":-1,"y":-1,"text":"L1d_miss bytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
+, {"fld":{"x":1000,"y":1204}, "chart":"L1D_CACHE_WB_BYTES_PER_CYCLE_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":-1,"y":-1,"text":"L1d_cache_wb bytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
+, {"fld":{"x":1000,"y":1234}, "chart":"PREF_BYTES_PER_CYCLE_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":-1,"y":-1,"text":"prefetch bytes/cycle:"}, "grf":{"nm":"L2_data_typ_access"}}
+, {"fld":{"x":1000,"y":1264}, "chart":"DCACHE_MISS_RATIO_PCT_CHART", "rng":{"green": 4.00, "yellow":8.0}, "tfld":{ "x":-1,"y":-1,"text":"%dcache miss:"}}
+, {"fld":{"x":605,"y":1153}, "chart":"STALL_SB_FULL_PER_CYCLE_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":-1,"y":1140,"text":"%stalled_store_buf:"}}
+, {"fld":{"x":25,"y":986}, "chart":"LD_DEP_STALLS_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":-1,"y":972,"text":"%wr_stage_stalled_by_loads:"}}
+, {"fld":{"x":25,"y":1016}, "chart":"ST_DEP_STALL_PER_CYCLE_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":-1,"y":1002,"text":"%wr_stage_stalled_by_stores:"}}
+, {"fld":{"x":485,"y":940}, "chart":"AGU_DEP_STALLS_CHART", "rng":{"green": 10.00, "yellow":20.0}, "tfld":{ "x":-1,"y":926,"text":"%agu_stalled:"}}
+, {"fld":{"x":124,  "y":940},  "chart":"SIMD_DEP_STALLS_CHART", "rng":{"green": 1.00, "yellow":5.0}, "tfld":{ "x":-1,"y":926,"text":"%simd_stalled:"}}
+, {"fld":{"x":672,  "y":940},  "chart":"OTHER_INTERLOCK_STALLS_CHART", "rng":{"green": 1.00, "yellow":5.0}, "tfld":{ "x":-1,"y":926,"text":"%alu_int_stalled:"}}
+, {"fld":{"x":780,"y":1160}, "chart":"DCACHE_TLB_MISS_PER_DCACHE_MISS_CHART", "rng":{"green": 1.0, "yellow":10.0}, "tfld":{ "x":-1,"y":1146,"text":"%dtbl_miss/l1d_miss:"}}
+, {"fld":{"x":445,"y":750}, "chart":"PRE_DECODE_ERR_PER_CYCLE_CHART", "rng":{"green": 0.05, "yellow":0.1}, "tfld":{ "x":-1,"y":737,"text":"%predecode_err:"}}
 ]}
