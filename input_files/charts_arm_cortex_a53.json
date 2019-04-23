@@ -600,6 +600,37 @@
   ,{"event":
 	{
 	"comment":"GRP2=l1d_cache,l1d_cache_refill,l1d_tlb_refill,l2d_cache_refill,agu_dep_stall,ld_dep_stall",
+	"evt_name": "l2d_cache_refill_bytes_per_cycle", "evt_type": "ftrace", "arch":"ARM",
+	"evt_derived":{
+		"evts_tags":[{"evt":"l2d_cache_refill", "tag":"num"}, {"evt":"cpu-clock", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"l2d_cache_refill_GB/sec (64*l2d_cache_refill/sec) by CPU",  "var_name": "val",
+			"comments":"added to a53 flds",
+			"by_var": "area", "chart_tag":"L2_MISS_GBYTES_PER_SEC_CHART", "chart_type":"line", "use_chart":"d",
+			"tot_line_options":{"xform":"map_cpu_2_socket", "yval_fmt":"%.1f", "yvar_fmt":"_tot_",
+			"scope":["sum_all","use_cpu0"],
+			"desc":"Based on 64*l2d_cache_refill GB/sec. Max possible BW seems to be about 2 GB/sec."
+			},
+			"y_label":"l2d_cache_refill GB/sec", "tot_line":"__total__"}
+		]
+	}
+  }
+  ,{"event":
+	{
+	"comment":"GRP2=l1d_cache,l1d_cache_refill,l1d_tlb_refill,l2d_cache_refill,agu_dep_stall,ld_dep_stall",
 	"evt_name": "l1d_tlb_refill_per_cycle", "evt_type": "ftrace", "arch":"ARM",
 	"evt_derived":{
 		"evts_tags":[{"evt":"l1d_tlb_refill", "tag":"num"}, {"evt":"CYCLES_EVENT", "tag":"den"}],
@@ -770,6 +801,36 @@
 			"desc":"Based on 64*l2d_cache_wb/cycles"
 			},
 			"y_label":"l2d_cache_wb bytes/cycle", "tot_line":"__total__"}
+		]
+	}
+  }
+  ,{"event":
+	{
+	"comment":"GRP3=ld_retired,st_retired,l2d_cache_wb,l1d_cache_wb,st_dep_stall,stall_sb_full",
+	"evt_name": "l2d_cache_wb_GB_per_sec", "evt_type": "ftrace", "arch":"ARM",
+	"evt_derived":{
+		"evts_tags":[{"evt":"l2d_cache_wb", "tag":"num"}, {"evt":"cpu-clock", "tag":"den"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}, {"oper":"drop_if_gt", "val":120}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":64.0}]},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"l2d_cache_wb GB/sec by CPU",  "var_name": "val",
+			"by_var": "area", "chart_tag":"L2D_CACHE_WB_GBYTES_PER_SEC_CHART", "chart_type":"line", "use_chart":"d",
+			"tot_line_options":{"xform":"map_cpu_2_socket", "yval_fmt":"%.1f", "yvar_fmt":"_tot_",
+			"scope":["sum_all","use_cpu0"],
+			"desc":"Based on 64*l2d_cache_wb/sec"
+			},
+			"y_label":"l2d_cache_wb GB/sec", "tot_line":"__total__"}
 		]
 	}
   }
