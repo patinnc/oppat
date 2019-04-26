@@ -17,6 +17,7 @@ function rd_ofile(infl, sngl, mlti)
    gb_ver = 4;
    tfl = infl;
    nms_idx = 0;
+   area2 = "";
    while ((getline line < tfl) > 0) {
 	ck_ver = index(line, "Geekbench 2.4.2");
 	if (ck_ver == 0) {
@@ -30,10 +31,12 @@ function rd_ofile(infl, sngl, mlti)
 	}
 	if (line == "<span class='description'>single-core scalar</span>") {
 		area = "both";
+		area2 = "single:";
 		#printf("ln= %s %s\n", area, nm);
 	}
 	if (line == "<span class='description'>multi-core scalar</span>") {
 		area = "both";
+		area2 = "multi:";
 		#printf("ln= %s %s\n", area, nm);
 	}
 #<td class='name'>
@@ -63,9 +66,9 @@ function rd_ofile(infl, sngl, mlti)
 		if (gb_ver == 2) {
 			score = line;
 			if (gb_scr != "") {
-				gb_scr = gb_scr " " score;
+				gb_scr = gb_scr " " area2 "" score;
 			} else {
-				gb_scr = score;
+				gb_scr = area2 "" score;
 			}
    			getline line < tfl;
 		}
@@ -82,9 +85,9 @@ function rd_ofile(infl, sngl, mlti)
 			end = index(line, espan);
 			str = substr(line, beg+1, end-beg-1);
 			if (gb_str != "") {
-				gb_str = gb_str " " str;
+				gb_str = gb_str " " area2 "" str;
 			} else {
-				gb_str = str;
+				gb_str = area2 "" str;
 			}
    			#printf("spn %s\n", str);
 			nms_idx++;
@@ -160,6 +163,7 @@ BEGIN {
  gb_ver=4;
  #rd_ofile("/tmp/gb.html", sngl_str, mlti_str);
  #exit(1);
+ did_taskset = 0;
 
 }
 /Geekbench 2.4.2/ {
@@ -193,6 +197,9 @@ BEGIN {
 			area = "post";
 		}
 	}
+	if (gb_ver == 2 && index($0, "Uploading") == 1) {
+		area = "post";
+	}
 	if (gb_ver == 2 && web_pg == "" && index($0, "http://browser.primatelabs.com/") > 0) {
 		web_pg = $1;
 		printf("web_pg= %s\n", web_pg);
@@ -211,6 +218,18 @@ BEGIN {
 		area_bm = area " " bm;
 		tm_idx_arr[area_bm] = lns_out;
 		tm_arr[++tm_idx] = area_bm;
+	}
+	if (gb_ver == 2 && area != "setup" && $1 == "Running" && did_taskset == 0) {
+		cmd = "ps -ef| grep geekbench | grep -v grep |grep geekbench_arm_32";
+ 		cmd | getline ln;
+		close(cmd);
+		split(ln, arr);
+		gb_pid = arr[2];
+		printf("ps geekebench pid= %s: line= '%s", gb_pid, ln);
+		cmd = "taskset -p 0x1 " gb_pid;
+		printf("going to do taskset cmd= %s\n", cmd);
+		system(cmd);
+ 		did_taskset = 1;
 	}
 	printf("%.9f %s %s\n", x[lns_out], b[lns_out], y[lns_out]);
 	if (1==20 && got_multi > 0) {
