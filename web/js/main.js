@@ -4969,7 +4969,7 @@ async function start_charts() {
 		// so both --phase0 and --phase1 entered
 		[xbeg, xend] = get_by_phase_beg_end(ibeg);
 
-		phobj.lp_max = 1+iend-ibeg; // need to do + 1 since end condition is lp < mx
+		phobj.lp_max = 2+iend-ibeg; // need to do + 1 since end condition is lp < mx
 		divisions = 100;
 		let try_divi = get_cpu_busy_divisions();
 		if (divisions < try_divi) {
@@ -7272,6 +7272,9 @@ function parse_svg()
 				typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf.nm == 'undefined' ||
 				g_cpu_diagram_flds.cpu_diagram_fields[j].grf.nm != grf_name) {
 					continue;
+			}
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr == 'undefined') {
+				continue;
 			}
 			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
 			let pfx = null;
