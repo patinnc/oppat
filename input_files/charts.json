@@ -118,7 +118,7 @@
 		],
 	"charts": [
 		{"category":"PERF", "title":"Markers",  "var_name":"marker",
-			"chart_tag":"MARKERS", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"n"},
+			"chart_tag":"MARKERS", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"y"},
 			"use_chart":"y", "y_label":"markers"}
 		]
 	}
@@ -1761,7 +1761,7 @@
 		],
 	"charts": [
 		{"category":"PERF", "title":"Markers",  "var_name":"marker",
-			"chart_tag":"MARKERS", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"n"},
+			"chart_tag":"MARKERS", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"y"},
 			"use_chart":"y", "y_label":"markers"}
 		]
 	}
