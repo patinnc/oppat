@@ -309,7 +309,7 @@ echo "   {\"bin_file\":\"prf_trace2.data\", \"txt_file\":\"prf_trace2.txt\", \"t
 echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"}, " >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"\", \"txt_file\":\"gb_phase.tsv\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"gb_phase.lua\", \"lua_rtn\":\"gb_phase\", \"options\":\"USE_AS_PHASE,USE_EXTRA_STR\"} " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"\", \"txt_file\":\"gb_phase.tsv\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"gb_phase.lua\", \"lua_rtn\":\"gb_phase\", \"options\":\"USE_AS_PHASE,FIND_MULTI_PHASE,USE_EXTRA_STR\"} " >> $ODIR/file_list.json
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
