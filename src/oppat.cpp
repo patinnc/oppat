@@ -5137,6 +5137,205 @@ static int phase_parse_text(std::string options, prf_obj_str &prf_obj, uint32_t 
 }
 #endif
 
+struct tot_line_str {
+	double ddiv, ts0, full_usage, xmin, xmax;
+	int nr_cpus;
+	uint32_t file_tag_idx, evt_tbl_idx, evt_idx, chrt;
+	std::vector <double> line;
+};
+
+static std::vector <tot_line_str> tot_line;
+
+static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_t file_list_idx,
+		uint32_t evt_tbl_idx, uint32_t evt_idx,
+		uint32_t chrt, std::vector <evt_str> &event_table, int verbose)
+{
+	//abcd
+	//printf("ch_lines.size()= %d at %s %d\n", (uint32_t)ch_lines.size(), __FILE__, __LINE__);
+	std::string json;
+	std::string file_tag = file_list[file_list_idx].file_tag;
+	uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
+	uint32_t phase_fl_idx = UINT32_M1;
+	bool got_USE_AS_PHASE = false;
+	bool got_FIND_MULTI_PHASE = false;
+	uint32_t ufile_tag_idx = UINT32_M1;
+	std::string fl_options;
+	for (uint32_t i=0; i < file_list.size(); i++) {
+		ufile_tag_idx = file_tag_hash[file_list[i].file_tag] - 1;
+		printf("file_tag[%d]= %s, uft_idx= %d at %s %d\n", i, file_list[i].file_tag.c_str(), ufile_tag_idx, __FILE__, __LINE__);
+		if (ufile_tag_idx == file_tag_idx && file_list[i].options.find("USE_AS_PHASE") != std::string::npos) {
+			got_USE_AS_PHASE = true;
+			if (phase_vec.size() > 0 && phase_vec[0].file_tag_idx == UINT32_M1) {
+				for (uint32_t i=0; i < phase_vec.size(); i++) {
+					if (phase_vec[i].file_tag_idx == UINT32_M1) {
+						phase_vec[i].file_tag_idx = file_tag_idx;
+					}
+				}
+			}
+			if (file_list[i].options.find("FIND_MULTI_PHASE") != std::string::npos) {
+				got_FIND_MULTI_PHASE = true;
+			}
+			fl_options = file_list[i].options;
+			break;
+		}
+	}
+	printf("ck_phase_single_multi: got_USE_AS_PHASE= %d, got_FIND_MULTI_PHASE= %d, phase_vec.size()= %d options= %s at %s %d\n",
+		got_USE_AS_PHASE, got_FIND_MULTI_PHASE, (uint32_t)phase_vec.size(), fl_options.c_str(), __FILE__, __LINE__);
+	if (!got_FIND_MULTI_PHASE || phase_vec.size() == 0) {
+		return 0;
+	}
+	printf("ck_phase_single_multi: x_rng= %f, %f, y_rng= %f, %f\n",
+			ch_lines.range.x_range[0],
+			ch_lines.range.x_range[1],
+			ch_lines.range.y_range[0],
+			ch_lines.range.y_range[1]);
+	int nr_cpus = ch_lines.prf_obj->features_nr_cpus_online;
+	double full_usage = (double)nr_cpus * 100.0;
+	int divs = 1+ (ch_lines.range.x_range[1] - ch_lines.range.x_range[0]) * 1000.0;
+	double ddiv = (ch_lines.range.x_range[1] - ch_lines.range.x_range[0]) / (double)(divs);
+
+	if (tot_line.size() <= file_tag_idx) {
+		tot_line.resize(file_tag_idx+1);
+	}
+	tot_line[file_tag_idx].xmin = ch_lines.range.x_range[0];
+	tot_line[file_tag_idx].ts0  = ch_lines.range.ts0;
+	tot_line[file_tag_idx].xmax = ch_lines.range.x_range[1];
+	tot_line[file_tag_idx].ddiv = ddiv;
+	tot_line[file_tag_idx].line.resize(divs);
+	tot_line[file_tag_idx].file_tag_idx = file_tag_idx;
+	tot_line[file_tag_idx].evt_tbl_idx = evt_tbl_idx;
+	tot_line[file_tag_idx].evt_idx = evt_idx;
+	tot_line[file_tag_idx].chrt = chrt;
+	tot_line[file_tag_idx].full_usage = full_usage;
+	tot_line[file_tag_idx].nr_cpus = nr_cpus;
+	printf("divs= %d at %s %d\n", divs, __FILE__, __LINE__);
+	fflush(NULL);
+	
+	//cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], comm, pid, tid) - 1;
+	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
+		//if (i > 0) { json += ", "; }
+		// order of ival array values must agree with IVAL_* variables in main.js
+		uint32_t cpt_idx = ch_lines.line[i].cpt_idx;
+		if (cpt_idx >= comm_pid_tid_vec[file_tag_idx].size()) {
+			printf("got cpt_idx = %d, sz= %d at %s %d\n",
+					cpt_idx, (uint32_t)comm_pid_tid_vec[file_tag_idx].size(), __FILE__, __LINE__);
+			continue;
+			exit(1);
+		}
+		uint32_t pid = comm_pid_tid_vec[file_tag_idx][cpt_idx].pid;
+		uint32_t tid = comm_pid_tid_vec[file_tag_idx][cpt_idx].tid;
+		if (pid == 0 && tid == 0) {
+			//printf("skipping idle[%d]\n", i);
+			continue;
+		}
+		//printf("ln[%d] comm= %s, pid= %d tid= %d\n", i, comm_pid_tid_vec[file_tag_idx][cpt_idx].comm.c_str(), pid, tid);
+		double tx0 = ch_lines.line[i].x[0];
+		double tx1 = ch_lines.line[i].x[1];
+		uint32_t j = (tx0 - ch_lines.range.x_range[0])/ddiv;
+		uint32_t jmx = 2 + (tx1 - tx0)/ddiv;
+		double xdiff = ch_lines.range.x_range[1] - ch_lines.range.x_range[0];
+		double relx0 = tx0 - ch_lines.range.x_range[0];
+		double relx1 = tx1 - ch_lines.range.x_range[0];
+		relx0 /= xdiff;
+		relx1 /= xdiff;
+		double nrx0 = (double)divs * relx0;
+		double nrx1 = (double)divs * relx1;
+		double xbeg = floor(nrx0);
+		double xend = ceil(nrx1);
+		uint32_t ibeg = (int32_t)(xbeg);
+		uint32_t iend = (int32_t)(xend);
+		if (ibeg >= tot_line[file_tag_idx].line.size()) {
+			printf("hmmm.... ibeg= %d divs= %d at %s %d\n", ibeg, divs, __FILE__, __LINE__);
+			exit(1);
+		}
+		if (iend >= tot_line[file_tag_idx].line.size()) {
+			iend = tot_line[file_tag_idx].line.size()-1;
+		}
+		double ck_tot = 0;
+		for (uint32_t j=ibeg; j < iend; j++) {
+			double xcur0, xcur1;
+			if (j == ibeg) {
+				xcur0 = nrx0/(double)divs;
+			} else {
+				xcur0 = (double)j/(double)divs;
+			}
+			if ((j+1) == iend) {
+				xcur1 = nrx1/(double)divs;
+			} else {
+				xcur1 = (double)(j+1)/(double)divs;
+			}
+			ck_tot += (xcur1 - xcur0) * xdiff;
+			tot_line[file_tag_idx].line[j] += ch_lines.line[i].y[0] * (xcur1 - xcur0) * (double)divs;
+		}
+	}
+	double ck_usage = 100.0;
+	if (nr_cpus >= 2) {
+		ck_usage = 200.0;
+	}
+	if (nr_cpus >= 3) {
+		ck_usage = 300.0;
+	}
+
+	std::vector <double> multi_beg;
+	multi_beg.resize(phase_vec.size());
+
+	for (uint32_t i=0; i < phase_vec.size(); i++) {
+		double ph_end = phase_vec[i].ts_abs;
+		double ph_beg = ph_end - phase_vec[i].dura;
+		double tbeg = ph_beg - ch_lines.range.ts0;
+		double tend = ph_end - ch_lines.range.ts0;
+		multi_beg[i] = -1.0;
+		uint32_t ibeg = 1+ (tbeg / ddiv);
+		uint32_t iend = tend / ddiv;
+		uint32_t imulti= UINT32_M1;
+		//if (tot_line[file_tag_idx].line[ibeg] <= 120.0) {
+			printf("phase[%d] beg single tm= %.3f usage[%d]= %.3f\n", i, (double)(ibeg)*ddiv, ibeg, tot_line[file_tag_idx].line[ibeg]);
+		//}
+		for (uint32_t j=ibeg; j < iend; j++) {
+			if ((tot_line[file_tag_idx].line[j]+1) >= ck_usage) {
+				printf("phase[%d] beg multi  tm_diff= %.3f, tm_left= %.3f usage[%d]= %.3f\n",
+					i, (double)(j-ibeg)*ddiv, tend-((double)(j)*ddiv), j, tot_line[file_tag_idx].line[j]);
+				multi_beg[i] = (double)(j-ibeg)*ddiv; // store offset from beg of phase
+				break;
+			}
+		}
+	}
+	printf("phase_vec.sz beg= %d at %s %d\n", (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
+	int32_t pv_sz_m1 = phase_vec.size()-1;
+	int32_t mrkr_sz_m1 = marker_vec.size()-1;
+	for (int32_t i=pv_sz_m1; i >= 0; i--) {
+		if (multi_beg[i] != -1.0) {
+			// copy cur phase after current entry
+			// end tm of new entry is the same
+			// dur tm of new entry needs to be reduced by multi_beg[i]
+			// end tm of old entry is the old end tm - multi_beg[i]
+			// dur tm of old entry needs to be set to multi_beg[i]
+			phase_vec.insert(phase_vec.begin()+i+1, phase_vec[i]);
+			printf("insert bef i+1= %d, phase_vec.sz beg= %d at %s %d\n", i+1, (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
+			phase_vec[i+1].dura -= multi_beg[i];
+			phase_vec[i+1].text = "multi-core: " + phase_vec[i+1].text;
+			phase_vec[i].ts_abs -= phase_vec[i].dura - multi_beg[i];
+			phase_vec[i].dura    = multi_beg[i];
+			if (mrkr_sz_m1 == pv_sz_m1) {
+				marker_vec.insert(marker_vec.begin()+i+1, marker_vec[i]);
+				marker_vec[i+1].dura -= multi_beg[i];
+				marker_vec[i+1].text = "multi-core: " + marker_vec[i+1].text;
+				marker_vec[i].ts_abs -= marker_vec[i].dura - multi_beg[i];
+				marker_vec[i].dura    = multi_beg[i];
+			}
+		}
+	}
+	printf("phase_vec.sz aft= %d at %s %d\n", (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
+	for (uint32_t i=0; i < phase_vec.size(); i++) {
+		double ph_end = phase_vec[i].ts_abs;
+		double ph_beg = ph_end - phase_vec[i].dura;
+		printf("phase[%d] beg= %.3f end= %.3f text= %s\n", i, ph_beg, ph_end, phase_vec[i].text.c_str());
+	}
+	printf("ck_phase_single_multi: finished at %s %d\n", __FILE__, __LINE__);
+	fflush(NULL);
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	std::vector <std::vector <evt_str>> event_table, evt_tbl2;
@@ -5196,12 +5395,14 @@ int main(int argc, char **argv)
 	int thrd_status = start_web_server_threads(q_from_srvr_to_clnt, q_bin_from_srvr_to_clnt, q_from_clnt_to_srvr,
 			thrds_started, verbose);
 
+	std::vector <file_list_str> file_list;
+	std::vector <int> grp_list;
+
 	if (options.load_replay_file) {
 		do_load_replay(verbose);
 		//goto load_replay_file;
 	} else {
 
-	std::vector <file_list_str> file_list;
 
 	std::string data_files = "input_data_files.json";
 	std::string chart_file = "charts.json";
@@ -5325,7 +5526,6 @@ int main(int argc, char **argv)
 	std::vector <prf_obj_str> prf_obj;
 	int grps = 0;
 	int prv_grp = -2, grp_min, grp_max;
-	std::vector <int> grp_list;
 	printf("file_list.sz= %d at %s %d\n", (int)file_list.size(), __FILE__, __LINE__);
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		if (i==0) {
@@ -5408,6 +5608,7 @@ int main(int argc, char **argv)
 		}
 	}
 
+	//abcd
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		int v_tmp = options.verbose;
 		std::string file_tag = file_list[i].file_tag;
@@ -5663,6 +5864,11 @@ int main(int argc, char **argv)
 								grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
 						tt0 = dclock();
 						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
+						if (event_table[grp_list[g]][i].charts[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
+							//abcd
+							printf("got pct_busy_by_system chart at %s %d\n", __FILE__, __LINE__);
+							ck_phase_single_multi(file_list, k, grp_list[g], i, j, event_table[grp_list[g]], verbose);
+						}
 						tt1 = dclock();
 						if (rc == 0) {
 							this_chart_json = build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
@@ -5718,14 +5924,14 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-		for (uint32_t i=0; i < phase_vec.size(); i++) {
+		for (int32_t i=phase_vec.size()-1; i >= 0; i--) {
 			for (uint32_t j=0; j < options.phase_end.size(); j++) {
 				if (j == phase_vec[i].file_tag_idx) {
 					if (phase_vec[i].text.find(options.phase_end[j]) != std::string::npos) {
 						phase_vec[i].zoom_end = 1;
 						got_zoom_end = i;
 						printf("Got match on options.phase_end '%s' zoom_end= %d on phase text '%s' at %s %d\n",
-								options.phase_end[j].c_str(), phase_vec[i].zoom_to, phase_vec[i].text.c_str(), __FILE__, __LINE__);
+								options.phase_end[j].c_str(), phase_vec[i].zoom_end, phase_vec[i].text.c_str(), __FILE__, __LINE__);
 						break;
 					}
 				}
@@ -5914,6 +6120,7 @@ int main(int argc, char **argv)
 	}
 
 	}
+
 
 	ck_json(bin_map, "check for valid json in str_pool", __FILE__, __LINE__, options.verbose);
 	ck_json(chrts_cats, "check for valid json in chrts_cats", __FILE__, __LINE__, options.verbose);
