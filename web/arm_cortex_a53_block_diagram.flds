@@ -7,10 +7,11 @@
 ,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"top", "same_x":-1, "row_m1":-1, "row_p1":-2}
 ,"cpu_diagram_fields":[
   {"fld":{"x":521,  "y":544}, "chart":"__TEXT_BLOCK__"}
-, {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
+, {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: ", "follow_proc":1, "grf":{"typ_data":"internal", "nm":"core_util"}}
 , {"fld":{"x":10,  "y":90},  "chart":"FREQ_BY_CPU", "pfx":"cpu freq (GHz): "}
 , {"fld":{"x":10,  "y":104}, "chart":"IPC_CHART",   "pfx":"Instructions/cycle: "}
 , {"fld":{"x":10,  "y":118}, "chart":"CPI_CHART",   "pfx":"Cycles/instructions: "}
+, {"fld":{"x":555,  "y":340},  "grf_def":{"typ":"pie", "nm":"core_util", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true}}
 , {"fld":{"x":10,  "y":320},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":308}}}
 , {"fld":{"x":10,  "y":150},  "chart":"ICACHE_MISS_STALLS_CHART",       "pfx":"%fe_stalled: l1i_miss:     ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":164},  "chart":"IUTLB_DEP_STALLS_CHART",         "pfx":"%fe_stalled: l1i_tlb_miss: ", "grf":{"nm":"stalls"}}
