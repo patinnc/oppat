@@ -9,7 +9,8 @@
   {"fld":{"x":521,  "y":544}, "chart":"__TEXT_BLOCK__"}
 , {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: ", "follow_proc":1, "grf":{"typ_data":"internal", "nm":"core_util"}}
 , {"fld":{"x":10,  "y":90},  "chart":"FREQ_BY_CPU", "pfx":"cpu freq (GHz): "}
-, {"fld":{"x":10,  "y":104}, "chart":"IPC_CHART",   "pfx":"Instructions/cycle: "}
+, {"fld":{"x":20,  "y":660}, "grf_def":{"typ":"vbar", "nm":"IPC: 2 inst/cyc max", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":2.0}}}
+, {"fld":{"x":10,  "y":104}, "chart":"IPC_CHART",   "pfx":"Instructions/cycle: ", "grf":{"nm":"IPC: 2 inst/cyc max"}}
 , {"fld":{"x":10,  "y":118}, "chart":"CPI_CHART",   "pfx":"Cycles/instructions: "}
 , {"fld":{"x":555,  "y":340},  "grf_def":{"typ":"pie", "nm":"core_util", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true}}
 , {"fld":{"x":10,  "y":320},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":308}}}
