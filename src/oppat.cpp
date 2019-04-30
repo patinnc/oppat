@@ -222,6 +222,13 @@ get_opt_main (int argc, char **argv)
 		   "   If tms_to_step is not entered then number of intervals ('end time' - 'beg time')/step_sz.\n"
 		   "   Contrast this with --by_phase below.\n"
 		},
+		{"follow_proc",      required_argument,   0, 0, "follow process name\n"
+		   "   Arg to follow_proc is a process name. Enclose in quotes if contains spaces.\n"
+		   "   Use this to get a graph of the percent of time this process occupies each CPU.\n"
+		   "   for example '--follow_proc geekbench' will give you a chart showing the pct time geekbench is running on each cpu.\n"
+		   "   This is useful for benchmarks and phases. In particular with the cpu_digram, for the single threaded case,\n"
+		   "   to make sense of the 'per core' charts, you need to know if the benchmark stayed on 1 cpu or moved around..\n"
+		},
 		{"by_phase",      no_argument,   0, 0, "step by full phase instead of by time step."
 		   "   1st draw the whole of phase0, then the whole of the next phase, until you get to the end phase.\n"
 		   "   This is different that --ph_step_int which steps from phase0 to phase1 by a time step.\n"
@@ -444,6 +451,11 @@ get_opt_main (int argc, char **argv)
 			if (strcmp(long_options[option_index].name, "ph_step_int") == 0) {
 				options.ph_step_int.push_back(optarg);
 				printf ("option --ph_step_int %s\n", optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "follow_proc") == 0) {
+				options.follow_proc.push_back(optarg);
+				printf ("option --follow_proc %s\n", optarg);
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "by_phase") == 0) {
@@ -3234,6 +3246,16 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		printf("scope= '%s' at %s %d\n", s.c_str(), __FILE__, __LINE__);
 		json += s;
 	}
+	if (options.follow_proc.size() > 0) {
+		json += ", \"follow_proc\":[";
+		for (uint32_t i=0; i < options.follow_proc.size(); i++) {
+			if (i > 0) {
+				json += ", ";
+			}
+			json += "\"" + options.follow_proc[i] + "\"";
+		}
+		json += "]";
+	}
 	json += ", \"pixels_high\": "+ std::to_string(event_table[evt_idx].charts[chrt].pixels_high);
 	json += ", \"file_tag\": \"" + file_tag + "\"";
 	if (event_table[evt_idx].charts[chrt].marker_type.size() > 0) {
@@ -5117,7 +5139,6 @@ static int phase_parse_text(std::string options, prf_obj_str &prf_obj, uint32_t 
 			}
 		}
 	}
-//abcd
 	for (uint32_t i=0; i < prf_obj.lua_data.data_rows.size(); i++) {
 		marker_str ms;
 		ms.ts_abs = prf_obj.lua_data.data_rows[i][ts_idx].dval;
@@ -5142,6 +5163,9 @@ struct tot_line_str {
 	int nr_cpus;
 	uint32_t file_tag_idx, evt_tbl_idx, evt_idx, chrt;
 	std::vector <double> line;
+	std::vector <std::vector <double>> follow;
+	std::vector <std::vector <double>> cputm;
+	std::string follow_proc;
 };
 
 static std::vector <tot_line_str> tot_line;
@@ -5150,7 +5174,6 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 		uint32_t evt_tbl_idx, uint32_t evt_idx,
 		uint32_t chrt, std::vector <evt_str> &event_table, int verbose)
 {
-	//abcd
 	//printf("ch_lines.size()= %d at %s %d\n", (uint32_t)ch_lines.size(), __FILE__, __LINE__);
 	std::string json;
 	std::string file_tag = file_list[file_list_idx].file_tag;
@@ -5202,6 +5225,21 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	tot_line[file_tag_idx].xmax = ch_lines.range.x_range[1];
 	tot_line[file_tag_idx].ddiv = ddiv;
 	tot_line[file_tag_idx].line.resize(divs);
+	std::string follow;
+	std::vector <double> follow_cputime;
+	if (options.follow_proc.size() > file_tag_idx) {
+		follow = options.follow_proc[file_tag_idx];
+		tot_line[file_tag_idx].follow_proc = follow;
+		tot_line[file_tag_idx].follow.resize(nr_cpus);
+		follow_cputime.resize(nr_cpus);
+		for (int32_t i=0; i < nr_cpus; i++) {
+			tot_line[file_tag_idx].follow[i].resize(divs);
+		}
+	}
+	tot_line[file_tag_idx].cputm.resize(nr_cpus);
+	for (int32_t i=0; i < nr_cpus; i++) {
+		tot_line[file_tag_idx].cputm[i].resize(divs);
+	}
 	tot_line[file_tag_idx].file_tag_idx = file_tag_idx;
 	tot_line[file_tag_idx].evt_tbl_idx = evt_tbl_idx;
 	tot_line[file_tag_idx].evt_idx = evt_idx;
@@ -5212,13 +5250,21 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	fflush(NULL);
 	
 	//cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], comm, pid, tid) - 1;
+	//abcd
+	int fllw_comm=0, fllw_text=0, fllw_stk=0;
+	double unk_cputm = 0.0, fllw_cputm3=0.0;
+	double ck_tot = 0;
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
 		//if (i > 0) { json += ", "; }
 		// order of ival array values must agree with IVAL_* variables in main.js
 		uint32_t cpt_idx = ch_lines.line[i].cpt_idx;
+		uint32_t cpu     = ch_lines.line[i].cpu;
+		double tx0 = ch_lines.line[i].x[0];
+		double tx1 = ch_lines.line[i].x[1];
 		if (cpt_idx >= comm_pid_tid_vec[file_tag_idx].size()) {
 			printf("got cpt_idx = %d, sz= %d at %s %d\n",
 					cpt_idx, (uint32_t)comm_pid_tid_vec[file_tag_idx].size(), __FILE__, __LINE__);
+			unk_cputm += tx1 - tx0;
 			continue;
 			exit(1);
 		}
@@ -5229,21 +5275,19 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			continue;
 		}
 		//printf("ln[%d] comm= %s, pid= %d tid= %d\n", i, comm_pid_tid_vec[file_tag_idx][cpt_idx].comm.c_str(), pid, tid);
-		double tx0 = ch_lines.line[i].x[0];
-		double tx1 = ch_lines.line[i].x[1];
 		uint32_t j = (tx0 - ch_lines.range.x_range[0])/ddiv;
 		uint32_t jmx = 2 + (tx1 - tx0)/ddiv;
 		double xdiff = ch_lines.range.x_range[1] - ch_lines.range.x_range[0];
-		double relx0 = tx0 - ch_lines.range.x_range[0];
-		double relx1 = tx1 - ch_lines.range.x_range[0];
-		relx0 /= xdiff;
+		double relx0 = tx0 - ch_lines.range.x_range[0]; // beg offset in secs from beg
+		double relx1 = tx1 - ch_lines.range.x_range[0]; // end offset in secs from beg
+		relx0 /= xdiff; // % offset from beg (0.0 to 1.0)
 		relx1 /= xdiff;
-		double nrx0 = (double)divs * relx0;
-		double nrx1 = (double)divs * relx1;
-		double xbeg = floor(nrx0);
-		double xend = ceil(nrx1);
-		uint32_t ibeg = (int32_t)(xbeg);
-		uint32_t iend = (int32_t)(xend);
+		double nrx0 = (double)divs * relx0; // index of beg index into array
+		double nrx1 = (double)divs * relx1; // index of end index into array
+		double xbeg = floor(nrx0); // beg indx
+		double xend = ceil(nrx1);  // end indx
+		uint32_t ibeg = (int32_t)(xbeg); // int beg indx
+		uint32_t iend = (int32_t)(xend); // int end indx
 		if (ibeg >= tot_line[file_tag_idx].line.size()) {
 			printf("hmmm.... ibeg= %d divs= %d at %s %d\n", ibeg, divs, __FILE__, __LINE__);
 			exit(1);
@@ -5251,21 +5295,56 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 		if (iend >= tot_line[file_tag_idx].line.size()) {
 			iend = tot_line[file_tag_idx].line.size()-1;
 		}
-		double ck_tot = 0;
+		bool got_follow = false;
+		if (follow.size() > 0) {
+			if (ch_lines.line[i].text.size() > 0 && ch_lines.line[i].text.find(follow) != std::string::npos) {
+				got_follow = true;
+				fllw_text++;
+			}
+			if (!got_follow && 
+					comm_pid_tid_vec[file_tag_idx][cpt_idx].comm.find(follow) != std::string::npos) {
+				got_follow = true;
+				fllw_comm++;
+			}
+			if (!got_follow && ch_lines.line[i].callstack_str_idxs.size() > 0) {
+				for (uint32_t kk=0; kk < ch_lines.line[i].callstack_str_idxs.size(); kk++) {
+					if (callstack_vec[ch_lines.line[i].callstack_str_idxs[kk]].find(follow) != std::string::npos) {
+						got_follow = true;
+						fllw_stk++;
+						break;
+					}
+				}
+			}
+		}
+		if (got_follow) {
+			fllw_cputm3 += tx1 - tx0;
+		}
 		for (uint32_t j=ibeg; j < iend; j++) {
 			double xcur0, xcur1;
+			// xcur0 is j's rel val array (0.0 - 1.0)
 			if (j == ibeg) {
 				xcur0 = nrx0/(double)divs;
 			} else {
 				xcur0 = (double)j/(double)divs;
 			}
+			// xcur1 is (j+1)'s rel val array (0.0 - 1.0)
 			if ((j+1) == iend) {
-				xcur1 = nrx1/(double)divs;
+				xcur1 = nrx1/(double)divs; // nxt rel
 			} else {
 				xcur1 = (double)(j+1)/(double)divs;
 			}
-			ck_tot += (xcur1 - xcur0) * xdiff;
-			tot_line[file_tag_idx].line[j] += ch_lines.line[i].y[0] * (xcur1 - xcur0) * (double)divs;
+			// ck is 1 division's cputm
+			double ck = (xcur1 - xcur0) * xdiff;
+			ck_tot += ck;
+			double val = ch_lines.line[i].y[0] * (xcur1 - xcur0) * (double)divs;
+			tot_line[file_tag_idx].line[j] += val;
+			if (cpu >= 0) {
+				if (got_follow) {
+					tot_line[file_tag_idx].follow[cpu][j] += ck;
+					follow_cputime[cpu] += ck;
+				}
+				tot_line[file_tag_idx].cputm[cpu][j] += ck;
+			}
 		}
 	}
 	double ck_usage = 100.0;
@@ -5274,6 +5353,38 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	}
 	if (nr_cpus >= 3) {
 		ck_usage = 300.0;
+	}
+	if (follow.size() > 0) {
+		double tot_cputm = 0.001*(double)(tot_line[file_tag_idx].line.size());
+		if (tot_cputm == 0.0) {
+			tot_cputm = 1.0;
+		}
+		printf("ck_phase_single_multi: follow= %s, txt= %d, cmm= %d, stk= %d, cputm= %.3f at %s %d\n",
+				follow.c_str(), fllw_text, fllw_comm, fllw_stk, tot_cputm, __FILE__, __LINE__);
+		double fllw_tot = 0.0;
+		for (uint32_t i=0; i < follow_cputime.size(); i++) {
+			double c_tm = follow_cputime[i];
+			printf("follow_cputime[%d]= %.3f, pct= %.3f%%\n",
+					i, c_tm, 100.0*follow_cputime[i]/tot_cputm);
+			fllw_tot += c_tm;
+		}
+		std::vector <double> ck_cpus;
+		ck_cpus.resize(nr_cpus);
+		double tot_cputm2 = 0.0;
+		for (int32_t j=0; j < nr_cpus; j++) {
+			for (uint32_t i=0; i < tot_line[file_tag_idx].cputm[j].size(); i++) {
+				if (tot_line[file_tag_idx].cputm[j][i] > 0.0) {
+					ck_cpus[j] += tot_line[file_tag_idx].follow[j][i]/tot_line[file_tag_idx].cputm[j][i];
+					tot_cputm2 += tot_line[file_tag_idx].cputm[j][i];
+				}
+			}
+		}
+		printf("fllw_cpu_tm= %.3f secs, fllw_cputm3= %.3f, tot_cputm= %.3f tot_cputm+unk= %.3f, ck_tot= %.3f\n",
+				fllw_tot, fllw_cputm3, tot_cputm2, unk_cputm+tot_cputm2, ck_tot);
+		for (int32_t i=0; i < nr_cpus; i++) {
+			printf("follow_cputime[%d]  pct= %.3f%%\n", i, 100.0 * ck_cpus[i]/(double)(divs));
+		}
+		
 	}
 
 	std::vector <double> multi_beg;
@@ -5608,7 +5719,6 @@ int main(int argc, char **argv)
 		}
 	}
 
-	//abcd
 	for (uint32_t i=0; i < file_list.size(); i++) {
 		int v_tmp = options.verbose;
 		std::string file_tag = file_list[i].file_tag;
@@ -5865,7 +5975,6 @@ int main(int argc, char **argv)
 						tt0 = dclock();
 						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
 						if (event_table[grp_list[g]][i].charts[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
-							//abcd
 							printf("got pct_busy_by_system chart at %s %d\n", __FILE__, __LINE__);
 							ck_phase_single_multi(file_list, k, grp_list[g], i, j, event_table[grp_list[g]], verbose);
 						}

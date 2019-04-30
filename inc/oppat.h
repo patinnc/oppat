@@ -31,8 +31,9 @@ struct options_str {
 	std::string replay_filename;
 	std::string web_file;
 	std::string cpu_diagram;
-	std::vector <std::string> root_data_dirs;
 	std::vector <path_file_str> file_list;
+	std::vector <std::string> follow_proc;
+	std::vector <std::string> root_data_dirs;
 	std::vector <std::string> file_tag_vec;
 	std::vector <std::string> phase, phase_end;
 	std::vector <std::string> ph_step_int;
