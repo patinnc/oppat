@@ -6804,10 +6804,14 @@ function parse_svg()
 		let bal_y   = -1;
 		if (typeof balance !== 'undefined' && balance !== null) {
 			balance_hdr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.hdr;
-			balance_chrt = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.tot_chart;
-			bal_x = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x;
-			bal_y = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.y;
-			[bal_x, bal_y] = xlate_pie(bal_x, bal_y);
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.tot_chart !== 'undefined') {
+				balance_chrt = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.tot_chart;
+			}
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x !== 'undefined') {
+				bal_x = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x;
+				bal_y = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.y;
+				[bal_x, bal_y] = xlate_pie(bal_x, bal_y);
+			}
 		}
 		let x = (px_wide / 2),
 			y = (px_high / 2);
@@ -6986,16 +6990,6 @@ function parse_svg()
 	};
 
 
-	/*
-	let pie_data = [
-	  { label: 'Food', value: 90 },
-	  { label: 'Party', value: 150 },
-	  { label: 'Rent', value: 80 },
-	  { label: 'Chocolates', value: 120 }
-	];
-	*/
-
-	//let colors = [ '#39CCCC', '#3D9970', '#001F3F', '#85144B' ];
 	function draw_svg(hilite_arr, whch_txt, subtst) {
 		g_cpu_diagram_draw_svg = draw_svg;
 		build_poly();
