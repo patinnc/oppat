@@ -14,6 +14,8 @@ BIN_DIR=$SCR_DIR/../bin/
 echo "SCR_DIR= $SCR_DIR and BIN_DIR=$BIN_DIR"
 TRC_CMD=$BIN_DIR/trace-cmd
 
+TEMPERATURE_FILE=/sys/devices/virtual/thermal/thermal_zone0/temp
+
 ODIR=../oppat_data/$PFX/$BASE
 mkdir -p $ODIR
 chown -R root $ODIR
@@ -79,6 +81,15 @@ echo started $TRC_CMD
 
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
+
+export S_TIME_FORMAT=ISO && iostat -z -d -o JSON -t 1  > $ODIR/iostat.json &
+IOSTAT_CMD=$!
+
+nicstat -p 1 > $ODIR/nicstat.txt &
+NICSTAT_CMD=$!
+
+vmstat -n -t 1 > $ODIR/vmstat.txt &
+VMSTAT_CMD=$!
 
 $PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 #$BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
@@ -262,6 +273,9 @@ $BIN_DIR/clocks.x > $ODIR/clocks2.txt
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
 kill -2 $PRF_CMD_PID2
+kill -2 $IOSTAT_CMD
+kill -2 $NICSTAT_CMD
+kill -2 $VMSTAT_CMD
 wait $PRF_CMD_PID2
 
 ck_cmd_pid_threads_oper $TRC_CMD $PID_TRC_CMD 2 -gt 1
@@ -301,6 +315,9 @@ cp $SCR_FIL $ODIR
 bsdtar cjvf $ODIR/sys_devices_system_cpu.tgz --exclude "power" --exclude "cpufreq" /sys/devices/system/cpu
 
 
+echo "{}] } ] }}" >> $ODIR/iostat.json # iostat doesn't print out the closing json
+
+
 echo "{\"file_list\":[" > $ODIR/file_list.json
 echo "   {\"cur_dir\":\"%root_dir%/oppat_data/$PFX/$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"cur_tag\":\"${PFX}_$BASE\"}," >> $ODIR/file_list.json
@@ -309,7 +326,10 @@ echo "   {\"bin_file\":\"prf_trace2.data\", \"txt_file\":\"prf_trace2.txt\", \"t
 echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"}, " >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"\", \"txt_file\":\"gb_phase.tsv\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"gb_phase.lua\", \"lua_rtn\":\"gb_phase\", \"options\":\"USE_AS_PHASE,FIND_MULTI_PHASE,USE_EXTRA_STR\"} " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"\", \"txt_file\":\"gb_phase.tsv\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"gb_phase.lua\", \"lua_rtn\":\"gb_phase\", \"options\":\"USE_AS_PHASE,FIND_MULTI_PHASE,USE_EXTRA_STR\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"\", \"txt_file\":\"iostat.json\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"iostat.lua\", \"lua_rtn\":\"iostat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"\", \"txt_file\":\"vmstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"vmstat.lua\", \"lua_rtn\":\"vmstat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"\", \"txt_file\":\"nicstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"nicstat.lua\", \"lua_rtn\":\"nicstat\"} " >> $ODIR/file_list.json
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
