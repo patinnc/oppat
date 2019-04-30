@@ -41,6 +41,7 @@
 
 enum {
 	SYS_BAT,
+	SYS_TEMPERATURE,
 };
 
 
@@ -322,13 +323,14 @@ double GetBatteryState(std::vector <sysfs_data_str> &sysfs_vec)
  /sys/class/power_supply/BAT1/power_now
 */
 #define BATTERY_FILE "/sys/class/power_supply/BAT1/power_now"
+#define TEMPERATURE_FILE "/sys/devices/virtual/thermal/thermal_zone0/temp"
 
-FILE *bat_open(std::string bat_flnm)
+FILE *sysfile_open(std::string bat_flnm, std::string file_desc)
 {
 	FILE *fp;
 	fp = fopen(bat_flnm.c_str(), "r");
 	if (!fp) {
-		printf("failed to open sysfs file for battery '%s' at %s %d\n", bat_flnm.c_str(), __FILE__, __LINE__);
+		printf("failed to open sysfs file for %s '%s' at %s %d\n", file_desc.c_str(), bat_flnm.c_str(), __FILE__, __LINE__);
 	}
 	return fp;
 }
@@ -349,22 +351,26 @@ double dclock(void)
 }
 #endif
 
-int bat_read(FILE *fp_bat, std::vector <sysfs_data_str> &sysfs_vec, int verbose)
+int sysfile_read(FILE *fp_bat, std::vector <sysfs_data_str> &sysfs_vec, int sys_typ, int verbose)
 {
 	char buf[256];
 	if (!fp_bat) {
-		return 1;
+		return 0;
 	}
 	double tm = dclock();
 	rewind(fp_bat);
 	size_t bytes_read = fread(buf, sizeof(char), sizeof(buf), fp_bat);
 	double x = atof(buf);
-	if (verbose > 0)
-		printf("tm= %f bat pwr= %f\n", tm, x);
+	if (verbose > 0) {
+		std::string desc;
+		if (sys_typ == SYS_BAT) { desc = "battery"; }
+		if (sys_typ == SYS_TEMPERATURE) { desc = "temperature"; }
+		printf("tm= %f %s pwr= %f\n", tm, desc.c_str(), x);
+	}
 	sysfs_data_str sds;
 	sds.ts = tm;
 	sds.val = x;
-	sds.typ = SYS_BAT;
+	sds.typ = sys_typ;
 	sysfs_vec.push_back(sds);
 	return 1;
 }
@@ -382,7 +388,7 @@ int main(int argc, char **argv) {
 	double t_first = dclock();
 	int pid = -1, verbose = 0;
 	std::string flnm="prf_energy2.txt", stdo;
-	FILE *fp=NULL, *fp_bat=NULL;
+	FILE *fp=NULL, *fp_bat=NULL, *fp_temp=NULL;
 	std::vector <sysfs_data_str> sysfs_vec;
 	const double slp_secs = 0, slp_msecs = 500;
 	double slp_req_intrvl = set_sleep_str(slp_secs, 0.001 * slp_msecs, tm_slp);
@@ -417,7 +423,9 @@ int main(int argc, char **argv) {
 	signal(SIGINT, &sighandler);
 
 #ifdef __linux__
-	fp_bat = bat_open(std::string(BATTERY_FILE));
+	fp_bat  = sysfile_open(std::string(BATTERY_FILE), "battery");
+	fp_temp = sysfile_open(std::string(TEMPERATURE_FILE), "temperature");
+	int recs_bat=0, recs_temp=0;
 #endif
 
 	fp = fopen("wait.pid.txt", "w");
@@ -434,7 +442,8 @@ int main(int argc, char **argv) {
 	while(get_signal() == 0) {
 #ifdef __linux__
 		nanosleep(&tm_slp, NULL);
-		bat_read(fp_bat, sysfs_vec, verbose);
+		recs_bat  += sysfile_read(fp_bat,  sysfs_vec, SYS_BAT, verbose);
+		recs_temp += sysfile_read(fp_temp, sysfs_vec, SYS_TEMPERATURE, verbose);
 #endif
 #ifdef _WIN32
 		Sleep(islp_msecs);
@@ -444,6 +453,9 @@ int main(int argc, char **argv) {
 	double tm_end = dclock();
 	if (fp_bat) {
 		fclose(fp_bat);
+	}
+	if (fp_temp) {
+		fclose(fp_temp);
 	}
 	//     0.020185569	0.13	Joules	power/energy-pkg/	20134748	100.00				
 	fp = fopen(flnm.c_str(), "w");
@@ -456,7 +468,14 @@ int main(int argc, char **argv) {
 			tm_dura = sysfs_vec[i].ts - sysfs_vec[i-1].ts;
 		}
 		tm_dura *= 1.0e9;
-		fprintf(fp, "     %.9f\t%.3f\twatts\tpower/battery/\t%.0f\t100.00\n", tm_off, 1.0e-6*sysfs_vec[i].val, tm_dura);
+		if (sysfs_vec[i].typ == SYS_BAT) {
+			fprintf(fp, "     %.9f\t%.3f\twatts\tpower/battery/\t%.0f\t100.00\n",
+				tm_off, 1.0e-6*sysfs_vec[i].val, tm_dura);
+		}
+		if (sysfs_vec[i].typ == SYS_TEMPERATURE) {
+			fprintf(fp, "     %.9f\t%.3f\tdegrees\tthermal/temperature/\t%.0f\t100.00\n",
+				tm_off, 1.0e-3*sysfs_vec[i].val, tm_dura);
+		}
 	}
 	fclose(fp);
     printf("ran for %f seconds at %s %d\n", tm_end-tm_beg, __FILE__, __LINE__);
