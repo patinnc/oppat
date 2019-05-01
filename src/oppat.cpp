@@ -3939,6 +3939,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			lua_evt = prf_obj.samples[i].evt_idx;
 			if (lua_evt != evt_idx) {
 				printf("not sure what is going on here. lua_evt= %d, evt_idx= %d at %s %d\n", lua_evt, evt_idx, __FILE__, __LINE__);
+				printf("prf_obj.events[%d].event_name= %s, evt_nm_w_area= %s at %s %d\n",
+					evt_idx, prf_obj.events[evt_idx].event_name.c_str(),
+					prf_obj.events[evt_idx].event_name_w_area.c_str(),
+					__FILE__, __LINE__);
 				exit(1);
 			}
 			lua_col_map.resize(fsz, -1);
