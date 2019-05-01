@@ -99,6 +99,9 @@ function read_file(ts0, flnm)
 	    if b2 ~= nil then
 			t[col.area] = i
 			evt = "faults"
+		elseif i == "thermal/temperature/" then
+			t[col.area] = 'system'
+			evt = "temperature"
 		elseif i == "power/energy-pkg/" then
 			t[col.area] = 'pkg'
 			evt = "power"
