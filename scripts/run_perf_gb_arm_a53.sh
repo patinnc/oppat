@@ -82,7 +82,7 @@ echo started $TRC_CMD
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
 
-export S_TIME_FORMAT=ISO && iostat -z -d -o JSON -t 1  > $ODIR/iostat.json &
+export S_TIME_FORMAT=ISO && iostat -z -d -t 1  > $ODIR/iostat.txt &
 IOSTAT_CMD=$!
 
 nicstat -p 1 > $ODIR/nicstat.txt &
@@ -315,9 +315,6 @@ cp $SCR_FIL $ODIR
 bsdtar cjvf $ODIR/sys_devices_system_cpu.tgz --exclude "power" --exclude "cpufreq" /sys/devices/system/cpu
 
 
-echo "{}] } ] }}" >> $ODIR/iostat.json # iostat doesn't print out the closing json
-
-
 echo "{\"file_list\":[" > $ODIR/file_list.json
 echo "   {\"cur_dir\":\"%root_dir%/oppat_data/$PFX/$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"cur_tag\":\"${PFX}_$BASE\"}," >> $ODIR/file_list.json
@@ -327,9 +324,9 @@ echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag
 echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"}, " >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"\", \"txt_file\":\"gb_phase.tsv\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"gb_phase.lua\", \"lua_rtn\":\"gb_phase\", \"options\":\"USE_AS_PHASE,FIND_MULTI_PHASE,USE_EXTRA_STR\"}, " >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"\", \"txt_file\":\"iostat.json\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"iostat.lua\", \"lua_rtn\":\"iostat\"}, " >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"\", \"txt_file\":\"vmstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"vmstat.lua\", \"lua_rtn\":\"vmstat\"}, " >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"\", \"txt_file\":\"nicstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"nicstat.lua\", \"lua_rtn\":\"nicstat\"} " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"iostat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"iostat.lua\", \"lua_rtn\":\"iostat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"vmstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"vmstat.lua\", \"lua_rtn\":\"vmstat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"nicstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"nicstat.lua\", \"lua_rtn\":\"nicstat\"} " >> $ODIR/file_list.json
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
