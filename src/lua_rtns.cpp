@@ -244,7 +244,32 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			}
 		}
 		if (evt_idx == (uint32_t)-1) {
-			printf("missed event lookup for field at %s %d\n", __FILE__, __LINE__);
+			printf("missed event lookup row= %d for field at %s %d\n", i, __FILE__, __LINE__);
+			for (uint32_t k=0; k < event_nms.size(); k++) {
+				std::string nm = event_nms[k];
+				printf("got event_nms[%d]= %s at %s %d\n", k, nm.c_str(), __FILE__, __LINE__);
+				fflush(NULL);
+				for (uint32_t j=0; j < col_names[k].size(); j++) {
+					std::string col = col_names[k][j];
+					printf("got col_names[%d][%d]= %s at %s %d\n", k, j, col.c_str(), __FILE__, __LINE__);
+				fflush(NULL);
+				if (col == "event") {
+				std::string nm2 = lua_st[lua_idx].lua["data_table"][i][col];
+					printf("got nm2= %s at %s %d\n", nm2.c_str(), __FILE__, __LINE__);
+				fflush(NULL);
+				}
+					/*
+					if (col == "event") {
+						std::string ck = lua_st[lua_idx].lua["data_table"][i][col];
+						//printf("got event_nms[%d]= %s cmp lua_st[%d].lua['data_table'][%d][%s]= %s at %s %d\n", 
+						//	k, event_nms[k].c_str(), lua_idx, i, col.c_str(), ck.c_str(), __FILE__, __LINE__);
+						printf("got event_nms= %s cmp ck= %s at %s %d\n", 
+							event_nms[k].c_str(), ck.c_str(), __FILE__, __LINE__);
+						fflush(NULL);
+					}
+					*/
+				}
+			}
 			exit(1);
 		}
 		double dura = 0.0;
