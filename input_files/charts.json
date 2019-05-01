@@ -1,5 +1,5 @@
 {
-  "chart_use_default":"y",
+  "chart_use_default":"n",
   "pixels_high_default":250,
   "drop_event_if_samples_exceed":470000,
   "dont_show_events_on_cpu_busy_if_samples_exceed":500000,
@@ -106,6 +106,23 @@
 			"tot_line_options":{"yval_fmt":"%.1f%%", "yvar_fmt":"%system_busy",
 			"desc":"Based on non-idle sched_switch ftrace event. 100% means 1 cpu is busy, 400% means 4 cpus busy, etc."}
 		}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:gb_phase", "evt_type": "lua", "comment":"geekbench4 phase",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"marker",   "lkup":"marker",       "lkup_typ": "TYP_DBL"},
+		{"name":"area",     "lkup":"area",         "lkup_typ": "TYP_STR"},
+		{"name":"dura",     "lkup":"_DURATION_",   "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"PERF", "title":"Markers",  "var_name":"marker",
+			"chart_tag":"PHASE", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"y"},
+			"use_chart":"y", "y_label":"markers"}
 		]
 	}
   },
@@ -1520,6 +1537,192 @@
   },
   {"event":
 	{
+	"evt_name": "lua:iostat", "evt_type": "lua", "comment":"read iostat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"MB/sec",     "lkup":"kBpsec",       "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-3}]},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"disk", "title":"iostat disk read/write",  "var_name": "MB/sec", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"IO MB/sec",
+			"chart_tag":"IOSTAT_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:vmstat.io", "evt_type": "lua", "comment":"read vmstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA", "actions":[{"oper":"mult", "val":1024.0e-6}]},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"disk", "title":"vmstat io blocks in or out per sec (MB/sec)",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"IO blocks MB/sec",
+			"chart_tag":"VMSTAT_IO_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:vmstat.mem", "evt_type": "lua", "comment":"read vmstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA", "actions":[{"oper":"mult", "val":1.0e-3}]},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"DRAM", "title":"vmstat memory usage (MBytes)",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"mem usage MBytes",
+			"chart_tag":"VMSTAT_MEM_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:vmstat.proc", "evt_type": "lua", "comment":"read vmstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"vmstat processes runnable or blocked",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"number of processes",
+			"chart_tag":"VMSTAT_PROC_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:vmstat.swap", "evt_type": "lua", "comment":"read vmstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"disk", "title":"vmstat swap memory swapped in or out MB/s",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"swapped memory MB/sec",
+			"chart_tag":"VMSTAT_SWAP_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:vmstat.cpu", "evt_type": "lua", "comment":"read vmstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"vmstat cpu user, sys, idle, wait, stolen pct of system",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"cpu usage (%_all_cpus)",
+			"chart_tag":"VMSTAT_SYS_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:vmstat.sys", "evt_type": "lua", "comment":"read vmstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"vmstat system interrupts/s, context switches/s",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"intrpts/s, cswitch/s",
+			"chart_tag":"VMSTAT_SYS_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:nicstat.KBytes/sec", "evt_type": "lua", "comment":"read nicstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"Network", "title":"nicstat interface read/write KB/sec",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"KBytes/sec",
+			"chart_tag":"NICSTAT_KB_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:nicstat.packets/sec", "evt_type": "lua", "comment":"read nicstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"Network", "title":"nicstat interface read/write packets/sec",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__", "y_label":"packets/sec",
+			"chart_tag":"NICSTAT_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:temperature", "evt_type": "lua", "comment":"read sysfs raspberry pi3 ubuntu mate temperature",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"temperature (degC)",     "lkup":"degrees",       "lkup_typ": "TYP_DBL"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"thermal", "title":"Temperature (degC)",  "var_name": "temperature (degC)", "by_var": "area",
+			"tot_line":"__total__", 
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__ %.1f", "yvar_fmt":"av.%s",
+			"desc":"Based on /sys/devices/virtual/thermal/thermal_zone0/temp"},
+			"chart_tag":"TEMPERATURE_BY_ZONE", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:faults", "evt_type": "lua", "comment":"perf stat hard/soft page faults",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"val",     "lkup":"faults",       "lkup_typ": "TYP_DBL|TYP_DIV_BY_INTERVAL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"disk", "title":"perf page faults/sec",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__", "y_label":"page faults/sec",
+			"chart_tag":"PERF_FAULTS_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "lua:cbox_freq", "evt_type": "lua", "comment":"lua processing perf stat uncore_cbox_* event",
      		"example":"0.730438635 52194588 uncore_cbox_0/clockticks/ 20416769 100.00",
 	"evt_flds": [
@@ -2016,24 +2219,6 @@
 	"charts": [
 		{"category":"test", "title":"first test line",  "var_name": "line", "by_var":"area", "chart_tag":"TST_GEN_LINE1", "chart_type":"line",
 			"use_chart":"y"}
-		]
-	}
-  }
-	,
-  {"event":
-	{
-	"evt_name": "lua:gb_phase", "evt_type": "lua", "comment":"geekbench4 phase",
-	"evt_flds": [
-		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
-		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
-		{"name":"marker",   "lkup":"marker",       "lkup_typ": "TYP_DBL"},
-		{"name":"area",     "lkup":"area",         "lkup_typ": "TYP_STR"},
-		{"name":"dura",     "lkup":"_DURATION_",   "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
-		],
-	"charts": [
-		{"category":"PERF", "title":"Markers",  "var_name":"marker",
-			"chart_tag":"PHASE", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"y"},
-			"use_chart":"y", "y_label":"markers"}
 		]
 	}
   }
