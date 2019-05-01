@@ -1,5 +1,5 @@
 {
-  "chart_use_default":"n",
+  "chart_use_default":"y",
   "pixels_high_default":250,
   "drop_event_if_samples_exceed":470000,
   "dont_show_events_on_cpu_busy_if_samples_exceed":500000,
