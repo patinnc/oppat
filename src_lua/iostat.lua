@@ -112,7 +112,6 @@ end
 function iostat(file1, file2, file3, verbose)
    print "in lua routine do_tst"
    local ts0, line, a, b, c
-   local json = require("src_lua.json")
 
    printf("lua file1= %s, file2= %s, file3= %s\n", file1, file2, file3)
    ts0 = -1.0
