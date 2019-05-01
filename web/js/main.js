@@ -4003,9 +4003,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let shape_idx = current_tooltip_shape;
 				let str4 = "";
 				if (shape_idx > -1) {
+					if (typeof chart_data.myshapes[shape_idx] === 'undefined') {
+						console.log(sprintf("!!!! shape_idx= %d but len= %d", shape_idx, chart_data.myshapes.length));
+					} else {
 					let intrvl_x0 = chart_data.myshapes[shape_idx].pts[PTS_X0]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
 					let intrvl_x1 = chart_data.myshapes[shape_idx].pts[PTS_X1]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
 					str4 = "<br>abs.T= "+intrvl_x0+ " - " + intrvl_x1;
+					}
 				}
 				let rel_nx0 = nx0 + chart_data.ts_initial.tm_beg_offset_due_to_clip;
 				let abs_ts = (nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
@@ -5894,6 +5898,8 @@ function parse_svg()
 	let svg_ver = svg_gs[0].getAttributeNS(null, 'version');
 	console.log("svg_name= "+svg_name+', ver= '+svg_ver);
 
+	let y_shift = 100;
+
 	// begin find end-points
 	let lkfor_id = null;
 	//lkfor_id = "tspan3027";
@@ -6080,7 +6086,7 @@ function parse_svg()
 	}
 	let px_high = svg_ymax/svg_xmax * px_wide;
 	let myhvr_clr = document.getElementById(hvr_clr);
-	let str = '<div id="tbl_'+hvr_clr+'"></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high)+'" style="border:1px solid #000000;"><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div>';
+	let str = '<div id="tbl_'+hvr_clr+'"></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high+y_shift)+'" style="border:1px solid #000000;"><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div>';
 	myhvr_clr.innerHTML = str;
 	let mycanvas  = document.getElementById('canvas_'+hvr_clr);
 	let mytooltip = document.getElementById("tooltip_"+hvr_clr);
@@ -6177,7 +6183,7 @@ function parse_svg()
 
 	let xlate_rng = {state:0, xmin:null, ymin:null, xmax:null, ymax:null};
 
-	function xlate(tctx, xin, yin, uminx, umaxx, uminy, umaxy, shape) {
+	function xlate(tctx, xin, yin, uminx, umaxx, uminy, umaxy, shape, sector) {
 		//let xout = Math.trunc(px_wide * (xin - uminx)/ (umaxx - uminx));
 		//let yout = Math.trunc(px_high * (yin - uminy)/ (umaxy - uminy));
 		let xout = xin;
@@ -6222,6 +6228,10 @@ function parse_svg()
 		} else {
 			//xout -= xlate_rng.xmin;
 			//yout -= xlate_rng.ymin;
+		}
+
+		if (sector == 1) {
+			yout += y_shift;
 		}
 
 		return [xout, yout];
@@ -6273,10 +6283,10 @@ function parse_svg()
 			for (let j=0; j < shapes[i].cmds.length; j++) {
 				pt.x = shapes[i].cmds[j].pt_a[0].x;
 				pt.y = shapes[i].cmds[j].pt_a[0].y;
-				let p0 = xlate(ctx, pt.x, pt.y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				let p0 = xlate(ctx, pt.x, pt.y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 				shapes[i].poly.push({x:p0[0], y:p0[1]});
 				if (shapes[i].cmds[j].cmd == 'C' || shapes[i].cmds[j].cmd == 'c') {
-					p0 = xlate(ctx, shapes[i].cmds[j].pt_a[2].x, shapes[i].cmds[j].pt_a[2].y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+					p0 = xlate(ctx, shapes[i].cmds[j].pt_a[2].x, shapes[i].cmds[j].pt_a[2].y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 					shapes[i].poly.push({x:p0[0], y:p0[1]});
 				}
 			}
@@ -6471,7 +6481,7 @@ function parse_svg()
 
 	function draw_lineTo(cmd_typ, ctx, x, y, shape) {
 		if (cmd_typ != 'cpy') {
-			let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shape);
+			let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shape, 1);
 			if (cmd_typ == 'M' || cmd_typ == 'm') {
 				ctx.moveTo(p0[0], p0[1]);
 			} else {
@@ -6547,7 +6557,7 @@ function parse_svg()
 			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 			let x2 = svg_xmax * x1/fmxx;
 			let y2 = svg_ymax * y1/fmxy;
-			return xlate(ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null);
+			return xlate(ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
 		}
 		let x1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
 		let y1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
@@ -6783,7 +6793,7 @@ function parse_svg()
 			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 			let x2 = svg_xmax * x1/fmxx;
 			let y2 = svg_ymax * y1/fmxy;
-			return xlate(ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null);
+			return xlate(ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
 		}
 		let x1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
 		let y1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
@@ -7054,21 +7064,21 @@ function parse_svg()
 							x += pt.x;
 							y += pt.y;
 						}
-						let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 						x = shapes[i].cmds[j].pt[1].x;
 						y = shapes[i].cmds[j].pt[1].y;
 						if (typ == 'c') {
 							x += pt.x;
 							y += pt.y;
 						}
-						let p1 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						let p1 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 						x = shapes[i].cmds[j].pt[2].x;
 						y = shapes[i].cmds[j].pt[2].y;
 						if (typ == 'c') {
 							x += pt.x;
 							y += pt.y;
 						}
-						let p2 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						let p2 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 						ctx.bezierCurveTo(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1]);
 						//console.log(sprintf("%s %f %f (%f %f)", typ, x, y, p0[0], p0[1]));
 						pt.x = x;
@@ -7190,8 +7200,8 @@ function parse_svg()
 						strk_clr = st[j].substr(7);
 					}
 				}
-				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i]);
-				let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+				let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 				ctx.beginPath();
 				ctx.fillStyle = 'blue';
 				let wd = p1[0] - p0[0];
@@ -7286,8 +7296,8 @@ function parse_svg()
 					console.log(sprintf("__stg2a xy= %.3f,%.3f, nfont_sz= %.3f, line_hi= %.3f", x0, y0, nfont_sz, line_hi));
 				}
 				//let y0 = shapes[i].y - nfont_sz;
-				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i]);
-				//let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+				//let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 				if (line_hi > 1.0) {
 					//p0[1] -= nfont_sz * (line_hi - 1.0);
 				}
@@ -7440,7 +7450,7 @@ function parse_svg()
 							ctx.lineTo(shapes[i].poly[j].x+dffx, shapes[i].poly[j].y+dffy);
 						}
 						shapes[i].poly[j].arrow_extended = {x:shapes[i].poly[j].x+dffx, y:shapes[i].poly[j].y+dffy};
-						//let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i]);
+						//let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 						//ctx.arc(p0[0], p0[1], 5, 0,2*Math.PI);
 						//console.log(str_angle);
 						shapes[i].poly[j].angle = shapes[i].angles[j];
@@ -8098,7 +8108,7 @@ function parse_svg()
 				//nfont_sz *= scale_ratio;
 				let x0 = svg_xmax * ux/fmxx;
 				let y0 = svg_ymax * uy/fmxy;
-				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null);
+				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null, 1);
 				let rot = 0;
 				let angle = 0.0;
 				ctx.beginPath();
