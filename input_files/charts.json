@@ -1655,7 +1655,7 @@
   },
   {"event":
 	{
-	"evt_name": "lua:nicstat.KBytes/sec", "evt_type": "lua", "comment":"read nicstat file",
+	"evt_name": "lua:nicstat.Interface KBytes/sec", "evt_type": "lua", "comment":"read nicstat file",
 	"evt_flds": [
 		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
 		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
@@ -1672,7 +1672,7 @@
   },
   {"event":
 	{
-	"evt_name": "lua:nicstat.packets/sec", "evt_type": "lua", "comment":"read nicstat file",
+	"evt_name": "lua:nicstat.Interface packets/sec", "evt_type": "lua", "comment":"read nicstat file",
 	"evt_flds": [
 		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
 		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
@@ -1684,6 +1684,57 @@
 		{"category":"Network", "title":"nicstat interface read/write packets/sec",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__", "y_label":"packets/sec",
 			"chart_tag":"NICSTAT_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:nicstat.TCP.KBytes/sec", "evt_type": "lua", "comment":"read nicstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"Network", "title":"nicstat TCP in/out KB/sec",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"KBytes/sec",
+			"chart_tag":"NICSTAT_TCP_KB_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:nicstat.TCP.segments/sec", "evt_type": "lua", "comment":"read nicstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",     "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"Network", "title":"nicstat TCP in/out segments/sec",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__", "y_label":"segments/sec",
+			"chart_tag":"NICSTAT_TCP_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "lua:nicstat.UDP.DataGrams/sec", "evt_type": "lua", "comment":"read nicstat file",
+	"evt_flds": [
+		{"name":"timestamp", "lkup":"_TIMESTAMP_", "lkup_typ": "TYP_TIMESTAMP|TYP_DBL"},
+		{"name":"extra_str", "lkup":"extra_str",   "lkup_typ": "TYP_STR"},
+		{"name":"val",       "lkup":"val",       "lkup_typ": "TYP_DBL|TYP_ADD_2_EXTRA"},
+		{"name":"area",      "lkup":"area",        "lkup_typ": "TYP_STR"},
+		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"Network", "title":"nicstat DataGrams in/out per sec",  "var_name": "val", "by_var": "area",
+			"tot_line":"__total__",  "y_label":"DataGrams/sec",
+			"chart_tag":"NICSTAT_UDP_DG_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
 		]
 	}
   },
