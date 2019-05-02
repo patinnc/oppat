@@ -24,7 +24,7 @@
 , {"fld":{"x":10,  "y":254},  "chart":"AGU_DEP_STALLS_CHART",           "pfx":"%be_stalled: agu_stall: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":268},  "chart":"SIMD_DEP_STALLS_CHART",          "pfx":"%be_stalled: simd_dep: ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":282},  "chart":"OTHER_INTERLOCK_STALLS_CHART",   "pfx":"%be_stalled: other_interlock: ", "grf":{"nm":"stalls"}}
-, {"fld":{"x":10,  "y":520}, "grf_def":{"typ":"pie", "nm":"L2_data_typ_access", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"hdr": "%other access ", "x":-1, "y":-1, "tot_chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART"}}}
+, {"fld":{"x":10,  "y":520}, "grf_def":{"typ":"pie", "nm":"L2_data_typ_access", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"tot_chart":"L2_ACCESS_BYTES_PER_CYCLE_CHART"}}}
 
 , {"fld":{"x":356,"y":187}, "chart":"ICACHE_BYTES_PER_CYCLE_CHART", "rng":{"green": 2, "yellow":4}, "tfld":{ "x":-1,"y":-1,"text":"iCacheBytes/cycle:"}}
 , {"fld":{"x":700,"y":164}, "chart":"ITLB_MISS_PER_ICACHE_MISS_CHART", "rng":{"green": 1, "yellow":10}, "tfld":{ "x":-1,"y":-1,"text":"%l1i_tlb miss/l1i_miss:"}}
