@@ -17,6 +17,10 @@ TRC_CMD=$BIN_DIR/trace-cmd
 ODIR=../oppat_data/$PFX/$BASE
 mkdir -p $ODIR
 chown -R root $ODIR
+rm $ODIR/*.txt
+rm $ODIR/*.json
+rm $ODIR/*.data
+rm $ODIR/*.dat
 
 if [ -f $ODIR/file_list.json ]; then
   rm $ODIR/file_list.json
@@ -79,6 +83,17 @@ echo started $TRC_CMD
 
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
+
+export S_TIME_FORMAT=ISO
+iostat -z -d -t 1  > $ODIR/iostat.txt &
+IOSTAT_CMD=$!
+
+nicstat -a -z -p 1 > $ODIR/nicstat.txt &
+NICSTAT_CMD=$!
+
+vmstat -n -t 1 > $ODIR/vmstat.txt &
+VMSTAT_CMD=$!
+
 
 $PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 #$BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
@@ -250,9 +265,14 @@ $BIN_DIR/clocks.x > $ODIR/clocks2.txt
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
 kill -2 $PRF_CMD_PID2
+ps -ef | grep stat
+echo kill -3 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
+kill -3 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 wait $PRF_CMD_PID2
+sleep 1
 
 ck_cmd_pid_threads_oper $TRC_CMD $PID_TRC_CMD 2 -gt 1
+kill -9 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 
 #exit
 #sudo ../perf.sh record -a -g -e sched:sched_switch   -o $BASE.data sleep 0.5
@@ -296,7 +316,10 @@ echo "   {\"bin_file\":\"prf_trace.data\", \"txt_file\":\"prf_trace.txt\", \"tag
 echo "   {\"bin_file\":\"prf_trace2.data\", \"txt_file\":\"prf_trace2.txt\", \"tag\":\"%cur_tag%\", \"type\":\"PERF\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"} " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"iostat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"iostat.lua\", \"lua_rtn\":\"iostat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"vmstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"vmstat.lua\", \"lua_rtn\":\"vmstat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"nicstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"nicstat.lua\", \"lua_rtn\":\"nicstat\"} " >> $ODIR/file_list.json
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
