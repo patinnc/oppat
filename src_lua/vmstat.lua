@@ -59,17 +59,30 @@ function read_file2(flnm, data)
 end
 
 function read_file3(flnm, data)
-   local rows = 0
-   local row = -1
-   for line in io.lines(flnm) do
-	printf("line[%d]= %s\n", rows, line)
-	--local splt = {}
-	row = row + 1
-	--splt = mysplit(line, '\t')
-	table.insert(data, line)
-	rows = rows + 1
-   end
-   return rows
+	local rows = 0
+	local row = -1
+	local line
+	local file = io.open(flnm, "r");
+	for line in file:lines() do
+		if string.len(line) > 400 then
+			local ln = string.len(line)
+			local k
+			local res = ""
+			for k = 1, ln, 1 do
+				local val = string.sub(line, k, k)
+				if val ~= "\0" and val ~= nil then
+					res = res .. val
+				end
+			end
+			line = res
+		end
+		table.insert (data, line);
+		printf("line[%d], len= %d, %s\n", rows, string.len(line), line)
+		row = row + 1
+		rows = rows + 1
+	end
+	io.close(file)
+	return rows
 end
 
 function mysort(t_in)
@@ -211,6 +224,7 @@ function vmstat(file1, file2, file3, verbose)
 
 	k=3
 	t_prv = -1
+	local epoch_prv = -1.0
 	local dall_sz = 0
 	local dall_tbl = {}
 	local tall_tbl = {}
@@ -223,6 +237,13 @@ function vmstat(file1, file2, file3, verbose)
 		local epoch_secs = os.time(dt) - ts_epoch + ts_mono
 		--printf("s= %s dt= '%s' ts= %f\n", s, dump(dt), epoch_secs)
 		timestamps = timestamps + 1
+		if epoch_prv ~= epoch_secs then
+			if epoch_prv == -1.0 then
+				epoch_prv = epoch_secs - 1.0
+			end
+			t_prv = epoch_prv
+			epoch_prv = epoch_secs
+		end
 		local dura = epoch_secs - t_prv
 		if dall_sz == 1 then
 			-- dura of 1st row isn't really known... just set it to diff between 2nd and 1st timestamp.
@@ -232,7 +253,6 @@ function vmstat(file1, file2, file3, verbose)
 		table.insert(dall_tbl, dtbl)
 		table.insert(tall_tbl, ttbl)
 		dall_sz = dall_sz + 1
-		t_prv = epoch_secs
 		k = k + 1
 	end
 	printf("tbl= '%s'", dump(dall_tbl))
