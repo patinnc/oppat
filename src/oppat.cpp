@@ -2154,8 +2154,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						overlaps_used_sum[j] = 0.0;
 					}
 					if (fx1 < sx0) {
-						printf("what's going on here. fx1= %f, sx0= %f, fx0= %f i= %d, cur_idx= %d. bye at %s %d\n",
-								fx1, sx0, fx0, i, cur_idx, __FILE__, __LINE__);
+						printf("what's going on here. fx1= %f, sx0= %f, fx0= %f i= %d, cur_idx= %d. dura= %f. evt_nm= %s, evt_nm_w_area= %s bye at %s %d\n",
+								fx1, sx0, fx0, i, cur_idx, dura,
+								prf_obj.events[evt_idx].event_name.c_str(),
+								prf_obj.events[evt_idx].event_name_w_area.c_str(),
+								__FILE__, __LINE__);
 						if (prf_obj.file_type == FILE_TYP_ETW) {
 							//uint32_t cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
 							uint32_t cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
