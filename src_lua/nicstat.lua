@@ -60,17 +60,30 @@ function read_file2(flnm, data)
 end
 
 function read_file3(flnm, data)
-   local rows = 0
-   local row = -1
-   for line in io.lines(flnm) do
-	printf("line[%d]= %s\n", rows, line)
-	--local splt = {}
-	row = row + 1
-	--splt = mysplit(line, '\t')
-	table.insert(data, line)
-	rows = rows + 1
-   end
-   return rows
+	local rows = 0
+	local row = -1
+	local line
+	local file = io.open(flnm, "r");
+	for line in file:lines() do
+		if string.len(line) > 400 then
+			local ln = string.len(line)
+			local k
+			local res = ""
+			for k = 1, ln, 1 do
+				local val = string.sub(line, k, k)
+				if val ~= "\0" and val ~= nil then
+					res = res .. val
+				end
+			end
+			line = res
+		end
+		table.insert (data, line);
+		printf("line[%d], len= %d, %s\n", rows, string.len(line), line)
+		row = row + 1
+		rows = rows + 1
+	end
+	io.close(file)
+	return rows
 end
 
 function mysort(t_in)
@@ -165,6 +178,20 @@ function nicstat(file1, file2, file3, verbose)
 --2019-04-30T00:31:23-0400
 --Device             tps    kB_read/s    kB_wrtn/s    kB_read    kB_wrtn
 --mmcblk0         597.00      6200.00         0.00       6200          0
+--
+--1556757712:TCP:0.000:0.000:0.230:0.582:0.001:0.000:0.000:0.000:0.000:0.000
+--1556757712:UDP:0.099:0.036:0.000:0.000
+--1556757712:wlan0:0.697:0.704:5.171:0.637:0.00:0.00:0.00:0.00:0.00:0.00:0.00
+--1556757712:lo:0.002:0.002:0.023:0.023:0.00:0.00:0.00:0.00:0.00:0.00:0.00
+--
+
+--20:39:21      RdKB    WrKB   RdPkt   WrPkt   IErr  OErr  Coll  NoCP Defer  %Util
+--wlan0         0.69    0.71    5.14    0.64   0.00  0.00  0.00  0.00  0.00   0.00
+--lo            0.00    0.00    0.02    0.02   0.00  0.00  0.00  0.00  0.00   0.00
+--20:39:22    InKB   OutKB   InSeg  OutSeg Reset  AttF %ReTX InConn OutCon Drops
+--TCP         0.00    0.00    2.00    3.00  0.00  0.00 0.000   0.00   0.00  0.00
+--20:39:22                    InDG   OutDG     InErr  OutErr
+--UDP                         0.00    0.00      0.00    0.00
 
 	if file_tbl[nsz] == nil then
 		nsz = nsz -1
@@ -193,24 +220,37 @@ function nicstat(file1, file2, file3, verbose)
 	--		error("check nicstat command line options or nicstat.txt data file")
 	--	end
 	--end
+--20:39:22    InKB   OutKB   InSeg  OutSeg Reset  AttF %ReTX InConn OutCon Drops
+--TCP         0.00    0.00    2.00    3.00  0.00  0.00 0.000   0.00   0.00  0.00
+--20:39:22                    InDG   OutDG     InErr  OutErr
+--UDP                         0.00    0.00      0.00    0.00
 
 	-- area for each hdr column. 
-	local hdr2_area = {"Time", "Interface", "KBytes/sec", "KBytes/sec", "packets/sec", "packets/sec"}
+	local hdr2_area = {"Time", "Interface", "Interface KBytes/sec", "Interface KBytes/sec", "Interface packets/sec", "Interface packets/sec"}
 	local hdr2_ck =   {"Time", "Interface", "readKB/s",   "writeKB/s",  "readPkt/sec", "writePkt/sec"}
 	local hdr2_f  =   {"time", "int",       "rKBps",      "wKBps",      "rPps",        "wPps"}
+	local TCP_area=   {"time", "int",       "KBytes/sec", "KBytes/sec", "segments/sec","segments/sec"}
+	local TCP_ck  =   {"time", "int",       "inKB/s",     "outKB/s",    "inSeg/s",     "outSeg/s"}
+	local TCP_f   =   {"time", "int",       "inKBps",     "outKBps",    "inSegps",     "outSegps"}
+	local UDP_area=   {"time", "int",       "DataGrams/sec", "DataGrams/sec"}
+	local UDP_ck  =   {"time", "int",       "inDG/s",     "outDG/s"}
+	local UDP_f   =   {"time", "int",       "inDGps",     "outDGps"}
 	local f = {}
+	local u = {}
+	local t = {}
 	for k = 1, 6, 1
 	do
-		f[hdr2_f[k]] = k
-		-- 'nicstat -p 1' doesn't put headers in so don't check
-		--if hdr2_tbl[k]:find(hdr2_ck[k]) == nil then
-		--	printf("didn't find string[%d]= '%s' in nicstat header2='%s'\n", k, hdr2_ck[k], file_tbl[2])
-		--	error("check nicstat command line options or nicstat.txt data file")
-		--end
+		f[hdr2_f[k]]  = k
+		t[TCP_f[k]] = k
+	end
+	for k = 1, 4, 1
+	do
+		u[UDP_f[k]] = k
 	end
 
 	k=1
 	t_prv = -1
+	local epoch_prv = -1.0
 	local dall_sz = 0
 	local dall_tbl = {}
 	local tall_tbl = {}
@@ -219,10 +259,17 @@ function nicstat(file1, file2, file3, verbose)
 	   	--for w in file_tbl[k]:gmatch(":") do table.insert(dtbl, w) end
 	   	dtbl = mysplit(file_tbl[k], ":")
 		local s = dtbl[1] -- epoch secs
-		printf("s= %s\n", s)
+		--printf("s= %s\n", s)
 		local epoch_secs = tonumber(s) - ts_epoch + ts_mono
-		timestamps = timestamps + 1
+		if epoch_prv ~= epoch_secs then
+			if epoch_prv == -1.0 then
+				epoch_prv = epoch_secs - 1.0
+			end
+			t_prv = epoch_prv
+			epoch_prv = epoch_secs
+		end
 		local dura = epoch_secs - t_prv
+		timestamps = timestamps + 1
 		if dall_sz == 1 then
 			-- dura of 1st row isn't really known... just set it to diff between 2nd and 1st timestamp.
 			tall_tbl[1][3] = dura
@@ -231,7 +278,6 @@ function nicstat(file1, file2, file3, verbose)
 		table.insert(dall_tbl, dtbl)
 		table.insert(tall_tbl, ttbl)
 		dall_sz = dall_sz + 1
-		t_prv = epoch_secs
 		k = k + 1
 	end
 	printf("tbl= '%s'", dump(dall_tbl))
@@ -244,11 +290,21 @@ function nicstat(file1, file2, file3, verbose)
 	--             timestamps   value for this var,  dall_cols,  name of event for chart, chart area,  hsh of events, out data, num of rows, hsh of string used for this event's data (the by_var='string' in charts.json)
 	--local hdr2_f  =   {"time", "int",       "rKBps",      "wKBps",      "rPps",        "wPps"}
 
-	rows = gen_evt(tall_tbl[k], dall_tbl[k][f.rKBps],  col, "nicstat."..hdr2_area[f.rKBps], dall_tbl[k][f.int].."_"..hdr2_ck[f.rKBps],  evt_hash, data_table, rows, evt_units_hash)
-	rows = gen_evt(tall_tbl[k], dall_tbl[k][f.wKBps],  col, "nicstat."..hdr2_area[f.wKBps], dall_tbl[k][f.int].."_"..hdr2_ck[f.wKBps],  evt_hash, data_table, rows, evt_units_hash)
+	if dall_tbl[k][f.int] ~= "UDP" and dall_tbl[k][f.int] ~= "TCP" then
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][f.rKBps],  col, "nicstat."..hdr2_area[f.rKBps], dall_tbl[k][f.int].."_"..hdr2_ck[f.rKBps],  evt_hash, data_table, rows, evt_units_hash)
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][f.wKBps],  col, "nicstat."..hdr2_area[f.wKBps], dall_tbl[k][f.int].."_"..hdr2_ck[f.wKBps],  evt_hash, data_table, rows, evt_units_hash)
 
-	rows = gen_evt(tall_tbl[k], dall_tbl[k][f.rPps],  col, "nicstat."..hdr2_area[f.rPps], dall_tbl[k][f.int].."_"..hdr2_ck[f.rPps],  evt_hash, data_table, rows, evt_units_hash)
-	rows = gen_evt(tall_tbl[k], dall_tbl[k][f.wPps],  col, "nicstat."..hdr2_area[f.wPps], dall_tbl[k][f.int].."_"..hdr2_ck[f.wPps],  evt_hash, data_table, rows, evt_units_hash)
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][f.rPps],  col, "nicstat."..hdr2_area[f.rPps], dall_tbl[k][f.int].."_"..hdr2_ck[f.rPps],  evt_hash, data_table, rows, evt_units_hash)
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][f.wPps],  col, "nicstat."..hdr2_area[f.wPps], dall_tbl[k][f.int].."_"..hdr2_ck[f.wPps],  evt_hash, data_table, rows, evt_units_hash)
+	elseif dall_tbl[k][f.int] == "TCP" then
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][t.inKBps],  col, "nicstat.TCP."..TCP_area[t.inKBps],   TCP_ck[t.inKBps],   evt_hash, data_table, rows, evt_units_hash)
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][t.outKBps], col, "nicstat.TCP."..TCP_area[t.outKBps],  TCP_ck[t.outKBps],  evt_hash, data_table, rows, evt_units_hash)
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][t.inSegps], col, "nicstat.TCP."..TCP_area[t.inSegps],  TCP_ck[t.inSegps],  evt_hash, data_table, rows, evt_units_hash)
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][t.outSegps],col, "nicstat.TCP."..TCP_area[t.outSegps], TCP_ck[t.outSegps], evt_hash, data_table, rows, evt_units_hash)
+	elseif dall_tbl[k][f.int] == "UDP" then
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][u.inDGps],  col, "nicstat.UDP."..UDP_area[u.inDGps],  UDP_ck[u.inDGps],  evt_hash, data_table, rows, evt_units_hash)
+		rows = gen_evt(tall_tbl[k], dall_tbl[k][u.outDGps], col, "nicstat.UDP."..UDP_area[u.outDGps], UDP_ck[u.outDGps], evt_hash, data_table, rows, evt_units_hash)
+	end
    end
 
    --mysort(data_table)
