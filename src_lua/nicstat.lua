@@ -59,26 +59,16 @@ function read_file2(flnm, data)
    return rows
 end
 
-function read_file3(flnm, data)
+function read_file3(flnm, data, verbose)
 	local rows = 0
 	local row = -1
 	local line
 	local file = io.open(flnm, "r");
 	for line in file:lines() do
-		if string.len(line) > 400 then
-			local ln = string.len(line)
-			local k
-			local res = ""
-			for k = 1, ln, 1 do
-				local val = string.sub(line, k, k)
-				if val ~= "\0" and val ~= nil then
-					res = res .. val
-				end
-			end
-			line = res
-		end
 		table.insert (data, line);
-		printf("line[%d], len= %d, %s\n", rows, string.len(line), line)
+		if verbose > 0 then
+			printf("line[%d], len= %d, %s\n", rows, string.len(line), line)
+		end
 		row = row + 1
 		rows = rows + 1
 	end
@@ -153,7 +143,7 @@ function nicstat(file1, file2, file3, verbose)
    --col = {["ts"] = "_TIMESTAMP_", ["dura"] = "_DURATION_", ["watts"] = "watts", ["area"] = "area", ["event"]= "event"}
    col = {["ts"] = "_TIMESTAMP_", ["dura"] = "_DURATION_", ["val"] = "val", ["extra_str"] = "extra_str", ["area"] = "area", ["event"]= "event"}
    local clk_tbl = {}
-   local clk_sz = read_file3(file1, clk_tbl)
+   local clk_sz = read_file3(file1, clk_tbl, verbose)
 	local k
 	local ts_mono, ts_epoch
 	for k = 1, clk_sz, 1 do
@@ -169,7 +159,7 @@ function nicstat(file1, file2, file3, verbose)
 	printf("ts_mono= %f, ts_epoch= %f\n", ts_mono, ts_epoch)
    local file_tbl = {}
    local rows = 0
-   local nsz = read_file3(file2, file_tbl)
+   local nsz = read_file3(file2, file_tbl, verbose)
    local v, evt
    -- 'gen_line1' must match event_name field in charts.json
    printf("got line[%d]= '%s'\n", nsz, file_tbl[nsz])

@@ -1325,8 +1325,9 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 static int ck_events_okay_for_this_chart(int file_grp, int evt_idx, int chrt, std::vector <evt_str> &event_table)
 {
 	std::string evt_need = event_table[evt_idx].event_name_w_area;
-	printf("ck_events: grp= %d, evt_idx= %d, chrt= %d, evt_need= %s title= %s at %s %d\n",
-		file_grp, evt_idx, chrt, evt_need.c_str(), event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
+	if (options.verbose)
+		printf("ck_events: grp= %d, evt_idx= %d, chrt= %d, evt_need= %s title= %s at %s %d\n",
+			file_grp, evt_idx, chrt, evt_need.c_str(), event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 	if (evt_need.size() == 0) {
 		return 0;
 	}
@@ -1666,7 +1667,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		}
 		tot_samples += prf_obj.events[i].evt_count;
 	}
-	printf("tot_evts= %d, tot_samples= %d at %s %d\n", (int32_t)prf_obj.events.size(), tot_samples, __FILE__, __LINE__);
+	if (verbose)
+		printf("tot_evts= %d, tot_samples= %d at %s %d\n", (int32_t)prf_obj.events.size(), tot_samples, __FILE__, __LINE__);
 	if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
 		doing_pct_busy_by_cpu = 1;
 	}
@@ -1705,8 +1707,9 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		}
 		if (event_table[evt_idx].flds[j].name == "extra_str") {
 //LUA
-			printf("got fld[%d].name= extra_str for FILE_TYP= %d at %s %d\n",
-				j, prf_obj.file_type, __FILE__, __LINE__);
+			if (verbose)
+				printf("got fld[%d].name= extra_str for FILE_TYP= %d at %s %d\n",
+					j, prf_obj.file_type, __FILE__, __LINE__);
 		}
 	}
 	std::vector <uint32_t> lua_col_map;
@@ -2585,7 +2588,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							prf_idx, (uint32_t)prf_obj.lua_data.data_rows.size(), k, __FILE__, __LINE__);
 						exit(0);
 					}
-					printf("=========== extra_str, prf_idx= %d, sz= %d, add2ex= %d str= %s at %s %d\n", 
+					if (verbose > 0)
+						printf("=========== extra_str, prf_idx= %d, sz= %d, add2ex= %d str= %s at %s %d\n", 
 							prf_idx, (uint32_t)prf_obj.lua_data.data_rows.size(),
 							k, prf_obj.lua_data.data_rows[prf_idx][k].str.c_str(),
 							__FILE__, __LINE__);
@@ -3213,13 +3217,15 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	} else {
 		json += ", \"tot_line\": \"\"";
 	}
-	printf("tot_line= %s for title= %s at %s %d\n", 
-		event_table[evt_idx].charts[chrt].tot_line.c_str(), 
-		event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
+	if (verbose)
+		printf("tot_line= %s for title= %s at %s %d\n", 
+			event_table[evt_idx].charts[chrt].tot_line.c_str(), 
+			event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 	if (event_table[evt_idx].charts[chrt].tot_line_opts.xform.size() > 0) {
 		std::string xf = ", \"tot_line_opts_xform\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.xform + "\"";
 		json += xf;
-		printf("got xform= '%s' at %s %d\n", xf.c_str(), __FILE__, __LINE__);
+		if (verbose)
+			printf("got xform= '%s' at %s %d\n", xf.c_str(), __FILE__, __LINE__);
 	}
 	if (event_table[evt_idx].charts[chrt].tot_line_opts.yval_fmt.size() > 0) {
 		json += ", \"tot_line_opts_yval_fmt\": \""+ event_table[evt_idx].charts[chrt].tot_line_opts.yval_fmt + "\"";
@@ -3246,7 +3252,8 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 			cma = ",";
 		}
 		s += "]";
-		printf("scope= '%s' at %s %d\n", s.c_str(), __FILE__, __LINE__);
+		if (verbose)
+			printf("scope= '%s' at %s %d\n", s.c_str(), __FILE__, __LINE__);
 		json += s;
 	}
 	if (options.follow_proc.size() > 0) {
@@ -3285,9 +3292,9 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 			topo += cma + cor + std::to_string(ch_lines.prf_obj->map_cpu_2_core[i]) + skt;
 		}
 		topo += "]";
-		//if (options.verbose > 0) {
+		if (verbose > 0) {
 			printf("topo= '%s' at %s %d\n", topo.c_str(), __FILE__, __LINE__);
-		//}
+		}
 		json += topo;
 	}
 	json += ", \"file_tag_idx\": " + std::to_string(event_table[evt_idx].file_tag_idx);
@@ -3515,7 +3522,8 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		}
 	}
 	sc_rng += "]";
-	printf("subcat_rng= '%s' at %s %d\n", sc_rng.c_str(), __FILE__, __LINE__);
+	if (verbose)
+		printf("subcat_rng= '%s' at %s %d\n", sc_rng.c_str(), __FILE__, __LINE__);
 	json += sc_rng;
 	json += "}";
 	// below can print lots

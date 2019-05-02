@@ -175,7 +175,8 @@ static uint32_t do_macro_event_array(json &j, int verbose)
 	uint32_t sz;
 	sz = j["macro_event_array"].size();
 	std::vector <json> evt_new;
-	printf("try macro_event_array at %s %d\n", __FILE__, __LINE__);
+	if (verbose)
+		printf("try macro_event_array at %s %d\n", __FILE__, __LINE__);
 	for (uint32_t i=0; i < sz; i++) {
 		try {
 			std::vector <std::string> str_new;
@@ -315,7 +316,8 @@ static uint32_t do_include_event_array(json &j, int verbose)
 			k++;
 		} catch (...) { }
 	}
-	printf("tried to add new included events: event_array.size: old= %d, new= %d ck_sz= %d at %s %d\n",
+	if (verbose)
+		printf("tried to add new included events: event_array.size: old= %d, new= %d ck_sz= %d at %s %d\n",
 			esz_old, esz_new, k, __FILE__, __LINE__);
 	return 0;
 #if 0
@@ -492,7 +494,8 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 	do_macro_event_array(j, verbose);
 	do_include_event_array(j, verbose);
 	sz = j["event_array"].size();
-	printf("event_array.sz= %d at %s %d\n", sz, __FILE__, __LINE__);
+	if (verbose)
+		printf("event_array.sz= %d at %s %d\n", sz, __FILE__, __LINE__);
 	std::vector <std::string> evt_aliases;
 	std::string po_arch;
 	if (features_cpuid.size() > 0) {
@@ -592,7 +595,8 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					for (uint32_t m=0; m < evt_aliases_vec.size(); m++) {
 						if (evt_aliases_vec[m].arch.size() > 0 && evt_arch.size() > 0 &&
 							evt_aliases_vec[m].arch != evt_arch) {
-							printf("skipping evt_alias[%d]= %s due to alias arch= %s and evt_arch= %s at %s %d\n",
+							if (verbose > 0)
+								printf("skipping evt_alias[%d]= %s due to alias arch= %s and evt_arch= %s at %s %d\n",
 								m, evt_aliases_vec[m].evt_name.c_str(),
 								evt_aliases_vec[m].arch.c_str(), evt_arch.c_str(), __FILE__, __LINE__);
 							continue;
@@ -603,7 +607,8 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 								(int)evt_aliases_vec[m].use_alias, lkfor_evt_name.c_str(), __FILE__, __LINE__);
 #endif
 						if (evt_aliases_vec[m].evt_name == e_nm && evt_aliases_vec[m].use_alias != UINT32_M1) {
-							printf("replace evts_tags evt '%s' with alias '%s' arch= %s at %s %d\n",
+							if (verbose > 0)
+								printf("replace evts_tags evt '%s' with alias '%s' arch= %s at %s %d\n",
 								e_nm.c_str(),
 								evt_aliases_vec[m].aliases[evt_aliases_vec[m].use_alias].c_str(),
 								evt_aliases_vec[m].arch.c_str(),  __FILE__, __LINE__);
@@ -874,7 +879,8 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					std::string lkup_typ = j["event_array"][i]["event"]["charts"][k]["options"];
 					get_lkup_typ(copt_strs, lkup_typ, lkup_flags, verbose);
 					cs.options = lkup_flags;
-					printf("chart options= %" PRIx64 " at %s %d\n", lkup_flags, __FILE__, __LINE__);
+					if (verbose)
+						printf("chart options= %" PRIx64 " at %s %d\n", lkup_flags, __FILE__, __LINE__);
 				} catch (...) { }
 				cs.pixels_high = -1;
 				try {

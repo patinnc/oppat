@@ -1172,8 +1172,9 @@ static uint32_t ck_for_match_on_event_name(std::string evt, prf_obj_str &prf_obj
 		if (prf_obj.events[k].event_name_w_area == evt_w_area ||
 			prf_obj.events[k].event_name == evt_w_area ||
 			prf_obj.events[k].event_name == evt_wo_area) {
-			printf("got derived evt match on nm= %s at %s %d\n",
-				prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
+			if (verbose)
+				printf("got derived evt match on nm= %s at %s %d\n",
+					prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
 			hsh_ck = k;
 			break;
 		}
@@ -1228,8 +1229,10 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 			evts_derived_str eds;
 			eds.evts_used.resize(0);
 			eds.evts_tags.resize(0);
-			printf("ck derived evt= %s at %s %d\n", evt_tbl2[i].event_name.c_str(), __FILE__, __LINE__);
-			fflush(NULL);
+			if (verbose) {
+				printf("ck derived evt= %s at %s %d\n", evt_tbl2[i].event_name.c_str(), __FILE__, __LINE__);
+				fflush(NULL);
+			}
 			uint32_t hsh_ck = ck_got_evts_derived_dependents(prf_obj,  evt_tbl2[i], false, eds, verbose);
 			if (hsh_ck == UINT32_M1) {
 				okay = false;
@@ -1241,9 +1244,11 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 					if (trgr_idx == UINT32_M1) {
 						okay = false;
 					}
-					printf("derived_evt got trigger idx= %d at %s %d\n", trgr_idx, __FILE__, __LINE__);
+					if (verbose)
+						printf("derived_evt got trigger idx= %d at %s %d\n", trgr_idx, __FILE__, __LINE__);
 				} else {
-					printf("derived_evt got trigger %s at %s %d\n", 
+					if (verbose)
+						printf("derived_evt got trigger %s at %s %d\n", 
 							evt_tbl2[i].evt_derived.evt_trigger.c_str(), __FILE__, __LINE__);
 					trgr_idx = UINT32_M2;
 				}
@@ -1262,9 +1267,10 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
 					evts_derived.back().new_cols.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
 				}
-				printf("trigger= %s, tkns[0]= %s, new_nm= %s trg_idx= %d, new_idx= %d evts_der.back().used.sz= %d at %s %d\n",
-					evt_tbl2[i].evt_derived.evt_trigger.c_str(), tkns[0].c_str(), new_nm.c_str(), trgr_idx, new_idx,
-					(int)evts_derived.back().evts_used.size(), __FILE__, __LINE__);
+				if (verbose)
+					printf("trigger= %s, tkns[0]= %s, new_nm= %s trg_idx= %d, new_idx= %d evts_der.back().used.sz= %d at %s %d\n",
+						evt_tbl2[i].evt_derived.evt_trigger.c_str(), tkns[0].c_str(), new_nm.c_str(), trgr_idx, new_idx,
+						(int)evts_derived.back().evts_used.size(), __FILE__, __LINE__);
 			}
 		}
 	}
@@ -1295,7 +1301,8 @@ static double gen_div_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i
 	
 	if (evts_derived[j].gen_div.det.size() == 0) {
 		evts_derived[j].gen_div.det.resize(num_cpus);
-		printf("new_cols.sz= %d at %s %d\n", (int)evts_derived[j].new_cols.size(), __FILE__, __LINE__);
+		if (verbose)
+			printf("new_cols.sz= %d at %s %d\n", (int)evts_derived[j].new_cols.size(), __FILE__, __LINE__);
 		for(uint32_t ii=0; ii < evts_derived[j].new_cols.size(); ii++) {
 		//evts_derived[j].new_cols = {"val", "__EMIT__", "duration", "area", "numerator", "denominator"};
 			if (evts_derived[j].new_cols[ii] == "val") { evts_derived[j].gen_div.col_val_idx = ii; }
@@ -1304,7 +1311,8 @@ static double gen_div_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i
 			else if (evts_derived[j].new_cols[ii] == "area")     { evts_derived[j].gen_div.col_area_idx = ii; }
 			else if (evts_derived[j].new_cols[ii] == "numerator"){ evts_derived[j].gen_div.col_num_idx = ii; }
 			else if (evts_derived[j].new_cols[ii] == "denominator"){ evts_derived[j].gen_div.col_den_idx = ii; }
-			printf("evts_derived[%d] new_col[%d]= %s at %s %d\n", j, ii, evts_derived[j].new_cols[ii].c_str(), __FILE__, __LINE__);
+			if (verbose)
+				printf("evts_derived[%d] new_col[%d]= %s at %s %d\n", j, ii, evts_derived[j].new_cols[ii].c_str(), __FILE__, __LINE__);
 		}
 		gen_div_ck_idx(evts_derived[j].gen_div.col_val_idx,  "val",         evt_nm, __LINE__);
 		gen_div_ck_idx(evts_derived[j].gen_div.col_emt_idx,  "__EMIT__",    evt_nm, __LINE__);
@@ -1338,19 +1346,6 @@ static double gen_div_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i
 		evts_derived[j].gen_div.det[cpu].paired = 0;
 	}
 	int32_t shft = (1 << idx);
-#if 0
-	if (evts_derived[j].gen_div.det[cpu].ts[idx] != ts) {
-		// if new ts 
-		if ((evts_derived[j].gen_div.det[cpu].paired & (1 < idx)) != 0) {
-			evts_derived[j].gen_div.det[cpu].paired -= (1 < idx);
-		}
-	}
-	if (evts_derived[j].gen_div.det[cpu].ts[aidx] != ts) {
-		if ((evts_derived[j].gen_div.det[cpu].paired & (1 < aidx)) != 0) {
-			evts_derived[j].gen_div.det[cpu].paired -= (1 < aidx);
-		}
-	}
-#endif
 	//if ((evts_derived[j].gen_div.det[cpu].paired & shft) == 0) {
 		// so this value is not valid
 		evts_derived[j].gen_div.det[cpu].paired |= shft;

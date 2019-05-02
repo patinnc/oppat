@@ -952,13 +952,14 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			int indx = prf_obj.tid_2_comm_indxp1[tid];
 			if (indx == 0) {
 				indx = prf_obj.tid_2_comm_indxp1[pid];
-				if (indx == 0) {
+				if (indx == 0 && verbose > 0) {
 					printf("missed loookup of comm for pid= %d and tid= %d evt_nm= %s tm= %.9f at %s %d\n",
 						pid, tid, evt_nm.c_str(), tm, __FILE__, __LINE__);
 					//exit(1);
 				}
 				if (raw_offset != -1 && (evt_nm == "sched_switch" || evt_nm == "sched:sched_switch")) {
-					printf("try using sched_switch data for missed pid= %d at %s %d\n", pid, __FILE__, __LINE__);
+					if (verbose)
+						printf("try using sched_switch data for missed pid= %d at %s %d\n", pid, __FILE__, __LINE__);
 #pragma pack(push, 1)
 					struct sched_switch_str {
 						uint8_t hdr[8];
@@ -1393,7 +1394,8 @@ static int prf_prt_event_desc(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 		struct prf_event_desc_str eds;
 		eds.nr_ids = pevents[0].nr_ids;
 		eds.event_string = e_str;
-		printf("%s event_desc[%d]: nr_ids= %u, sln= %d, event_str= %s\n",
+		if (options.verbose)
+			printf("%s event_desc[%d]: nr_ids= %u, sln= %d, event_str= %s\n",
 				pfx, j, pevents[0].nr_ids, pevents[0].event_string.len, e_str.c_str());
 		pevents[0].ids = (uint64_t *)(char *)(cp + slen);
 		for (uint32_t k=0; k < eds.nr_ids; k++) {
@@ -1403,7 +1405,8 @@ static int prf_prt_event_desc(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 			if (mx_id < id) {
 				mx_id = id;
 			}
-			printf("\tevt_idx= %d, id= %d at %s %d\n", j, (int)pevents[0].ids[k], __FILE__, __LINE__);
+			if (options.verbose)
+				printf("\tevt_idx= %d, id= %d at %s %d\n", j, (int)pevents[0].ids[k], __FILE__, __LINE__);
 		}
 		eds.attr = pevents[0].attr;
 		prf_obj.features_event_desc.push_back(eds);
@@ -1412,7 +1415,8 @@ static int prf_prt_event_desc(char *pfx, char *sbuf, prf_obj_str &prf_obj)
 	}
 	vec_prev_val_by_id.resize(mx_id+1, 0);
 	for (uint32_t i=0; i < prf_obj.events.size(); i++) {
-		printf("ck if need to update prf_obj[%d].event_name= %s at %s %d\n",
+		if (options.verbose)
+			printf("ck if need to update prf_obj[%d].event_name= %s at %s %d\n",
 				i, prf_obj.events[i].event_name.c_str(), __FILE__, __LINE__);
 		if (prf_obj.events[i].event_name == "") {
 			for (uint32_t j=0; j < prf_obj.features_event_desc.size(); j++) {

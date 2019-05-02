@@ -84,13 +84,15 @@ evts = 0
 evt_hash = {}
 evt_units_hash = {}
 
-function read_file(flnm, hdr, data)
+function read_file(flnm, hdr, data, verbose)
    local rows = 0
    local row = -1
    for line in io.lines(flnm) do
 	   local b, e = string.find(line, "beg/end")
 	   if b ~= nil then
-		   printf("line[%d]= %s\n", rows, line)
+			if verbose > 0 then
+		   		printf("line[%d]= %s\n", rows, line)
+			end
 		local splt = {}
 		row = row + 1
 		splt = ParseCSVLine (line, ',') 
@@ -143,7 +145,7 @@ function spin(flnm_spin, flnm_energy2, flnm_wait, verbose)
 	local tdata = {}
 	local data = {}
 	local k, v, k1, v1, evt
-	rows = rows + read_file(filename_spin, hdrs, tdata)
+	rows = rows + read_file(filename_spin, hdrs, tdata, verbose)
 	local row_max = rows
 	local ts_idx = -1
 	local col_max = -1
@@ -158,6 +160,9 @@ function spin(flnm_spin, flnm_energy2, flnm_wait, verbose)
 	evt_hash[evt_str] = 0
 	ts_beg = -1
 	rows = 0
+	if verbose > 0 then
+		printf("messages from spin.lua\n")
+	end
 --cpu[1]: tid= 6368, beg/end= 36273.157614,36277.157892, dura= 4.000278, Gops= 0.000000, GB/sec= 4.487594
 	for k,t in ipairs(tdata) do
 		for k1,v1 in ipairs(tdata[k]) do
@@ -166,19 +171,25 @@ function spin(flnm_spin, flnm_energy2, flnm_wait, verbose)
 				local b1, e1 = string.find(v1, "cpu%[")
 				local b2, e2 = string.find(v1, "]")
 				cpu = string.sub(v1, b1+4, b2-1)
-				printf("cpu= %s\n", cpu)
+				if verbose > 0 then
+					printf("cpu= %s\n", cpu)
+				end
 			end
 			--if k1 == 4 then
 				--local b, e = string.find(v1, "beg/end= ")
 				--ts_cur = tonumber(string.sub(v1, b+9))
 			if k1 == 3 then
 				ts_cur = tonumber(v1)
-				printf("ts_cur= %s, v1= %s\n", ts_cur, v1)
+				if verbose > 0 then
+					printf("ts_cur= %s, v1= %s\n", ts_cur, v1)
+				end
 			end
 			if k1 == 4 then
 				local b, e = string.find(v1, "dura= ")
 				dura = tonumber(string.sub(v1, b+6))
-				printf("dura= %s\n", dura)
+				if verbose > 0 then
+					printf("dura= %s\n", dura)
+				end
 			end
 			if k1 == 6 then
 				local b, e = string.find(v1, "GB/sec= ")
@@ -186,7 +197,9 @@ function spin(flnm_spin, flnm_energy2, flnm_wait, verbose)
 					b, e = string.find(v1, "Gops/sec= ")
 				end
 				perf = tonumber(string.sub(v1, b+8))
-				printf("perf= %s\n", perf)
+				if verbose > 0 then
+					printf("perf= %s\n", perf)
+				end
 				tm_end = ts_cur
 				tm_beg = tm_end - dura
 				if ts0 == -1 then
@@ -210,7 +223,9 @@ function spin(flnm_spin, flnm_energy2, flnm_wait, verbose)
 
 	--ts_delta = (ts_end - ts_beg)/rows
 	--ts0 = ts_beg
-	printf("using ts0= %f\n", ts0)
+	if verbose > 0 then
+		printf("using ts0= %f\n", ts0)
+	end
 
 	local dura = ts_delta
 	evt_units_hash[evt_str] = "val"
