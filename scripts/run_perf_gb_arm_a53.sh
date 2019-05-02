@@ -85,7 +85,7 @@ rm $WAIT_FILE
 export S_TIME_FORMAT=ISO && iostat -z -d -t 1  > $ODIR/iostat.txt &
 IOSTAT_CMD=$!
 
-nicstat -p 1 > $ODIR/nicstat.txt &
+nicstat -a -z -p 1 > $ODIR/nicstat.txt &
 NICSTAT_CMD=$!
 
 vmstat -n -t 1 > $ODIR/vmstat.txt &
@@ -273,12 +273,13 @@ $BIN_DIR/clocks.x > $ODIR/clocks2.txt
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
 kill -2 $PRF_CMD_PID2
-kill -2 $IOSTAT_CMD
-kill -2 $NICSTAT_CMD
-kill -2 $VMSTAT_CMD
+ps -ef | grep stat
+kill -3 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 wait $PRF_CMD_PID2
+sleep 1
 
 ck_cmd_pid_threads_oper $TRC_CMD $PID_TRC_CMD 2 -gt 1
+kill -9 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 
 #exit
 #sudo ../perf.sh record -a -g -e sched:sched_switch   -o $BASE.data sleep 0.5
