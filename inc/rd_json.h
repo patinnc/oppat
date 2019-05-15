@@ -73,12 +73,13 @@ struct tot_line_opts_str {
 struct chart_str {
 	std::string title, var_name, by_var, chart_tag, chart_category, chart_type,
 		y_fmt, by_val_ts, by_val_dura, y_label, tot_line,
-		marker_type, marker_size, marker_connect;
+		marker_type, marker_size, marker_connect, marker_ymin;
 	struct tot_line_opts_str tot_line_opts;
 	bool use_chart;
 	uint32_t var_idx, by_var_idx;
 	int32_t pixels_high;
 	uint64_t options;
+	std::vector <std::string> options_strs;
 	std::unordered_map <double, uint32_t> by_var_hsh;
 	std::vector <double> by_var_vals, by_var_sub_tots;
 	std::vector <double> dura_prev_ts;
@@ -139,7 +140,11 @@ struct fld_typ_str {
 };
 
 enum class copt_enum : const uint64_t {
-	DROP_1ST         = (1ULL << 0),
+	DROP_1ST						= (1ULL << 0),
+	OVERLAPPING_RANGES_WITHIN_AREA	= (1ULL << 1),
+	TOT_LINE_ADD_VALUES_IN_INTERVAL = (1ULL << 2),
+	TOT_LINE_LEGEND_WEIGHT_BY_DURA  = (1ULL << 3),
+	TOT_LINE_BUCKET_BY_END_OF_SAMPLE= (1ULL << 4),
 };
 
 enum class fte_enum : const uint64_t {
@@ -176,6 +181,7 @@ enum class fte_enum : const uint64_t {
 	FLD_TYP_NEW_VAL       = (1ULL << 30),
 	FLD_TYP_ADD_2_EXTRA   = (1ULL << 31),
 	FLD_TYP_TM_RUN        = (1ULL << 32),
+	FLD_TYP_DROP_BY_ONE_AFTER = (1ULL << 33),
 };
 
 enum {
