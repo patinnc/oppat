@@ -1,5 +1,5 @@
 {
-  "chart_use_default":"y",
+  "chart_use_default":"n",
   "pixels_high_default":250,
   "drop_event_if_samples_exceed":470000,
   "dont_show_events_on_cpu_busy_if_samples_exceed":500000,
@@ -1545,7 +1545,7 @@
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"disk", "title":"iostat disk read/write",  "var_name": "MB/sec", "by_var": "area",
+		{"category":"Disk", "title":"iostat disk read/write",  "var_name": "MB/sec", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"IO MB/sec",
 			"chart_tag":"IOSTAT_cHART", "chart_type":"line", "use_chart":"y"}
 		]
@@ -1562,9 +1562,9 @@
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"disk", "title":"vmstat io blocks in or out per sec (MB/sec)",  "var_name": "val", "by_var": "area",
+		{"category":"Disk", "title":"vmstat io blocks in or out per sec (MB/sec)",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"IO blocks MB/sec",
-			"chart_tag":"VMSTAT_IO_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"VMSTAT_IO_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1581,7 +1581,7 @@
 	"charts": [
 		{"category":"DRAM", "title":"vmstat memory usage (MBytes)",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"mem usage MBytes",
-			"chart_tag":"VMSTAT_MEM_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"VMSTAT_MEM_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1598,7 +1598,7 @@
 	"charts": [
 		{"category":"CPU", "title":"vmstat processes runnable or blocked",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"number of processes",
-			"chart_tag":"VMSTAT_PROC_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"VMSTAT_PROC_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1613,9 +1613,9 @@
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"disk", "title":"vmstat swap memory swapped in or out MB/s",  "var_name": "val", "by_var": "area",
+		{"category":"Disk", "title":"vmstat swap memory swapped in or out MB/s",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"swapped memory MB/sec",
-			"chart_tag":"VMSTAT_SWAP_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"VMSTAT_SWAP_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1632,7 +1632,7 @@
 	"charts": [
 		{"category":"CPU", "title":"vmstat cpu user, sys, idle, wait, stolen pct of system",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"cpu usage (%_all_cpus)",
-			"chart_tag":"VMSTAT_SYS_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"VMSTAT_SYS_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1649,7 +1649,7 @@
 	"charts": [
 		{"category":"CPU", "title":"vmstat system interrupts/s, context switches/s",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"intrpts/s, cswitch/s",
-			"chart_tag":"VMSTAT_SYS_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"VMSTAT_SYS_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1666,7 +1666,7 @@
 	"charts": [
 		{"category":"Network", "title":"nicstat interface read/write KB/sec",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"KBytes/sec",
-			"chart_tag":"NICSTAT_KB_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"NICSTAT_KB_PER_SEC_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1683,7 +1683,7 @@
 	"charts": [
 		{"category":"Network", "title":"nicstat interface read/write packets/sec",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__", "y_label":"packets/sec",
-			"chart_tag":"NICSTAT_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"NICSTAT_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1700,7 +1700,7 @@
 	"charts": [
 		{"category":"Network", "title":"nicstat TCP in/out KB/sec",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"KBytes/sec",
-			"chart_tag":"NICSTAT_TCP_KB_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"NICSTAT_TCP_KB_PER_SEC_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1717,7 +1717,7 @@
 	"charts": [
 		{"category":"Network", "title":"nicstat TCP in/out segments/sec",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__", "y_label":"segments/sec",
-			"chart_tag":"NICSTAT_TCP_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"NICSTAT_TCP_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1734,7 +1734,7 @@
 	"charts": [
 		{"category":"Network", "title":"nicstat DataGrams in/out per sec",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__",  "y_label":"DataGrams/sec",
-			"chart_tag":"NICSTAT_UDP_DG_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
+			"chart_tag":"NICSTAT_UDP_DG_PER_SEC_cHART", "chart_type":"line", "use_chart":"d"}
 		]
 	}
   },
@@ -1766,7 +1766,7 @@
 		{"name":"dura",      "lkup":"_DURATION_",  "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"disk", "title":"perf page faults/sec",  "var_name": "val", "by_var": "area",
+		{"category":"Disk", "title":"perf page faults/sec",  "var_name": "val", "by_var": "area",
 			"tot_line":"__total__", "y_label":"page faults/sec",
 			"chart_tag":"PERF_FAULTS_SEC_cHART", "chart_type":"line", "use_chart":"y"}
 		]
@@ -1874,6 +1874,74 @@
 	"charts": [
 		{"category":"Disk", "title":"Disk BW MiB/sec ext4_da_write",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"DISK_BW",
 			"chart_type":"line", "use_chart":"d"}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "syscall_rd_wr_MBps", "evt_type": "ftrace", "comment":"derived event for syscalls:sys_enter_*/sys_exit_*",
+	"example_rec":"sleep-11324 [000] 167433.179263491: sys_enter_close:      fd: 0x00000002",
+    "example_rec":"sleep-11324 [000] 167433.179266460: sys_exit_close:       0x0",
+	"example_rec":"abcd",
+	"evt_derived":{
+		"evts_used":["syscalls:sys_.*read.*", "syscalls:sys_.*write.*"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["__EMIT__", "MiB/s", "bytes", "duration", "area"],
+		"lua_file":"tc_syscalls.lua",
+		"lua_rtn":"syscalls"
+	},
+	"evt_flds": [
+		{"name":"MiB/s", "lkup": "MiB/s",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1.0e-6}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"numerator", "lkup": "bytes",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1.0e-6}]},
+		{"name":"denominator",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"Disk", "title":"syscall IO read/write MB/sec",  "var_name": "MiB/s", "by_var": "area", "chart_tag":"SYSCALL_READ_WRITE_MBPS_CHART",
+			"chart_type":"line", "use_chart":"y", "options":"OVERLAPPING_RANGES_WITHIN_AREA", "marker":{"connect":"y", "ymin":"0.0"},
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.3f", "desc":"Based on syscalls:sys_e*",
+				"xform":"select_vars", "yvar_fmt":"av.%s"}
+		}
+		]
+	}
+  },
+  {"event":
+	{
+	"evt_name": "syscall_all", "evt_type": "ftrace", "comment":"derived event for syscalls:sys_enter_*/sys_exit_*",
+	"example_rec":"sleep-11324 [000] 167433.179263491: sys_enter_close:      fd: 0x00000002",
+    "example_rec":"sleep-11324 [000] 167433.179266460: sys_exit_close:       0x0",
+	"example_rec":"abcd",
+	"evt_derived":{
+		"evts_used":["syscalls:sys_e.*"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["__EMIT__", "MiB/s", "bytes", "duration", "area", "dura2"],
+		"lua_file":"tc_syscalls.lua",
+		"lua_rtn":"syscalls_all"
+	},
+	"evt_flds": [
+		{"name":"MiB/s", "lkup": "MiB/s",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":1.0e-6}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"bytes", "lkup": "bytes",    "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"outstanding",  "lkup": "dura2", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"Disk", "title":"syscalls outstanding per interval by call",  "var_name": "outstanding", "by_var": "area", "chart_tag":"SYSCALL_OUTSTANDING_CHART",
+			"chart_type":"line", "use_chart":"y",
+			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
+			"marker":{"connect":"y", "ymin":"0.0"},
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on syscalls:sys_e*",
+				"xform":"select_vars", "yvar_fmt":"av.%s"}
+		},
+		{"category":"Disk", "title":"syscalls calls (by end of call) per interval",  "var_name": "outstanding", "by_var": "area", "chart_tag":"SYSCALL_ACTIVE_CHART",
+			"chart_type":"line", "use_chart":"y",
+			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
+			"marker":{"connect":"y", "ymin":"0.0"},
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.0f", "desc":"Based on syscalls:sys_e*",
+				"xform":"select_vars", "yvar_fmt":"av.%s"}
+		}
 		]
 	}
   },
