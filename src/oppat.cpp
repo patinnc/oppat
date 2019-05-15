@@ -735,10 +735,10 @@ enum {
 };
 
 struct min_max_str {
-	double x0, x1, y0, y1, total;
+	double x0, x1, y0, y1, total, tot_dura;
 	int fe_idx;
 	bool initd;
-	min_max_str(): x0(-1.0), x1(-1.0), y0(-1.0), y1(-1.0), total(0.0), fe_idx(-1), initd(false) {}
+	min_max_str(): x0(-1.0), x1(-1.0), y0(-1.0), y1(-1.0), total(0.0), tot_dura(0.0), fe_idx(-1), initd(false) {}
 };
 
 struct chart_lines_rng_str {
@@ -1409,7 +1409,7 @@ void chart_lines_reset(void)
 	ch_lines.prf_obj = 0;
 }
 
-void chart_lines_ck_rng(double x, double y, double ts0, int cat, int subcat, double cur_val, int fe_idx)
+void chart_lines_ck_rng(double x, double y, double ts0, int cat, int subcat, double cur_val, double cur_dura, int fe_idx)
 {
 	if (ch_lines.range.ts0 == -1.0) {
 		ch_lines.range.x_range[0] = x;
@@ -1488,7 +1488,8 @@ void chart_lines_ck_rng(double x, double y, double ts0, int cat, int subcat, dou
 	}
 	ch_lines.range.subcat_rng[cat][subcat].initd = true;
 	ch_lines.range.subcat_rng[cat][subcat].fe_idx = fe_idx;
-	ch_lines.range.subcat_rng[cat][subcat].total += cur_val;
+	ch_lines.range.subcat_rng[cat][subcat].total    += cur_val;
+	ch_lines.range.subcat_rng[cat][subcat].tot_dura += cur_dura;
 	//printf("subcat[%d][%d]\n", cat, subcat);
 }
 
@@ -1634,6 +1635,7 @@ void etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 enum {
 	OVERLAP_ADD,
 	OVERLAP_TRUNC,
+	OVERLAP_IGNORE,
 };
 
 
@@ -2017,6 +2019,9 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			int handle_overlap = OVERLAP_ADD;
 			if (prf_obj.has_tm_run && chart_type == CHART_TYPE_LINE) {
 				handle_overlap = OVERLAP_TRUNC;
+				if (event_table[evt_idx].charts[chrt].options & (uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA) {
+					handle_overlap = OVERLAP_IGNORE;
+				}
 			}
 			if (chart_type == CHART_TYPE_STACKED) {
 				if (i > 0) {
@@ -2037,6 +2042,10 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					nx0 = nx1 - event_table[evt_idx].data.ts[j].duration;
 					if (nx1 <= fx0) {
 						// so this event ends before the cur interval
+						break;
+					}
+					if (chart_type == CHART_TYPE_LINE &&
+						event_table[evt_idx].charts[chrt].options & (uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA) {
 						break;
 					}
 #if 0
@@ -2604,8 +2613,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						ls0p->x[0], ls0p->x[1], ls0p->y[0], ls0p->y[1], var_val, __FILE__, __LINE__);
 				}
 				if (use_this_line) {
-					chart_lines_ck_rng(ls0p->x[0], ls0p->y[0], ts0, ls0p->cat, ls0p->subcat, 0.0, ls0p->fe_idx);
-					chart_lines_ck_rng(ls0p->x[1], ls0p->y[1], ts0, ls0p->cat, ls0p->subcat, y_val[by_var_idx_val], ls0p->fe_idx);
+					chart_lines_ck_rng(ls0p->x[0], ls0p->y[0], ts0, ls0p->cat, ls0p->subcat, 0.0, (ls0p->x[1]-ls0p->x[0]), ls0p->fe_idx);
+					chart_lines_ck_rng(ls0p->x[1], ls0p->y[1], ts0, ls0p->cat, ls0p->subcat, y_val[by_var_idx_val], 0.0, ls0p->fe_idx);
 					ch_lines.line.push_back(*ls0p);
 				}
 				i = 0;
@@ -2657,8 +2666,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 				ls1.cat = kk;
 				ls1.subcat = 0;
-				chart_lines_ck_rng(ls1.x[0], ls1.y[0], ts0, ls1.cat, ls1.subcat, 0.0, ls1.fe_idx);
-				chart_lines_ck_rng(ls1.x[1], ls1.y[1], ts0, ls1.cat, ls1.subcat, yv, ls1.fe_idx);
+				chart_lines_ck_rng(ls1.x[0], ls1.y[0], ts0, ls1.cat, ls1.subcat, 0.0, (ls1.x[1]-ls1.x[0]), ls1.fe_idx);
+				chart_lines_ck_rng(ls1.x[1], ls1.y[1], ts0, ls1.cat, ls1.subcat, yv, 0.0, ls1.fe_idx);
 				if (cur_idx > 2 && yv == 0.0 && last_by_var_y_val[kk].y1 == 0.0) {
 					last_by_var_y_val[kk].skip_count++;
 					continue;
@@ -2846,8 +2855,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				do_it = false;
 			}
 			if (do_it) {
-				chart_lines_ck_rng(ls1.x[0], ls1.y[0], ts0, ls1.cat, ls1.subcat, 0.0, ls1.fe_idx);
-				chart_lines_ck_rng(ls1.x[1], ls1.y[1], ts0, ls1.cat, ls1.subcat, 1.0, ls1.fe_idx);
+				chart_lines_ck_rng(ls1.x[0], ls1.y[0], ts0, ls1.cat, ls1.subcat, 0.0, (ls1.x[1]-ls1.x[0]), ls1.fe_idx);
+				chart_lines_ck_rng(ls1.x[1], ls1.y[1], ts0, ls1.cat, ls1.subcat, 1.0, 0.0, ls1.fe_idx);
 				ch_lines.line.push_back(ls1);
 			}
 		}
@@ -2908,8 +2917,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		ls0.prf_idx = prf_idx;
 		ls0.cat     = (int)by_var_idx_val;
 		ls0.subcat  = 0;
-		chart_lines_ck_rng(ls0.x[0], ls0.y[0], ts0, ls0.cat, ls0.subcat, 0.0, ls0.fe_idx);
-		chart_lines_ck_rng(ls0.x[1], ls0.y[1], ts0, ls0.cat, ls0.subcat, 1.0, ls0.fe_idx);
+		chart_lines_ck_rng(ls0.x[0], ls0.y[0], ts0, ls0.cat, ls0.subcat, 0.0, (ls0.x[1]-ls0.x[0]), ls0.fe_idx);
+		chart_lines_ck_rng(ls0.x[1], ls0.y[1], ts0, ls0.cat, ls0.subcat, 1.0, 0.0, ls0.fe_idx);
 		ch_lines.line.push_back(ls0);
 	}
 	if (chart_type == CHART_TYPE_LINE) {
@@ -3015,8 +3024,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			int by_var_idx_val2 = (int)get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, cpu, __LINE__);
 			ls0.cat = by_var_idx_val2;
 			ls0.subcat = 1;
-			chart_lines_ck_rng(ls0.x[0], ls0.y[0], ts0, ls0.cat, ls0.subcat, 0.0, ls0.fe_idx);
-			chart_lines_ck_rng(ls0.x[1], ls0.y[1], ts0, ls0.cat, ls0.subcat, 1.0, ls0.fe_idx);
+			chart_lines_ck_rng(ls0.x[0], ls0.y[0], ts0, ls0.cat, ls0.subcat, 0.0, (ls0.x[1]-ls0.x[0]), ls0.fe_idx);
+			chart_lines_ck_rng(ls0.x[1], ls0.y[1], ts0, ls0.cat, ls0.subcat, 1.0, 0.0, ls0.fe_idx);
 			ch_lines.line.push_back(ls0);
 		}
 		if (got_cpt_neg == true) {
@@ -3169,8 +3178,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				int by_var_idx_val2 = (int)get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, cpu, __LINE__);
 				ls0.cat = by_var_idx_val2;
 				ls0.subcat = 1;
-				chart_lines_ck_rng(ls0.x[0], ls0.y[0], ts0, ls0.cat, ls0.subcat, 0.0, ls0.fe_idx);
-				chart_lines_ck_rng(ls0.x[1], ls0.y[1], ts0, ls0.cat, ls0.subcat, 1.0, ls0.fe_idx);
+				chart_lines_ck_rng(ls0.x[0], ls0.y[0], ts0, ls0.cat, ls0.subcat, 0.0, (ls0.x[1]-ls0.x[0]), ls0.fe_idx);
+				chart_lines_ck_rng(ls0.x[1], ls0.y[1], ts0, ls0.cat, ls0.subcat, 1.0, 0.0, ls0.fe_idx);
 				ch_lines.line.push_back(ls0);
 			}
 		}
@@ -3210,6 +3219,16 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	// main.js looks for '{ "title":' so be careful changing this string
 	std::string json = "{ ";
 	json += "\"title\": \"" + event_table[evt_idx].charts[chrt].title + "\"";
+	if (event_table[evt_idx].charts[chrt].options != 0) {
+		json += ", \"chart_options\":[";
+		for (uint32_t i=0; i < event_table[evt_idx].charts[chrt].options_strs.size(); i++) {
+			if (i > 0) {
+				json += ",";
+			}
+			json += "\"" + event_table[evt_idx].charts[chrt].options_strs[i] + "\"";
+		}
+		json += "]";
+	}
 	json += ", \"x_label\": \"Time(secs)\"";
 	json += ", \"y_fmt\": \""+ event_table[evt_idx].charts[chrt].y_fmt + "\"";
 	if (event_table[evt_idx].charts[chrt].tot_line.size() > 0) {
@@ -3273,6 +3292,12 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	}
 	if (event_table[evt_idx].charts[chrt].marker_size.size() > 0) {
 		json += ", \"marker_size\": \"" + event_table[evt_idx].charts[chrt].marker_size + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].marker_ymin.size() > 0) {
+		std::string ymin_str = ", \"marker_ymin\": \"" + event_table[evt_idx].charts[chrt].marker_ymin + "\"";
+		printf("chart: marker_ymin str= %s at %s %d\n", ymin_str.c_str(), __FILE__, __LINE__);
+		//json += ", \"marker_ymin\": \"" + event_table[evt_idx].charts[chrt].marker_ymin + "\"";
+		json += ymin_str;
 	}
 	if (event_table[evt_idx].charts[chrt].marker_connect.size() > 0) {
 		json += ", \"marker_connect\": \"" + event_table[evt_idx].charts[chrt].marker_connect + "\"";
@@ -3355,10 +3380,18 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	json += var_strs + "}";
 	json += ", \"myshapes\":[";
 	std::string zero = "0";
+	std::string ch_lines_line_str;
+	std::vector <double> ovr_totals;
+	if (event_table[evt_idx].charts[chrt].chart_tag == "SYSCALL_TIME_CHART") {
+		ovr_totals.resize(by_sz, 0.0);
+	}
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
-		if (i > 0) { json += ", "; }
+		if (i > 0) { ch_lines_line_str += ", "; }
 		// order of ival array values must agree with IVAL_* variables in main.js
-		json += std::string("{\"ival\":[") +
+		if (ovr_totals.size() > 0) {
+			ovr_totals[ch_lines.line[i].cat] += ch_lines.line[i].x[1] - ch_lines.line[i].x[0];
+		}
+		ch_lines_line_str += std::string("{\"ival\":[") +
 				drop_trailing_zeroes(std::to_string(ch_lines.line[i].typ)) +
 				"," +
 				drop_trailing_zeroes(std::to_string(ch_lines.line[i].cpt_idx)) +
@@ -3378,6 +3411,13 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[1])) +
 				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[1])) +
 				"]";
+#if 0
+		if (ch_lines.line[i].cat >= 0 && ch_lines.legend[ch_lines.line[i].cat] == "nanosleep") {
+			printf("nano[%d] y0= %.3f, y1= %.3f at %s %d\n", i, 
+				ch_lines.line[i].y[0], ch_lines.line[i].y[1], __FILE__, __LINE__);
+		}
+#endif
+		//abcd
 		if (ch_lines.line[i].use_num_denom > -1) {
 			double nval= ch_lines.line[i].denom;
 			if (nval != 0.0) {
@@ -3385,9 +3425,9 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 			} else {
 				nval = 0.0;
 			}
-			json += std::string(", \"num\":") +
+			ch_lines_line_str += std::string(", \"num\":") +
 				drop_trailing_zeroes(std::to_string(ch_lines.line[i].numerator));
-			json += std::string(", \"den\":") +
+			ch_lines_line_str += std::string(", \"den\":") +
 				drop_trailing_zeroes(std::to_string(ch_lines.line[i].denom));
 #if 0
 			printf("ch_lines.line[%d].numerator= %f, denom= %f, nval= %f, oval= %f at %s %d\n",
@@ -3398,7 +3438,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		if (ch_lines.line[i].text.size() > 0) {
 			//printf("ch_lines.line[%d].text= %s at %s %d\n", i, ch_lines.line[i].text.c_str(), __FILE__, __LINE__);
 			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
-			json += ",\"txtidx\":" + std::to_string(txt_idx);
+			ch_lines_line_str += ",\"txtidx\":" + std::to_string(txt_idx);
 		}
 		std::string cs_txt;
 		for (uint32_t j=0; j < ch_lines.line[i].callstack_str_idxs.size(); j++) {
@@ -3410,9 +3450,15 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		if (cs_txt.size() > 0) {
 			cs_txt = ",\"cs_strs\":[" + cs_txt + "]";
 		}
-		json += cs_txt + "}";
+		ch_lines_line_str += cs_txt + "}";
 	}
-	json += "]";
+	ch_lines_line_str += "]";
+#if 0
+	if (event_table[evt_idx].charts[chrt].chart_tag == "SYSCALL_TIME_CHART") {
+		printf("SYSCALL_TIME_CHART ch_line data at %s %d:\n%s\n", __FILE__, __LINE__, ch_lines_line_str.c_str());
+	}
+#endif
+	json += ch_lines_line_str;
 	json += "," + build_proc_string(evt_idx, chrt, event_table);
 	json += "," + build_flnm_evt_string(evt_tbl_idx, evt_idx, event_table, verbose);
 	if (verbose)
@@ -3493,6 +3539,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				}
 			}
 #endif
+			//if (event_table[evt_idx].charts[chrt].chart_tag == "SYSCALL_TIME_CHART")
 			if (verbose > 0)
 			printf("subcat_rng[%d][%d].x0= %f, x1= %f, y0= %f, y1= %f, fe_idx= %d, ev= %s total= %f, txt[%d]= %s, initd= %d\n", i, j,
 				//ch_lines.range.subcat_rng[i][j].x0,
@@ -3506,13 +3553,27 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 				(int)i, legnd.c_str(),
 				ch_lines.range.subcat_rng[i][j].initd
 				);
+			if (false && ovr_totals.size() > 0) {
+				printf("ovr_total:= %f, lcat= %s, iby_var= %s icat= %d, i= %d at %s %d\n",
+						ovr_totals[i], legnd.c_str(),
+						event_table[evt_idx].charts[chrt].by_var_strs[i].c_str(),
+						ch_lines.line[i].cat, i, __FILE__, __LINE__);
+			}
 			sc_rng += "{ \"x0\":" + std::to_string(ux0) +
 				", \"x1\":" + std::to_string(ux1) +
 				", \"y0\":" + std::to_string(ch_lines.range.subcat_rng[i][j].y0) +
 				", \"y1\":" + std::to_string(ch_lines.range.subcat_rng[i][j].y1) +
 				", \"fe_idx\":" + std::to_string(ch_lines.range.subcat_rng[i][j].fe_idx) +
-				", \"event\":\"" + ev + "\""+
-				", \"total\":" + std::to_string(ch_lines.range.subcat_rng[i][j].total) +
+				", \"event\":\"" + ev + "\"";
+			if (ovr_totals.size() > 0) {
+				sc_rng +=
+				", \"total\":" + std::to_string(ovr_totals[i]);
+			} else {
+				sc_rng +=
+				", \"total\":" + std::to_string(ch_lines.range.subcat_rng[i][j].total);
+			}
+			sc_rng += ", \"tot_dura\":" + std::to_string(ch_lines.range.subcat_rng[i][j].tot_dura);
+			sc_rng += 
 				", \"cat\":" + std::to_string(i) +
 				", \"subcat\":" + std::to_string(j) +
 				", \"cat_text\":\"" + legnd + "\"" +
@@ -3522,8 +3583,10 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		}
 	}
 	sc_rng += "]";
-	if (verbose)
-		printf("subcat_rng= '%s' at %s %d\n", sc_rng.c_str(), __FILE__, __LINE__);
+	//if (verbose)
+	if (event_table[evt_idx].charts[chrt].chart_tag == "SYSCALL_ACTIVE_CHART")
+		printf("subcat_rng(chart_tag=%s)= '%s' at %s %d\n",
+				event_table[evt_idx].charts[chrt].chart_tag.c_str(), sc_rng.c_str(), __FILE__, __LINE__);
 	json += sc_rng;
 	json += "}";
 	// below can print lots
@@ -3769,6 +3832,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	bool use_value = true;
 	std::vector <bool> did_actions_already;
 	did_actions_already.resize(fsz);
+	uint32_t drop_by_one_after_idx = UINT32_M1;
 	for (uint32_t i=0; i < samples_sz; i++) {
 		int cpt_idx, cpt_idx2, prf_evt_idx, fe_idx, cpu;
 		uint32_t pid, tid, pid2, tid2;
@@ -4053,6 +4117,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			if (flg & (uint64_t)fte_enum::FLD_TYP_NEW_VAL) {
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
+				if (flg & (uint64_t)fte_enum::FLD_TYP_DROP_BY_ONE_AFTER) {
+					drop_by_one_after_idx = j;
+					//printf("got drop_by_one_after_idx at %s %d\n", __FILE__, __LINE__);
+				}
 				std::string nd_lkup = event_table.flds[j].lkup;
 				int got_it = -1;
 				for (uint32_t kk=0; kk < prf_obj.events[prf_evt_idx2].new_cols.size(); kk++) {
@@ -4585,6 +4653,21 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				event_table.data.cpt_idx[1].push_back(cpt_idx2);
 			}
 			event_table.data.prf_sample_idx.push_back(i);
+			if (drop_by_one_after_idx != UINT32_M1) {
+				tss.ts += 1.0e-9;
+				tss.duration = 1.0e-9;
+				event_table.data.ts.push_back(tss);
+				if (dv[drop_by_one_after_idx] > 0.0) {
+					dv[drop_by_one_after_idx]--;
+					//printf("dropped by 1, new_val= %f at %s %d\n", dv[drop_by_one_after_idx], __FILE__, __LINE__);
+				}
+				event_table.data.vals.push_back(dv);
+				event_table.data.cpt_idx[0].push_back(cpt_idx);
+				if (event_table.data.cpt_idx.size() == 2) {
+					event_table.data.cpt_idx[1].push_back(cpt_idx2);
+				}
+				event_table.data.prf_sample_idx.push_back(i);
+			}
 		}
 		//if (cpu >= 0) 
 		if (cpu >= 0 && ts != ts_cpu[cpu]) {
@@ -5265,7 +5348,6 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	fflush(NULL);
 	
 	//cpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx], comm, pid, tid) - 1;
-	//abcd
 	int fllw_comm=0, fllw_text=0, fllw_stk=0;
 	double unk_cputm = 0.0, fllw_cputm3=0.0;
 	double ck_tot = 0;
