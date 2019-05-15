@@ -4,15 +4,86 @@
 "cpu_diagram_hdr": {"max_x":1147.757,"max_y":1326.003},
 "cpu_diagram_copyright": {"text":"(c) 2019-2019 WikiChip.org, used with permission", "SVG_URL":"https://en.wikichip.org/w/images/c/c7/arm_cortex_a53_diagram.svg", "website":"https://WikiChip.org"}
 
+,"sectors":[{"sector":0, "y_offset":0}, {"sector":1, "y_offset":600}]
+
+,"figures": [
+	{
+	"ymax":580,
+	"figure":{
+	"sector":0,
+	"cmds":[ 
+	 {"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"10%", "yend":"94.0%"}
+	,{"cmd":"text", "x":"50.0%", "y":"_box_top_", "str":"Operating System", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"10%", "yend":"40.0%", "fillColor":"#ffdacc", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Applications", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"41%", "yend":"47.0%", "fillColor":"#ffff99", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"System Call Interface", "textAlign":"left", "textBaseline":"center", "font_size":15, "box_data_arr":[
+		{"box_nm":"syscall_outstanding", "limit":5, "x":"_box_left_", "y":"_box_ymid_", "str":"top 5 outst: ", "textAlign":"left", "textBaseline":"center", "font_size":15}
+		,{"box_nm":"syscall_active", "limit":5, "x":"_box_xmid_", "y":"_box_ymid_", "str":"top 5 calls: ", "textAlign":"left", "textBaseline":"center", "font_size":15}
+		]}
+
+	,{"cmd":"rect", "x":"0.0%", "xend":"25.0%", "y":"48%", "yend":"80.0%", "fillColor":"#e6e6ff", "strokeStyle":"none"}
+	,{"cmd":"rect", "x":"0.5%", "xend":"24.5%", "y":"49%", "yend":"55.0%", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"VFS", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.5%", "xend":"24.5%", "y":"57%", "yend":"63.0%", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"File System", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.5%", "xend":"24.5%", "y":"65%", "yend":"71.0%", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Volume Manager", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.5%", "xend":"24.5%", "y":"73%", "yend":"79.0%", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Block Dev Interface", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"25.0%", "xend":"50.0%", "y":"48%", "yend":"80.0%", "fillColor":"linen", "strokeStyle":"none"}
+	,{"cmd":"rect", "x":"25.5%", "xend":"49.5%", "y":"49%", "yend":"55.0%", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Sockets", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"25.5%", "xend":"49.5%", "y":"57%", "yend":"63.0%", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"TCP/UDP", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"25.5%", "xend":"49.5%", "y":"65%", "yend":"71.0%", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"IP", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"25.5%", "xend":"49.5%", "y":"73%", "yend":"79.0%", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Ethernet", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"50.0%", "xend":"100.0%", "y":"48%", "yend":"80.0%", "fillColor":"#fcfce8", "strokeStyle":"none"}
+	,{"cmd":"rect", "x":"50.5%", "xend":"99.5%", "y":"49%", "yend":"71.0%", "fillColor":"#f2f28c", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Scheduler", "textAlign":"left", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "use":"n", "x":"50.5%", "xend":"99.5%", "y":"57%", "yend":"63.0%", "fillColor":"#f2f28c", "strokeStyle":"none"}
+	,{"cmd":"text", "use":"n", "x":"_box_left_", "y":"_box_top_", "str":"Virtual Memory", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "use":"n", "x":"50.5%", "xend":"99.5%", "y":"65%", "yend":"71.0%", "fillColor":"#f2f28c", "strokeStyle":"none"}
+	,{"cmd":"text", "use":"n", "x":"_box_left_", "y":"_box_top_", "str":"IP", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"50.5%", "xend":"99.5%", "y":"73%", "yend":"79.0%", "fillColor":"#f2f28c", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Virtual Memory", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"81%", "yend":"87.0%", "fillColor":"#e6e6ff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"2.0%", "y":"_box_top_", "str":"Device Drivers", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"88%", "yend":"96.0%", "fillColor":"PaleTurquoise", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"2.0%", "y":"_box_top_", "str":"Firmware", "textAlign":"left", "textBaseline":"top", "font_size":15}
+		]
+		}
+	}
+]
+
 ,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"top", "same_x":-1, "row_m1":-1, "row_p1":-2}
 ,"cpu_diagram_fields":[
-  {"fld":{"x":521,  "y":544}, "chart":"__TEXT_BLOCK__"}
-, {"fld":{"x":10,  "y":70},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: ", "follow_proc":1, "grf":{"typ_data":"internal", "nm":"core_util"}}
-, {"fld":{"x":10,  "y":90},  "chart":"FREQ_BY_CPU", "pfx":"cpu freq (GHz): "}
-, {"fld":{"x":20,  "y":660}, "grf_def":{"typ":"vbar", "nm":"IPC: 2 inst/cyc max", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":2.0}}}
-, {"fld":{"x":10,  "y":104}, "chart":"IPC_CHART",   "pfx":"Instructions/cycle: ", "grf":{"nm":"IPC: 2 inst/cyc max"}}
-, {"fld":{"x":10,  "y":118}, "chart":"CPI_CHART",   "pfx":"Cycles/instructions: "}
-, {"fld":{"x":555,  "y":340},  "grf_def":{"typ":"pie", "nm":"core_util", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true}}
+  {"fld":{"x":521, "y":544},  "chart":"__TEXT_BLOCK__"}
+, {"fld":{"x":10,  "y":10, "use_box_nm":"syscall_outstanding"},  "chart":"SYSCALL_OUTSTANDING_CHART", "print":"n", "pfx":"outstanding: "}
+, {"fld":{"x":10,  "y":10, "use_box_nm":"syscall_active"},  "chart":"SYSCALL_ACTIVE_CHART",   "print":"n", "pfx":"active: "}
+, {"fld":{"x":10,  "y":70},   "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: ", "follow_proc":1, "grf":{"typ_data":"internal", "nm":"core_util"}}
+, {"fld":{"x":10,  "y":90},   "chart":"FREQ_BY_CPU", "pfx":"cpu freq (GHz): "}
+, {"fld":{"x":20,  "y":660},  "grf_def":{"typ":"vbar", "nm":"IPC: 2 inst/cyc max", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":2.0}}}
+, {"fld":{"x":10,  "y":104},  "chart":"IPC_CHART",   "pfx":"Instructions/cycle: ", "grf":{"nm":"IPC: 2 inst/cyc max"}}
+, {"fld":{"x":10,  "y":118},  "chart":"CPI_CHART",   "pfx":"Cycles/instructions: "}
+, {"fld":{"x":555, "y":340},  "grf_def":{"typ":"pie", "nm":"core_util", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true}}
 , {"fld":{"x":10,  "y":320},  "grf_def":{"typ":"pie", "nm":"stalls", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"hdr": "%unstalled cycles ", "x":10, "y":308}}}
 , {"fld":{"x":10,  "y":150},  "chart":"ICACHE_MISS_STALLS_CHART",       "pfx":"%fe_stalled: l1i_miss:     ", "grf":{"nm":"stalls"}}
 , {"fld":{"x":10,  "y":164},  "chart":"IUTLB_DEP_STALLS_CHART",         "pfx":"%fe_stalled: l1i_tlb_miss: ", "grf":{"nm":"stalls"}}
