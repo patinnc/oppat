@@ -90,6 +90,7 @@ static uint64_t ck_lkup_typ(std::vector <fld_typ_str> &typ_strs, const char *str
 		}
 	}
 	if (!flag) {
+		printf("error: at %s %d\n", __FILE__, __LINE__);
 		printf("error: got lkup_typ= '%s', not found in valid list. Valid list is:\n", str);
 		for (uint32_t j=0; j < sz; j++) {
 			printf("'%s'\n", typ_strs[j].str.c_str());
@@ -99,7 +100,8 @@ static uint64_t ck_lkup_typ(std::vector <fld_typ_str> &typ_strs, const char *str
 	return flag;
 }
 
-static std::vector<std::string> get_lkup_typ(std::vector <fld_typ_str> &typ_strs, std::string s, uint64_t &lkup_typ_flags, int verbose)
+static std::vector<std::string> get_lkup_typ(std::vector <fld_typ_str> &typ_strs, std::string s, 
+		uint64_t &lkup_typ_flags, std::vector <std::string> &options_strs, int verbose)
 {
 	std::vector<std::string> array;
 	std::size_t pos = 0, found;
@@ -109,10 +111,15 @@ static std::vector<std::string> get_lkup_typ(std::vector <fld_typ_str> &typ_strs
 	}
 	array.push_back(s.substr(pos));
 	uint64_t flags = 0;
+	uint64_t tflag = 0;
 	for (uint32_t i=0; i < array.size(); i++) {
 		if (verbose)
 			printf("typ[%d]= %s\n", i, array[i].c_str());
-		flags |= ck_lkup_typ(typ_strs, array[i].c_str(), verbose);
+		tflag = ck_lkup_typ(typ_strs, array[i].c_str(), verbose);
+		if (tflag != 0) {
+			options_strs.push_back(array[i]);
+		}
+		flags |= tflag;
 	}
 	lkup_typ_flags = flags;
 	return array;
@@ -727,7 +734,8 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					k, name.c_str(), lkup.c_str(), lkup_typ.c_str(), (int)fs.actions.size(), (int)fs.actions_stage2.size());
 				}
 				uint64_t lkup_flags = 0;
-				get_lkup_typ(fld_typ_strs, lkup_typ, lkup_flags, verbose);
+				std::vector <std::string> found_opts_strs;
+				get_lkup_typ(fld_typ_strs, lkup_typ, lkup_flags, found_opts_strs, verbose);
 				fs.name  = name;
 				fs.next_for_name = next_for_name;
 				fs.lkup_dlm_str  = lkup_dlm_str;
@@ -738,6 +746,12 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				fs.mk_proc_from_comm_tid_flds.tid  = mk_proc_from_comm_tid_flds_2;
 				fs.lkup  = lkup;
 				fs.flags = lkup_flags;
+				if (lkup_typ.find("TYP_DROP_BY_ONE_AFTER") != std::string::npos) {
+					printf("drop_by_one_after str = %s at %s %d\n", lkup_typ.c_str(), __FILE__, __LINE__);
+				}
+				if (lkup_flags & (uint64_t)fte_enum::FLD_TYP_DROP_BY_ONE_AFTER) {
+					printf("drop_by_one_after fld = 0x%" PRIx64 " at %s %d\n", lkup_flags, __FILE__, __LINE__);
+				}
 				event_table.back().flds.push_back(fs);
 			}
 			if (!got_diff_ts_stuff && got_lag_2nd_by_var) {
@@ -877,7 +891,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				try {
 					uint64_t lkup_flags = 0;
 					std::string lkup_typ = j["event_array"][i]["event"]["charts"][k]["options"];
-					get_lkup_typ(copt_strs, lkup_typ, lkup_flags, verbose);
+					get_lkup_typ(copt_strs, lkup_typ, lkup_flags, cs.options_strs, verbose);
 					cs.options = lkup_flags;
 					if (verbose)
 						printf("chart options= %" PRIx64 " at %s %d\n", lkup_flags, __FILE__, __LINE__);
@@ -953,6 +967,15 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					if (sz <= 0) {
 						fprintf(stderr, "Got support \"marker\":{\"size\":\"%s\"} which is <= 0. bye at %s %d\n",
 								cs.marker_size.c_str(), __FILE__, __LINE__);
+						exit(1);
+					}
+				} catch (...) { }
+				try {
+					cs.marker_ymin = j["event_array"][i]["event"]["charts"][k]["marker"]["ymin"];
+					double ymn = atof(cs.marker_ymin.c_str());
+					if (ymn < 0.0) {
+						fprintf(stderr, "Got support \"marker\":{\"ymin\":\"%s\"} and ymin is < 0.0. bye at %s %d\n",
+								cs.marker_ymin.c_str(), __FILE__, __LINE__);
 						exit(1);
 					}
 				} catch (...) { }
@@ -1042,6 +1065,10 @@ static void bld_copt(void)
 		return;
 	}
 	copt_strs.push_back({(uint64_t)copt_enum::DROP_1ST,           "DROP_1ST"});
+	copt_strs.push_back({(uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA,  "OVERLAPPING_RANGES_WITHIN_AREA"});
+	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_ADD_VALUES_IN_INTERVAL, "TOT_LINE_ADD_VALUES_IN_INTERVAL"});
+	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_LEGEND_WEIGHT_BY_DURA,  "TOT_LINE_LEGEND_WEIGHT_BY_DURA"});
+	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_BUCKET_BY_END_OF_SAMPLE,  "TOT_LINE_BUCKET_BY_END_OF_SAMPLE"});
 }
 
 static void bld_fld_typ(void)
@@ -1082,6 +1109,8 @@ static void bld_fld_typ(void)
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_NEW_VAL,       "TYP_NEW_VAL"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA,   "TYP_ADD_2_EXTRA"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TM_RUN,        "TYP_TM_RUN"});
+	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DROP_BY_ONE_AFTER, "TYP_DROP_BY_ONE_AFTER"});
+	printf("drop_by_one_after fld = 0x%" PRIx64 " at %s %d\n", fld_typ_strs.back().flag, __FILE__, __LINE__);
 }
 
 std::string rd_json(std::string flnm)
