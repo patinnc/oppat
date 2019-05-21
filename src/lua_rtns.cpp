@@ -156,7 +156,9 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 	}
 	int rows = lua_st[lua_idx].lua["data_shape"]["rows"];
 	int cols = lua_st[lua_idx].lua["data_shape"]["cols"];
-	printf("lua data_shape rows= %d cols= %d at %s %d\n", rows, cols, __FILE__, __LINE__);
+	if (verbose) {
+		printf("lua data_shape rows= %d cols= %d at %s %d\n", rows, cols, __FILE__, __LINE__);
+	}
 	//std::vector <int> col_typ;
 	std::vector <std::vector <int>> col_typ;
 	std::vector <std::vector <std::string>> col_names;
@@ -188,7 +190,8 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			} else if (str == "event") {
 				evt_nm_idx[ev-1] = j;
 			}
-			printf("lua data_shape[\"col_name\"][%d][%d]= '%s' at %s %d\n", ev, j+1, str.c_str(), __FILE__, __LINE__);
+			if (verbose)
+				printf("lua data_shape[\"col_name\"][%d][%d]= '%s' at %s %d\n", ev, j+1, str.c_str(), __FILE__, __LINE__);
 			str = lua_st[lua_idx].lua["data_shape"]["col_types"][ev][j+1];
 			if (str == "str") {
 				cols_typ.push_back((int)fte_enum::FLD_TYP_STR);
@@ -200,7 +203,8 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 				printf("invalid col_type[%d]= '%s' at %s %d\n", j, str.c_str(), __FILE__, __LINE__);
 				exit(1);
 			}
-			printf("lua data_shape[\"col_types\"][%d][%d]= '%s' at %s %d\n", ev, j+1, str.c_str(), __FILE__, __LINE__);
+			if (verbose)
+				printf("lua data_shape[\"col_types\"][%d][%d]= '%s' at %s %d\n", ev, j+1, str.c_str(), __FILE__, __LINE__);
 		}
 		col_names.push_back(cols_vec);
 		col_typ.push_back(cols_typ);
@@ -217,7 +221,8 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 	prf_obj.lua_data.col_typ = col_typ;
 	prf_obj.lua_data.timestamp_idx = ts_idx;
 	prf_obj.lua_data.duration_idx = dura_idx;
-	printf("begin lua data_table rows= %d, cols= %d\n", rows, cols);
+	if (verbose)
+		printf("begin lua data_table rows= %d, cols= %d\n", rows, cols);
 	bool need_ts0 = true, need_tm_end = true;
 	prf_obj.tm_beg = 0.0;
 	prf_obj.tm_end = 0.0;
@@ -247,17 +252,21 @@ int lua_read_data(std::string data_filename, std::string data2_filename, std::st
 			printf("missed event lookup row= %d for field at %s %d\n", i, __FILE__, __LINE__);
 			for (uint32_t k=0; k < event_nms.size(); k++) {
 				std::string nm = event_nms[k];
-				printf("got event_nms[%d]= %s at %s %d\n", k, nm.c_str(), __FILE__, __LINE__);
-				fflush(NULL);
+				if (verbose) {
+					printf("got event_nms[%d]= %s at %s %d\n", k, nm.c_str(), __FILE__, __LINE__);
+					fflush(NULL);
+				}
 				for (uint32_t j=0; j < col_names[k].size(); j++) {
 					std::string col = col_names[k][j];
-					printf("got col_names[%d][%d]= %s at %s %d\n", k, j, col.c_str(), __FILE__, __LINE__);
-				fflush(NULL);
-				if (col == "event") {
-				std::string nm2 = lua_st[lua_idx].lua["data_table"][i][col];
-					printf("got nm2= %s at %s %d\n", nm2.c_str(), __FILE__, __LINE__);
-				fflush(NULL);
-				}
+					if (verbose) {
+						printf("got col_names[%d][%d]= %s at %s %d\n", k, j, col.c_str(), __FILE__, __LINE__);
+						fflush(NULL);
+					}
+					if (col == "event") {
+						std::string nm2 = lua_st[lua_idx].lua["data_table"][i][col];
+						printf("got nm2= %s at %s %d\n", nm2.c_str(), __FILE__, __LINE__);
+						//fflush(NULL);
+					}
 					/*
 					if (col == "event") {
 						std::string ck = lua_st[lua_idx].lua["data_table"][i][col];
@@ -440,7 +449,7 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 	return 0;
 }
 
-double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string &evt_nm,
+double lua_derived_tc_prf(uint32_t der_evt_idx, std::string lua_file, std::string lua_rtn, std::string &evt_nm,
 		struct prf_samples_str &samples,
 		std::vector <std::string> &new_cols, std::vector <std::string> &new_vals,
 		uint32_t &emit_var, std::string evt_tag, int verbose)
@@ -501,21 +510,42 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 		lua_states[lua_idx]->lua["data_vals"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
 		lua_states[lua_idx]->lua["new_cols"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
 		lua_states[lua_idx]->lua["new_vals"] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		//sol::table my_table(my_lua_state, sol::create);
+	}
+#if 0
+	auto ck_it3 = lua_states[lua_idx]->lua["data_cols"];
+	if (ck_it3.valid()) {
+		printf("lua data_cols table exists at %s %d\n", __FILE__, __LINE__);
+	}
+#endif
+	auto ck_it = lua_states[lua_idx]->lua["data_cols"][der_evt_idx];
+	if (!ck_it.valid()) {
+		printf("lua creating data_cols[%d] at %s %d\n", der_evt_idx, __FILE__, __LINE__);
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		lua_states[lua_idx]->lua["data_vals"][der_evt_idx] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		lua_states[lua_idx]->lua["new_cols"][der_evt_idx] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+		lua_states[lua_idx]->lua["new_vals"][der_evt_idx] = lua_states[lua_idx]->lua.create_table_with("1", "1");
+#if 0
+		auto ck_it2 = lua_states[lua_idx]->lua["data_cols"][der_evt_idx];
+		if (ck_it2.valid()) {
+			printf("lua created data_cols[%d] at %s %d\n", der_evt_idx, __FILE__, __LINE__);
+		}
+#endif
 		int i = 0;
 		// data_cols are fixed table. The table data_cols[1] = 'event'
-		lua_states[lua_idx]->lua["data_cols"][++i] = "derived_evt";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "event";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "ts";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "extra_str";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "comm";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "pid";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "tid";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "cpu";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "period";
-		lua_states[lua_idx]->lua["data_cols"][++i] = "evt_tag";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "derived_evt";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "event";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "ts";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "extra_str";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "comm";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "pid";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "tid";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "cpu";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "period";
+		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "evt_tag";
 	}
 	for (int i=0; i < (int)new_cols.size(); i++) {
-		lua_states[lua_idx]->lua["new_cols"][i+1] = new_cols[i];
+		lua_states[lua_idx]->lua["new_cols"][der_evt_idx][i+1] = new_cols[i];
 		if (new_cols[i] == "__EMIT__") {
 			emit_idx = i;
 		}
@@ -533,21 +563,21 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 
 	int i = 0;
 	// the data_vals table indices number must agree with data_cols indices.
-	lua_states[lua_idx]->lua["data_vals"][++i] = evt_nm;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.event;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.ts;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.extra_str;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.comm;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.pid;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.tid;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.cpu;
-	lua_states[lua_idx]->lua["data_vals"][++i] = samples.period;
-	lua_states[lua_idx]->lua["data_vals"][++i] = evt_tag;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = evt_nm;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.event;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.ts;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.extra_str;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.comm;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.pid;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.tid;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.cpu;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.period;
+	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = evt_tag;
 
 	//printf("lua extra_str= %s at %s %d\n", samples.extra_str.c_str(), __FILE__, __LINE__);
 
 	// load the input data and headers
-	sol::protected_function_result result = lua_states[lua_idx]->script_func(verbose);
+	sol::protected_function_result result = lua_states[lua_idx]->script_func(verbose, der_evt_idx);
 	if (!result.valid()) {
 		sol::error err = result;
 		sol::call_status status = result.status();
@@ -562,7 +592,7 @@ double lua_derived_tc_prf(std::string lua_file, std::string lua_rtn, std::string
 	}
 	emit_var = 0;
 	for (uint32_t i=0; i < new_cols.size(); i++) {
-		new_vals[i] = lua_states[lua_idx]->lua["new_vals"][i+1];
+		new_vals[i] = lua_states[lua_idx]->lua["new_vals"][der_evt_idx][i+1];
 		//printf("new_vals[%d]= %s , hdr= %s at %s %d\n", i, new_vals[i].c_str(), new_cols[i].c_str(), __FILE__, __LINE__);
 		if (verbose > 0) {
 			printf("lua new_val[%d]= %s at %s %d\n", i, new_vals[i].c_str(), __FILE__, __LINE__);
