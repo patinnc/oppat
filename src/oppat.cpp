@@ -3453,9 +3453,10 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		ch_lines_line_str += cs_txt + "}";
 	}
 	ch_lines_line_str += "]";
-#if 0
-	if (event_table[evt_idx].charts[chrt].chart_tag == "SYSCALL_TIME_CHART") {
-		printf("SYSCALL_TIME_CHART ch_line data at %s %d:\n%s\n", __FILE__, __LINE__, ch_lines_line_str.c_str());
+#if 1
+	if (event_table[evt_idx].charts[chrt].chart_tag == "VMSTAT_MEM_cHART") {
+		printf("%s ch_line data at %s %d:\n%s\n",
+				event_table[evt_idx].charts[chrt].chart_tag.c_str(), __FILE__, __LINE__, ch_lines_line_str.c_str());
 	}
 #endif
 	json += ch_lines_line_str;
@@ -3584,9 +3585,10 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	}
 	sc_rng += "]";
 	//if (verbose)
-	if (event_table[evt_idx].charts[chrt].chart_tag == "SYSCALL_ACTIVE_CHART")
+	if (event_table[evt_idx].charts[chrt].chart_tag == "VMSTAT_MEM_cHART") {
 		printf("subcat_rng(chart_tag=%s)= '%s' at %s %d\n",
 				event_table[evt_idx].charts[chrt].chart_tag.c_str(), sc_rng.c_str(), __FILE__, __LINE__);
+	}
 	json += sc_rng;
 	json += "}";
 	// below can print lots
@@ -4771,6 +4773,7 @@ static int str_2_base64(uint8_t *dst, uint8_t *src, int isz)
 
 static std::string cpu_diag_str, cpu_diag_flds;
 static std::string cpu_diag_flds_beg="cpu_diagram_flds=";
+static std::string cpu_diag_flds_filenm;
 
 void create_web_file(int verbose)
 {
@@ -5544,6 +5547,32 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	return 0;
 }
 
+int read_cpu_diag_flds_file(std::string flds_file)
+{
+	std::ifstream file2;
+	std::string line2;
+
+	printf("flds_file= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
+	file2.open (flds_file.c_str(), std::ios::in);
+	if (!file2.is_open()) {
+		printf("messed up fopen of flnm= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	cpu_diag_flds = cpu_diag_flds_beg;
+	std::string cpu_diag_json;
+	while(!file2.eof()) {
+		std::getline (file2, line2);
+		cpu_diag_flds += line2 + "\n";
+		cpu_diag_json += line2;
+	}
+	file2.close();
+	ck_json(cpu_diag_json, "check for valid json in cpu_diagram .flds file: "+flds_file, __FILE__, __LINE__, options.verbose);
+	if (options.verbose > 0) {
+		printf("cpu_diag_flds= '%s' at %s %d\n", cpu_diag_flds.c_str(), __FILE__, __LINE__);
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	std::vector <std::vector <evt_str>> event_table, evt_tbl2;
@@ -6283,6 +6312,9 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 		flds_file = flds_file.substr(0, pos) + ".flds";
+		cpu_diag_flds_filenm = flds_file;
+		read_cpu_diag_flds_file(cpu_diag_flds_filenm);
+#if 0
 		printf("flds_file= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
 		file2.open (flds_file.c_str(), std::ios::in);
 		if (!file2.is_open()) {
@@ -6301,6 +6333,7 @@ int main(int argc, char **argv)
 		if (options.verbose > 0) {
 			printf("cpu_diag_flds= '%s' at %s %d\n", cpu_diag_flds.c_str(), __FILE__, __LINE__);
 		}
+#endif
 	}
 	fflush(NULL);
 	fprintf(stderr, "callstack_vec num_strings= %d, sum of strings len= %d\n", (int)callstack_vec.size(), (int)callstack_vec_len);
@@ -6366,6 +6399,7 @@ int main(int argc, char **argv)
 				if (msg == "Ready") {
 					double tm_bef = dclock();
 					if (cpu_diag_str.size() > 0) {
+						read_cpu_diag_flds_file(cpu_diag_flds_filenm);
 						q_from_srvr_to_clnt.push(cpu_diag_flds);
 						q_from_srvr_to_clnt.push(cpu_diag_str);
 					}
