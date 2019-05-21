@@ -108,6 +108,7 @@ struct chart_defaults_str {
 
 struct evt_derived_str {
 	std::vector <std::string> evts_used;
+	std::vector <std::string> evts_to_exclude;
 	std::vector <std::string> evts_tags;
 	std::vector <std::string> new_cols;
 	std::string evt_trigger, lua_file, lua_rtn;
@@ -145,6 +146,7 @@ enum class copt_enum : const uint64_t {
 	TOT_LINE_ADD_VALUES_IN_INTERVAL = (1ULL << 2),
 	TOT_LINE_LEGEND_WEIGHT_BY_DURA  = (1ULL << 3),
 	TOT_LINE_BUCKET_BY_END_OF_SAMPLE= (1ULL << 4),
+	SHOW_EVEN_IF_ALL_ZERO           = (1ULL << 5),
 };
 
 enum class fte_enum : const uint64_t {

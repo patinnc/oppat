@@ -640,6 +640,13 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			} catch (...) { }
 			}
 			try {
+				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_to_exclude"].size();
+				for (uint32_t k=0; k < fsz; k++) {
+					event_table.back().evt_derived.evts_to_exclude.push_back(
+							j["event_array"][i]["event"]["evt_derived"]["evts_to_exclude"][k]);
+				}
+			} catch (...) { }
+			try {
 				fsz = j["event_array"][i]["event"]["evt_derived"]["new_cols"].size();
 				for (uint32_t k=0; k < fsz; k++) {
 					event_table.back().evt_derived.new_cols.push_back(j["event_array"][i]["event"]["evt_derived"]["new_cols"][k]);
@@ -1065,10 +1072,11 @@ static void bld_copt(void)
 		return;
 	}
 	copt_strs.push_back({(uint64_t)copt_enum::DROP_1ST,           "DROP_1ST"});
-	copt_strs.push_back({(uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA,  "OVERLAPPING_RANGES_WITHIN_AREA"});
-	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_ADD_VALUES_IN_INTERVAL, "TOT_LINE_ADD_VALUES_IN_INTERVAL"});
-	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_LEGEND_WEIGHT_BY_DURA,  "TOT_LINE_LEGEND_WEIGHT_BY_DURA"});
-	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_BUCKET_BY_END_OF_SAMPLE,  "TOT_LINE_BUCKET_BY_END_OF_SAMPLE"});
+	copt_strs.push_back({(uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA,	"OVERLAPPING_RANGES_WITHIN_AREA"});
+	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_ADD_VALUES_IN_INTERVAL,	"TOT_LINE_ADD_VALUES_IN_INTERVAL"});
+	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_LEGEND_WEIGHT_BY_DURA,	"TOT_LINE_LEGEND_WEIGHT_BY_DURA"});
+	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_BUCKET_BY_END_OF_SAMPLE, "TOT_LINE_BUCKET_BY_END_OF_SAMPLE"});
+	copt_strs.push_back({(uint64_t)copt_enum::SHOW_EVEN_IF_ALL_ZERO,			"SHOW_EVEN_IF_ALL_ZERO"});
 }
 
 static void bld_fld_typ(void)
