@@ -3109,6 +3109,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let tot_avg2_num = 0;
 				let tot_avg2_den = 0;
 				let el_idx = tot_line.event_list_idx[sci];
+				if (el_idx < 0 || typeof event_list[el_idx] === 'undefined') {
+					console.log(sprintf("event_list[%s] undef for sci= %s of chart= %s", el_idx, sci, chart_data.chart_tag));
+					continue;
+				}
 				let fe_idx = event_list[el_idx].idx;
 				let do_event = false;
 				if (fe_idx == -1 || (typeof event_select[fe_idx] !== 'undefined' &&
@@ -6649,6 +6653,10 @@ function parse_svg()
 		}
 	}
 	let px_high = svg_ymax/svg_xmax * px_wide;
+	console.log(sprintf("svg: width= %s, height= %s, px_wide= %.2f, px_high= %.2f, scale_ratio= %.3f, win_sz.width= %.3f",
+				svg_xmax, svg_ymax, px_wide, px_high, scale_ratio, win_sz.width));
+	console.log(sprintf("svg: wi= %s, de.cw= %s, cw= %s",
+		window.innerWidth, document.documentElement.clientWidth, document.body.clientWidth));
 	let myhvr_clr = document.getElementById(hvr_clr);
 	let str = '<div id="tbl_'+hvr_clr+'"></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high+y_shift)+'" style="border:1px solid #000000;"><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div>';
 	myhvr_clr.innerHTML = str;
@@ -9932,7 +9940,7 @@ function parse_svg()
 					if (tt_prv_x != x || tt_prv_y != y) {
 						tt_prv_x = x;
 						tt_prv_y = y;
-						let pgx = e.pageX, pgy = e.pagey;
+						//let pgx = e.pageX, pgy = e.pagey;
 					//console.log(sprintf("tooltip txt= %s, x= %.3f, y= %.3f, ttl= %s, ttr=%s ttt= %s ttb= %s",ts, x, y,
 					//mytooltip.style.left, mytooltip.style.right, mytooltip.style.top, mytooltip.style.bottom));
 						mycanvas.title = ts;
