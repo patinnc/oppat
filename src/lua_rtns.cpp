@@ -533,7 +533,6 @@ double lua_derived_tc_prf(uint32_t der_evt_idx, std::string lua_file, std::strin
 #endif
 		int i = 0;
 		// data_cols are fixed table. The table data_cols[1] = 'event'
-		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "derived_evt";
 		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "event";
 		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "ts";
 		lua_states[lua_idx]->lua["data_cols"][der_evt_idx][++i] = "extra_str";
@@ -563,7 +562,6 @@ double lua_derived_tc_prf(uint32_t der_evt_idx, std::string lua_file, std::strin
 
 	int i = 0;
 	// the data_vals table indices number must agree with data_cols indices.
-	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = evt_nm;
 	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.event;
 	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.ts;
 	lua_states[lua_idx]->lua["data_vals"][der_evt_idx][++i] = samples.extra_str;
