@@ -52,17 +52,17 @@ end
 --              ps-11330 [003] 167433.183026718: sys_exit_newfstatat:  0x0
 
 
-function syscalls(verbose)
+function syscalls(verbose, de)
 	--print "in lua routine syscalls"
 	local ts0
 
 	if type(new_cols_hash2) ~= "table" then
 		new_cols_hash2 = {}
-		for k,t in ipairs(new_cols) do
+		for k,t in ipairs(new_cols[de]) do
     		new_cols_hash2[t] = k
 		end
 		data_cols_hash2 = {}
-		for k,t in ipairs(data_cols) do
+		for k,t in ipairs(data_cols[de]) do
     		data_cols_hash2[t] = k
 		end
 		local tst = {"MiB/s", "duration", "bytes", "area"}
@@ -94,18 +94,15 @@ function syscalls(verbose)
 	--for k,t in ipairs(data_cols) do
     --    printf("data_cols[%s]= %s\n", k, data_cols[k])
 	--end
-	--for k,t in ipairs(data_vals) do
-    --    printf("data_vals[%s]= %s\n", k, data_vals[k])
+	--for k,t in ipairs(data_vals[de]) do
+    --    printf("data_vals[%d][%s]= %s\n", de, k, data_vals[de][k])
 	--end
-	if type(tbl) ~= "table" then
-		tbl = {}
-	end
-	local evt = data_vals[event_idx2]
-	local ts  = tonumber(data_vals[ts_idx2])
-	local ky  = data_vals[extra_str_idx2]
-	local comm  = data_vals[comm_idx2]
-	local pid   = data_vals[pid_idx2]
-	new_vals[emit_idx2] = 0
+	local evt = data_vals[de][event_idx2]
+	local ts  = tonumber(data_vals[de][ts_idx2])
+	local ky  = data_vals[de][extra_str_idx2]
+	local comm  = data_vals[de][comm_idx2]
+	local pid   = data_vals[de][pid_idx2]
+	new_vals[de][emit_idx2] = 0
 	-- ps-11330 [003] 167433.185336300: sys_enter_read:       fd: 0x00000003, buf: 0xffffdbe15600, count: 0x00000340
 	--printf("syscalls: evt= %s\n",evt)
 
@@ -144,77 +141,90 @@ function syscalls(verbose)
 		local ts_diff = ts - prv[1]
 		local ns_factor = 1.0e-9
 		-- below assumes ts is in ns
-		new_vals[dura_idx2] = ns_factor * ts_diff
-		new_vals[bytes_idx2]  = prv[2]
-		--new_vals[area_idx2] = ev..":"..comm..":"..pid
-		new_vals[area_idx2] = ev
-		new_vals[emit_idx2] = 1
-		--printf("bytes= %s, dura= %s\n", prv[2], new_vals[dura_idx2])
+		new_vals[de][dura_idx2] = ns_factor * ts_diff
+		new_vals[de][bytes_idx2]  = prv[2]
+		--new_vals[de][area_idx2] = ev..":"..comm..":"..pid
+		new_vals[de][area_idx2] = ev
+		new_vals[de][emit_idx2] = 1
+		--printf("bytes= %s, dura= %s\n", prv[2], new_vals[de][dura_idx2])
 		if ts_diff > 0.0 then
-			new_vals[MiBs_idx2] = prv[2] / new_vals[dura_idx2]
+			new_vals[de][MiBs_idx2] = prv[2] / new_vals[de][dura_idx2]
 		else
-			new_vals[MiBs_idx2] = 0.0;
+			new_vals[de][MiBs_idx2] = 0.0;
 		end
 		lkup_tbl2[lkup] = nil
 	end
 end
 
-function syscalls_all(verbose)
-	--print "in lua routine syscalls"
-	local ts0
+function syscalls_all(verbose, de)
+	--printf("in lua routine syscalls with der_evt_idx= %d\n", de)
+	local ts0, ts
 
 	if type(new_cols_hash) ~= "table" then
 		new_cols_hash = {}
-		for k,t in ipairs(new_cols) do
-    		new_cols_hash[t] = k
-		end
 		data_cols_hash = {}
-		for k,t in ipairs(data_cols) do
-    		data_cols_hash[t] = k
+		lkup_tbl = {}
+	end
+	--printf("lua: test data_cols_hash[%d] typ= %s\n", de, type(new_cols_hash[de]))
+	--io.flush()
+	if type(new_cols_hash[de]) ~= "table" or new_cols_hash[de] == nil then
+		lkup_tbl[de] = {}
+		new_cols_hash[de] = {}
+		data_cols_hash[de] = {}
+		--printf("lua: create data_cols_hash[%d]\n", de)
+
+		--for k,t in ipairs(new_cols[de]) do
+		--	printf("new_cols_hash[%d][%s] = %s\n", de, t, k)
+		--end
+		--io.flush()
+		--for k,t in ipairs(data_cols[de]) do
+		--	printf("data_cols_hash[%d][%s] = %s\n", de, t, k)
+		--end
+		for k,t in ipairs(new_cols[de]) do
+    		new_cols_hash[de][t] = k
+		end
+		for k,t in ipairs(data_cols[de]) do
+    		data_cols_hash[de][t] = k
 		end
 		local tst = {"MiB/s", "duration", "bytes", "area"}
 		for k,t in ipairs(tst) do
-			local idx = new_cols_hash[t]
+			local idx = new_cols_hash[de][t]
 			if idx == nil then
 				error("expected to find field '"..t.."' in new_cols list")
 			end
 		end
 		tst = {"event", "ts", "extra_str", "comm", "pid", "tid"}
 		for k,t in ipairs(tst) do
-			if data_cols_hash[t] == nil then
+			if data_cols_hash[de][t] == nil then
 				error("expected to find field '"..t.."' in data_cols list")
 			end
 		end
-		MiBs_idx      = new_cols_hash["MiB/s"]
-		dura_idx      = new_cols_hash["duration"]
-		dura2_idx     = new_cols_hash["dura2"]
-		bytes_idx     = new_cols_hash["bytes"]
-		area_idx      = new_cols_hash["area"]
-		emit_idx      = new_cols_hash["__EMIT__"];
-		event_idx     = data_cols_hash["event"]
-		ts_idx        = data_cols_hash["ts"]
-		extra_str_idx = data_cols_hash["extra_str"]
-		comm_idx      = data_cols_hash["comm"]
-		pid_idx       = data_cols_hash["pid"]
-		pid_idx       = data_cols_hash["tid"]
-		lkup_tbl = {}
 		--level = {}
 	end
+		MiBs_idx      = new_cols_hash[de]["MiB/s"]
+		dura_idx      = new_cols_hash[de]["duration"]
+		dura2_idx     = new_cols_hash[de]["dura2"]
+		bytes_idx     = new_cols_hash[de]["bytes"]
+		area_idx      = new_cols_hash[de]["area"]
+		emit_idx      = new_cols_hash[de]["__EMIT__"];
+		event_idx     = data_cols_hash[de]["event"]
+		ts_idx        = data_cols_hash[de]["ts"]
+		extra_str_idx = data_cols_hash[de]["extra_str"]
+		comm_idx      = data_cols_hash[de]["comm"]
+		pid_idx       = data_cols_hash[de]["pid"]
+		pid_idx       = data_cols_hash[de]["tid"]
 	--for k,t in ipairs(data_cols) do
     --    printf("data_cols[%s]= %s\n", k, data_cols[k])
 	--end
-	--for k,t in ipairs(data_vals) do
-    --    printf("data_vals[%s]= %s\n", k, data_vals[k])
+	--for k,t in ipairs(data_vals[de]) do
+    --    printf("data_vals[%d][%s]= %s\n", de, k, data_vals[de][k])
 	--end
-	if type(tbl) ~= "table" then
-		tbl = {}
-	end
-	local evt = data_vals[event_idx]
-	local ts  = tonumber(data_vals[ts_idx])
-	local ky  = data_vals[extra_str_idx]
-	local comm  = data_vals[comm_idx]
-	local pid   = data_vals[pid_idx]
-	new_vals[emit_idx] = 0
+	local ts  = tonumber(data_vals[de][ts_idx])
+	local evt = data_vals[de][event_idx]
+	local ky  = data_vals[de][extra_str_idx]
+	local comm  = data_vals[de][comm_idx]
+	local pid   = data_vals[de][pid_idx]
+	new_vals[de][emit_idx] = 0
 	-- ps-11330 [003] 167433.185336300: sys_enter_read:       fd: 0x00000003, buf: 0xffffdbe15600, count: 0x00000340
 	--printf("syscalls: evt= %s\n",evt)
 
@@ -252,17 +262,17 @@ function syscalls_all(verbose)
 			--if string.sub(arr[6], -1) == "," then
 			--	arr[6] = string.sub(arr[6], 1, string.len(arr[6])-1)
 			--end
-			if lkup_tbl[lkup] ~= nil then
-				local tid   = data_vals[pid_idx]
+			if lkup_tbl[de][lkup] ~= nil then
+				local tid   = data_vals[de][pid_idx]
 				printf("syscall already defined: ts= %f, evt= %s, comm= %s, pid= %s tid= %s ext= '%s', lkup= %s\n",
 					1.0e-9*ts, evt, comm, pid, tid, ky, lkup);
 			end
 			--level[ev] = level[ev] + 1
-			lkup_tbl[lkup] = {ts}
+			lkup_tbl[de][lkup] = {ts}
 			--printf("ts= %f, evt= %s, comm= %s, pid= %s, count= %s\n", ts, evt, comm, pid, arr[6]);
 		elseif stage == 2 then
-			prv = lkup_tbl[lkup]
-			if lkup_tbl[lkup] == nil then
+			prv = lkup_tbl[de][lkup]
+			if lkup_tbl[de][lkup] == nil then
 				printf("syscall not defined: ts= %f, evt= %s, comm= %s, pid= %s ext= '%s', lkup= %s\n", 1.0e-9*ts, evt, comm, pid, ky, lkup);
 			end
 		end
@@ -271,24 +281,15 @@ function syscalls_all(verbose)
 		local ts_diff = ts - prv[1]
 		local ns_factor = 1.0e-9
 		-- below assumes ts is in ns
-		new_vals[dura_idx] = ns_factor * ts_diff
-		--new_vals[dura2_idx] = level[ev]
-		new_vals[dura2_idx] = 1.0
-		new_vals[bytes_idx]  = 0.0
-		new_vals[area_idx] = ev
-		--new_vals[area_idx] = ev..":"..comm..":"..pid
-		new_vals[emit_idx] = 1
-		--printf("bytes= %s, dura= %s\n", prv[2], new_vals[dura_idx])
-		new_vals[MiBs_idx] = 0.0;
-		--if ts_diff > 0.0 then
-		--	new_vals[MiBs_idx] = prv[2] / new_vals[dura_idx]
-		--else
-		--	new_vals[MiBs_idx] = 0.0;
-		--end
-		--level[ev] = level[ev] - 1
-		--if level[ev] < 0 then
-		--	level[ev] = 0
-		--end
-		lkup_tbl[lkup] = nil
+		new_vals[de][dura_idx] = ns_factor * ts_diff
+		--new_vals[de][dura2_idx] = level[ev]
+		new_vals[de][dura2_idx] = 1.0
+		new_vals[de][bytes_idx]  = 0.0
+		new_vals[de][area_idx] = ev
+		--new_vals[de][area_idx] = ev..":"..comm..":"..pid
+		new_vals[de][emit_idx] = 1
+		--printf("bytes= %s, dura= %s\n", prv[2], new_vals[de][dura_idx])
+		new_vals[de][MiBs_idx] = 0.0;
+		lkup_tbl[de][lkup] = nil
 	end
 end
