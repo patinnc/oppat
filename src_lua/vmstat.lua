@@ -245,10 +245,10 @@ function vmstat(file1, file2, file3, verbose)
 		dall_sz = dall_sz + 1
 		k = k + 1
 	end
-	printf("tbl= '%s'", dump(dall_tbl))
+	--printf("vmstat tbl= '%s'", dump(dall_tbl))
 
 
-   printf("got line[%d]= '%s', tstr= '%s'\n", nsz, file_tbl[nsz], tstr)
+   --printf("got line[%d]= '%s', tstr= '%s'\n", nsz, file_tbl[nsz], tstr)
    rows = 0
    for k = 1, dall_sz, 1
    do
