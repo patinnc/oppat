@@ -26,6 +26,7 @@ var g_tot_line_divisions = {max:100};
 var doc_title_def = "OPPAT: Open Power/Performance Analysis Tool";
 var gjson = {};
 var gjson_str_pool = null;
+var g_BigEval = new BigEval();
 var did_c10_colors = 0;
 var g_d3_clrs_c10 = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
 var g_d3_clrs_c20 = ["#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
@@ -106,7 +107,7 @@ function setTooltipText(a_tooltip, a_canvas, current_text, x, y) {
 		a_tooltip.style.removeProperty('top');
 		a_tooltip.style.bottom = (a_canvas.height - y - 20) + 'px';
 	}
-	console.log("did setToolTip");
+	//console.log("did setToolTip");
 }
 
 function ck_def_notnull(ele)
@@ -372,7 +373,7 @@ function menu_hover(menu_i)
 	let div_nm = lhs_menu_ch_list[i].div_nm;
 	let ele = document.getElementById(ele_nm);
 	if (ele !== null) {
-		//console.log("try to scrooll to "+ele_nm);
+		//console.log("try to scroll to "+ele_nm);
 		ele.scrollIntoView(true);
 	}
 	//console.log("hovered over menu item= "+i+", ttl= "+txt+", elenm= "+ele_nm+", ele="+ele+",div_nm="+div_nm);
@@ -542,6 +543,7 @@ function get_chart_options(chart_options)
 		tot_line_add_values_in_interval:false,
 		tot_line_legend_weight_by_dura:false,
 		tot_line_bucket_by_end_of_sample:false,
+		show_even_if_all_zero:false,
 	}
 	if (typeof chart_options !== 'undefined') {
 		let tst_opt = "OVERLAPPING_RANGES_WITHIN_AREA";
@@ -560,11 +562,16 @@ function get_chart_options(chart_options)
 		if (chart_options.indexOf(tst_opt) >= 0) {
 			ch_options.tot_line_bucket_by_end_of_sample = true;
 		}
+		tst_opt = "SHOW_EVEN_IF_ALL_ZERO";
+		if (chart_options.indexOf(tst_opt) >= 0) {
+			ch_options.show_even_if_all_zero = true;
+		}
 	}
 	return ch_options;
 }
 
-function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1) {
+function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1)
+{
 	if (typeof chart_data === 'undefined') {
 		return;
 	}
@@ -778,6 +785,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let mytooltip      = document.getElementById("tooltip_"+hvr_clr);
 	let myhvr_clr_txt = document.getElementById(hvr_clr+'_txt');
 	let myhvr_clr_txt_btn = document.getElementById('but_'+hvr_clr);
+	//console.log(sprintf("ch[%d]= %s", chrt_idx, mycanvas_nm_title));
 	let mycanvas_title = document.getElementById(mycanvas_nm_title);
 	let ch_title = chart_data.title;
 	let ch_options = get_chart_options(chart_data.chart_options);
@@ -1346,7 +1354,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		event_cumu += this_tot;
 		let this_pct = 100.0* (this_tot/event_total);
 		let pct_cumu = 100.0* (event_cumu/event_total);
-		if (this_tot == 0) {
+		if (this_tot == 0 && !ch_options.show_even_if_all_zero) {
+			//drop if all zero here
+			//abcde
 			continue;
 		}
 		let fe_idx = event_list[j].idx;
@@ -1396,7 +1406,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		legend_text_len += evt_str.length + nm.length;
 
-		//abcde
 		if (ch_options.overlapping_ranges_within_area) {
 			//console.log(sprintf("bef add lgnd for %s tot_ln= %s", nm, event_list[j].is_tot_line));
 			if (typeof event_list[j].is_tot_line === 'undefined' || !event_list[j].is_tot_line) {
@@ -2256,6 +2265,18 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			g_fl_arr[file_tag_idx][cs_idx].level0_tot = lvl0_sum;
 		}
 
+		function fl_hover(x, y)
+		{
+			let uchi = mycanvas3.height-0.0;
+			let ucwd = mycanvas3.width;
+			let xn   = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * x / ucwd;
+			let xnm1 = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * (x-2.0) / ucwd;
+			let xnp1 = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * (x+2.0) / ucwd;
+			let yn   = ctx3_range.y_min + (ctx3_range.y_max - ctx3_range.y_min) * (uchi - y)/uchi;
+			let ostr2 = fl_lkup_func(xn, yn, x, y, xnm1, xnp1);
+			return ostr2;
+		}
+
 		function get_CPI(evt, f_o) {
 			if (evt == "CPI") {
 				let cycl = f_o.lvl_sum1;
@@ -2592,7 +2613,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let fl_title_str = fl_menu_ch_title_str;
 			mytitle3.innerHTML = file_tag+fl_title_str+unzoom_str+zoom_str;
 			if (g_fl_arr[file_tag_idx][cs_idx].event == "sched:sched_switch") {
-				ck_if_need_to_save_image(mycanvas3, true);
+				ck_if_need_to_save_image(chart_data.chart_tag, mycanvas3, true, fl_hover, mycanvas3_nm_title);
 			}
 			//console.log("fl.ymx= "+got_y_max+", title= "+fl_title_str);
 			return {y_max: got_y_max, lvl0_tot: lvl0_sum}
@@ -2669,6 +2690,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			return "";
 		}
 
+
 		mycanvas3.onmousemove = function(e) {
 			if ( typeof can_shape.hvr_prv_x === 'undefined' ) {
 				can_shape.hvr_prv_x == -1;
@@ -2683,14 +2705,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			if (x != can_shape.hvr_prv_x || y != can_shape.hvr_prv_y) {
 				can_shape.hvr_prv_x = x;
 				can_shape.hvr_prv_y = y;
-				let uchi = mycanvas3.height-0.0;
-				let ucwd = mycanvas3.width;
-				let xn   = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * x / ucwd;
-				let xnm1 = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * (x-2.0) / ucwd;
-				let xnp1 = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * (x+2.0) / ucwd;
-				let yn   = ctx3_range.y_min + (ctx3_range.y_max - ctx3_range.y_min) * (uchi - y)/uchi;
-				let ostr2 = fl_lkup_func(xn, yn, x, y, xnm1, xnp1);
-				//mycanvas3_txt.innerHTML = "_x= "+x+", y= "+y+", xn= "+xn+", yn= "+yn+", str2= "+ostr2.str2;
+				fl_hover(x, y);
 				return;
 			}
 		};
@@ -3119,11 +3134,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					} else {
 						tot_avg2 = 0.0;
 					}
+					/*
 					if (chart_data.chart_tag == "SYSCALL_ACTIVE_CHART") {
 						console.log(sprintf("tot_avg[%d]= %.3f tot_dura= %.3f smpl= %.0f, area= %s\n",
 									sci, tot_avg, tot_dura[sci].dura, tot_dura[sci].smpl, tot_line.evt_str[sci]));
 					   //	chart_data.title));
 					}
+					*/
 					if (g_cpu_diagram_flds !== null) {
 						for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 							if (chart_data.chart_tag == g_cpu_diagram_flds.cpu_diagram_fields[j].chart) {
@@ -4014,7 +4031,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					);
 		}
 		ck_if_need_to_set_zoom_redrawn_cntr();
-		ck_if_need_to_save_image(mycanvas, false);
+		ck_if_need_to_save_image(chart_data.chart_tag, mycanvas, false, can_hover, mycanvas_nm_title);
 	}
 	function ck_if_need_to_set_zoom_redrawn_cntr()
 	{
@@ -4044,29 +4061,53 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	mycanvas2_ctx = mycanvas2.getContext('2d');
 
-	function ck_if_need_to_save_image(use_canvas, doing_flame)
+	function ck_if_need_to_save_image(ch_tag, use_canvas, doing_flame, hover_func, ele_title_nm)
 	{
-		if (g_cpu_diagram_flds !== null && chart_data.chart_tag == "PCT_BUSY_BY_CPU") {
+		if (g_cpu_diagram_flds !== null) {
+			let use_j = -1;
+			let lkfor_chart = null;
+			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+				if (ch_tag == g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag &&
+					typeof g_cpu_diagram_flds.cpu_diagram_fields[j].save_image_nm !== 'undefined') {
+					lkfor_chart = g_cpu_diagram_flds.cpu_diagram_fields[j].chart;
+					use_j = j;
+					break;
+				}
+			}
+			if (lkfor_chart == null && ch_tag == "PCT_BUSY_BY_CPU") {
+				lkfor_chart = "PCT_BUSY_BY_CPU";
+			}
 			for (let j=0; j < gjson.chart_data.length; j++) {
-				if (gjson.chart_data[j].chart_tag != "PCT_BUSY_BY_SYSTEM") {
-					continue;
-				}
-				if (doing_flame) {
-					gjson.chart_data[j].fl_image_ready = false;
-					gjson.chart_data[j].fl_image = new Image();
-					gjson.chart_data[j].fl_image.src = use_canvas.toDataURL("image/png");
-					gjson.chart_data[j].fl_image.onload = function(){
-						gjson.chart_data[j].fl_image_ready = true;
+				//if (ch_tag == "PCT_BUSY_BY_SYSTEM" || lkfor_chart == gjson.chart_data[j].chart_tag) {
+				if (lkfor_chart == gjson.chart_data[j].chart_tag) {
+					if (doing_flame) {
+						gjson.chart_data[j].fl_image_shape = {canvas3:use_canvas, wide:use_canvas.width, high:use_canvas.height-0.0, ele_title_nm:ele_title_nm};
+						gjson.chart_data[j].fl_image_hover = hover_func;
+						gjson.chart_data[j].fl_image_ready = false;
+						gjson.chart_data[j].fl_image = new Image();
+						gjson.chart_data[j].fl_image.src = use_canvas.toDataURL("image/png");
+						gjson.chart_data[j].fl_image.onload = function(){
+							gjson.chart_data[j].fl_image_ready = true;
+						}
+					} else {
+						if (typeof gjson.chart_data[j].image_data === 'undefined') {
+							gjson.chart_data[j].image_data = {};
+						}
+						if (!(ch_tag in gjson.chart_data[j].image_data)) {
+							gjson.chart_data[j].image_data = {shape:null, hover:null};
+						}
+						gjson.chart_data[j].image_data.shape = {canvas3:use_canvas, wide:use_canvas.width, high:use_canvas.height-0.0, ele_title_nm:ele_title_nm};
+						gjson.chart_data[j].image_data.hover = hover_func;
+						gjson.chart_data[j].image_ready = false;
+						gjson.chart_data[j].image = new Image();
+						console.log("going to save image_nm for chart["+j+"]= "+chart_data.chart_tag);
+						gjson.chart_data[j].image.src = use_canvas.toDataURL("image/png");
+						gjson.chart_data[j].image.onload = function(){
+							gjson.chart_data[j].image_ready = true;
+						}
 					}
-				} else {
-					gjson.chart_data[j].image_ready = false;
-					gjson.chart_data[j].image = new Image();
-					gjson.chart_data[j].image.src = use_canvas.toDataURL("image/png");
-					gjson.chart_data[j].image.onload = function(){
-						gjson.chart_data[j].image_ready = true;
-					}
+					break;
 				}
-				break;
 			}
 		}
 	}
@@ -4204,21 +4245,21 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			return a[0] - b[0];
 	    }
 	}
-	function linearSearch(ar, elx, ely, compare_fn) {
+	function linearSearch(ar, elx, ely, xscale, yscale, compare_fn) {
 		for (let k=0; k < ar.length; k++) {
-			let cmp = compare_fn(elx, ely, ar[k]);
+			let cmp = compare_fn(elx, ely, xscale, yscale, ar[k]);
 			if (cmp == 0) {
 				return k; 
 			}
 		}
 		return -1;
 	}
-	function binarySearch(ar, elx, ely, compare_fn) {
+	function binarySearch(ar, elx, ely, xscale, yscale, compare_fn) {
 	    let m = 0;
 	    let n = ar.length - 1;
 	    while (m <= n) {
 			let k = (n + m) >> 1;
-			let cmp = compare_fn(elx, ely, ar[k]);
+			let cmp = compare_fn(elx, ely, xscale, yscale, ar[k]);
 			if (cmp > 0) {
 				m = k + 1;
 			} else if(cmp < 0) {
@@ -4240,33 +4281,33 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		return 0;
 		//return a - b;
 	}
-	function compare_in_rect(x, y, b) {
-		if (x  < b[0]) {
+	function compare_in_rect(x, y, xscale, yscale, b) {
+		if (x  < (b[0]-1.0*yscale)) {
 			return -1;
 		}
-		if (x  > b[2]) {
+		if (x  > (b[2]+1.0*yscale)) {
 			return 1;
 		}
 		return 0;
 		//return a - b;
 	}
-	function compare_in_box(x, y, b) {
-		if (x  < (b[0]-2)) {
+	function compare_in_box(x, y, xscale, yscale, b) {
+		if (x  < (b[0]-2*xscale)) {
 			return -1;
 		}
-		if (x  > (b[2]+2)) {
+		if (x  > (b[2]+2*xscale)) {
 			return 1;
 		}
-		if (y  < (b[1]-2)) {
+		if (y  < (b[1]-2*yscale)) {
 			return 1;
 		}
-		if (y  > (b[3]+2)) {
+		if (y  > (b[3]+2*yscale)) {
 			return -1;
 		}
 		return 0;
 		//return a - b;
 	}
-	function compare_in_stack(x, y, b) {
+	function compare_in_stack(x, y, xscale, yscale, b) {
 		if (x  < b[0]) {
 			return -1;
 		}
@@ -4493,6 +4534,500 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		return val_str;
 	}
+
+	function can_hover(x, y, xscale, yscale)
+	{
+		/*
+		if (chart_data.chart_tag == "PCT_BUSY_BY_CPU") {
+			//abcd
+			console.log("in hover for "+chart_data.chart_tag);
+		}
+		*/
+		let mtch = -1;
+		let rw = -1, row = -1;
+		let fnd = -1;
+		let fnd_list = [];
+		if (ch_type == CH_TYPE_LINE) {
+			for (let i = 0; i < lkup.length; i++) {
+				if (lkup_use_linearSearch[i]) {
+					fnd = linearSearch(lkup[i], x, y, xscale, yscale, compare_in_box);
+				} else {
+					fnd = binarySearch(lkup[i], x, y, xscale, yscale, compare_in_box);
+				}
+				//let xs = sprintf("row= %d, x= %f, y= %f, fnd= %s, bx= %s", i, x, y, fnd, (fnd < 0 ? "" : lkup[i][fnd]));
+				//console.log(xs);
+				if (fnd >= 0) {
+					row = i;
+					if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
+						//console.log("got tot_line");
+						fnd_list.push({fnd:fnd, row:row});
+						//let use_e = event_lkup[row];
+						//let use_s = event_list[use_e].idx;
+						//console.log(sprintf("tot_line fnd= %s, use_e= %s, row= %d", fnd, use_e, row));
+					} else {
+						if (ch_options.overlapping_ranges_within_area) {
+							continue;
+						}
+						let lk = lkup[i][fnd];
+						let shape_idx= lk[4];
+						let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
+						let use_it = true;
+						if (cpt >= 0 && typeof chart_data.proc_arr[cpt] !== 'undefined') {
+							let nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
+							let use_e;
+							let use_s;
+							if (chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
+									chart_data.chart_tag == "RUN_QUEUE" ||
+									chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
+								use_e = row;
+								use_s = row;
+							} else {
+								use_e = event_lkup[row];
+								use_s = event_list[use_e].idx;
+							}
+							if (typeof use_e === 'undefined') {
+								console.log("prob event_lkup["+row+"] not def. i= "+i+", nm= "+nm+", cpt= "+cpt);
+								use_it = false;
+							} else {
+								//use_s = event_list[use_e].idx;
+								//console.log("cpt= "+cpt+", evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
+								//console.log(event_list[use_e]);
+								if (cpt >= 0 && typeof event_select[use_s] !== 'undefined' && event_select[use_s][1] == 'hide') {
+									use_it = false;
+								}
+							}
+						}
+						if (use_it) {
+							fnd_list.push({fnd:fnd, row:row});
+						}
+					}
+				}
+			}
+		} else if (ch_type == CH_TYPE_STACKED) {
+			for (let i = 0; i < lkup.length; i++) {
+				//console.log("stckd i="+i);
+				fnd = binarySearch(lkup[i], x, y, xscale, yscale, compare_in_stack);
+				if (fnd < 0) {
+					fnd = binarySearch(lkup[i], x-2, y, xscale, yscale, compare_in_stack);
+					if (fnd < 0) {
+					fnd = binarySearch(lkup[i], x+2, y, xscale, yscale, compare_in_stack);
+					}
+				}
+				if (fnd >= 0) {
+					//console.log("fnd= "+fnd+",i="+i);
+					//console.log(lkup[i][fnd]);
+					row = i;
+					if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
+						//console.log("got tot_line");
+						fnd_list.push({fnd:fnd, row:row});
+						//console.log("evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
+					} else {
+						let lk = lkup[row][fnd];
+						let shape_idx= lk[4];
+						let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
+						let use_it = true;
+						if (cpt >= 0) {
+							let nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
+							let use_e = event_lkup[row];
+							let use_s = event_list[use_e].idx;
+							//console.log("cpt= "+cpt+", evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
+							//console.log(event_list[use_e]);
+							if (cpt >= 0 && typeof event_select[use_s] !== 'undefined' && event_select[use_s][1] == 'hide') {
+								use_it = false;
+							}
+						}
+						if (use_it) {
+							fnd_list.push({fnd:fnd, row:row});
+						}
+					}
+				}
+			}
+		} else {
+			rw = binarySearch(ylkup, y, x, xscale, yscale, compare_in_rect);
+			if (rw < 0) {
+				clearToolTipText(mytooltip);
+				current_tooltip_text = "";
+				current_tooltip_shape = -1;
+				return {};
+			}
+			row = ylkup[rw][4];
+			fnd = binarySearch(lkup[row], x, y, xscale, yscale, compare_in_rect);
+			if (fnd < 0) {
+				fnd = binarySearch(lkup[row], x-1, y, xscale, yscale, compare_in_rect);
+				if (fnd < 0) {
+					fnd = binarySearch(lkup[row], x+1, y, xscale, yscale, compare_in_rect);
+				}
+			}
+		}
+		if (fnd >=0 || fnd_list.length > 0) {
+			//console.log(lkup[row][fnd]);
+			if (fnd_list.length > 0) {
+				fnd = fnd_list[0].fnd;
+				row = fnd_list[0].row;
+			}
+			mtch = -2;
+			let lk = lkup[row][fnd];
+			//console.log("x_= "+x+", y= "+y + ", fnd= "+fnd+", lkup_rect: x0= "+lk[0]+", y0= "+lk[1]+", x1= "+lk[2]+", y1= "+lk[3]);
+			mtch = fnd;
+			let shape_idx= lk[4];
+			let cpt=-1, x0, x1, cpu, val;
+			let nm = "unknown1";
+			let tot_line_lkup_list = [];
+			if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
+				//console.log(sprintf("tot_line row= %s, val= %s", row, tot_line.subcat_rng_idx[row]));
+				x0  = tot_line.xarray[shape_idx];
+				x1  = tot_line.xarray[shape_idx+1];
+				let sci = tot_line.subcat_rng_idx[row];
+				val = tot_line.yarray[sci][shape_idx];
+				tot_line_lkup_list.push(tot_line.lkup[sci][shape_idx]);
+				if (fnd_list.length > 1) {
+					for (let k=1; k < fnd_list.length; k++) {
+						let lk2 = lkup[fnd_list[k].row][fnd_list[k].fnd];
+						let shape_idx2= lk2[4];
+						let sci = tot_line.subcat_rng_idx[fnd_list[k].row];
+						tot_line_lkup_list.push(tot_line.lkup[sci][shape_idx2]);
+					}
+				}
+				cpu = -1;
+			} else {
+				x0 = chart_data.myshapes[shape_idx].pts[PTS_X0];
+				x1 = chart_data.myshapes[shape_idx].pts[PTS_X1];
+				cpu = chart_data.myshapes[shape_idx].ival[IVAL_CPU];
+				if (ch_type == CH_TYPE_STACKED) {
+					val = chart_data.myshapes[shape_idx].pts[PTS_Y1] -
+						chart_data.myshapes[shape_idx].pts[PTS_Y0];
+				} else {
+					val = chart_data.myshapes[shape_idx].pts[PTS_Y1];
+				}
+				cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
+				if (cpt >= 0 && typeof chart_data.proc_arr[cpt] !== 'undefined' && chart_data.proc_arr[cpt].tid > -1) {
+					nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
+				}
+				if (nm == "unknown1") {
+					let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
+					let fe_2 = event_lkup[fe_idx];
+					//console.log("got fe_idx= "+fe_2+" flnm_evt.sz= "+event_list.length);
+					nm += ", cpt= "+cpt+",shape_idx= "+shape_idx;
+					//console.log(chart_data.myshapes[shape_idx]);
+				}
+			}
+			let inserted_value = lk[5];
+			if (typeof inserted_value !== 'undefined') {
+				x0 = lk[6];
+				x1 = lk[7];
+				val = inserted_value;
+			}
+			let str = "at T= "+sprintf("%.6f", x0);
+			let lines_done=0;
+			if (x0 != x1 || ch_type == CH_TYPE_STACKED) {
+				// so we're doing a rectangle
+				let tm_dff = tm_diff_str(x1-x0, 6, 'secs');
+				str += "-"+sprintf("%.6f", x1)+", dura="+tm_dff+", proc= "+nm+", cpu= "+cpu;
+				{
+					let x1 = 1.0 * x;
+					let xdiff1= +(x1 - xPadding) / (px_wide - xPadding);
+					let nx1 = +minx+(xdiff1 * (maxx - minx));
+					let abs_ts = (nx1 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
+					let str5 = get_phase_indx(abs_ts, false);
+					if (str5 != "") {
+					//console.log(sprintf("x=  %f, nx1= %f, df= %f abs_ts= %f, str= %s", x, nx1, xdiff1, abs_ts, str5));
+					str += "<br>Phase= "+str5;
+					}
+				}
+				if (ch_type == CH_TYPE_LINE || ch_type == CH_TYPE_STACKED) {
+					str += ",<br>"+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
+					let val_str = fmt_val(val);
+					str += ", "+chart_data.y_label+"="+val_str;
+					lines_done=0;
+					for (let k=0; k < fnd_list.length; k++) {
+						let lk2 = lkup[fnd_list[k].row][fnd_list[k].fnd];
+						let shape_idx2= lk2[4];
+						if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[fnd_list[k].row] !== 'undefined') {
+							let myx0  = sprintf("%.6f", tot_line.xarray[shape_idx2]);
+							let myx1  = sprintf("%.6f", tot_line.xarray[shape_idx2+1]);
+							//let myx1  = tot_line.xarray[shape_idx2+1];
+							let sci = tot_line.subcat_rng_idx[fnd_list[k].row];
+							let val = tot_line.yarray[sci][shape_idx2];
+							//str += "<br>fnd_lst_len= "+fnd_list.length;
+							str += "<br>x="+myx0+"-"+myx1+","+chart_data.y_by_var+"="+chart_data.subcat_rng[fnd_list[k].row].cat_text;
+							if (false) 
+							{
+								//abcd
+							let sc_idx = tot_line.subcat_rng_arr[sci];
+							let el_idx = tot_line.event_list_idx[sci];
+							let fe_idx = event_list[el_idx].idx;
+							let cat_txt = chart_data.subcat_rng[sc_idx].cat_text;
+							console.log(sprintf("lgnd: tot_line[%d]: sc_idx= %d, el_idx= %d, fe_idx= %d, evt= %s, row= %d",
+										sci, sc_idx, el_idx, fe_idx, cat_txt, fnd_list[k].row));
+							}
+							let val_str = fmt_val(val);
+							str += ", "+chart_data.y_label+"="+val_str;
+						} else {
+							let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
+							str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[fnd_list[k].row].cat_text;
+							let val;
+							if (ch_type == CH_TYPE_STACKED) {
+								val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
+									chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+							} else {
+								val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+							}
+							let val_str = fmt_val(val);
+							str += ", "+chart_data.y_label+"="+val_str;
+						}
+						lines_done++;
+						if (lines_done > 5) {
+							break;
+						}
+					}
+					if (tot_line_lkup_list.length > 0) {
+						str += sprintf("<br>%d area(s) in this interval: show up to 10 values: ", tot_line_lkup_list.length);
+						for (let kk=0; kk < tot_line_lkup_list.length; kk++) {
+							if (tot_line_lkup_list[kk].length == 0) {
+								continue;
+							}
+							let cat_text_init;
+							let val_init, nm_init, all_same_nms= true, all_same_values = true, all_same_areas= true;
+							lines_done=0;
+							let show_max = 10;
+							let area_is_tot_line = true;
+							for (let k=0; k < tot_line_lkup_list[kk].length; k++) {
+								let val;
+								let shape_idx2= tot_line_lkup_list[kk][k];
+								let nmi = chart_data.myshapes[shape_idx2].ival[IVAL_CAT]
+								let cat_txt = chart_data.subcat_rng[nmi].cat_text;
+								if (typeof chart_data.subcat_rng[nmi].is_tot_line === 'undefined') {
+									 area_is_tot_line = false;
+									 //break;
+								}
+								if (ch_type == CH_TYPE_STACKED) {
+									val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
+										chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+								} else {
+									val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+								}
+								let cpt2= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
+								nm = null;
+								if (cpt2 >= 0 && typeof chart_data.proc_arr[cpt2] !== 'undefined' && chart_data.proc_arr[cpt2].tid > -1) {
+									nm = chart_data.proc_arr[cpt2].comm+" "+chart_data.proc_arr[cpt2].pid+"/"+chart_data.proc_arr[cpt2].tid;
+								}
+								if (k == 0) {
+									val_init = val;
+									cat_text_init = cat_txt;
+									nm_init = nm;
+								}
+								if (val_init != val) {
+									all_same_values = false;
+								}
+								if (nm_init != nm) {
+									all_same_nms = false;
+								}
+								if (cat_text_init != cat_txt) {
+									all_same_areas = false;
+								}
+								if (!all_same_areas && !all_same_values && !all_same_nms) {
+									break;
+								}
+								if (k > show_max) {
+									break;
+								}
+							}
+							//if (!area_is_tot_line && ch_options.overlapping_ranges_within_area)
+							if (!area_is_tot_line) {
+								//continue;
+							}
+							let cma="";
+							if (tot_line_lkup_list[kk].length < show_max) {
+								show_max = tot_line_lkup_list[kk].length;
+							}
+							if (all_same_areas || all_same_values || all_same_nms) {
+								str += sprintf("<br> details below:");
+							}
+							if (all_same_areas) {
+								str += ","+chart_data.y_by_var+"="+cat_text_init;
+							}
+							if (all_same_values && typeof val_init !== 'undefined') {
+								let val_str = fmt_val(val_init);
+								str += ", all "+chart_data.y_label+"="+val_str;
+							}
+							if (all_same_nms) {
+								str += ", all procs="+nm_init;
+							}
+							str += sprintf(" (lines %d of %d): ", show_max, tot_line_lkup_list[kk].length);
+							for (let k=0; k < tot_line_lkup_list[kk].length; k++) {
+								let shape_idx2= tot_line_lkup_list[kk][k];
+								let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
+								let myx1 = chart_data.myshapes[shape_idx2].pts[PTS_X1];
+								if (all_same_areas && all_same_values && all_same_nms) {
+									let kend = tot_line_lkup_list[kk].length-1;
+									if (kend > show_max) {
+										kend = show_max;
+									}
+									shape_idx2= tot_line_lkup_list[kk][kend];
+									myx1 = chart_data.myshapes[shape_idx2].pts[PTS_X1];
+									str += "<br>x="+myx0+"-"+myx1+", all same value, proc and area";
+									break;
+								}
+								let nmi = chart_data.myshapes[shape_idx2].ival[IVAL_CAT]
+								let cat_txt = chart_data.subcat_rng[nmi].cat_text;
+								str += "<br>x="+myx0+"-"+myx1;
+								if (!all_same_areas) {
+									str += ","+chart_data.y_by_var+"="+cat_txt;
+								}
+								if (!all_same_values) {
+									let val;
+									if (ch_type == CH_TYPE_STACKED) {
+										val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
+											chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+									} else {
+										val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+									}
+									let val_str = fmt_val(val);
+									str += ", "+chart_data.y_label+"="+val_str;
+								}
+								let cpt2= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
+								if (cpt2 >= 0 && typeof chart_data.proc_arr[cpt2] !== 'undefined' && chart_data.proc_arr[cpt2].tid > -1) {
+									let nm = chart_data.proc_arr[cpt2].comm+" "+chart_data.proc_arr[cpt2].pid+"/"+chart_data.proc_arr[cpt2].tid;
+									if (nm != cat_txt) {
+										if (!all_same_nms) {
+											str += ", proc= "+nm;
+										}
+									}
+								}
+								lines_done++;
+								if (lines_done > show_max) {
+									break;
+								}
+							}
+						}
+					}
+				}
+				if (ch_type == CH_TYPE_STACKED) {
+					let kend = fnd+100;
+					if (kend >= lkup[row].length) { kend = lkup[row].length; }
+					lines_done=0;
+					for (let k=fnd+1; k < kend; k++) {
+						let lk2 = lkup[row][k];
+						let shape_idx2= lk2[4];
+						//let x0t = chart_data.myshapes[shape_idx2].pts[PTS_X0];
+						//let x1t = chart_data.myshapes[shape_idx2].pts[PTS_X1];
+						let x0t = lk2[0];
+						let x1t = lk2[2];
+						let nm_prv = nm;
+						if (x0t <= x && x <= x1t) {
+							let cpt= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
+							if (cpt >= 0 && chart_data.proc_arr[cpt].tid > -1) {
+								nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
+							}
+							let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
+							let myy1 = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+							let myy0 = chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+							if (nm != "" && nm != nm_prv) {
+								str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
+								//str += "<br>x="+myx0+","+chart_data.y_var+"="+(myy1-myy0);
+								str += ", "+nm;
+								str += ", val= "+(myy1-myy0);
+							}
+						} else {
+							break;
+						}
+						lines_done++;
+						if (lines_done > 5) {
+							break;
+						}
+					}
+					let kbeg = fnd-100;
+					if (kbeg < 0) { kbeg = 0; }
+					lines_done=0;
+					for (let k=fnd-1; k > kbeg; k--) {
+						let lk2 = lkup[row][k];
+						let shape_idx2= lk2[4];
+						//let x0t = chart_data.myshapes[shape_idx2].pts[PTS_X0];
+						//let x1t = chart_data.myshapes[shape_idx2].pts[PTS_X1];
+						let x0t = lk2[0];
+						let x1t = lk2[2];
+						let nm_prv = nm;
+						if (x0t <= x && x <= x1t) {
+							let cpt= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
+							if (cpt >= 0 && chart_data.proc_arr[cpt].tid > -1) {
+								nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
+							}
+							let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
+							let myy1 = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+							let myy0 = chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+							if (nm != "" && nm != nm_prv) {
+								str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
+								//str += "<br>x="+myx0+","+chart_data.y_by_var+"="+(myy1-myy0);
+								str += ", "+nm+", val= "+(myy1-myy0);
+							}
+						} else {
+							break;
+						}
+						lines_done++;
+						if (lines_done > 5) {
+							break;
+						}
+					}
+				}
+			} else {
+				let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
+				let ev_str = chart_data.flnm_evt[fe_idx].event;
+				str += ", proc= "+nm+", cpu= "+cpu+"<br>evt= "+ev_str;
+			}
+			current_tooltip_shape = shape_idx;
+			current_tooltip_text = str;
+			if (typeof chart_data.myshapes[shape_idx] !== 'undefined' &&
+				typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined') {
+				let tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
+				let n = tstr.indexOf("_P_");
+				if (n == 0) {
+					let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
+					if (cpt > -1) {
+						let cpu_str = sprintf("[%03d] ", cpu);
+						let tm_str = sprintf("%.9f: ", (chart_data.ts_initial.ts +chart_data.myshapes[shape_idx].pts[PTS_X1]));
+						let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
+						let ph_str = chart_data.proc_arr[cpt].comm+" "+
+							chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid+" "+ 
+							cpu_str + tm_str + chart_data.myshapes[shape_idx].ival[IVAL_PERIOD] + " " +
+							chart_data.flnm_evt[fe_idx].event;
+						tstr = tstr.replace("_P_", ph_str);
+					}
+				}
+				current_tooltip_text += "<br>"+tstr;
+			}
+			if (tot_line.evt_str.length == 0) {
+				let cs_ret = get_cs_str(shape_idx, nm);
+				current_tooltip_text += cs_ret.txt;
+			}
+			mytooltip.style.borderWidth = '1px';
+			mytooltip.innerHTML = current_tooltip_text;
+			mytooltip.setAttribute("visibility", 'visible');
+			mytooltip.setAttribute("display", 'inline-block');
+			if (x > (0.5 * mycanvas.width)) {
+				mytooltip.style.removeProperty('left');
+				mytooltip.style.right = (mycanvas.width - x + 20) + 'px';
+			} else {
+				mytooltip.style.removeProperty('right');
+				mytooltip.style.left = (x + 20) + 'px';
+			}
+			mytooltip.style.removeProperty('bottom');
+			mytooltip.style.top = (y + 20) + 'px';
+			let visible = checkVisible(mytooltip);
+			if (!visible) {
+				//tooltip_top_bot = 'top';
+				mytooltip.style.removeProperty('top');
+				mytooltip.style.bottom = (mycanvas.height - y - 20) + 'px';
+			}
+			//console.log("tt x= "+x+", y= "+y);
+		} else {
+			clearToolTipText(mytooltip);
+			current_tooltip_text = "";
+			current_tooltip_shape = -1;
+		}
+		//console.log("x_= "+x+", y= "+y + ", mtch= "+mtch+", fnd= "+fnd);
+		return {str2:current_tooltip_text};
+	}
+
 	//console.log("mycanvas.width= "+mycanvas.width);
 	mycanvas.onmousemove = function(e) {
 		if ( typeof can_shape.hvr_prv_x === 'undefined' ) {
@@ -4506,488 +5041,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//x = (e.clientX - rect.left),
 			//y = (e.clientY - rect.top);
 			if ((x != can_shape.hvr_prv_x || y != can_shape.hvr_prv_y)) {
-				let mtch = -1;
-				let rw = -1, row = -1;
-				let fnd = -1;
-				let fnd_list = [];
-				if (ch_type == CH_TYPE_LINE) {
-					for (let i = 0; i < lkup.length; i++) {
-						if (lkup_use_linearSearch[i]) {
-							fnd = linearSearch(lkup[i], x, y, compare_in_box);
-						} else {
-							fnd = binarySearch(lkup[i], x, y, compare_in_box);
-						}
-						//let xs = sprintf("row= %d, x= %f, y= %f, fnd= %s, bx= %s", i, x, y, fnd, (fnd < 0 ? "" : lkup[i][fnd]));
-						//console.log(xs);
-						if (fnd >= 0) {
-							row = i;
-							if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
-								//console.log("got tot_line");
-								fnd_list.push({fnd:fnd, row:row});
-								//let use_e = event_lkup[row];
-								//let use_s = event_list[use_e].idx;
-								//console.log(sprintf("tot_line fnd= %s, use_e= %s, row= %d", fnd, use_e, row));
-							} else {
-								if (ch_options.overlapping_ranges_within_area) {
-									continue;
-								}
-								let lk = lkup[i][fnd];
-								let shape_idx= lk[4];
-								let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
-								let use_it = true;
-								if (cpt >= 0 && typeof chart_data.proc_arr[cpt] !== 'undefined') {
-									let nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
-									let use_e;
-									let use_s;
-									if (chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
-											chart_data.chart_tag == "RUN_QUEUE" ||
-											chart_data.chart_tag == "RUN_QUEUE_BY_CPU") {
-										use_e = row;
-										use_s = row;
-									} else {
-										use_e = event_lkup[row];
-										use_s = event_list[use_e].idx;
-									}
-									if (typeof use_e === 'undefined') {
-										console.log("prob event_lkup["+row+"] not def. i= "+i+", nm= "+nm+", cpt= "+cpt);
-										use_it = false;
-									} else {
-										//use_s = event_list[use_e].idx;
-										//console.log("cpt= "+cpt+", evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
-										//console.log(event_list[use_e]);
-										if (cpt >= 0 && typeof event_select[use_s] !== 'undefined' && event_select[use_s][1] == 'hide') {
-											use_it = false;
-										}
-									}
-								}
-								if (use_it) {
-									fnd_list.push({fnd:fnd, row:row});
-								}
-							}
-						}
-					}
-				} else if (ch_type == CH_TYPE_STACKED) {
-					for (let i = 0; i < lkup.length; i++) {
-						//console.log("stckd i="+i);
-						fnd = binarySearch(lkup[i], x, y, compare_in_stack);
-						if (fnd < 0) {
-							fnd = binarySearch(lkup[i], x-2, y, compare_in_stack);
-							if (fnd < 0) {
-							fnd = binarySearch(lkup[i], x+2, y, compare_in_stack);
-							}
-						}
-						if (fnd >= 0) {
-							//console.log("fnd= "+fnd+",i="+i);
-							//console.log(lkup[i][fnd]);
-							row = i;
-							if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
-								//console.log("got tot_line");
-								fnd_list.push({fnd:fnd, row:row});
-								//console.log("evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
-							} else {
-								let lk = lkup[row][fnd];
-								let shape_idx= lk[4];
-								let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
-								let use_it = true;
-								if (cpt >= 0) {
-									let nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
-									let use_e = event_lkup[row];
-									let use_s = event_list[use_e].idx;
-									//console.log("cpt= "+cpt+", evt_sel= "+event_select[use_s]+", nm= "+nm+", elk= "+use_e);
-									//console.log(event_list[use_e]);
-									if (cpt >= 0 && typeof event_select[use_s] !== 'undefined' && event_select[use_s][1] == 'hide') {
-										use_it = false;
-									}
-								}
-								if (use_it) {
-									fnd_list.push({fnd:fnd, row:row});
-								}
-							}
-						}
-					}
-				} else {
-					rw = binarySearch(ylkup, y, x, compare_in_rect);
-					if (rw < 0) {
-						clearToolTipText(mytooltip);
-						current_tooltip_text = "";
-						current_tooltip_shape = -1;
-						return;
-					}
-					row = ylkup[rw][4];
-					fnd = binarySearch(lkup[row], x, y, compare_in_rect);
-					if (fnd < 0) {
-						fnd = binarySearch(lkup[row], x-1, y, compare_in_rect);
-						if (fnd < 0) {
-							fnd = binarySearch(lkup[row], x+1, y, compare_in_rect);
-						}
-					}
-				}
-				if (fnd >=0 || fnd_list.length > 0) {
-					//console.log(lkup[row][fnd]);
-					if (fnd_list.length > 0) {
-						fnd = fnd_list[0].fnd;
-						row = fnd_list[0].row;
-					}
-					mtch = -2;
-					let lk = lkup[row][fnd];
-					//console.log("x_= "+x+", y= "+y + ", fnd= "+fnd+", lkup_rect: x0= "+lk[0]+", y0= "+lk[1]+", x1= "+lk[2]+", y1= "+lk[3]);
-					mtch = fnd;
-					let shape_idx= lk[4];
-					let cpt=-1, x0, x1, cpu, val;
-					let nm = "unknown1";
-					let tot_line_lkup_list = [];
-					if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
-						//console.log(sprintf("tot_line row= %s, val= %s", row, tot_line.subcat_rng_idx[row]));
-						x0  = tot_line.xarray[shape_idx];
-						x1  = tot_line.xarray[shape_idx+1];
-						let sci = tot_line.subcat_rng_idx[row];
-						val = tot_line.yarray[sci][shape_idx];
-						tot_line_lkup_list.push(tot_line.lkup[sci][shape_idx]);
-						if (fnd_list.length > 1) {
-							for (let k=1; k < fnd_list.length; k++) {
-								let lk2 = lkup[fnd_list[k].row][fnd_list[k].fnd];
-								let shape_idx2= lk2[4];
-								let sci = tot_line.subcat_rng_idx[fnd_list[k].row];
-								tot_line_lkup_list.push(tot_line.lkup[sci][shape_idx2]);
-							}
-						}
-						cpu = -1;
-					} else {
-						x0 = chart_data.myshapes[shape_idx].pts[PTS_X0];
-						x1 = chart_data.myshapes[shape_idx].pts[PTS_X1];
-						cpu = chart_data.myshapes[shape_idx].ival[IVAL_CPU];
-						if (ch_type == CH_TYPE_STACKED) {
-							val = chart_data.myshapes[shape_idx].pts[PTS_Y1] -
-								chart_data.myshapes[shape_idx].pts[PTS_Y0];
-						} else {
-							val = chart_data.myshapes[shape_idx].pts[PTS_Y1];
-						}
-						cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
-						if (cpt >= 0 && typeof chart_data.proc_arr[cpt] !== 'undefined' && chart_data.proc_arr[cpt].tid > -1) {
-							nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
-						}
-						if (nm == "unknown1") {
-							let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
-							let fe_2 = event_lkup[fe_idx];
-							//console.log("got fe_idx= "+fe_2+" flnm_evt.sz= "+event_list.length);
-							nm += ", cpt= "+cpt+",shape_idx= "+shape_idx;
-							//console.log(chart_data.myshapes[shape_idx]);
-						}
-					}
-					let inserted_value = lk[5];
-					if (typeof inserted_value !== 'undefined') {
-						x0 = lk[6];
-						x1 = lk[7];
-						val = inserted_value;
-					}
-					let str = "at T= "+sprintf("%.6f", x0);
-					let lines_done=0;
-					if (x0 != x1 || ch_type == CH_TYPE_STACKED) {
-						// so we're doing a rectangle
-						let tm_dff = tm_diff_str(x1-x0, 6, 'secs');
-						str += "-"+sprintf("%.6f", x1)+", dura="+tm_dff+", proc= "+nm+", cpu= "+cpu;
-						{
-							let x1 = 1.0 * x;
-							let xdiff1= +(x1 - xPadding) / (px_wide - xPadding);
-							let nx1 = +minx+(xdiff1 * (maxx - minx));
-							let abs_ts = (nx1 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
-							let str5 = get_phase_indx(abs_ts, false);
-							if (str5 != "") {
-							//console.log(sprintf("x=  %f, nx1= %f, df= %f abs_ts= %f, str= %s", x, nx1, xdiff1, abs_ts, str5));
-							str += "<br>Phase= "+str5;
-							}
-						}
-						if (ch_type == CH_TYPE_LINE || ch_type == CH_TYPE_STACKED) {
-							str += ",<br>"+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
-							let val_str = fmt_val(val);
-							str += ", "+chart_data.y_label+"="+val_str;
-							lines_done=0;
-							for (let k=0; k < fnd_list.length; k++) {
-								let lk2 = lkup[fnd_list[k].row][fnd_list[k].fnd];
-								let shape_idx2= lk2[4];
-								if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[fnd_list[k].row] !== 'undefined') {
-									let myx0  = sprintf("%.6f", tot_line.xarray[shape_idx2]);
-									let myx1  = sprintf("%.6f", tot_line.xarray[shape_idx2+1]);
-									//let myx1  = tot_line.xarray[shape_idx2+1];
-									let sci = tot_line.subcat_rng_idx[fnd_list[k].row];
-									let val = tot_line.yarray[sci][shape_idx2];
-									//str += "<br>fnd_lst_len= "+fnd_list.length;
-									str += "<br>x="+myx0+"-"+myx1+","+chart_data.y_by_var+"="+chart_data.subcat_rng[fnd_list[k].row].cat_text;
-									if (false) 
-									{
-										//abcd
-									let sc_idx = tot_line.subcat_rng_arr[sci];
-									let el_idx = tot_line.event_list_idx[sci];
-									let fe_idx = event_list[el_idx].idx;
-									let cat_txt = chart_data.subcat_rng[sc_idx].cat_text;
-									console.log(sprintf("lgnd: tot_line[%d]: sc_idx= %d, el_idx= %d, fe_idx= %d, evt= %s, row= %d",
-												sci, sc_idx, el_idx, fe_idx, cat_txt, fnd_list[k].row));
-									}
-									let val_str = fmt_val(val);
-									str += ", "+chart_data.y_label+"="+val_str;
-								} else {
-									let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-									str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[fnd_list[k].row].cat_text;
-									let val;
-									if (ch_type == CH_TYPE_STACKED) {
-										val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
-											chart_data.myshapes[shape_idx2].pts[PTS_Y0];
-									} else {
-										val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
-									}
-									let val_str = fmt_val(val);
-									str += ", "+chart_data.y_label+"="+val_str;
-								}
-								lines_done++;
-								if (lines_done > 5) {
-									break;
-								}
-							}
-							if (tot_line_lkup_list.length > 0) {
-								str += sprintf("<br>%d area(s) in this interval: show up to 10 values: ", tot_line_lkup_list.length);
-								for (let kk=0; kk < tot_line_lkup_list.length; kk++) {
-									if (tot_line_lkup_list[kk].length == 0) {
-										continue;
-									}
-									let cat_text_init;
-									let val_init, nm_init, all_same_nms= true, all_same_values = true, all_same_areas= true;
-									lines_done=0;
-									let show_max = 10;
-									let area_is_tot_line = true;
-									for (let k=0; k < tot_line_lkup_list[kk].length; k++) {
-										let val;
-										let shape_idx2= tot_line_lkup_list[kk][k];
-										let nmi = chart_data.myshapes[shape_idx2].ival[IVAL_CAT]
-										let cat_txt = chart_data.subcat_rng[nmi].cat_text;
-										if (typeof chart_data.subcat_rng[nmi].is_tot_line === 'undefined') {
-											 area_is_tot_line = false;
-											 //break;
-										}
-										if (ch_type == CH_TYPE_STACKED) {
-											val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
-												chart_data.myshapes[shape_idx2].pts[PTS_Y0];
-										} else {
-											val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
-										}
-										let cpt2= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
-										nm = null;
-										if (cpt2 >= 0 && typeof chart_data.proc_arr[cpt2] !== 'undefined' && chart_data.proc_arr[cpt2].tid > -1) {
-											nm = chart_data.proc_arr[cpt2].comm+" "+chart_data.proc_arr[cpt2].pid+"/"+chart_data.proc_arr[cpt2].tid;
-										}
-										if (k == 0) {
-											val_init = val;
-											cat_text_init = cat_txt;
-											nm_init = nm;
-										}
-										if (val_init != val) {
-											all_same_values = false;
-										}
-										if (nm_init != nm) {
-											all_same_nms = false;
-										}
-										if (cat_text_init != cat_txt) {
-											all_same_areas = false;
-										}
-										if (!all_same_areas && !all_same_values && !all_same_nms) {
-											break;
-										}
-										if (k > show_max) {
-											break;
-										}
-									}
-									//if (!area_is_tot_line && ch_options.overlapping_ranges_within_area)
-									if (!area_is_tot_line) {
-										//continue;
-									}
-									let cma="";
-									if (tot_line_lkup_list[kk].length < show_max) {
-										show_max = tot_line_lkup_list[kk].length;
-									}
-									if (all_same_areas || all_same_values || all_same_nms) {
-										str += sprintf("<br> details below:");
-									}
-									if (all_same_areas) {
-										str += ","+chart_data.y_by_var+"="+cat_text_init;
-									}
-									if (all_same_values && typeof val_init !== 'undefined') {
-										let val_str = fmt_val(val_init);
-										str += ", all "+chart_data.y_label+"="+val_str;
-									}
-									if (all_same_nms) {
-										str += ", all procs="+nm_init;
-									}
-									str += sprintf(" (lines %d of %d): ", show_max, tot_line_lkup_list[kk].length);
-									for (let k=0; k < tot_line_lkup_list[kk].length; k++) {
-										let shape_idx2= tot_line_lkup_list[kk][k];
-										let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-										let myx1 = chart_data.myshapes[shape_idx2].pts[PTS_X1];
-										if (all_same_areas && all_same_values && all_same_nms) {
-											let kend = tot_line_lkup_list[kk].length-1;
-											if (kend > show_max) {
-												kend = show_max;
-											}
-											shape_idx2= tot_line_lkup_list[kk][kend];
-											myx1 = chart_data.myshapes[shape_idx2].pts[PTS_X1];
-											str += "<br>x="+myx0+"-"+myx1+", all same value, proc and area";
-											break;
-										}
-										let nmi = chart_data.myshapes[shape_idx2].ival[IVAL_CAT]
-										let cat_txt = chart_data.subcat_rng[nmi].cat_text;
-										str += "<br>x="+myx0+"-"+myx1;
-										if (!all_same_areas) {
-											str += ","+chart_data.y_by_var+"="+cat_txt;
-										}
-										if (!all_same_values) {
-											let val;
-											if (ch_type == CH_TYPE_STACKED) {
-												val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
-													chart_data.myshapes[shape_idx2].pts[PTS_Y0];
-											} else {
-												val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
-											}
-											let val_str = fmt_val(val);
-											str += ", "+chart_data.y_label+"="+val_str;
-										}
-										let cpt2= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
-										if (cpt2 >= 0 && typeof chart_data.proc_arr[cpt2] !== 'undefined' && chart_data.proc_arr[cpt2].tid > -1) {
-											let nm = chart_data.proc_arr[cpt2].comm+" "+chart_data.proc_arr[cpt2].pid+"/"+chart_data.proc_arr[cpt2].tid;
-											if (nm != cat_txt) {
-												if (!all_same_nms) {
-													str += ", proc= "+nm;
-												}
-											}
-										}
-										lines_done++;
-										if (lines_done > show_max) {
-											break;
-										}
-									}
-								}
-							}
-						}
-						if (ch_type == CH_TYPE_STACKED) {
-							let kend = fnd+100;
-							if (kend >= lkup[row].length) { kend = lkup[row].length; }
-							lines_done=0;
-							for (let k=fnd+1; k < kend; k++) {
-								let lk2 = lkup[row][k];
-								let shape_idx2= lk2[4];
-								//let x0t = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-								//let x1t = chart_data.myshapes[shape_idx2].pts[PTS_X1];
-								let x0t = lk2[0];
-								let x1t = lk2[2];
-								let nm_prv = nm;
-								if (x0t <= x && x <= x1t) {
-									let cpt= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
-									if (cpt >= 0 && chart_data.proc_arr[cpt].tid > -1) {
-										nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
-									}
-									let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-									let myy1 = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
-									let myy0 = chart_data.myshapes[shape_idx2].pts[PTS_Y0];
-									if (nm != "" && nm != nm_prv) {
-										str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
-										//str += "<br>x="+myx0+","+chart_data.y_var+"="+(myy1-myy0);
-										str += ", "+nm;
-										str += ", val= "+(myy1-myy0);
-									}
-								} else {
-									break;
-								}
-								lines_done++;
-								if (lines_done > 5) {
-									break;
-								}
-							}
-							let kbeg = fnd-100;
-							if (kbeg < 0) { kbeg = 0; }
-							lines_done=0;
-							for (let k=fnd-1; k > kbeg; k--) {
-								let lk2 = lkup[row][k];
-								let shape_idx2= lk2[4];
-								//let x0t = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-								//let x1t = chart_data.myshapes[shape_idx2].pts[PTS_X1];
-								let x0t = lk2[0];
-								let x1t = lk2[2];
-								let nm_prv = nm;
-								if (x0t <= x && x <= x1t) {
-									let cpt= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
-									if (cpt >= 0 && chart_data.proc_arr[cpt].tid > -1) {
-										nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
-									}
-									let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-									let myy1 = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
-									let myy0 = chart_data.myshapes[shape_idx2].pts[PTS_Y0];
-									if (nm != "" && nm != nm_prv) {
-										str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
-										//str += "<br>x="+myx0+","+chart_data.y_by_var+"="+(myy1-myy0);
-										str += ", "+nm+", val= "+(myy1-myy0);
-									}
-								} else {
-									break;
-								}
-								lines_done++;
-								if (lines_done > 5) {
-									break;
-								}
-							}
-						}
-					} else {
-						let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
-						let ev_str = chart_data.flnm_evt[fe_idx].event;
-						str += ", proc= "+nm+", cpu= "+cpu+"<br>evt= "+ev_str;
-					}
-					current_tooltip_shape = shape_idx;
-					current_tooltip_text = str;
-					if (typeof chart_data.myshapes[shape_idx] !== 'undefined' &&
-						typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined') {
-						let tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
-						let n = tstr.indexOf("_P_");
-						if (n == 0) {
-							let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
-							if (cpt > -1) {
-								let cpu_str = sprintf("[%03d] ", cpu);
-								let tm_str = sprintf("%.9f: ", (chart_data.ts_initial.ts +chart_data.myshapes[shape_idx].pts[PTS_X1]));
-								let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
-								let ph_str = chart_data.proc_arr[cpt].comm+" "+
-									chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid+" "+ 
-									cpu_str + tm_str + chart_data.myshapes[shape_idx].ival[IVAL_PERIOD] + " " +
-									chart_data.flnm_evt[fe_idx].event;
-								tstr = tstr.replace("_P_", ph_str);
-							}
-						}
-						current_tooltip_text += "<br>"+tstr;
-					}
-					if (tot_line.evt_str.length == 0) {
-						let cs_ret = get_cs_str(shape_idx, nm);
-						current_tooltip_text += cs_ret.txt;
-					}
-    					mytooltip.style.borderWidth = '1px';
-    					mytooltip.innerHTML = current_tooltip_text;
-    					mytooltip.setAttribute("visibility", 'visible');
-    					mytooltip.setAttribute("display", 'inline-block');
-					if (x > (0.5 * mycanvas.width)) {
-						mytooltip.style.removeProperty('left');
-						mytooltip.style.right = (mycanvas.width - x + 20) + 'px';
-					} else {
-						mytooltip.style.removeProperty('right');
-						mytooltip.style.left = (x + 20) + 'px';
-					}
-					mytooltip.style.removeProperty('bottom');
-					mytooltip.style.top = (y + 20) + 'px';
-					let visible = checkVisible(mytooltip);
-					if (!visible) {
-						//tooltip_top_bot = 'top';
-						mytooltip.style.removeProperty('top');
-						mytooltip.style.bottom = (mycanvas.height - y - 20) + 'px';
-					}
-					//console.log("tt x= "+x+", y= "+y);
-				} else {
-					clearToolTipText(mytooltip);
-					current_tooltip_text = "";
-					current_tooltip_shape = -1;
-				}
-				//console.log("x_= "+x+", y= "+y + ", mtch= "+mtch+", fnd= "+fnd);
+				can_hover(x, y, 1.0, 1.0);
 				can_shape.hvr_prv_x = x;
 				can_shape.hvr_prv_y = y;
 			}
@@ -8055,42 +8109,128 @@ function parse_svg()
 		ctx.save();
 		let last_box_top=null, last_box_bot=null, last_box_left=null, last_box_right=null;
 		let last_box_top_px=null, last_box_bot_px=null, last_box_left_px=null, last_box_right_px=null;
-		function get_image(ctx, doing_flame, chart_tag, xb, xe, yb, ye) {
-			if (g_cpu_diagram_flds !== null) {
-				for (let j=0; j < gjson.chart_data.length; j++) {
-					if (gjson.chart_data[j].chart_tag != chart_tag) {
-						continue;
+
+		function get_image(ctx, doing_flame, chart_tag, image_nm, xb, xe, yb, ye) {
+			if (g_cpu_diagram_flds === null) {
+				return;
+			}
+			let use_j = -1;
+			let use_chart_tag = chart_tag;
+			//console.log(sprintf("__get_image_nm0= %s, chrt= %s", image_nm, use_chart_tag));
+			if (!doing_flame && image_nm !== null && chart_tag === null) {
+				for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+					if (chart_tag === null && image_nm !== null && 
+						typeof g_cpu_diagram_flds.cpu_diagram_fields[j].save_image_nm !== 'undefined' &&
+						g_cpu_diagram_flds.cpu_diagram_fields[j].save_image_nm === image_nm) {
+						use_chart_tag = g_cpu_diagram_flds.cpu_diagram_fields[j].chart;
+						//console.log(sprintf("__get_image_nm1= %s, chrt= %s", image_nm, use_chart_tag));
+						break;
 					}
-					if (doing_flame) {
-						//console.log(sprintf("%s fl_img_rdy= %s", chart_tag, gjson.chart_data[j].fl_image_ready));
-						if (gjson.chart_data[j].fl_image_ready === true) {
-							ctx.drawImage(gjson.chart_data[j].fl_image, xb, yb, xe-xb, ye-yb);
-						}
-					} else {
-						//console.log(sprintf("%s img_rdy= %s", chart_tag, gjson.chart_data[j].image_ready));
-						if (gjson.chart_data[j].image_ready === true) {
-							ctx.drawImage(gjson.chart_data[j].image, xb, yb, xe-xb, ye-yb);
-						}
-					}
+				}
+			}
+			for (let j=0; j < gjson.chart_data.length; j++) {
+				if (use_chart_tag !== null && gjson.chart_data[j].chart_tag == use_chart_tag) {
+					use_j = j;
 					break;
 				}
 			}
+			let img_idx = -1;
+			for (let j=0; j < gjson.chart_data.length; j++) {
+				if (gjson.chart_data[j].chart_tag != use_chart_tag) {
+					continue;
+				}
+				//console.log(sprintf("__get_image_nm2= %s, chrt= %s fl= %s xb= %.3f", image_nm, use_chart_tag, doing_flame, xb));
+				if (doing_flame) {
+					//console.log(sprintf("%s fl_img_rdy= %s", chart_tag, gjson.chart_data[j].fl_image_ready));
+					if (gjson.chart_data[j].fl_image_ready === true) {
+						ctx.drawImage(gjson.chart_data[j].fl_image, xb, yb, xe-xb, ye-yb);
+						img_idx = j;
+					}
+				} else {
+					//console.log(sprintf("%s img_rdy= %s", chart_tag, gjson.chart_data[j].image_ready));
+					//console.log(sprintf("__get_image_nm3= %s, chrt= %s xb= %.3f img_rdy= %s j= %d", image_nm, use_chart_tag, xb, gjson.chart_data[j].image_ready, j));
+					if (gjson.chart_data[j].image_ready === true) {
+						ctx.drawImage(gjson.chart_data[j].image, xb, yb, xe-xb, ye-yb);
+						img_idx = j;
+					}
+				}
+				break;
+			}
+			return img_idx;
 		}
-		function get_num(is_x, x, ymax) {
-			let rel = true;
+
+		function get_num(is_x, x, ymax, ydivi) {
+			if (typeof get_num.arr === 'undefined') {
+				get_num.obj = {};
+				get_num.arr = [];
+			}
+			let rel = false;
+			let ychg = 0.0;
+			if (ydivi > 0.0 && ymax > 0.0) {
+				ychg = ymax/ydivi;
+			}
 			if (typeof x === 'string') {
+				let x_orig = x;
+				if (x.indexOf("_ydivi_") > 0) {
+					x = x.replace(/_ydivi_/g, ychg);
+				}
+				if (x.indexOf("_ymax_") > 0) {
+					x = x.replace(/_ymax_/g, ymax);
+				}
 				if (x.indexOf("%") > 0) {
 					rel = false;
-					x = x.replace("%");
+					if (is_x) {
+						x = x.replace(/%/g, "*0.01*"+mycanvas.width);
+					} else {
+						//x = x.replace("%");
+						x = x.replace(/%/g, "*0.01*"+ymax);
+					}
+					/*
 					x = 0.01 * parseFloat(x);
 					if (is_x) {
 						x *= mycanvas.width;
 					} else {
 						x *= ymax;
 					}
+					*/
 				} else {
-					x = parseFloat(x);
+					//x = parseFloat(x);
 				}
+				let xx = x;
+				let eq_idx = x.indexOf("=");
+				let sv_res = false;
+				let nm_idx = -1;
+				let nm = null;
+				if (eq_idx > 0) {
+					nm = x.substr(0, eq_idx).trim();
+					xx = x.substr(eq_idx+1);
+					sv_res = true;
+					if (!(nm in get_num.obj)) {
+						get_num.arr.push({nm:nm, val:0.0});
+						get_num.obj[nm] = get_num.arr.length - 1;
+						//console.log(sprintf("BE_sv0: bef= %s, lhs= %s, rhs= %s idx= %s", x_orig, nm, xx, get_num.obj[nm]));
+					}
+					//console.log(sprintf("BE_sv: bef= %s, lhs= %s, rhs= %s idx= %s", x_orig, nm, xx, get_num.obj[nm]));
+				}
+				for (let i=0; i < get_num.arr.length; i++) {
+					let nmi = get_num.arr[i].nm;
+					let j = xx.indexOf(nmi);
+					while(j >=0 ) {
+						xx = xx.replace(nmi, get_num.arr[i].val);
+						j = xx.indexOf(nmi);
+					}
+				}
+				x = g_BigEval.exec(xx);
+				if (sv_res) {
+					let i = get_num.obj[nm];
+					get_num.arr[i].val = x;
+					//console.log(sprintf("BE_sv: bef= %s, lhs= %s, rhs= %s idx= %s, x= %.3f", x_orig, nm, xx, get_num.obj[nm], x));
+				}
+				/*
+				if (nm == "sysc_yend") {
+					console.log(sprintf("BE: xo= %s, xx= %s, x= %s", x_orig, xx, x));
+				}
+				*/
 			}
 			return [x, rel];
 		}
@@ -8120,12 +8260,18 @@ function parse_svg()
 				if (typeof g_cpu_diagram_flds.figures[i].figure.sector !== 'undefined') {
 					sector = g_cpu_diagram_flds.figures[i].figure.sector;
 				}
-				let ymax = y_shift;
+				let ymax = y_shift, ydivi=null, ybrdr=null;
 				if (sector == 1) {
 					ymax = svg_ymax;
 				}
 				if (typeof g_cpu_diagram_flds.figures[i].ymax !== 'undefined') {
 					ymax = g_cpu_diagram_flds.figures[i].ymax;
+				}
+				if (typeof g_cpu_diagram_flds.figures[i].ydivi !== 'undefined') {
+					ydivi = g_cpu_diagram_flds.figures[i].ydivi;
+				}
+				if (typeof g_cpu_diagram_flds.figures[i].ybrdr !== 'undefined') {
+					ybrdr = g_cpu_diagram_flds.figures[i].ybrdr;
 				}
 				let scl = xlate(ctx,    1.0,    1.0, 0, svg_xmax, 0, svg_ymax, null, sector);
 				if (typeof g_cpu_diagram_flds.figures[i].figure.cmds[j].use !== 'undefined' &&
@@ -8138,6 +8284,9 @@ function parse_svg()
 
 					let x= g_cpu_diagram_flds.figures[i].figure.cmds[j].x;
 					let y= g_cpu_diagram_flds.figures[i].figure.cmds[j].y;
+					let x_orig = x;
+					let y_orig = y;
+					let xend_orig=null, yend_orig=null;
 					let xe_abs = false, wd;
 					let ye_abs = false, hi;
 					if (typeof g_cpu_diagram_flds.figures[i].figure.cmds[j].wide !== 'undefined') {
@@ -8145,21 +8294,23 @@ function parse_svg()
 					} else {
 						wd= g_cpu_diagram_flds.figures[i].figure.cmds[j].xend;
 						xe_abs = true;
+						xend_orig = wd;
 					}
 					if (typeof g_cpu_diagram_flds.figures[i].figure.cmds[j].high !== 'undefined') {
 						hi= g_cpu_diagram_flds.figures[i].figure.cmds[j].high;
 					} else {
 						hi= g_cpu_diagram_flds.figures[i].figure.cmds[j].yend;
 						ye_abs = true;
+						yend_orig = hi;
 					}
 					last_box_top   = y;
 					last_box_bot   = hi;
 					last_box_left  = x;
 					last_box_right = wd;
-					[x,  wide_relative[0]] = get_num(true,   x, ymax);
-					[y,  high_relative[0]] = get_num(false,  y, ymax);
-					[wd, wide_relative[1]] = get_num(true,  wd, ymax);
-					[hi, high_relative[1]] = get_num(false, hi, ymax);
+					[x,  wide_relative[0]] = get_num(true,   x, ymax, ydivi);
+					[y,  high_relative[0]] = get_num(false,  y, ymax, ydivi);
+					[wd, wide_relative[1]] = get_num(true,  wd, ymax, ydivi);
+					[hi, high_relative[1]] = get_num(false, hi, ymax, ydivi);
 					if (xe_abs) {
 						wd = wd - x;
 					}
@@ -8200,7 +8351,12 @@ function parse_svg()
 						last_box_right_px = p1[0];
 						last_box_top_px   = p0[1];
 						last_box_bot_px   = p1[1];
-						//console.log(sprintf("fig[%d][%d] rect aft: x= %.2f, y= %.2f, wd= %.2f, hi= %.2f", i, j, p0[0], p0[1], p1[0], p1[1]));
+						/*
+						if (yend_orig.indexOf("sysc_yend") >= 0) {
+						console.log(sprintf("fig[%d][%d] rect aft: x= %.2f, y= %.2f, wd= %.2f, hi= %.2f, ye= %s,  y= %.3f, hi= %.3f, ye_abs= %s",
+									i, j, p0[0], p0[1], p1[0], p1[1], yend_orig, y, hi, ye_abs));
+						}
+						*/
 					}
 					if (strk_clr !== null && strk_clr != 'none') {
 						ctx.strokeStyle = strk_clr;
@@ -8222,7 +8378,7 @@ function parse_svg()
 						lkfor_box.box_idx = ka;
 						//box_data     = g_cpu_diagram_flds.figures[kf].figure.cmds[kc].box_data_arr[kb].box_data;
 						box_data_arr = g_cpu_diagram_flds.figures[i].figure.cmds[j].box_data_arr[ka];
-						console.log(sprintf("__box start cmd.txt fig[%d].cmd[%d].box[%d].txt: nm= %s", i, j, ka, lkfor_box.nm));
+						//console.log(sprintf("__box start cmd.txt fig[%d].cmd[%d].box[%d].txt: nm= %s", i, j, ka, lkfor_box.nm));
 						add_box_txt(box_data_arr, lkfor_box);
 						//break;
 						/*
@@ -8255,13 +8411,16 @@ function parse_svg()
 							}
 						}
 						*/
-						console.log("__box_prt txt ck: bda, bda.bd: ", lkfor_box.nm, box_data_arr === null, box_data_arr.box_data === null);
+						//console.log("__box_prt txt ck: bda, bda.bd: ", lkfor_box.nm, box_data_arr === null, box_data_arr.box_data === null);
 					  }
 					}
 					function add_box_txt(box_data_arr, lkfor_box)
 					{
-					if (box_data_arr !== null && box_data_arr.box_data !== null) {
-						console.log(sprintf("__box_prt txt.str: for box= %s", lkfor_box.nm));
+						if (typeof box_data_arr === 'undefined' || typeof box_data_arr.box_data === 'undefined' ||
+							box_data_arr === null || box_data_arr.box_data === null) {
+							return;
+						}
+						//console.log(sprintf("__box_prt txt.str: for box= %s", lkfor_box.nm));
 						// save off the box_data_arr.str string
 						let str = box_data_arr.str;
 						let arr = box_data_arr.box_data.arr.sort(function(a, b){return b.val - a.val});
@@ -8285,7 +8444,7 @@ function parse_svg()
 						if (lkfor_box.nm == 'syscall_active') {
 							for (let ki=0; ki < arr.length; ki++) {
 								if (arr[ki].nm == "pselect6") {
-									console.log(sprintf("__box_prt box_nm= %s, area= %s, val= %s", lkfor_box.nm, arr[ki].nm, arr[ki].str));
+									//console.log(sprintf("__box_prt box_nm= %s, area= %s, val= %s", lkfor_box.nm, arr[ki].nm, arr[ki].str));
 									break;
 								}
 							}
@@ -8293,7 +8452,7 @@ function parse_svg()
 						let y_xtra=0;
 						let xb, xe, yb, ye;
 						[xb, xe, yb, ye] = draw_fig_text(box_data_arr, y_xtra, false);
-						console.log(sprintf("__box_prt txt.str: for box= %s, str= %s, x(%.0f-%.0f), y(%.0f-%.0f)", lkfor_box.nm, box_data_arr.str, xb, xe, yb, ye));
+						//console.log(sprintf("__box_prt txt.str: for box= %s, str= %s, x(%.0f-%.0f), y(%.0f-%.0f)", lkfor_box.nm, box_data_arr.str, xb, xe, yb, ye));
 						box_data_arr.str = str;
 						if (lkfor_box.nm == 'syscall_outstanding') {
 							let sys_sleep = ["ppoll", "nanosleep", "futex", "pselect", "wait", "epoll"];
@@ -8326,17 +8485,25 @@ function parse_svg()
 							box_data_arr.str = str;
 						}
 					}
-					}
+
 					let cmd_obj = g_cpu_diagram_flds.figures[i].figure.cmds[j];
 					let str = cmd_obj.str;
-					if (str == "Scheduler") {
+					if (typeof cmd_obj.image_nm !== 'undefined') {
+						//console.log("__image_nm= "+cmd_obj.image_nm);
 						ctx.fillStyle = 'white';
 						ctx.fillRect(last_box_left_px, last_box_top_px, last_box_right_px-last_box_left_px,
 								last_box_bot_px-last_box_top_px);
-						get_image(ctx, false, "PCT_BUSY_BY_SYSTEM", last_box_left_px, last_box_right_px, last_box_top_px, last_box_bot_px);
-					}
-					if (str == "Applications") {
-						get_image(ctx, true, "PCT_BUSY_BY_SYSTEM", last_box_left_px, last_box_right_px, last_box_top_px, last_box_bot_px);
+						let img_idx = get_image(ctx, false, null, cmd_obj.image_nm, last_box_left_px, last_box_right_px, last_box_top_px, last_box_bot_px);
+						if (typeof g_cpu_diagram_flds.figures[i].figure.cmds[j].tbox_img === 'undefined') {
+							g_cpu_diagram_flds.figures[i].figure.cmds[j].tbox_img = {};
+						}
+						//g_cpu_diagram_flds.figures[i].figure.cmds[j].tbox_img[chart_data.chart_tag] = {img_idx:img_idx, xb:last_box_left_px, yb:last_box_top_px, xe:last_box_right_px, ye:last_box_bot_px};
+						g_cpu_diagram_flds.figures[i].figure.cmds[j].tbox_img = {img_idx:img_idx, xb:last_box_left_px, yb:last_box_top_px, xe:last_box_right_px, ye:last_box_bot_px};
+						//console.log("__image_nm_upd= "+cmd_obj.image_nm);
+					} else if (str == "Applications") {
+						let img_idx = get_image(ctx, true, "PCT_BUSY_BY_CPU", null, last_box_left_px, last_box_right_px, last_box_top_px, last_box_bot_px);
+						//console.log("got img_idx= "+img_idx);
+						g_cpu_diagram_flds.figures[i].figure.cmds[j].tbox_fl = {img_idx:img_idx, xb:last_box_left_px, yb:last_box_top_px, xe:last_box_right_px, ye:last_box_bot_px};
 					}
 					function draw_fig_text(co, y_xtra, do_xlate)
 					{
@@ -8355,21 +8522,21 @@ function parse_svg()
 						}
 						if (typeof y === 'string' && y == "_box_ymid_") {
 							let ytop, ybot;
-							[ytop,  high_relative[0]] = get_num(false,  last_box_top, ymax);
-							[ybot,  high_relative[0]] = get_num(false,  last_box_bot, ymax);
+							[ytop,  high_relative[0]] = get_num(false,  last_box_top, ymax, ydivi);
+							[ybot,  high_relative[0]] = get_num(false,  last_box_bot, ymax, ydivi);
 							y = ytop + 0.5 * (ybot - ytop);
-							console.log(sprintf("__ymid= tp= %s, bt= %s, y= %.3f", ytop, ybot, y));
+							//console.log(sprintf("__ymid= tp= %s, bt= %s, y= %.3f", ytop, ybot, y));
 							ckit=true;
 						}
 						if (typeof x === 'string' && x == "_box_xmid_") {
 							let xleft, xrght;
-							[xleft, wide_relative[0]] = get_num(true,   last_box_left, ymax);
-							[xrght, wide_relative[0]] = get_num(true,   last_box_right, ymax);
+							[xleft, wide_relative[0]] = get_num(true,   last_box_left, ymax, ydivi);
+							[xrght, wide_relative[0]] = get_num(true,   last_box_right, ymax, ydivi);
 							x = xleft + 0.5 * (xrght - xleft);
-							console.log(sprintf("__xmid= left= %s, rght= %s, x= %.3f", xleft, xrght, x));
+							//console.log(sprintf("__xmid= left= %s, rght= %s, x= %.3f", xleft, xrght, x));
 						}
-						[x,  wide_relative[0]] = get_num(true,   x, ymax);
-						[y,  high_relative[0]] = get_num(false,  y, ymax);
+						[x,  wide_relative[0]] = get_num(true,   x, ymax, ydivi);
+						[y,  high_relative[0]] = get_num(false,  y, ymax, ydivi);
 						let text_align2 = text_align, text_anchor2 = text_anchor, nfont_sz2 = nfont_sz;
 						if (typeof co.textAlign !== 'undefined') {
 							text_align2 = co.textAlign;
@@ -8396,9 +8563,11 @@ function parse_svg()
 						} else {
 							p0 = [x, y];
 						}
+						/*
 						if (ckit) {
 							console.log(sprintf("__ymid= x= %s, y= %s, p0= %.3f, p1= %.3f", x, y, p0[0], p0[1]));
 						}
+						*/
 						let fill_clr = 'white';
 						let strk_clr = 'black';
 						ctx.fillStyle = strk_clr;
@@ -8551,6 +8720,55 @@ function parse_svg()
 		let got_tbox = false;
 		let x_0=-1, y_0=-1;
 		if (g_cpu_diagram_flds !== null) {
+			for (let j=0; j < g_cpu_diagram_flds.figures.length; j++) {
+				if (typeof g_cpu_diagram_flds.figures[j].figure.cmds === 'undefined') {
+					continue;
+				}
+				for (let k=0; k < g_cpu_diagram_flds.figures[j].figure.cmds.length; k++) {
+				if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox === 'undefined') {
+					continue;
+				}
+				let tbox, img_shape;
+				if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl !== 'undefined' &&
+					typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl.img_idx !== 'undefined') {
+					tbox = g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl;
+					if (gjson.chart_data[tbox.img_idx].fl_image_ready) {
+						img_shape =  gjson.chart_data[tbox.img_idx].fl_image_shape;
+					} else {
+						continue;
+					}
+				} else if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img !== 'undefined' &&
+					typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img.img_idx !== 'undefined') {
+					tbox = g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img;
+					if (typeof tbox.img_idx !== 'undefined' && typeof gjson.chart_data[tbox.img_idx] !== 'undefined') {
+						img_shape =  gjson.chart_data[tbox.img_idx].image_data.shape;
+					} else {
+						continue;
+					}
+				} else {
+					continue;
+				}
+				//let img_shape =  gjson.chart_data[tbox.img_idx].fl_image_shape = {wide: mycanvas3.width, high:mycanvas3.height-0.0};
+				/*
+				console.log(sprintf("ck tbox fig[%d].cmds[%d] x= %.2f, y= %.2f, xb= %.2f, xe= %.2f, yb= %.2f, ye= %.2f"+
+							"\nshape_orig: hi= %.2f, wd= %.2f, scaled_img: hi= %.2f, wd: %.2f",
+							j, k, x, y, tbox.xb, tbox.xe, tbox.yb, tbox.ye,
+							img_shape.high, img_shape.wide, tbox.ye-tbox.yb, tbox.xe-tbox.wb));
+				*/
+				if (((tbox.xb <= x && x <= tbox.xe) ||
+					 (tbox.xe <= x && x <= tbox.xb)) &&
+					((tbox.yb <= y && y <= tbox.ye) ||
+					 (tbox.ye <= y && y <= tbox.yb))) {
+					//console.log("tbox.txt1= "+ tbox.txt);
+						//gjson.chart_data[j].fl_image_shape = {wide: mycanvas3.width, high:mycanvas3.height-0.0};
+					x_0 = x;
+					y_0 = y;
+					got_tbox = true;
+					arr.push({j:(-j-1), fig:j, cmds:k, img_idx:tbox.img_idx, fl_grf:true, m:null}); 
+				}
+				//g_cpu_diagram_flds.cpu_diagram_fields[j].tbox = {xb:xb, xe:xe, yb:yb, ye:ye, txt:cp_str};
+				}
+			}
 			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tbox === 'undefined') {
 					continue;
@@ -8561,6 +8779,7 @@ function parse_svg()
 					((tbox.yb <= y && y <= tbox.ye) ||
 					 (tbox.ye <= y && y <= tbox.yb))) {
 					console.log("tbox.txt1= "+ tbox.txt);
+						//gjson.chart_data[j].fl_image_shape = {wide: mycanvas3.width, high:mycanvas3.height-0.0};
 					x_0 = x;
 					y_0 = y;
 					got_tbox = true;
@@ -8853,7 +9072,7 @@ function parse_svg()
 		} else if (text_anchor == 'bottom' || text_anchor == 'alphabetic') {
 			ye = p0[1];
 			yb = ye - nfont_sz;
-		} else if (text_anchor == 'middle') {
+		} else if (text_anchor == 'middle' || text_anchor == 'center') {
 			yb = p0[1] - 0.5*nfont_sz;
 			ye = p0[1] + 0.5*nfont_sz;
 		} else {
@@ -8954,8 +9173,7 @@ function parse_svg()
 								use_box_nm.fig_idx = kf;
 								use_box_nm.cmd_idx = kc;
 								use_box_nm.box_idx = kb;
-								console.log(sprintf("got box_data_arr into which going to save data vals fig[%d].cmd[%d] box[%d]= %s",
-									kf, kc, kb, use_box_nm.nm));
+								//console.log(sprintf("got box_data_arr into which going to save data vals fig[%d].cmd[%d] box[%d]= %s", kf, kc, kb, use_box_nm.nm));
 								break loop_kf;
 							}
 						}
@@ -9052,8 +9270,10 @@ function parse_svg()
 					}
 					if (use_box_nm.cmd_idx != -1) {
 						g_cpu_diagram_flds.figures[use_box_nm.fig_idx].figure.cmds[use_box_nm.cmd_idx].box_data_arr[use_box_nm.box_idx].box_data = {arr:val_arr, str:cp_str};
+						/*
 						console.log(sprintf("got box_data_arr saved data vals fig[%d].cmd[%d] box[%d]= %s",
 									use_box_nm.fig_idx, use_box_nm.cmd_idx, use_box_nm.box_idx, use_box_nm.nm));
+						*/
 					}
 				}
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].print !== 'undefined' &&
@@ -9572,24 +9792,9 @@ function parse_svg()
 		return t;
 	}
 
-	mycanvas.onmouseup = function (evt) {
-		let rect = this.getBoundingClientRect(),
-			x = (evt.clientX - rect.left),
-			y = (evt.clientY - rect.top);
-		console.log(sprintf("x= %.3f, y= %.3f", x, y));
-	}
-
-	mycanvas.onmousemove = function(e) {
-		// important: correct mouse position:
-		let rect = this.getBoundingClientRect(),
-			x = e.clientX - rect.left,
-			y = e.clientY - rect.top;
-		if (x == hvr_prv_x && y == hvr_prv_y) {
-			return;
-		}
+	function os_cpu_can_overlap(x, y, doing_click)
+	{
 		let current_tooltip_text = "aa";
-		hvr_prv_x = x;
-		hvr_prv_y = y;
 		let arr3 = find_overlap(x, y);
 		if (arr3.length == 0) {
 			//clearToolTipText(mytooltip);
@@ -9598,6 +9803,7 @@ function parse_svg()
 			tt_prv_y = -2;
 			mycanvas.title = "";
 			//current_tooltip_shape = -1;
+			return;
 		}
 		let arr = [];
 		for (let j=0; j < arr3.length; j++) {
@@ -9618,6 +9824,72 @@ function parse_svg()
 			let i = arr[j];
 			if (i < 0) {
 				let ui= -i-1;
+				if (typeof arr3[j].fig !== 'undefined' && typeof arr3[j].img_idx !== 'undefined') {
+					//console.log(sprintf("got ui= %d, fig[%d]", ui, arr3[j].fig));
+					let tbox, img_shape, doing_flame=false;
+					if (typeof g_cpu_diagram_flds.figures[arr3[j].fig].figure.cmds[arr3[j].cmds].tbox_fl !== 'undefined') {
+						tbox = g_cpu_diagram_flds.figures[arr3[j].fig].figure.cmds[arr3[j].cmds].tbox_fl;
+						img_shape =  gjson.chart_data[tbox.img_idx].fl_image_shape;
+						doing_flame = true;
+					} else if (typeof g_cpu_diagram_flds.figures[arr3[j].fig].figure.cmds[arr3[j].cmds].tbox_img !== 'undefined') {
+						tbox = g_cpu_diagram_flds.figures[arr3[j].fig].figure.cmds[arr3[j].cmds].tbox_img;
+						img_shape =  gjson.chart_data[tbox.img_idx].image_data.shape;
+						//console.log(sprintf("ele_nm= %s", img_shape.ele_title_nm));
+						if (doing_click) {
+							let ele = document.getElementById(img_shape.ele_title_nm);
+							if (ele !== null) {
+								let ttl = ele.innerHTML;
+								console.log(sprintf("ttl= "+ttl));
+								ele.scrollIntoView(true);
+							}
+						}
+					} else {
+						continue;
+					}
+					/*
+					console.log(sprintf("ck tbox fig[%d].cmds[%d] x= %.2f, y= %.2f, xb= %.2f, xe= %.2f, yb= %.2f, ye= %.2f"+
+							"\nshape_orig: hi= %.2f, wd= %.2f, scaled_img: hi= %.2f, wd: %.2f",
+							arr3[j].fig, arr3[j].cmds, x, y, tbox.xb, tbox.xe, tbox.yb, tbox.ye,
+							img_shape.high, img_shape.wide, tbox.ye-tbox.yb, tbox.xe-tbox.xb));
+					*/
+					/*
+					mycanvas.title = sprintf("flame graph x= %.2f, y= %.2f\n"+
+							"shape_orig: hi= %.2f, wd= %.2f, scaled_img: hi= %.2f, wd: %.2f",
+							x-tbox.xb, y-tbox.yb, img_shape.high, img_shape.wide, tbox.ye-tbox.yb, tbox.xe-tbox.xb);
+							*/
+					let ele_ttl = "";
+					let ele = document.getElementById(img_shape.ele_title_nm);
+					if (ele !== null) {
+						ele_ttl = ele.innerHTML;
+						ele_ttl = ele_ttl.replace("<b>", "");
+						//<b>lnx_arm_multi10</b>&nbsp;syscalls: call (by end of call) per interval
+						ele_ttl = ele_ttl.replace("</b>", "");
+						ele_ttl = ele_ttl.replace("&nbsp;", " ");
+						ele_ttl = "title: " + ele_ttl + "\n";
+						//console.log(sprintf("ttl= "+ele_ttl));
+						if (doing_click) {
+							ele.scrollIntoView(true);
+						}
+					}
+					let xoff = x-tbox.xb;
+					let yoff = y-tbox.yb;
+					let xscl = img_shape.wide/(tbox.xe-tbox.xb);
+					let yscl = img_shape.high/(tbox.ye-tbox.yb);
+					let tstr = null;
+					if (doing_flame) {
+						tstr = gjson.chart_data[tbox.img_idx].fl_image_hover(xoff*xscl, yoff*yscl);
+					} else {
+						tstr = gjson.chart_data[tbox.img_idx].image_data.hover(xoff*xscl, yoff*yscl, 2.0*xscl, 2.0*yscl);
+					}
+					if (typeof tstr !== 'undefined' && typeof tstr.str2 !== 'undefined') {
+						let ttl_str = ele_ttl + tstr.str2;
+						ttl_str = ttl_str.replace(/<br>/g, "\n");
+						mycanvas.title = ttl_str;
+					} else {
+						mycanvas.title = "";
+					}
+					continue;
+				}
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def !== 'undefined') {
 					let uj = ui;
 					let um = arr3[j].m;
@@ -9761,6 +10033,27 @@ function parse_svg()
 			}
 		}
 		return;
+	}
+
+	mycanvas.onmouseup = function (evt) {
+		let rect = this.getBoundingClientRect(),
+			x = (evt.clientX - rect.left),
+			y = (evt.clientY - rect.top);
+		console.log(sprintf("x= %.3f, y= %.3f", x, y));
+		os_cpu_can_overlap(x, y, true);
+	}
+
+	mycanvas.onmousemove = function(e) {
+		// important: correct mouse position:
+		let rect = this.getBoundingClientRect(),
+			x = e.clientX - rect.left,
+			y = e.clientY - rect.top;
+		if (x == hvr_prv_x && y == hvr_prv_y) {
+			return;
+		}
+		hvr_prv_x = x;
+		hvr_prv_y = y;
+		os_cpu_can_overlap(x, y, false);
 	};
 
 	function isPointInPoly(poly, pt){
