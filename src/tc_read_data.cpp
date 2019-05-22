@@ -1164,6 +1164,7 @@ struct mtch_lp_str {
 	uint32_t k_beg, match_any;
 	bool regx, use_wo_area;
 	std::regex de_regx_w_area, de_regx_wo_area;
+	std::vector <std::string> evts_to_exclude;
 	std::string evt_w_area, use_evt;
 	std::string evt_wo_area;
 };
@@ -1184,6 +1185,24 @@ static uint32_t ck_for_regex_match_on_event_name(prf_obj_str &prf_obj, mtch_lp_s
 			if (verbose)
 				printf("got derived evt match on nm[%d]= %s at %s %d\n",
 					k, prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
+			if (ml.use_wo_area) {
+				ml.use_evt = prf_obj.events[k].event_name;
+			} else {
+				ml.use_evt = prf_obj.events[k].event_name_w_area;
+			}
+			bool drop_it = false;
+			if (ml.evts_to_exclude.size() > 0) {
+				for (uint32_t excl=0; excl < ml.evts_to_exclude.size(); excl++) {
+					if (ml.use_evt.find(ml.evts_to_exclude[excl]) != std::string::npos) {
+						printf("exclude_event: %s at %s %d\n", ml.use_evt.c_str(), __FILE__, __LINE__);
+						drop_it = true;
+						break;
+					}
+				}
+			}
+			if (drop_it) {
+				continue;
+			}
 
 			if (ml.use_wo_area) {
 				ml.use_evt = prf_obj.events[k].event_name;
@@ -1200,7 +1219,8 @@ static uint32_t ck_for_regex_match_on_event_name(prf_obj_str &prf_obj, mtch_lp_s
 	return hsh_ck;
 }
 
-static uint32_t ck_for_match_on_event_name(std::string evt, prf_obj_str &prf_obj, uint32_t k_beg, int verbose)
+static uint32_t ck_for_match_on_event_name(std::string evt, prf_obj_str &prf_obj, uint32_t k_beg,
+		std::vector <std::string> evts_to_exclude, int verbose)
 {
 	uint32_t hsh_ck = UINT32_M1;
 	std::string evt_w_area = evt;
@@ -1222,6 +1242,19 @@ static uint32_t ck_for_match_on_event_name(std::string evt, prf_obj_str &prf_obj
 			if (verbose)
 				printf("got derived evt match on nm= %s at %s %d\n",
 					prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
+			bool drop_it = false;
+			if (evts_to_exclude.size() > 0) {
+				for (uint32_t excl=0; excl < evts_to_exclude.size(); excl++) {
+					if (prf_obj.events[k].event_name.find(evts_to_exclude[excl]) != std::string::npos) {
+						printf("exclude_event: %s at %s %d\n", prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
+						drop_it = true;
+						break;
+					}
+				}
+			}
+			if (drop_it) {
+				continue;
+			}
 			hsh_ck = k;
 			break;
 		}
@@ -1239,17 +1272,20 @@ static uint32_t ck_got_evts_derived_dependents(prf_obj_str &prf_obj,  evt_str &e
 	ml.k_beg = 0;
 	ml.match_any = UINT32_M1;
 	if (do_trigger) {
-		return ck_for_match_on_event_name(evt_tbl2.evt_derived.evt_trigger, prf_obj, 0, verbose);
+		return ck_for_match_on_event_name(evt_tbl2.evt_derived.evt_trigger, prf_obj, 0,
+				evt_tbl2.evt_derived.evts_to_exclude, verbose);
 	}
 
 	uint32_t hsh_ck = UINT32_M1;
 	uint32_t jmax = evt_tbl2.evt_derived.evts_used.size();
+	ml.evts_to_exclude = evt_tbl2.evt_derived.evts_to_exclude;
 	for (uint32_t j=0; j < jmax; j++) {
 		for (uint32_t k=0; k < evt_aliases_vec.size(); k++) {
 			if (evt_aliases_vec[k].evt_name == evt_tbl2.evt_derived.evts_used[j]) {
 				uint32_t hsh_ck2 = UINT32_M1;
 				for (uint32_t m=0; m < evt_aliases_vec[k].aliases.size(); m++) {
-					hsh_ck2 = ck_for_match_on_event_name(evt_aliases_vec[k].aliases[m], prf_obj, 0, verbose);
+					hsh_ck2 = ck_for_match_on_event_name(evt_aliases_vec[k].aliases[m], prf_obj, 0,
+							evt_tbl2.evt_derived.evts_to_exclude, verbose);
 					if (hsh_ck2 != UINT32_M1) {
 						evt_tbl2.evt_derived.evts_used[j] = evt_aliases_vec[k].aliases[m];
 						break;
@@ -1300,7 +1336,8 @@ static uint32_t ck_got_evts_derived_dependents(prf_obj_str &prf_obj,  evt_str &e
 			}
 			hsh_ck = ml.match_any;
 		} else {
-			hsh_ck = ck_for_match_on_event_name(evt_tbl2.evt_derived.evts_used[j], prf_obj, 0, verbose);
+			hsh_ck = ck_for_match_on_event_name(evt_tbl2.evt_derived.evts_used[j], prf_obj, 0,
+					evt_tbl2.evt_derived.evts_to_exclude, verbose);
 			if (hsh_ck == UINT32_M1) {
 				return UINT32_M1;
 			}
@@ -1531,7 +1568,9 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 					//abcd
 					gen_div_der_evt(prf_obj, new_idx, i, evts_derived, j, k, new_vals, emit_var, verbose);
 				} else {
-					lua_derived_tc_prf(lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
+					//printf("new_idx= %d, j= %d, evt= %s at %s %d\n",
+					//		new_idx, j,prf_obj.events[new_idx].event_name.c_str(), __FILE__, __LINE__); 
+					lua_derived_tc_prf(j, lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
 						evts_derived[j].new_cols, new_vals, emit_var, evts_derived[j].evts_tags[k], verbose);
 				}
 				double tm_end = dclock();
