@@ -6149,7 +6149,7 @@ int main(int argc, char **argv)
 		for (uint32_t i=0; i < phase_vec.size(); i++) {
 			for (uint32_t j=0; j < options.phase.size(); j++) {
 				if (j == phase_vec[i].file_tag_idx) {
-					if (phase_vec[i].text.find(options.phase[j]) != std::string::npos) {
+					if (got_zoom_to == UINT32_M1 && phase_vec[i].text.find(options.phase[j]) != std::string::npos) {
 						phase_vec[i].zoom_to = 1;
 						got_zoom_to = i;
 						printf("Got match on options.phase '%s' zoom_beg= %d on phase text '%s' at %s %d\n",
@@ -6160,9 +6160,9 @@ int main(int argc, char **argv)
 			}
 		}
 		for (int32_t i=phase_vec.size()-1; i >= 0; i--) {
-			for (uint32_t j=0; j < options.phase_end.size(); j++) {
+			for (int32_t j=(int32_t)(options.phase_end.size())-1; j >= 0; j--) {
 				if (j == phase_vec[i].file_tag_idx) {
-					if (phase_vec[i].text.find(options.phase_end[j]) != std::string::npos) {
+					if (got_zoom_end == UINT32_M1 && phase_vec[i].text.find(options.phase_end[j]) != std::string::npos) {
 						phase_vec[i].zoom_end = 1;
 						got_zoom_end = i;
 						printf("Got match on options.phase_end '%s' zoom_end= %d on phase text '%s' at %s %d\n",
@@ -6213,10 +6213,16 @@ int main(int argc, char **argv)
 				exit(1);
 		}
 		phase += ", \"phase\":[";
+		int phs_lines_done = 0;
 		for (uint32_t i=0; i < phase_vec.size(); i++) {
-			if (i > 0) {
+			if (phase_vec[i].dura <= 0.0) {
+				printf("skip phase[%d] with dura= %f at %s %d\n", i, phase_vec[i].dura, __FILE__, __LINE__);
+				continue;
+			}
+			if (phs_lines_done > 0) {
 				phase += ",";
 			}
+			phs_lines_done++;
 			phase += "{\"ts_abs\":"+std::to_string(phase_vec[i].ts_abs)+
 				", \"dura\":"+ std::to_string(phase_vec[i].dura)+
 				", \"file_tag_idx\":"+std::to_string(phase_vec[i].file_tag_idx)+
@@ -6224,7 +6230,9 @@ int main(int argc, char **argv)
 				", \"zoom_to\":"+std::to_string(phase_vec[i].zoom_to)+
 				", \"zoom_end\":"+std::to_string(phase_vec[i].zoom_end)+
 				", \"text\":\""+phase_vec[i].text+"\"}";
-			printf("phase[%d].zoom_to= %d, zoom_end= %d at %s %d\n", i, phase_vec[i].zoom_to, phase_vec[i].zoom_end, __FILE__, __LINE__);
+			printf("phase[%d].zoom_to= %d, zoom_end= %d phs_line= %d, dura= %.5f, end= %.5f str= %s at %s %d\n",
+					i, phase_vec[i].zoom_to, phase_vec[i].zoom_end, phs_lines_done, phase_vec[i].dura,
+					phase_vec[i].ts_abs, phase_vec[i].text.c_str(), __FILE__, __LINE__);
 		}
 		phase += "]";
 		if (options.ph_step_int.size() > 0) {
