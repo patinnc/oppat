@@ -6,6 +6,7 @@
 
 ,"sectors":[{"sector":0, "y_offset":0}, {"sector":1, "y_offset":800}]
 
+,"figures_def":{"use_top":5}
 ,"figures": [
 	{
 	"ymax":700,
@@ -48,7 +49,7 @@
 
 	,{"cmd":"rect", "x":"col2_xbeg_outer=col1_xend_outer", "xend":"col2_xend_outer=66.0%", "y":"sysc_yend+0%", "yend":"col2_box1_yend=sysc_yend+(8*_ydivi_)+4%", "fillColor":"linen", "strokeStyle":"none"}
 	,{"cmd":"rect", "x":"col2_xbeg_inner=col2_xbeg_outer+1.0%", "xend":"col2_xend_inner=col2_xend_outer-1.0%", "y":"sysc_yend+1.0%", "yend":"sysc_yend+2*_ydivi_", "fillColor":"#f2d9bf", "strokeStyle":"none"}
-	,{"cmd":"text", "x":"col2_xbeg_inner+0.5*(col2_xend_inner-col2_xbeg_inner)", "y":"_box_bot_", "str":"Sockets", "image_nm":"syscall_sockets_active_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+	,{"cmd":"text", "x":"col2_xbeg_inner+0.5*(col2_xend_inner-col2_xbeg_inner)", "y":"_box_bot_", "str":"Socket API calls", "image_nm":"syscall_sockets_active_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
 
 	,{"cmd":"rect", "x":"col2_xbeg_inner", "xend":"col2_xend_inner", "y":"tcp_ybeg=sysc_yend+2*_ydivi_+1.0%", "yend":"tcp_yend=tcp_ybeg+2*_ydivi_", "fillColor":"#f2d9bf", "strokeStyle":"none"}
 	,{"cmd":"text", "x":"col2_xbeg_inner+0.5*(col2_xend_inner-col2_xbeg_inner)", "y":"_box_bot_", "str":"TCP segments/sec", "image_nm":"nicstat_tcp_packets_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
