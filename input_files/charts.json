@@ -1718,7 +1718,7 @@
 		],
 	"charts": [
 		{"category":"Network", "title":"nicstat TCP in/out segments/sec",  "var_name": "val", "by_var": "area",
-			"tot_line":"__total__", "y_label":"segments/sec",
+			"tot_line":"__total__", "y_label":"TCP segments/sec",
 			"chart_tag":"NICSTAT_TCP_PACKETS_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
 		]
 	}
@@ -1735,7 +1735,7 @@
 		],
 	"charts": [
 		{"category":"Network", "title":"nicstat UDP DataGrams in/out per sec",  "var_name": "val", "by_var": "area",
-			"tot_line":"__total__",  "y_label":"DataGrams/sec",
+			"tot_line":"__total__",  "y_label":"UDP DataGrams/sec",
 			"chart_tag":"NICSTAT_UDP_DG_PER_SEC_cHART", "chart_type":"line", "use_chart":"y"}
 		]
 	}
