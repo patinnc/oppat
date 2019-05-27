@@ -24,8 +24,14 @@ The project web page is [https://patinnc.github.io](https://patinnc.github.io)
 
 The source code repo is [https://github.com/patinnc/oppat](https://github.com/patinnc/oppat)
 
-I've added a CPU block diagram feature.
-Here is some data for running Geekbench on Haswell CPUs:
+I've added an Operating system (OS_view) to the CPU block diagram feature. This based on Brendan Gregg's pages such as http://www.brendangregg.com/linuxperf.html.
+Here is some example data for running an old version of Geekbench v2.4.2 (32bit code) on ARM 64bit Ubuntu Mate v18.04.2 Raspberry PI 3 b+, 4 ARM cortex A53 CPUs:
+-  a video of the changes to the OS_view and ARM A53 cpu block diagram running Geekbench: [![Geekbench on ARM - the movie v3](images/geekbench_on_ARM_the_movie.png)](https://youtu.be/C4xGqAzXKds)
+    - there are some introductory slides to try and explain the OS_view and cpu_diagram layout and then 1 slide showing the results per each of the 30 subtests
+- an excel file of the data in the movie:  [excel file from geekbench the movie](xls/geekbench_on_ARM_A53_the_movie.xlsx)
+- the HTML of the data in the movie...See [Geekbench v2.4.2 on 4 core ARM Cortext A53 with OS_view, CPU diagram](sample_html_files/geekbench_on_ARM_A53_the_movie.html).
+
+Here is some example data for running Geekbench on Haswell CPUs:
 -  a video of the changes to Haswell cpu block diagram running Geekbench: [![Geekbench - the movie v3](images/geekbench_the_movie.png)](https://youtu.be/RatUpIGYaAI)
     - there are some introductory slides to try and explain the cpu_diagram layout and then 1 slide showing the results per each of the 50 subtests
 - an excel file of the data in the movie:  [excel file from geekbench the movie](xls/geekbench_the_movie.xlsx)
