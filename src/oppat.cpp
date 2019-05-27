@@ -24,6 +24,7 @@
 #include <unordered_map>
 #include <thread>
 #include <functional>
+#include <math.h>
 #ifdef __linux__
 #include <unistd.h>
 #endif
