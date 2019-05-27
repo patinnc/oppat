@@ -84,33 +84,38 @@ sz = fsz + int(yfctr*4)
 font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
 row[1] += 30
 row[2] = sz
-draw.text((offx, gety(row)), "The performance data is from a single run of "+bmarkf+" 32bit", (0,0,0), font=font)
-draw.text((offx, gety(row)), "on a 4 core ARM Cortex A53 (raspberry pi 3 b+).", (0,0,0), font=font)
-draw.text((offx, gety(row)), "The OS is 64bit Ubuntu Mate 18.04. Geekbench4 isn't available", (0,0,0), font=font)
+pg_txt = [
+"The performance data is from a single run of "+bmarkf+" 32bit",
+"on a 4 core ARM Cortex A53 (raspberry pi 3 b+).",
+"The OS is 64bit Ubuntu Mate 18.04. Geekbench4 isn't available",
 
-draw.text((offx, gety(row)), "for ARM Linux so I used a 32bit v2.4.2 ARM build. See", (0,0,0), font=font)
-draw.text((offx, gety(row)), "http://geekbench.s3.amazonaws.com/geekbench-2.4.2-LinuxARM.tar.gz", (0,0,0), font=font)
-draw.text((offx, gety(row)), "The A53 is a 4 core, in-order, 8 stage pipeline with 512KB shared L2.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "The cpu diagram shows resource constraints on A53 such as", (0,0,0), font=font)
-draw.text((offx, gety(row)), "the max 2 instructions/cycle from the Instruction Fetch Unit and pathway bytes/cycle.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "OPPAT shows resource utilization numerically and with a simple", (0,0,0), font=font)
-draw.text((offx, gety(row)), "red/yellow/green light for each core. This lets you see where the pipeline", (0,0,0), font=font)
-draw.text((offx, gety(row)), "is stalled (frontend or backend L2 or memory, buffers, interlocks, etc.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "Data is collected using Linux perf stat/record, trace-cmd and custom utils.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "Perf collects data for the 50+ hw events, frace and flamegraphs.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "GB phase is used but no power or temperature is avail.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "OPPAT can collect/analyze data on:", (0,0,0), font=font)
-draw.text((offx, gety(row)), " Linux/Android - perf, trace-cmd, sysfs, other", (0,0,0), font=font)
-draw.text((offx, gety(row)), " windows - ETW, PCM, other", (0,0,0), font=font)
-row[1] += 0.8*sz
-draw.text((offx, gety(row)), "This movie shows average value for each phase.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "OPPAT calculates when the 'multi-core' section of each phase begins.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "The single core values are harder to interpret since GB can change cores.", (0,0,0), font=font)
-row[1] += 0.8*sz
-draw.text((offx, gety(row)), "On windows the movie is best viewed vertically (ctrl+alt+right_arrow)", (0,0,0), font=font)
-draw.text((offx, gety(row)), "Do ctrl+alt+up_arrow to return to normal mode.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "contact patrick.99.fay@gmail.com", (0,0,0), font=font)
-draw.text((offx, gety(row)), "Block diagram derived from WikiChip.org", (0,0,0), font=font)
+"for ARM Linux so I used a 32bit v2.4.2 ARM build. See",
+"http://geekbench.s3.amazonaws.com/geekbench-2.4.2-LinuxARM.tar.gz",
+"The A53 is a 4 core, in-order, 8 stage pipeline with 512KB shared L2.",
+"The cpu diagram shows resource constraints on A53 such as",
+"the max 2 instructions/cycle from the Instruction Fetch Unit and pathway bytes/cycle.",
+"OPPAT shows resource utilization numerically and with a simple",
+"red/yellow/green light for each core. This lets you see where the pipeline",
+"is stalled (frontend or backend L2 or memory, buffers, interlocks, etc.",
+"Data is collected using Linux perf stat/record, trace-cmd and custom utils.",
+"Perf collects data for the 50+ hw events, frace and flamegraphs.",
+"GB phase is used but no power or temperature is avail.",
+"OPPAT can collect/analyze data on:",
+" Linux/Android - perf, trace-cmd, sysfs, other",
+" windows - ETW, PCM, other",
+"",
+"This movie shows average value for each phase.",
+"OPPAT calculates when the 'multi-core' section of each phase begins.",
+"The single core values are harder to interpret since GB can change cores.",
+"",
+"On windows the movie is best viewed vertically (ctrl+alt+right_arrow)",
+"Do ctrl+alt+up_arrow to return to normal mode.",
+"contact patrick.99.fay@gmail.com",
+"Block diagram derived from WikiChip.org",
+]
+
+for i in range(0, len(pg_txt)):
+    draw.text((offx, gety(row)), pg_txt[i], (0,0,0), font=font)
 print("y last= %d" % (gety(row)))
 draw = ImageDraw.Draw(img)
 img.save("a_test.png")
@@ -150,29 +155,96 @@ img.save("a_test.png")
 #
 #imgd.save('b_test.png')
 
+fsz = int(yfctr*30)
+sz = fsz + int(yfctr*4)
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+
+imgd = Image.open(pdir+"pat_base.png")
+drawd = ImageDraw.Draw(imgd)
+rct_brdr = 5
+y_shift = 0
+
+x, y = (0, 0)
+text = "Operating System View: App SW->System calls->(Virtual File System, Sockets, Scheduler, Virtual Mem)"
+w, h = font.getsize(text)
+drawd.rectangle((x,       y,    x + w + 2*rct_brdr, (y + h)), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,  szx,             780], width = rct_brdr, outline="#0000ff")
+
+fsz = int(yfctr*20)
+sz = fsz + int(yfctr*4)
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+# y = 40 - 150
+x, y = (2*rct_brdr, 40)
+text = "App Software: Flamegraph for each thread. Hover shows callstack. Click goes to underlaying chart"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,        szx-2*rct_brdr, 150], width = rct_brdr, outline="#0000ff")
+
+x, y = (2*rct_brdr, 160)
+text = "App Software calls into System calls: syscalls outstanding, non-blocking & total."
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,        szx-2*rct_brdr, 270], width = rct_brdr, outline="#0000ff")
+
+x, y = (2*rct_brdr, 280)
+text = "Virt.File Sys:app syscall rd+wr,swap,block,dev IO"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w+rct_brdr, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,        380, 770], width = rct_brdr, outline="#0000ff")
+
+x, y = (390, 280)
+text = "Sockets:app socket syscalls,TCP,UDP,device"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w+rct_brdr, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,        745, 770], width = rct_brdr, outline="#0000ff")
+
+x, y = (753, 280)
+text = "Scheduler, virtual memory usage and faults"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w+rct_brdr, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,        szx-2*rct_brdr, 770], width = rct_brdr, outline="#0000ff")
+
+imgd.save('b_test.png')
+
+y_shift = 800
+fsz = int(yfctr*35)
+sz = fsz + int(yfctr*4)
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+
 imgd = Image.open(pdir+"pat_base.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
 x, y = (10, 50 - fsz)
 text = "CPU front end: up to 2 instructions/cycle from L2 or memory for execution. 3 stages"
 w, h = font.getsize(text)
-drawd.rectangle((xfctr*x, yfctr*y, xfctr*(x) + w + 2*rct_brdr, yfctr*(y + h)), fill='black')
-drawd.text((xfctr*(x+rct_brdr), yfctr*(y)), text, fill='white', font=font)
-drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(szx-10),yfctr*(630)], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*x,       y_shift+yfctr*y,    xfctr*(x) + w + 2*rct_brdr, y_shift+yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), y_shift+yfctr*(y)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),     y_shift+yfctr*(y),  xfctr*(szx-10),             y_shift+yfctr*(630)], width = rct_brdr, outline="#0000ff")
 
 x, y = (10, 620)
 text = "CPU execution engine: Decodes up to 2 inst/cycle issued to ports.   5-7 stages"
 w, h = font.getsize(text)
-drawd.rectangle((xfctr*(x), yfctr*(y), xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
-drawd.text((xfctr*(x+rct_brdr), yfctr*(y+4)), text, fill='white', font=font)
-drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(870),yfctr*(1080)], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*(x),     y_shift+yfctr*(y),  xfctr*(x + w + 2*rct_brdr), y_shift+yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), y_shift+yfctr*(y+4)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),     y_shift+yfctr*(y),  xfctr*(870),                y_shift+yfctr*(1080)], width = rct_brdr, outline="#0000ff")
 
 x, y = (400, 1080)
 text = "Data to L1 to/from L2 or memory"
 w, h = font.getsize(text)
-drawd.rectangle((xfctr*(x), yfctr*(y), xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
-drawd.text((xfctr*(x+rct_brdr), yfctr*(y)), text, fill='white', font=font)
-drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(1025),yfctr*(1322)], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*(x),     y_shift+yfctr*(y), xfctr*(x + w + 2*rct_brdr), y_shift+yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), y_shift+yfctr*(y)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),     y_shift+yfctr*(y), xfctr*(1025),               y_shift+yfctr*(1322)], width = rct_brdr, outline="#0000ff")
 
 imgd.save('c_test.png')
 
@@ -182,24 +254,24 @@ rct_brdr = 10
 x, y = (0, 0)
 text = "CPU block diagram: shows resource constraints between blocks"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
 x, y = (0, y+h)
 text = "in terms of instructions, UOPS or bytes per cycle"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
-drawd.rectangle([405,135,595, 179], width = rct_brdr, outline="#0000ff") # l1i->ifu
-drawd.rectangle([925,148,1037,285], width = rct_brdr, outline="#0000ff") # l1i->L2
-drawd.rectangle([370,260,435,305], width = rct_brdr, outline="#0000ff") # ifu->decoder
-drawd.rectangle([595,260,650,305], width = rct_brdr, outline="#0000ff") # ifu->decoder
-drawd.rectangle([341,783,670,816], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([225,902,834,938], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([450,986,660,1046], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([904,1080,1012,1310], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([1046,876,1150,945], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([405, y_shift+135,  595,y_shift+179], width = rct_brdr, outline="#0000ff") # l1i->ifu
+drawd.rectangle([925, y_shift+148, 1037,y_shift+285], width = rct_brdr, outline="#0000ff") # l1i->L2
+drawd.rectangle([370, y_shift+260,  435,y_shift+305], width = rct_brdr, outline="#0000ff") # ifu->decoder
+drawd.rectangle([595, y_shift+260,  650,y_shift+305], width = rct_brdr, outline="#0000ff") # ifu->decoder
+drawd.rectangle([341, y_shift+783,  670,y_shift+816], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([225, y_shift+902,  834,y_shift+938], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([450, y_shift+986,  660,y_shift+1046], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([904, y_shift+1080,1012,y_shift+1310], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([1046,y_shift+876, 1150,y_shift+945], width = rct_brdr, outline="#0000ff")
 imgd.save('d_test.png')
 
 imgd = Image.open(pdir+"pat00000.png")
@@ -208,22 +280,22 @@ rct_brdr = 10
 x, y = (0, 0)
 text = "OPPAT also shows stalls due to resource saturation such as front end stalls (due to"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
 x, y = (0, y+h)
 text = "no instructions), back-end stalls (load/store stalls, address gen interlocks, simd stalls)"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
 
-drawd.rectangle([  0,137,539,545], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([679,140,875,217], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([988,371,1144,454], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([ 11,910,268,1051], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([460,913,818,965], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([590,1117,763,1182], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([  0, y_shift+ 137, 539,y_shift+ 545], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([679, y_shift+ 140, 875,y_shift+ 217], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([988, y_shift+ 371,1144,y_shift+ 454], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([ 11, y_shift+ 910, 268,y_shift+1051], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([460, y_shift+ 913, 818,y_shift+ 965], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([590, y_shift+1117, 763,y_shift+1182], width = rct_brdr, outline="#0000ff")
 imgd.save('e_test.png')
 
 imgd = Image.open(pdir+"pat00000.png")
@@ -232,26 +304,77 @@ rct_brdr = 10
 x, y = (0, 0 )
 text = "OPPAT: system info: %busy, freq, T, power, disk & mem bw"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
-drawd.rectangle([0,y+h,360, 170], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([0,y_shift+y+h,360, y_shift+170], width = rct_brdr, outline="#0000ff")
 
-x, y = (0, 250 )
+x, y = (500, 487 )
 text = "Display begin/end "+bmarkf+" sub-benchmark for interval, score, metric"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([0,288,360, 350], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
+drawd.rectangle([x,     y_shift+y,              x+ 700, y_shift+y+130], width = rct_brdr, outline="#0000ff")
 
-x, y = (szx, 822 )
-text = "L2 miss, L3 miss, %Peak mem BW, Super Queue full"
+x, y = (szx, 660 )
+text = "Shared L2: traffic type, L2 miss, Mem BW"
 w, h = font.getsize(text)
-drawd.rectangle((x-w-2*rct_brdr, y, x, y + h), fill='black')
-drawd.text((x-w-rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([800,y+h,1030,1150], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((x-w-2*rct_brdr, y_shift+y, x,    y_shift+y + h), fill='black')
+drawd.text((x-w-rct_brdr,        y_shift+y), text, fill='white', font=font)
+drawd.rectangle([850,            y_shift+y+h,1145,y_shift+y+h+600], width = rct_brdr, outline="#0000ff")
 
 imgd.save('f_test.png')
+
+row = [0, 10, 60]
+row[1] += 30
+img = Image.new("RGBA", (szx,szy), (255,255,255))
+draw = ImageDraw.Draw(img)
+fsz = int(yfctr*35)
+sz = fsz + int(yfctr*4)
+row[2] = sz
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+pg_txt = [
+"Begin Geekbench phase charts.",
+"Each chart is zoomed to (contains the only the data for) one phase.",
+"To go directly to a particular phase, go to the T=X seconds picture.",
+"For example, to see the multi-core Dot product, go to T=24 seconds.",
+"",
+"T= 10 phase: sngle-core: Blowfish, score:668, metric:29.4 MB/sec",
+"T= 11 phase: multi-core: Blowfish score:2865 metric:117 MB/sec",
+"T= 12 phase: sngle-core: Text Compress, score:719, metric:2.30 MB/sec",
+"T= 13 phase: multi-core: Text Compress score:1752 metric:5.75 MB/sec",
+"T= 14 phase: sngle-core: Text Decompress, score:457, metric:1.88 MB/sec",
+"T= 15 phase: multi-core: Text Decompress score:963 metric:3.84 MB/sec",
+"T= 16 phase: sngle-core: Image Compress, score:854, metric:7.06 Mpixels/sec",
+"T= 17 phase: multi-core: Image Compress score:3332 metric:28.0 Mpixels/sec",
+"T= 18 phase: multi-core: Image Decompress score:2610 metric:42.6 Mpixels/sec",
+"T= 19 phase: sngle-core: Lua, score:1403, metric:540 Knodes/sec",
+"T= 20 phase: multi-core: Lua score:5586 metric:2.15 Mnodes/sec",
+"T= 21 phase: sngle-core: Mandelbrot, score:652, metric:434 Mflops",
+"T= 22 phase: multi-core: Mandelbrot score:2645 metric:1.73 Gflops",
+"T= 23 phase: sngle-core: Dot Product, score:1125, metric:544 Mflops",
+"T= 24 phase: multi-core: Dot Product score:4762 metric:2.17 Gflops",
+"T= 25 phase: sngle-core: LU Decomposition, score:264, metric:235 Mflops",
+"T= 26 phase: multi-core: LU Decomposition score:410 metric:360 Mflops",
+"T= 27 phase: sngle-core: Primality Test, score:1492, metric:223 Mflops",
+"T= 28 phase: multi-core: Primality Test score:2134 metric:396 Mflops",
+"T= 29 phase: sngle-core: Sharpen Image, score:2632, metric:6.14 Mpixels/sec",
+"T= 30 phase: multi-core: Sharpen Image score:10486 metric:24.2 Mpixels/sec",
+"T= 31 phase: sngle-core: Blur Image, score:3583, metric:2.84 Mpixels/sec",
+"T= 32 phase: sngle-core: Read Sequential, score:1310, metric:1.60 GB/sec",
+"T= 33 phase: sngle-core: Write Sequential, score:1782, metric:1.22 GB/sec",
+"T= 34 phase: sngle-core: Stdlib Allocate, score:732, metric:2.73 Mallocs/sec",
+"T= 35 phase: sngle-core: Stdlib Write, score:807, metric:1.67 GB/sec",
+"T= 36 phase: sngle-core: Stdlib Copy, score:1646, metric:1.70 GB/sec",
+"T= 37 phase: sngle-core: Stream Copy, score:1583, metric:2.17 GB/sec",
+"T= 38 phase: sngle-core: Stream Scale, score:905, metric:1.18 GB/sec",
+"T= 39 phase: sngle-core: Stream Add, score:870, metric:1.31 GB/sec",
+"T= 40 phase: sngle-core: Stream Triad, score:705, metric:998 MB/sec",
+]
+for i in range(0, len(pg_txt)):
+    draw.text((offx, gety(row)), pg_txt[i], (0,0,0), font=font)
+draw = ImageDraw.Draw(img)
+img.save("g_test.png")
 
 imgd = Image.open(pdir+"pat00000.png")
 drawd = ImageDraw.Draw(imgd)
@@ -285,7 +408,7 @@ drawd.text((x+rct_brdr, y), text, fill='white', font=font)
 #draw.text((offx, gety(row)), "See https://patinnc.github.io/", (0,0,0), font=font)
 imgd.save('t_test.png')
 
-addList = ("t_test.png", "a_test.png", "c_test.png", "d_test.png", "e_test.png", "f_test.png")
+addList = ("t_test.png", "a_test.png", "b_test.png", "c_test.png", "d_test.png", "e_test.png", "f_test.png", "g_test.png")
 whch = -1
 #for j in range(len(addList)-1, -1, -1):
 #    whch += 1
