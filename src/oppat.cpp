@@ -5521,6 +5521,10 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			// dur tm of new entry needs to be reduced by multi_beg[i]
 			// end tm of old entry is the old end tm - multi_beg[i]
 			// dur tm of old entry needs to be set to multi_beg[i]
+			if (phase_vec[i+1].text.find(" multi:") == std::string::npos) {
+				// no multi core score so probably not really multi-core score
+				continue;
+			}
 			phase_vec.insert(phase_vec.begin()+i+1, phase_vec[i]);
 			printf("insert bef i+1= %d, phase_vec.sz beg= %d at %s %d\n", i+1, (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
 			phase_vec[i+1].dura -= multi_beg[i];
