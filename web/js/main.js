@@ -2803,10 +2803,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (typeof chart_data.follow_proc !== 'undefined' && chart_data.follow_proc.length > file_tag_idx) {
 			follow_proc = chart_data.follow_proc[file_tag_idx];
 		}
-		console.log(chart_data.follow_proc);
-		console.log(sprintf("CPUs= %d, follow= %s", chart_data.map_cpu_2_core.length, follow_proc));
-		while(follow_arr.length < chart_data.map_cpu_2_core.length) {
-			follow_arr.push({idle:0.0, follow:0.0, other:0.0, follow_proc:follow_proc});
+		if (typeof chart_data.follow_proc !== 'undefined' && typeof chart_data.map_cpu_2_core !== 'undefined') {
+			console.log(chart_data.follow_proc);
+			console.log(sprintf("CPUs= %d, follow= %s", chart_data.map_cpu_2_core.length, follow_proc));
+			while(follow_arr.length < chart_data.map_cpu_2_core.length) {
+				follow_arr.push({idle:0.0, follow:0.0, other:0.0, follow_proc:follow_proc});
+			}
 		}
 	}
 	if (false && ch_options.overlapping_ranges_within_area == true) {
@@ -2981,17 +2983,19 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						if (typeof txtidx !== 'undefined') {
 							tstr = gjson_str_pool.str_pool[0].strs[txtidx];
 						}
-						if (pid == 0 && tid == 0) {
-							follow_arr[icpu].idle += tx1 - tx0;
-						} else if (tstr !== null && follow_proc !== null) {
-							if (tstr.indexOf(follow_proc) >= 0) {
-								follow_arr[icpu].follow += tx1 - tx0;
+						if (follow_arr.length > 0) {
+							if (pid == 0 && tid == 0) {
+								follow_arr[icpu].idle += tx1 - tx0;
+							} else if (tstr !== null && follow_proc !== null) {
+								if (tstr.indexOf(follow_proc) >= 0) {
+									follow_arr[icpu].follow += tx1 - tx0;
+								} else {
+									follow_arr[icpu].other += tx1 - tx0;
+								}
+
 							} else {
 								follow_arr[icpu].other += tx1 - tx0;
 							}
-
-						} else {
-							follow_arr[icpu].other += tx1 - tx0;
 						}
 					}
 					let y0 = chart_data.myshapes[i].pts[PTS_Y0];
@@ -5591,12 +5595,14 @@ async function start_charts() {
 
 	let ibeg = -1, iend= -1;
 	let divisions = phobj.lp_max;
-	for (let i=0; i < gjson.phase.length; i++) {
-		if (gjson.phase[i].zoom_to == 1) {
-			ibeg = i;
-		}
-		if (gjson.phase[i].zoom_end == 1) {
-			iend = i;
+	if (typeof gjson.phase !== 'undefined') {
+		for (let i=0; i < gjson.phase.length; i++) {
+			if (gjson.phase[i].zoom_to == 1) {
+				ibeg = i;
+			}
+			if (gjson.phase[i].zoom_end == 1) {
+				iend = i;
+			}
 		}
 	}
 	console.log(sprintf("ibeg= %d, iend= %d", ibeg, iend));
@@ -8897,52 +8903,54 @@ function parse_svg()
 		let got_tbox = false;
 		let x_0=-1, y_0=-1;
 		if (g_cpu_diagram_flds !== null) {
-			for (let j=0; j < g_cpu_diagram_flds.figures.length; j++) {
-				if (typeof g_cpu_diagram_flds.figures[j].figure.cmds === 'undefined') {
-					continue;
-				}
-				for (let k=0; k < g_cpu_diagram_flds.figures[j].figure.cmds.length; k++) {
-				if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox === 'undefined') {
-					continue;
-				}
-				let tbox, img_shape;
-				if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl !== 'undefined' &&
-					typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl.img_idx !== 'undefined') {
-					tbox = g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl;
-					if (typeof gjson.chart_data[tbox.img_idx] !== 'undefined' &&
-						typeof gjson.chart_data[tbox.img_idx].fl_image_ready !== 'undefined' &&
-						gjson.chart_data[tbox.img_idx].fl_image_ready) {
-						img_shape =  gjson.chart_data[tbox.img_idx].fl_image_shape;
+			if (typeof g_cpu_diagram_flds.figures !== 'undefined') {
+				for (let j=0; j < g_cpu_diagram_flds.figures.length; j++) {
+					if (typeof g_cpu_diagram_flds.figures[j].figure.cmds === 'undefined') {
+						continue;
+					}
+					for (let k=0; k < g_cpu_diagram_flds.figures[j].figure.cmds.length; k++) {
+					if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox === 'undefined') {
+						continue;
+					}
+					let tbox, img_shape;
+					if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl !== 'undefined' &&
+						typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl.img_idx !== 'undefined') {
+						tbox = g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_fl;
+						if (typeof gjson.chart_data[tbox.img_idx] !== 'undefined' &&
+							typeof gjson.chart_data[tbox.img_idx].fl_image_ready !== 'undefined' &&
+							gjson.chart_data[tbox.img_idx].fl_image_ready) {
+							img_shape =  gjson.chart_data[tbox.img_idx].fl_image_shape;
+						} else {
+							continue;
+						}
+					} else if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img !== 'undefined' &&
+						typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img.img_idx !== 'undefined') {
+						tbox = g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img;
+						if (typeof tbox.img_idx !== 'undefined' && typeof gjson.chart_data[tbox.img_idx] !== 'undefined') {
+							img_shape =  gjson.chart_data[tbox.img_idx].image_data.shape;
+						} else {
+							continue;
+						}
 					} else {
 						continue;
 					}
-				} else if (typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img !== 'undefined' &&
-					typeof g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img.img_idx !== 'undefined') {
-					tbox = g_cpu_diagram_flds.figures[j].figure.cmds[k].tbox_img;
-					if (typeof tbox.img_idx !== 'undefined' && typeof gjson.chart_data[tbox.img_idx] !== 'undefined') {
-						img_shape =  gjson.chart_data[tbox.img_idx].image_data.shape;
-					} else {
-						continue;
+					/*
+					console.log(sprintf("ck tbox fig[%d].cmds[%d] x= %.2f, y= %.2f, xb= %.2f, xe= %.2f, yb= %.2f, ye= %.2f"+
+								"\nshape_orig: hi= %.2f, wd= %.2f, scaled_img: hi= %.2f, wd: %.2f",
+								j, k, x, y, tbox.xb, tbox.xe, tbox.yb, tbox.ye,
+								img_shape.high, img_shape.wide, tbox.ye-tbox.yb, tbox.xe-tbox.wb));
+					*/
+					if (((tbox.xb <= x && x <= tbox.xe) ||
+						 (tbox.xe <= x && x <= tbox.xb)) &&
+						((tbox.yb <= y && y <= tbox.ye) ||
+						 (tbox.ye <= y && y <= tbox.yb))) {
+						//console.log("tbox.txt1= "+ tbox.txt);
+						x_0 = x;
+						y_0 = y;
+						got_tbox = true;
+						arr.push({j:(-j-1), fig:j, cmds:k, img_idx:tbox.img_idx, fl_grf:true, m:null}); 
 					}
-				} else {
-					continue;
-				}
-				/*
-				console.log(sprintf("ck tbox fig[%d].cmds[%d] x= %.2f, y= %.2f, xb= %.2f, xe= %.2f, yb= %.2f, ye= %.2f"+
-							"\nshape_orig: hi= %.2f, wd= %.2f, scaled_img: hi= %.2f, wd: %.2f",
-							j, k, x, y, tbox.xb, tbox.xe, tbox.yb, tbox.ye,
-							img_shape.high, img_shape.wide, tbox.ye-tbox.yb, tbox.xe-tbox.wb));
-				*/
-				if (((tbox.xb <= x && x <= tbox.xe) ||
-					 (tbox.xe <= x && x <= tbox.xb)) &&
-					((tbox.yb <= y && y <= tbox.ye) ||
-					 (tbox.ye <= y && y <= tbox.yb))) {
-					//console.log("tbox.txt1= "+ tbox.txt);
-					x_0 = x;
-					y_0 = y;
-					got_tbox = true;
-					arr.push({j:(-j-1), fig:j, cmds:k, img_idx:tbox.img_idx, fl_grf:true, m:null}); 
-				}
+					}
 				}
 			}
 			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
