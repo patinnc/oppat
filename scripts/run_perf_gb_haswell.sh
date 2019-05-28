@@ -6,8 +6,7 @@ PRF_CMD=perf
 PRF_CMD=~/bin/perf
 BASE=spin7
 BASE=L2_bw7
-BASE=gb8
-BASE=gb8_nopf
+BASE=gb10
 PFX=lnx
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_FIL=$0
@@ -17,7 +16,11 @@ echo "SCR_DIR= $SCR_DIR and BIN_DIR=$BIN_DIR"
 
 ODIR=../oppat_data/$PFX/$BASE
 mkdir -p $ODIR
-chown -R 777 $ODIR
+chown -R root $ODIR
+rm $ODIR/*.txt
+rm $ODIR/*.json
+rm $ODIR/*.data
+rm $ODIR/*.dat
 
 if [ -f $ODIR/file_list.json ]; then
   rm $ODIR/file_list.json
@@ -66,11 +69,14 @@ function ck_cmd_pid_threads_oper {
 #$TRC_CMD record -C local -e thermal:thermal_power_cpu_get_power -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 #$TRC_CMD record -C mono -e syscalls:sys_enter_write -e syscalls:sys_exit_write -e syscalls:sys_enter_read -e syscalls:sys_exit_read -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 TC_DISK_EVT=" -e block:block_rq_issue -e block:block_rq_insert -e block:block_rq_complete -e ext4:ext4_direct_IO_enter -e ext4:ext4_direct_IO_exit -e ext4:ext4_da_write_begin -e ext4:ext4_da_write_end -e ext4:ext4_write_begin -e ext4:ext4_write_end "
-DO_CPU_IDLE=" -e power:cpu_idle "
-# gb is too long and get too many cpu_idle events
-DO_CPU_IDLE=
-#$TRC_CMD record -C mono -e irq:irq_handler_entry -e irq:irq_handler_exit -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $DO_CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
-$TRC_CMD record -C mono $TC_DISK_EVT -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $DO_CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
+TC_DISK_EVT=  # disk events put too much load on perf and cause prf_trace2.txt to have big gaps
+CPU_IDLE=" -e power:cpu_idle "
+CPU_IDLE=  # lots of events on raspberry pi 3 b+ so just skip it. Doesn't provide so much info yet
+IRQ_EVTS=" -e irq:irq_handler_entry -e irq:irq_handler_exit "
+IRQ_EVTS=  #  tons of events on pi 3b+... and don't have a just for it yet so comment it out
+SYSCALL_EVTS=" -e syscalls:sys_*read*  -e syscalls:sys_*write* " 
+SYSCALL_EVTS=" -e syscalls:sys_* " 
+$TRC_CMD record -C mono $TC_DISK_EVT $IRQ_EVTS $SYSCALL_EVTS -e power:cpu_frequency -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
 PID_TRC_CMD=$!
 
 # it takes a few seconds to get the trace cmd threads up
@@ -80,7 +86,17 @@ echo started $TRC_CMD
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
 
-$PRF_CMD stat -a -e unc_arb_trk_requests.all,power/energy-pkg/,power/energy-cores/,power/energy-gpu/,power/energy-ram/,uncore_cbox_0/clockticks/,uncore_cbox_1/clockticks/,uncore_imc/data_reads/,uncore_imc/data_writes/ -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
+export S_TIME_FORMAT=ISO
+iostat -z -d -t 1  > $ODIR/iostat.txt &
+IOSTAT_CMD=$!
+
+nicstat -a -z -p 1 > $ODIR/nicstat.txt &
+NICSTAT_CMD=$!
+
+vmstat -n -t 1 > $ODIR/vmstat.txt &
+VMSTAT_CMD=$!
+
+$PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults -e unc_arb_trk_requests.all,power/energy-pkg/,power/energy-cores/,power/energy-gpu/,power/energy-ram/,uncore_cbox_0/clockticks/,uncore_cbox_1/clockticks/,uncore_imc/data_reads/,uncore_imc/data_writes/ -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 #$BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 while [ ! -f $WAIT_FILE ]
 do
@@ -221,6 +237,7 @@ echo $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 249 -e "$evt_lstp0"
      $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 249 -e "$evt_lstp0" -e "$evt_lstp1" -e "$evt_lstp2" -e "$evt_lstp3" -e "$evt_lstp4" -e "$evt_lstp5" -e "$evt_lstp6" -e "$evt_lstp7" -o $ODIR/prf_trace2.data &> $ODIR/prf_trace2.out &
 PRF_CMD_PID2=$!
 echo did prf2
+$BIN_DIR/clocks.x > $ODIR/clocks1.txt
 #
 #$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
@@ -247,7 +264,8 @@ GB_AWK_SCR=$SCR_DIR/gb_rd_output.gawk
 SPIN_ARGS="$GB_BIN $GB_AWK_SCR $ODIR"
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $SPIN_BIN $SPIN_ARGS > $ODIR/spin.txt
-$PRF_CMD record -a -k CLOCK_MONOTONIC -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $SPIN_BIN $SPIN_ARGS > $ODIR/spin.txt
+$PRF_CMD record -a -k CLOCK_MONOTONIC -g -e sched:sched_switch -o $ODIR/prf_trace.data $SPIN_BIN $SPIN_ARGS > $ODIR/spin.txt
+$BIN_DIR/clocks.x > $ODIR/clocks2.txt
 
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
