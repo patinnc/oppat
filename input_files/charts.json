@@ -1916,7 +1916,7 @@
 	"example_rec":"abcd",
 	"evt_derived":{
 		"evts_used":["syscalls:sys_e.*"],
-		"evts_to_exclude":["ppoll", "nanosleep", "futex", "pselect", "wait", "epoll"],
+		"evts_to_exclude":["ppoll", "nanosleep", "futex", "pselect", "wait", "epoll", "poll"],
 		"evt_trigger":"__EMIT__",
 		"new_cols":["__EMIT__", "MiB/s", "bytes", "duration", "area", "dura2"],
 		"lua_file":"tc_syscalls.lua",
