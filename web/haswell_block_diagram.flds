@@ -4,6 +4,76 @@
 "cpu_diagram_hdr": {"max_x":1016,"max_y":1386.8284248803116},
 "cpu_diagram_copyright": {"text":"(c) 2013-2019 WikiChip.org, used with permission", "SVG_URL":"https://en.wikichip.org/w/images/c/c7/haswell_block_diagram.svg", "website":"https://WikiChip.org"}
 
+,"sectors":[{"sector":0, "y_offset":0}, {"sector":1, "y_offset":800}]
+
+,"figures_def":{"use_top":5}
+,"figures": [
+	{
+	"ymax":700,
+	"ydivi":12,
+	"ybrdr":5,
+	"figure":{
+	"sector":0,
+	"cmds":[ 
+	 {"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"5%", "yend":"100.0%"}
+	,{"cmd":"text", "x":"50.0%", "y":"_box_top_", "str":"Operating System View", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"5%", "yend":"app_yend=5% + 2*_ydivi_", "fillColor":"#ffdacc", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"_box_left_", "y":"_box_top_", "str":"Applications", "textAlign":"left", "textBaseline":"top", "font_size":15}
+
+	,{"cmd":"rect", "x":"0.0%", "xend":"100.0%", "y":"app_yend+0%", "yend":"sysc_yend=app_yend+2*_ydivi_+1%", "fillColor":"#ffff99", "strokeStyle":"none"}
+	,{"cmd":"rect", "x":"sysc_box1_xbeg=1.0%", "xend":"sysc_box1_xend=32.0%", "y":"sysc_box1_ybeg=app_yend+1.0%", "yend":"sysc_box1_yend=sysc_yend-1.0%", "fillColor":"#ffff99", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"sysc_box1_xbeg+0.5*(sysc_box1_xend-sysc_box1_xbeg)", "y":"_box_bot_", "str":"System Calls: Outstanding", "image_nm":"syscall_out_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"sysc_box2_xbeg=33.0%", "xend":"sysc_box2_xend=65.0%", "y":"app_yend+1.0%", "yend":"sysc_yend-1.0%", "fillColor":"#ffff99", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"sysc_box2_xbeg+0.5*(sysc_box2_xend-sysc_box2_xbeg)", "y":"_box_bot_", "str":"System Calls: Active", "image_nm":"syscall_active_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"sysc_box3_xbeg=66.0%", "xend":"sysc_box3_xend=99.0%", "y":"app_yend+1.0%", "yend":"sysc_yend-1.0%", "fillColor":"#ffff99", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"sysc_box3_xbeg+0.5*(sysc_box3_xend-sysc_box3_xbeg)", "y":"_box_bot_", "str":"System Calls: Non-blocking Outstanding", "image_nm":"syscall_out_nonblock_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col1_xbeg_outer=0.0%", "xend":"col1_xend_outer=33.0%", "y":"sysc_yend+0%", "yend":"sysc_yend+(8*_ydivi_)+4%", "fillColor":"#e6e6ff", "strokeStyle":"none"}
+
+	,{"cmd":"rect", "x":"col1_xbeg_inner=col1_xbeg_outer+0.5%", "xend":"col1_xend_inner=col1_xend_outer-0.5%", "y":"sysc_yend+1%", "yend":"col1_box1_yend=sysc_yend+2*_ydivi_", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col1_xbeg_inner+0.5*(col1_xend_inner-col1_xbeg_inner)", "y":"_box_bot_", "str":"Virt File Sys: MB/s", "image_nm":"VFS_image", "textAlign":"center", "textBaseline":"bottom", "font_size":15,
+		"box_data_arr":[ {"box_nm":"IO_MBps", "limit":5, "x":"_box_left_", "y":"_box_ymid_", "str":"", "textAlign":"left", "textBaseline":"center", "font_size":15} ]
+	 }
+
+	,{"cmd":"rect", "x":"col1_xbeg_inner", "xend":"col1_xend_inner", "y":"col1_box2a_ybeg=col1_box1_yend+1.0%", "yend":"col1_box2a_yend=col1_box2a_ybeg+2*_ydivi_", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col1_xbeg_inner+0.5*(col1_xend_inner-col1_xbeg_inner)", "y":"_box_bot_", "str":"vmstat swap memory: IO MB/s", "image_nm":"vmstat_swap_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col1_xbeg_inner", "xend":"col1_xend_inner", "y":"col1_box2_ybeg=col1_box2a_yend+1.0%", "yend":"col1_box2_yend=col1_box2_ybeg+2*_ydivi_", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col1_xbeg_inner+0.5*(col1_xend_inner-col1_xbeg_inner)", "y":"_box_bot_", "str":"vmstat block IO MB/s", "image_nm":"vmstat_io_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col1_xbeg_inner", "xend":"col1_xend_inner", "y":"col1_box3_ybeg=col1_box2_yend+1.0%", "yend":"col1_box3_yend=col1_box3_ybeg+2*_ydivi_", "fillColor":"#ccccff", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col1_xbeg_inner+0.5*(col1_xend_inner-col1_xbeg_inner)", "y":"_box_bot_", "str":"Device IO MB/s", "image_nm":"iostat_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col2_xbeg_outer=col1_xend_outer", "xend":"col2_xend_outer=66.0%", "y":"sysc_yend+0%", "yend":"col2_box1_yend=sysc_yend+(8*_ydivi_)+4%", "fillColor":"linen", "strokeStyle":"none"}
+	,{"cmd":"rect", "x":"col2_xbeg_inner=col2_xbeg_outer+1.0%", "xend":"col2_xend_inner=col2_xend_outer-1.0%", "y":"sysc_yend+1.0%", "yend":"sysc_yend+2*_ydivi_", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col2_xbeg_inner+0.5*(col2_xend_inner-col2_xbeg_inner)", "y":"_box_bot_", "str":"Socket API calls", "image_nm":"syscall_sockets_active_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col2_xbeg_inner", "xend":"col2_xend_inner", "y":"tcp_ybeg=sysc_yend+2*_ydivi_+1.0%", "yend":"tcp_yend=tcp_ybeg+2*_ydivi_", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col2_xbeg_inner+0.5*(col2_xend_inner-col2_xbeg_inner)", "y":"_box_bot_", "str":"TCP segments/sec", "image_nm":"nicstat_tcp_packets_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col2_xbeg_inner", "xend":"col2_xend_inner", "y":"udp_ybeg=tcp_yend+1.0%", "yend":"udp_yend=udp_ybeg+2*_ydivi_", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col2_xbeg_inner+0.5*(col2_xend_inner-col2_xbeg_inner)", "y":"_box_bot_", "str":"UDP Datagrams/sec", "image_nm":"nicstat_udp_packets_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col2_xbeg_inner", "xend":"col2_xend_inner", "y":"nic_ybeg=udp_yend+1.0%", "yend":"nic_yend=nic_ybeg+2*_ydivi_", "fillColor":"#f2d9bf", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col2_xbeg_inner+0.5*(col2_xend_inner-col2_xbeg_inner)", "y":"_box_bot_", "str":"Net device packets/sec", "image_nm":"nicstat_dev_packets_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col3_xbeg_outer=col2_xend_outer", "xend":"col3_xend_outer=100.0%", "y":"sysc_yend+0%", "yend":"col3_box1_yend=sysc_yend+(8*_ydivi_)+4%", "fillColor":"#ffff99", "strokeStyle":"none"}
+	,{"cmd":"rect", "x":"col3_xbeg_inner=col3_xbeg_outer+0.5%", "xend":"col3_xend_inner=col3_xend_outer-0.5%", "y":"sysc_yend+1%", "yend":"col3_box1_yend=sysc_yend+4*_ydivi_", "fillColor":"#f2f28c", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col3_xbeg_inner+0.5*(col3_xend_inner-col3_xbeg_inner)", "y":"col3_box1_yend-2.5%", "str":"Scheduler", "image_nm":"cpu_busy_image", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col3_xbeg_inner", "xend":"col3_xend_inner", "y":"col3_box2_ybeg=col3_box1_yend+1.0%", "yend":"col3_box2_yend=col3_box2_ybeg+2*_ydivi_", "fillColor":"#f2f28c", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col3_xbeg_inner+0.5*(col3_xend_inner-col3_xbeg_inner)", "y":"_box_bot_", "str":"Virtual Memory (MBs)", "image_nm":"vmstat_mem_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+	,{"cmd":"rect", "x":"col3_xbeg_inner", "xend":"col3_xend_inner", "y":"col3_box3_ybeg=col3_box2_yend+1.0%", "yend":"col3_box3_yend=col3_box3_ybeg+2*_ydivi_", "fillColor":"#f2f28c", "strokeStyle":"none"}
+	,{"cmd":"text", "x":"col3_xbeg_inner+0.5*(col3_xend_inner-col3_xbeg_inner)", "y":"_box_bot_", "str":"Page faults/sec", "image_nm":"perf_faults_sec_img", "textAlign":"center", "textBaseline":"bottom", "font_size":15}
+
+		]
+		}
+	}
+]
 ,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"bottom", "same_x":-1, "row_m1":-1, "row_p1":-2}
 ,"cpu_diagram_fields":[
   {"fld":{"x":10,  "y":298}, "chart":"__TEXT_BLOCK__"}
