@@ -6,7 +6,7 @@ PRF_CMD=perf
 PRF_CMD=~/bin/perf
 BASE=spin7
 BASE=L2_bw7
-BASE=multi8
+BASE=multi10
 PFX=lnx
 NUM_CPUS=`cat /proc/cpuinfo | grep processor |wc -l`
 SCR_FIL=$0
@@ -16,7 +16,11 @@ echo "SCR_DIR= $SCR_DIR and BIN_DIR=$BIN_DIR"
 
 ODIR=../oppat_data/$PFX/$BASE
 mkdir -p $ODIR
-chown -R 777 $ODIR
+chown -R root $ODIR
+rm $ODIR/*.txt
+rm $ODIR/*.json
+rm $ODIR/*.data
+rm $ODIR/*.dat
 
 if [ -f $ODIR/file_list.json ]; then
   rm $ODIR/file_list.json
@@ -64,7 +68,15 @@ function ck_cmd_pid_threads_oper {
 #$TRC_CMD record -C local -e thermal:thermal_power_cpu_get_power -e power:cpu_frequency -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 #$TRC_CMD record -C local -e thermal:thermal_power_cpu_get_power -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
 #$TRC_CMD record -C mono -e syscalls:sys_enter_write -e syscalls:sys_exit_write -e syscalls:sys_enter_read -e syscalls:sys_exit_read -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature -e power:cpu_idle -o trc$BASE.dat > trace_cmd_out.txt &
-$TRC_CMD record -C mono -e irq:irq_handler_entry -e irq:irq_handler_exit -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature -e power:cpu_idle -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
+TC_DISK_EVT=" -e block:block_rq_issue -e block:block_rq_insert -e block:block_rq_complete -e ext4:ext4_direct_IO_enter -e ext4:ext4_direct_IO_exit -e ext4:ext4_da_write_begin -e ext4:ext4_da_write_end -e ext4:ext4_write_begin -e ext4:ext4_write_end "
+TC_DISK_EVT=  # disk events put too much load on perf and cause prf_trace2.txt to have big gaps
+CPU_IDLE=" -e power:cpu_idle "
+CPU_IDLE=  # lots of events on raspberry pi 3 b+ so just skip it. Doesn't provide so much info yet
+IRQ_EVTS=" -e irq:irq_handler_entry -e irq:irq_handler_exit "
+IRQ_EVTS=  #  tons of events on pi 3b+... and don't have a just for it yet so comment it out
+SYSCALL_EVTS=" -e syscalls:sys_*read*  -e syscalls:sys_*write* " 
+SYSCALL_EVTS=" -e syscalls:sys_* " 
+$TRC_CMD record -C mono $TC_DISK_EVT $IRQ_EVTS $SYSCALL_EVTS -e power:cpu_frequency -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
 PID_TRC_CMD=$!
 
 # it takes a few seconds to get the trace cmd threads up
@@ -74,7 +86,17 @@ echo started $TRC_CMD
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
 
-$PRF_CMD stat -a -e unc_arb_trk_requests.all,power/energy-pkg/,power/energy-cores/,power/energy-gpu/,power/energy-ram/,uncore_cbox_0/clockticks/,uncore_cbox_1/clockticks/,uncore_imc/data_reads/,uncore_imc/data_writes/ -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
+export S_TIME_FORMAT=ISO
+iostat -z -d -t 1  > $ODIR/iostat.txt &
+IOSTAT_CMD=$!
+
+nicstat -a -z -p 1 > $ODIR/nicstat.txt &
+NICSTAT_CMD=$!
+
+vmstat -n -t 1 > $ODIR/vmstat.txt &
+VMSTAT_CMD=$!
+
+$PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults -e unc_arb_trk_requests.all,power/energy-pkg/,power/energy-cores/,power/energy-gpu/,power/energy-ram/,uncore_cbox_0/clockticks/,uncore_cbox_1/clockticks/,uncore_imc/data_reads/,uncore_imc/data_writes/ -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 #$BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 while [ ! -f $WAIT_FILE ]
 do
@@ -234,15 +256,21 @@ SPIN_ARGS="4 mem_bw"
 SPIN_ARGS="4 mem_bw_2rd 64 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
 SPIN_ARGS="-f input_files/haswell_spin_input.txt" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
 sleep 1 # it takes about a 1 second (it seems) for the previous perf cmd (with all the events) to get up and running
-#$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
-$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x $SPIN_ARGS > $ODIR/spin.txt
+$BIN_DIR/clocks.x > $ODIR/clocks1.txt
+#$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
+$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x $SPIN_ARGS > $ODIR/spin.txt
 
+$BIN_DIR/clocks.x > $ODIR/clocks2.txt
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
 kill -2 $PRF_CMD_PID2
+ps -ef | grep stat
+kill -3 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 wait $PRF_CMD_PID2
+sleep 1
 
 ck_cmd_pid_threads_oper $TRC_CMD $PID_TRC_CMD 2 -gt 1
+kill -9 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 
 #exit
 #sudo ../perf.sh record -a -g -e sched:sched_switch   -o $BASE.data sleep 0.5
@@ -275,6 +303,9 @@ chmod a+rwx $SCR_DIR/dump_all_perf_events.sh
 $SCR_DIR/dump_all_perf_events.sh $ODIR
 cp $SCR_FIL $ODIR
 
+# get the cpu topology info. the power and cpufreq subdirs contain files that cause bsdtar errors
+bsdtar cjf $ODIR/sys_devices_system_cpu.tgz --exclude "power" --exclude "reload" --exclude "cpufreq" /sys/devices/system/cpu
+
 echo "{\"file_list\":[" > $ODIR/file_list.json
 echo "   {\"cur_dir\":\"%root_dir%/oppat_data/$PFX/$BASE\"}," >> $ODIR/file_list.json
 echo "   {\"cur_tag\":\"${PFX}_$BASE\"}," >> $ODIR/file_list.json
@@ -282,10 +313,11 @@ echo "   {\"bin_file\":\"prf_trace.data\", \"txt_file\":\"prf_trace.txt\", \"tag
 echo "   {\"bin_file\":\"prf_trace2.data\", \"txt_file\":\"prf_trace2.txt\", \"tag\":\"%cur_tag%\", \"type\":\"PERF\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
-echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"} " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"iostat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"iostat.lua\", \"lua_rtn\":\"iostat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"vmstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"vmstat.lua\", \"lua_rtn\":\"vmstat\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"nicstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"nicstat.lua\", \"lua_rtn\":\"nicstat\"} " >> $ODIR/file_list.json
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
-chown -R 777 $ODIR
-
-#sudo ../perf.sh script -I --header -i perf.data -F hw:comm,tid,pid,time,cpu,event,ip,sym,dso,symoff,period -F trace:comm,tid,pid,time,cpu,event,trace,ip,sym,period -i perf.data > perf.txt
+chown -R root $ODIR
