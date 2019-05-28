@@ -72,7 +72,9 @@ CPU_IDLE=" -e power:cpu_idle "
 CPU_IDLE=  # lots of events on raspberry pi 3 b+ so just skip it. Doesn't provide so much info yet
 IRQ_EVTS=" -e irq:irq_handler_entry -e irq:irq_handler_exit "
 IRQ_EVTS=  #  tons of events on pi 3b+... and don't have a just for it yet so comment it out
-$TRC_CMD record -C mono $IRQ_EVTS $TC_DISK_EVT -e power:cpu_frequency -e power:powernv_throttle -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
+SYSCALL_EVTS=" -e syscalls:sys_*read*  -e syscalls:sys_*write* " 
+SYSCALL_EVTS=" -e syscalls:sys_* " 
+$TRC_CMD record -C mono $IRQ_EVTS $TC_DISK_EVT $SYSCALL_EVTS -e power:cpu_frequency -e power:powernv_throttle -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
 PID_TRC_CMD=$!
 
 # it takes a few seconds to get the trace cmd threads up
@@ -82,7 +84,8 @@ echo started $TRC_CMD
 WAIT_FILE=wait.pid.txt
 rm $WAIT_FILE
 
-export S_TIME_FORMAT=ISO && iostat -z -d -t 1  > $ODIR/iostat.txt &
+export S_TIME_FORMAT=ISO
+iostat -z -d -t 1  > $ODIR/iostat.txt &
 IOSTAT_CMD=$!
 
 nicstat -a -z -p 1 > $ODIR/nicstat.txt &
@@ -91,7 +94,7 @@ NICSTAT_CMD=$!
 vmstat -n -t 1 > $ODIR/vmstat.txt &
 VMSTAT_CMD=$!
 
-$PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults -I 20 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
+$PRF_CMD stat -a -e alignment-faults,emulation-faults,major-faults,minor-faults -I 100 -x "\t" -o $ODIR/prf_energy.txt $BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 #$BIN_DIR/wait.x $ODIR/prf_energy2.txt > $ODIR/wait.txt &
 while [ ! -f $WAIT_FILE ]
 do
@@ -332,5 +335,3 @@ echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
 chown -R root $ODIR
-
-#sudo ../perf.sh script -I --header -i perf.data -F hw:comm,tid,pid,time,cpu,event,ip,sym,dso,symoff,period -F trace:comm,tid,pid,time,cpu,event,trace,ip,sym,period -i perf.data > perf.txt
