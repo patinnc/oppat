@@ -662,7 +662,14 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				exit(1);
 			}
 			if (exp_id || exp_identifier) {
-				whch_evt = -1;
+				if (prf_obj.events.size() == 1) {
+					whch_evt = 0;
+				} else {
+					whch_evt = -1;
+				}
+				if (verbose > 3)
+				printf("whch_evt= %d exp_id= %d, exp_identifier= %d at %s %d\n",
+					whch_evt, exp_id, exp_identifier, __FILE__, __LINE__);
 			}
 			tm_accum(tmi, __LINE__);
 		 //	{ u64			id;	  } && PERF_SAMPLE_IDENTIFIER
@@ -670,6 +677,8 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				id2 = *(buf_uint64_ptr(buf, 0));
 				off += sizeof(id2);
 				whch_evt = get_evt_from_id(prf_obj, id2, evt_nm, __LINE__, verbose);
+				if (verbose > 3)
+				printf("whch_evt= %d at %s %d\n", whch_evt, __FILE__, __LINE__);
 				//printf("whch_evt= %d at %s %d\n", whch_evt, __FILE__, __LINE__);
 			}
 			tm_accum(tmi, __LINE__);
@@ -709,6 +718,8 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				id = *(u64 *)(buf + off);
 				int wevt = whch_evt;
 				whch_evt = get_evt_from_id(prf_obj, id, evt_nm, __LINE__, verbose);
+				if (verbose > 3)
+				printf("whch_evt= %d at %s %d\n", whch_evt, __FILE__, __LINE__);
 				off += sizeof(id);
 			}
 		 //	{ u64			stream_id;} && PERF_SAMPLE_STREAM_ID
