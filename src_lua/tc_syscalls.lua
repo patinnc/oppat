@@ -52,7 +52,7 @@ end
 --              ps-11330 [003] 167433.183026718: sys_exit_newfstatat:  0x0
 
 
-function syscalls(verbose, de)
+function syscalls_rdwr(verbose, de)
 	--print "in lua routine syscalls"
 	local ts0
 
