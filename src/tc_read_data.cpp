@@ -571,7 +571,8 @@ static int tc_add_event(int evt_id, std::string evt_str, std::string area, prf_o
 		pes.event_area = area;
 	}
 	if (verbose)
-		printf("add tc event name= '%s', ID= %d, num_evts= %d\n", evt_str.c_str(), evt_id, (int)prf_obj.events.size());
+		printf("add tc event name= '%s', ID= %d, num_evts= %d area= %s at %s %d\n",
+				evt_str.c_str(), evt_id, (int)prf_obj.events.size(), area.c_str(), __FILE__, __LINE__);
 	prf_add_ids((uint32_t)evt_id, (int)prf_obj.events.size(), prf_obj);
 	prf_obj.events.push_back(pes);
 	return (int)prf_obj.events.size();
@@ -705,7 +706,7 @@ int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double
 	//i = read_n_bytes(file, pos, 1, __LINE__);
 	i = mm_read_n_bytes(mm_buf, pos, 1, __LINE__, buf, BUF_MAX);
 	int long_sz = buf[0];
-	//if (verbose)
+	if (verbose)
 	printf("got long_sz= %d\n", long_sz);
 	if (long_sz == 0) {
 		printf("got invalid long sz= 0 at %s %d\n", __FILE__, __LINE__);
@@ -773,7 +774,7 @@ int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double
 		i = mm_read_n_bytes(mm_buf, pos, evt_sz, __LINE__, buf, BUF_MAX);
 		buf[evt_sz] = 0;
 		if (verbose)
-			printf("got evt_sz= %ld, ftrace_evt_fmt= \n%s\n", evt_sz, buf);
+			printf("got evt_sz= %ld, ftrace_evt_fmt= \n%s at %s %d\n", evt_sz, buf, __FILE__, __LINE__);
 		tc_build_event(buf, NULL, prf_obj, verbose);
 	}
 
@@ -815,7 +816,7 @@ int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double
 			bth_ck_fmt("__print_flags", ffs.format, verbose);
 			ft_fmts.push_back(ffs);
 			if (verbose)
-				printf("area= %s, evt_fmt= %s\n", area.c_str(), buf);
+				printf("bef tc_build_event: area= %s, evt_fmt= %s at %s %d\n", area.c_str(), buf, __FILE__, __LINE__);
 			tc_build_event(buf, area.c_str(), prf_obj, verbose);
 			evt_cur++;
 		}
@@ -937,7 +938,7 @@ read_opt_again:
 			//i = read_n_bytes(file, pos, 8, __LINE__);
 			i = mm_read_n_bytes(mm_buf, pos, 8, __LINE__, buf, BUF_MAX);
 			long cpu_len = *(buf_long_ptr(buf, 0));
-			//if (verbose)
+			if (verbose)
 				printf("cpu[%d] offset= %ld, len= %ld\n", j, cpu_off, cpu_len);
 			tcds.off = cpu_off;
 			tcds.len = cpu_len;
@@ -1166,7 +1167,7 @@ struct mtch_lp_str {
 	std::regex de_regx_w_area, de_regx_wo_area;
 	std::vector <std::string> evts_to_exclude;
 	std::string evt_w_area, use_evt;
-	std::string evt_wo_area;
+	std::string evt_wo_area, evt_area;
 };
 
 
@@ -1176,10 +1177,19 @@ static uint32_t ck_for_regex_match_on_event_name(prf_obj_str &prf_obj, mtch_lp_s
 	//verbose = 1;
 	for (uint32_t k=ml.k_beg; k < prf_obj.events.size(); k++) {
 		if (verbose)
-			printf("ck derived evt match on nm= %s vs evt_w_area[%d]= %s and evt= %s at %s %d\n",
+			printf("ck derived evt match on nm= %s vs evt_w_area[%d]= %s area= %s, and evt= %s at %s %d\n",
 				ml.evt_w_area.c_str(), k, prf_obj.events[k].event_name_w_area.c_str(),
+				prf_obj.events[k].event_area.c_str(),
 				prf_obj.events[k].event_name.c_str(), __FILE__, __LINE__);
-		if (std::regex_match(prf_obj.events[k].event_name_w_area, ml.de_regx_w_area) ||
+		if (ml.use_wo_area && ml.evt_area != prf_obj.events[k].event_area) {
+			if (verbose)
+				printf("must have area %s, e[%d].area= %s at %s %d\n",
+					ml.evt_area.c_str(), k, prf_obj.events[k].event_area.c_str(), __FILE__, __LINE__);
+			continue;
+		}
+
+		if ((ml.use_wo_area && ml.evt_wo_area == ".*" && prf_obj.events[k].event_area == ml.evt_area) ||
+			std::regex_match(prf_obj.events[k].event_name_w_area, ml.de_regx_w_area) ||
 			std::regex_match(prf_obj.events[k].event_name,        ml.de_regx_w_area) ||
 			std::regex_match(prf_obj.events[k].event_name,        ml.de_regx_wo_area)) {
 			if (verbose)
@@ -1194,7 +1204,7 @@ static uint32_t ck_for_regex_match_on_event_name(prf_obj_str &prf_obj, mtch_lp_s
 			if (ml.evts_to_exclude.size() > 0) {
 				for (uint32_t excl=0; excl < ml.evts_to_exclude.size(); excl++) {
 					if (ml.use_evt.find(ml.evts_to_exclude[excl]) != std::string::npos) {
-						printf("exclude_event: %s at %s %d\n", ml.use_evt.c_str(), __FILE__, __LINE__);
+						//printf("exclude_event: %s at %s %d\n", ml.use_evt.c_str(), __FILE__, __LINE__);
 						drop_it = true;
 						break;
 					}
@@ -1229,7 +1239,7 @@ static uint32_t ck_for_match_on_event_name(std::string evt, prf_obj_str &prf_obj
 	//verbose = 1;
 	if (pos != std::string::npos && evt_wo_area.size() > (pos+1)) {
 		evt_wo_area = evt_wo_area.substr(pos+1);
-		printf("evt_wo_area= %s at %s %d\n", evt_wo_area.c_str(), __FILE__, __LINE__);
+		//printf("evt_wo_area= %s at %s %d\n", evt_wo_area.c_str(), __FILE__, __LINE__);
 	}
 	for (uint32_t k=k_beg; k < prf_obj.events.size(); k++) {
 		if (verbose)
@@ -1307,11 +1317,13 @@ static uint32_t ck_got_evts_derived_dependents(prf_obj_str &prf_obj,  evt_str &e
 			size_t pos = ml.evt_wo_area.find(":");
 			if (pos != std::string::npos && ml.evt_wo_area.size() > (pos+1)) {
 				ml.use_wo_area = true;
+				ml.evt_area = ml.evt_wo_area.substr(0, pos);
 				ml.evt_wo_area = ml.evt_wo_area.substr(pos+1);
 				ml.de_regx_wo_area = std::regex(ml.evt_wo_area);
-				printf("evt_wo_area= %s at %s %d\n", ml.evt_wo_area.c_str(), __FILE__, __LINE__);
+				//printf("evt_wo_area= %s, area= %s at %s %d\n",
+						//ml.evt_wo_area.c_str(), ml.evt_area.c_str(), __FILE__, __LINE__);
 			}
-			printf("got regex .* str in evt[%d]= %s at %s %d\n", j, e_ck.c_str(), __FILE__, __LINE__);
+			//printf("got regex .* str in evt[%d]= %s at %s %d\n", j, e_ck.c_str(), __FILE__, __LINE__);
 			while (true) {
 				if (ml.k_beg >= prf_obj.events.size()) {
 					break;
@@ -1420,6 +1432,144 @@ static void gen_div_ck_idx(uint32_t idx, std::string col, std::string evt_nm, in
 			col.c_str(), evt_nm.c_str(), __FILE__, line);
 		exit(1);
 	}
+}
+
+static double syscall_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i,
+		std::vector <evts_derived_str> &evts_derived, uint32_t j, uint32_t k,
+		std::vector <std::string> &new_vals,
+		uint32_t &emit_var, int verbose, std::string lua_rtn)
+{
+	//abcd
+	std::string evt_nm  = prf_obj.events[new_idx].event_name;
+	struct prf_samples_str &samples = prf_obj.samples[i];
+	uint32_t cpu = samples.cpu, num_cpus = prf_obj.features_nr_cpus_online;
+	uint64_t ts  = samples.ts;
+	std::string comm= samples.comm;
+	std::string evt = samples.event;
+	uint64_t tid = samples.tid;
+	bool is_rdwr = false;
+
+	if (lua_rtn == "syscalls_rdwr") {
+		is_rdwr = true;
+	}
+	
+	if (evts_derived[j].gen_div.det.size() == 0) {
+		evts_derived[j].gen_div.det.resize(1);
+		if (verbose)
+			printf("new_cols.sz= %d at %s %d\n", (int)evts_derived[j].new_cols.size(), __FILE__, __LINE__);
+		if (!is_rdwr) {
+			std::vector <std::string> str_arr = {"MiB/s",   "__EMIT__", "duration", "area", "bytes", "dura2"};
+			fprintf(stderr, "in syscall rtn for evt= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+			for(uint32_t ii=0; ii < evts_derived[j].new_cols.size(); ii++) {
+				if (evts_derived[j].new_cols[ii]      == str_arr[0]) { evts_derived[j].gen_div.col_val_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[1]) { evts_derived[j].gen_div.col_emt_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[2]) { evts_derived[j].gen_div.col_dur_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[3]) { evts_derived[j].gen_div.col_area_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[4]) { evts_derived[j].gen_div.col_num_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[5]) { evts_derived[j].gen_div.col_den_idx = ii; }
+				if (verbose)
+					printf("evts_derived[%d] new_col[%d]= %s at %s %d\n", j, ii, evts_derived[j].new_cols[ii].c_str(), __FILE__, __LINE__);
+			}
+			gen_div_ck_idx(evts_derived[j].gen_div.col_val_idx,  str_arr[0], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_emt_idx,  str_arr[1], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_dur_idx,  str_arr[2], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_area_idx, str_arr[3], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_num_idx,  str_arr[4], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_den_idx,  str_arr[5], evt_nm, __LINE__);
+		} else {
+			std::vector <std::string> str_arr = {"MiB/s", "__EMIT__", "area", "duration", "bytes"};
+			fprintf(stderr, "in syscall rtn for evt= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+			for(uint32_t ii=0; ii < evts_derived[j].new_cols.size(); ii++) {
+				if (evts_derived[j].new_cols[ii]      == str_arr[0]) { evts_derived[j].gen_div.col_val_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[1]) { evts_derived[j].gen_div.col_emt_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[2]) { evts_derived[j].gen_div.col_area_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[3]) { evts_derived[j].gen_div.col_dur_idx = ii; }
+				else if (evts_derived[j].new_cols[ii] == str_arr[4]) { evts_derived[j].gen_div.col_num_idx = ii; }
+				if (verbose)
+					printf("evts_derived[%d] new_col[%d]= %s at %s %d\n", j, ii, evts_derived[j].new_cols[ii].c_str(), __FILE__, __LINE__);
+			}
+			gen_div_ck_idx(evts_derived[j].gen_div.col_val_idx,  str_arr[0], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_emt_idx,  str_arr[1], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_dur_idx,  str_arr[2], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_area_idx, str_arr[3], evt_nm, __LINE__);
+			gen_div_ck_idx(evts_derived[j].gen_div.col_num_idx,  str_arr[4], evt_nm, __LINE__);
+		}
+	}
+	std::string evt_sml;
+	bool is_enter = true;
+	size_t pos = evt.find("sys_enter_");
+	if (pos != std::string::npos) {
+		evt_sml = evt.substr(pos+10, evt.size());
+	} else {
+		pos = evt.find("sys_exit_");
+		if (pos != std::string::npos) {
+			evt_sml = evt.substr(pos+9, evt.size());
+			is_enter = false;
+		}
+	}
+	if (pos == std::string::npos) {
+		return 0;
+	}
+	std::string key = std::to_string(tid) + " " + comm + " " + evt_sml;
+	uint32_t hsh_p1 = hash_string(evts_derived[j].gen_div.hsh_str, evts_derived[j].gen_div.vec_str, key);
+	if (hsh_p1 > evts_derived[j].gen_div.det.size()) {
+		evts_derived[j].gen_div.det.resize(hsh_p1);
+	}
+	uint32_t hsh_idx = hsh_p1-1;
+	if (evts_derived[j].gen_div.det[hsh_idx].paired == -1) {
+		evts_derived[j].gen_div.det[hsh_idx].paired = 0;
+	}
+	emit_var = 0;
+	double dval = 0.0;
+	double ts_diff=0.0;
+	new_vals[evts_derived[j].gen_div.col_emt_idx]  = "0";
+	if (is_enter) {
+		evts_derived[j].gen_div.det[hsh_idx].paired = 1;
+		evts_derived[j].gen_div.det[hsh_idx].ts[0] = ts;
+		if (is_rdwr) {
+			const unsigned char *mm_buf = prf_obj.mm_buf;
+			long mm_off = samples.mm_off + 32; // hard-coded... not good
+			evts_derived[j].gen_div.det[hsh_idx].dval = (double) *(uint64_t *)(mm_buf + mm_off);
+		}
+	} else {
+		if (evts_derived[j].gen_div.det[hsh_idx].paired == 1) {
+			ts_diff = 1.0e-9 * (double)(ts - evts_derived[j].gen_div.det[hsh_idx].ts[0]);
+			emit_var = 1;
+			evts_derived[j].gen_div.det[hsh_idx].paired = 0;
+			dval = evts_derived[j].gen_div.det[hsh_idx].dval;
+		}
+	}
+
+#if 0
+		printf("got syscall_der_evt() set idx= %d ts= %.0f val= %.0f shft= 0x%x paired= 0x%x at %s %d\n",
+				idx, (double)ts, (double)samples.period, shft,
+				evts_derived[j].gen_div.det[cpu].paired,
+				__FILE__, __LINE__);
+#endif
+#if 0
+	printf("ed[%d].det[%d].paired= 0x%x ts[%d]= %.0f, val= %.0f at %s %d\n",
+			j, cpu, evts_derived[j].gen_div.det[cpu].paired, idx,
+			(double)evts_derived[j].gen_div.det[cpu].ts[idx],
+			(double)evts_derived[j].gen_div.det[cpu].val[idx], __FILE__, __LINE__);
+#endif
+	if (emit_var == 1) {
+			emit_var = 1;
+			if (is_rdwr) {
+				if (ts_diff > 0.0) {
+					new_vals[evts_derived[j].gen_div.col_val_idx] = std::to_string(dval/ts_diff);
+				} else {
+					new_vals[evts_derived[j].gen_div.col_val_idx] = "0.0";
+				}
+			}
+			new_vals[evts_derived[j].gen_div.col_emt_idx]  = "1";
+			new_vals[evts_derived[j].gen_div.col_dur_idx]  = std::to_string(ts_diff);
+			new_vals[evts_derived[j].gen_div.col_area_idx] = evt_sml;
+			new_vals[evts_derived[j].gen_div.col_num_idx]  = std::to_string(dval);
+			if (!is_rdwr) {
+				new_vals[evts_derived[j].gen_div.col_den_idx]  = "1.0";
+			}
+	}
+	return 0;
 }
 
 static double gen_div_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i,
@@ -1564,8 +1714,11 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 
 				double tm_beg = dclock();
 				uint32_t emit_var=0;
-				if (lua_file.find("gen_div_pair.lua") != std::string::npos) {
-					//abcd
+				//abcd
+				if ((lua_rtn == "syscalls_all" || lua_rtn == "syscalls_rdwr") &&
+						lua_file.find("tc_syscalls.lua") != std::string::npos) {
+					syscall_der_evt(prf_obj, new_idx, i, evts_derived, j, k, new_vals, emit_var, verbose, lua_rtn);
+				} else if (lua_file.find("gen_div_pair.lua") != std::string::npos) {
 					gen_div_der_evt(prf_obj, new_idx, i, evts_derived, j, k, new_vals, emit_var, verbose);
 				} else {
 					//printf("new_idx= %d, j= %d, evt= %s at %s %d\n",
