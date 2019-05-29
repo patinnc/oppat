@@ -520,29 +520,29 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			if (want_evt_num != UINT32_M1 && i != want_evt_num) {
 				continue;
 			}
-			if (verbose > 1) {
+			if (verbose > 4) {
 				std::cout << j["event_array"][i]["event"].dump() << std::endl;
-				fflush(NULL);
+				//fflush(NULL);
 			}
 			std::string evt_nm  = j["event_array"][i]["event"]["evt_name"];
-			if (verbose) {
+			if (verbose > 2) {
 				printf("evt_alias ck[%d] evt_nm= %s, lkfor_evt_name= %s at %s %d\n",
 					i, evt_nm.c_str(), lkfor_evt_name.c_str(), __FILE__, __LINE__);
 			}
 			bool got_it = false;
 			for (uint32_t k=0; k < evt_aliases_vec.size(); k++) {
 				if (evt_nm == evt_aliases_vec[k].evt_name) {
-					if (verbose > 1) {
+					if (verbose > 3) {
 						printf("got evt_alias1: evt_nm= %s, evt_alias_vec[%d].evt_name= %s at %s %d\n",
 							evt_nm.c_str(), k, evt_aliases_vec[k].evt_name.c_str(), __FILE__, __LINE__);
 					}
 					for (uint32_t m=0; m < evt_aliases_vec[k].aliases.size(); m++) {
-						if (verbose > 1) {
+						if (verbose > 4) {
 							printf("try evt_alias2: evt_aliases_vec[%d].aliases[%d]= %s, lkfor_evt_name= %s at %s %d\n",
 								k, m, evt_aliases_vec[k].aliases[m].c_str(), lkfor_evt_name.c_str(), __FILE__, __LINE__);
 						}
 						if (evt_aliases_vec[k].aliases[m] == lkfor_evt_name) {
-							if (verbose) {
+							if (verbose > 4) {
 								printf("evt_nm= %s, use_alias= %s num= %d at %s %d\n", 
 									evt_nm.c_str(), evt_aliases_vec[k].aliases[m].c_str(),
 									(int)m, __FILE__, __LINE__);
@@ -564,29 +564,31 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				evt_arch = j["event_array"][i]["event"]["arch"];
 			} catch (...) { }
 			if (po_arch.size() > 0 && evt_arch.size() > 0 && po_arch != evt_arch) {
-				printf("skip evt_nm[%d]= '%s', typ= '%s', arch= '%s' due to prf_obj arch= %s at %s %d\n",
-					i, evt_nm.c_str(), evt_typ.c_str(), evt_arch.c_str(), po_arch.c_str(), __FILE__, __LINE__);
+				if (verbose > 3) {
+					printf("skip evt_nm[%d]= '%s', typ= '%s', arch= '%s' due to prf_obj arch= %s at %s %d\n",
+						i, evt_nm.c_str(), evt_typ.c_str(), evt_arch.c_str(), po_arch.c_str(), __FILE__, __LINE__);
+				}
 				continue;
 			}
-			if (verbose > 0) {
+			if (verbose > 3) {
 				printf("evt_nm[%d]= '%s', typ= '%s', arch= '%s'\n",
 					i, evt_nm.c_str(), evt_typ.c_str(), evt_arch.c_str());
 			}
 			if (lkfor_evt_name.size() > 0) {
 				if (evt_nm == lkfor_evt_name) {
-					//if (verbose > 0)
+					if (verbose > 4)
 					{
 						printf("do_json: add evt_nm[%d]= %s at %s %d\n", i, evt_nm.c_str(), __FILE__, __LINE__);
 					}
 				} else {
-					if (verbose > 0) {
+					if (verbose > 4) {
 						printf("do_json: skip lkfor_evt= %s, evt_nm= %s at %s %d\n",
 								lkfor_evt_name.c_str(), evt_nm.c_str(), __FILE__, __LINE__);
 					}
 					continue;
 				}
 			}
-			if (verbose > 0) {
+			if (verbose > 3) {
 				std::cout << j["event_array"][i]["event"]["evt_flds"].dump() << std::endl;
 			}
 			struct evt_str es;
@@ -602,7 +604,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					for (uint32_t m=0; m < evt_aliases_vec.size(); m++) {
 						if (evt_aliases_vec[m].arch.size() > 0 && evt_arch.size() > 0 &&
 							evt_aliases_vec[m].arch != evt_arch) {
-							if (verbose > 0)
+							if (verbose > 4)
 								printf("skipping evt_alias[%d]= %s due to alias arch= %s and evt_arch= %s at %s %d\n",
 								m, evt_aliases_vec[m].evt_name.c_str(),
 								evt_aliases_vec[m].arch.c_str(), evt_arch.c_str(), __FILE__, __LINE__);
@@ -614,7 +616,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 								(int)evt_aliases_vec[m].use_alias, lkfor_evt_name.c_str(), __FILE__, __LINE__);
 #endif
 						if (evt_aliases_vec[m].evt_name == e_nm && evt_aliases_vec[m].use_alias != UINT32_M1) {
-							if (verbose > 0)
+							if (verbose > 4)
 								printf("replace evts_tags evt '%s' with alias '%s' arch= %s at %s %d\n",
 								e_nm.c_str(),
 								evt_aliases_vec[m].aliases[evt_aliases_vec[m].use_alias].c_str(),
