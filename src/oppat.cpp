@@ -4385,7 +4385,13 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			if (flg & (uint64_t)fte_enum::FLD_TYP_TRC_BIN) {
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
 				if (prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx < 0) {
-					printf("lst_ft_fmt_idx should be >= 0. Bye at %s %d\n", __FILE__, __LINE__);
+					printf("lst_ft_fmt_idx should be >= 0. got= %d. Bye at %s %d\n",
+						prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx, __FILE__, __LINE__);
+					int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
+					printf("event= %s evt_fld.name= %s lkup= %s, tm_str= %s i= %d in filename= %s at %s %d\n",
+						prf_obj.events[prf_evt_idx2].event_name.c_str(), event_table.flds[j].name.c_str(),
+						event_table.flds[j].lkup.c_str(),
+						prf_obj.samples[i].tm_str.c_str(), i, flnm.c_str(), __FILE__, __LINE__);
 					exit(1);
 				}
 				int lst_ft_fmt_idx = prf_obj.events[prf_evt_idx2].lst_ft_fmt_idx;
@@ -5945,13 +5951,22 @@ int main(int argc, char **argv)
 			if (file_list[k].grp != grp_list[g]) {
 				continue;
 			}
-			std::string evt_nm;
+			std::string evt_nm, evt_area;
 			for (uint32_t j=0; j < prf_obj[k].events.size(); j++) {
 				if (prf_obj[k].file_type == FILE_TYP_ETW) {
 					evt_nm = prf_obj[k].events[j].event_name;
-				} else if (prf_obj[k].events[j].event_name.find(":") != std::string::npos) {
-					evt_nm = prf_obj[k].events[j].event_name;
 				} else {
+					size_t pos = prf_obj[k].events[j].event_name.find(":");
+				   	if (pos == std::string::npos) {
+						evt_nm   = prf_obj[k].events[j].event_name;
+					} else {
+						evt_area = prf_obj[k].events[j].event_name.substr(0, pos);
+						if (prf_obj[k].events[j].event_area.size() == 0) {
+							prf_obj[k].events[j].event_area = evt_area;
+						}
+						prf_obj[k].events[j].event_name = prf_obj[k].events[j].event_name.substr(pos+1,
+							prf_obj[k].events[j].event_name.size());
+					}
 					if (prf_obj[k].events[j].event_area.size() > 0) {
 						evt_nm = prf_obj[k].events[j].event_area + ":" + prf_obj[k].events[j].event_name;
 					} else {
