@@ -124,13 +124,16 @@ struct lua_data_str {
 
 struct gen_div_det_str {
 	uint64_t ts[2], ts_prev[2], val[2];
+	double dval;
 	int32_t paired;
-	gen_div_det_str(): paired(-1), ts{0, 0}, ts_prev{0, 0} {}
+	gen_div_det_str(): paired(-1), dval(0.0), ts{0, 0}, ts_prev{0, 0} {}
 };
 
 struct gen_div_str {
 	uint32_t col_val_idx, col_emt_idx, col_dur_idx, col_area_idx, col_num_idx, col_den_idx;
 	std::vector <gen_div_det_str> det;
+	std::unordered_map<std::string, uint32_t> hsh_str;
+	std::vector <std::string> vec_str;
 	gen_div_str(): col_val_idx(-1), col_emt_idx(-1), col_dur_idx(-1), col_area_idx(-1), col_num_idx(-1), col_den_idx(-1) {}
 };
 
