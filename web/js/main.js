@@ -6169,7 +6169,9 @@ function parse_chart_data(ch_data_str)
 	let str = vsprintf("%.1f MBs", [ch_data_str.length/(1024.0*1024.0)]);
 	var tm_beg = performance.now();
 	//document.title = "bef JSON "+str+",tm="+tm_diff_str(0.001*(tm_beg-g_tm_beg), 1, "secs");
-	gjson.chart_data.push(JSON.parse(ch_data_str));
+	if (typeof gjson.chart_data !== 'undefined') {
+		gjson.chart_data.push(JSON.parse(ch_data_str));
+	}
 	let tm_now = performance.now();
 	//document.title = "aft JSON "+str+",tm="+tm_diff_str(0.001*(tm_now-g_tm_beg), 1, "secs");
 	//console.log("parse chart_data end. elap ms= "+ (tm_now-tm_beg)+", tm_btwn_frst_this_msg= "+(tm_beg - g_tm_beg));
