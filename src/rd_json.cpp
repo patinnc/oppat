@@ -220,7 +220,16 @@ static uint32_t do_macro_event_array(json &j, int verbose)
 	for (uint32_t i=0; i < sz; i++) {
 		try {
 			std::string t = j["event_array"][i]["event"]["evt_name"];
-			k++;
+			bool use_it = true;
+			try {
+				std::string use_it2 = j["event_array"][i]["event"]["evt_use"];
+				if (use_it2 == "n") {
+					use_it = false;
+				}
+			} catch (...) { }
+			if (use_it) {
+				k++;
+			}
 		} catch (...) { }
 	}
 	if (verbose > 0) {
@@ -235,7 +244,16 @@ static uint32_t do_macro_event_array(json &j, int verbose)
 	for (uint32_t i=0; i < sz; i++) {
 		try {
 			std::string t = j["event_array"][i]["event"]["evt_name"];
-			k++;
+			bool use_it = true;
+			try {
+				std::string use_it2 = j["event_array"][i]["event"]["evt_use"];
+				if (use_it2 == "n") {
+					use_it = false;
+				}
+			} catch (...) { }
+			if (use_it) {
+				k++;
+			}
 		} catch (...) { }
 	}
 	if (verbose > 0) {
@@ -320,7 +338,16 @@ static uint32_t do_include_event_array(json &j, int verbose)
 	for (uint32_t i=0; i < j["event_array"].size(); i++) {
 		try {
 			std::string t = j["event_array"][i]["event"]["evt_name"];
-			k++;
+			bool use_it = true;
+			try {
+				std::string use_it2 = j["event_array"][i]["event"]["evt_use"];
+				if (use_it2 == "n") {
+					use_it = false;
+				}
+			} catch (...) { }
+			if (use_it) {
+				k++;
+			}
 		} catch (...) { }
 	}
 	if (verbose)
@@ -528,6 +555,17 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			if (verbose > 2) {
 				printf("evt_alias ck[%d] evt_nm= %s, lkfor_evt_name= %s at %s %d\n",
 					i, evt_nm.c_str(), lkfor_evt_name.c_str(), __FILE__, __LINE__);
+			}
+			bool use_it = true;
+			try {
+				std::string use_it2 = j["event_array"][i]["event"]["evt_use"];
+				if (use_it2 == "n") {
+					use_it = false;
+				}
+			} catch (...) { }
+			if (!use_it) {
+				printf("skipping charts.json evt_name= %s due to evt_use=n at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+				continue;
 			}
 			bool got_it = false;
 			for (uint32_t k=0; k < evt_aliases_vec.size(); k++) {
