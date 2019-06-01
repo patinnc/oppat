@@ -1,3 +1,7 @@
+# to read the spin.txt file and print the gb_phase.txt (but don't update it) afterwards do:
+# gawk -v rd_md="1" -v odir="../oppat_data/lnx/gb10" -f scripts\gb_rd_output2.gawk ..\oppat_data\lnx\gb10\spin.txt
+# to read the spin.txt file and create the gb_phase.txt afterwards do:
+# gawk -v rd_md="2" -v odir="../oppat_data/lnx/gb10" -f scripts\gb_rd_output2.gawk ..\oppat_data\lnx\gb10\spin.txt
 #<th class='name'>Single-Core Score</th>
 #<th class='name'>Multi-Core Score</th>
 #<tr class='alt'>
@@ -20,7 +24,7 @@ function rd_ofile(infl, sngl, mlti)
    area2 = "";
    while ((getline line < tfl) > 0) {
 	ck_ver = index(line, "Geekbench 2.4.2");
-	if (ck_ver == 0) {
+	if (ck_ver > 0) {
 		gb_ver = 2;
 	}
 	if (line == "<th class='name'>Single-Core Score</th>") {
@@ -99,7 +103,7 @@ function rd_ofile(infl, sngl, mlti)
 			printf("%s %s, %s, %s\n", area, nm, gb_scr, gb_str);
 		} else if (line == bth_span) {
    			getline line < tfl;
-			if (gb_ver != 2) {
+			if (gb_ver == 4) {
 				score = line;
 			}
    			getline line < tfl;
@@ -125,28 +129,53 @@ function rd_ofile(infl, sngl, mlti)
 function get_clocks()
 {
  tm_idx = -1;
- clks_str ="./bin/clocks.x";
- a=clks_str;
  tm_lns = -1;
- a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_1st = arr[2]+0.0;
- a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_raw = arr[2]+0.0;
- a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_coarse = arr[2]+0.0;
- a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_boot  = arr[2]+0.0;
- a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_mono  = arr[2]+0.0;
- a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_ofday = arr[2]+0.0;
+ printf("get_clocks: rd_mode= %d, odir= %s\n", rd_mode, odir);
+ if (rd_mode == 0) {
+	clks_str ="./bin/clocks.x";
+	a=clks_str;
+	a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_1st = arr[2]+0.0;
+	a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_raw = arr[2]+0.0;
+	a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_coarse = arr[2]+0.0;
+	a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_boot  = arr[2]+0.0;
+	a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_mono  = arr[2]+0.0;
+	a | getline tm; tm_ln[++tm_lns] = tm; split(tm, arr); tm_ofday = arr[2]+0.0;
+	close(a);
+ } else {
+	tfl = odir "/clocks1.txt";
+	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_1st = arr[2]+0.0;
+	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_raw = arr[2]+0.0;
+	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_coarse = arr[2]+0.0;
+	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_boot  = arr[2]+0.0;
+	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_mono  = arr[2]+0.0;
+	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_ofday = arr[2]+0.0;
+ }
  close(a);
  printf("tm_ofday= %.9f\n", tm_ofday);
 }
 BEGIN {
  #printf("odir= %s\n", odir);
  ofile = odir "/gb.html";
+ rd_mode = 0;
+ got_rd_md = rd_md;
+ rd_mode = 0;  # 0 means running live, 1 means reading spin.txt
+ if (got_rd_md == "1") {
+    rd_mode = 1;
+	printf("reading existing spin.txt file with timestamps per gb output line.\nNo changes to gb_phase.txt or gb_stdout.txt\n");
+ }
+ if (got_rd_md == "2") {
+    rd_mode = 2;
+	printf("reading existing spin.txt file with timestamps per gb output line.\nWill update gb_phase.txt and gb_stdout.txt\n");
+ }
  sngl_str = "Single-Core";
  mlti_str = "Multi-Core";
- pd="ps -ef | grep geekbench4 | grep -v grep";
- pd | getline pd_ln; close(pd);
- split(pd_ln, arr);
- gb_pid = arr[2];
- printf("line=  '%s, pid= %s\n", pd_ln, gb_pid);
+ if (rd_mode == 0) {
+	pd="ps -ef | grep geekbench4 | grep -v grep";
+	pd | getline pd_ln; close(pd);
+	split(pd_ln, arr);
+	gb_pid = arr[2];
+	printf("line=  '%s, pid= %s\n", pd_ln, gb_pid);
+ }
  kill_aft="JPEG";
  kill_aft="Multi-Core";
  lns_out = -1;
@@ -166,36 +195,74 @@ BEGIN {
  did_taskset = 0;
 
 }
+/tm_ofday= / {
+	tm_ofday = $2+ 0.0;
+}
+/ts_1st  = / {
+	ts_1st = $3+ 0.0;
+}
 /Geekbench 2.4.2/ {
  gb_ver=2;
  sngl_str = "Integer";
 }
 {
-	a="date +%s.%N";
-	a | getline tm;
-	close(a);
-	if (ts_1st == 0) {
-		ts_1st = tm+0.0;
-		printf("ts_1st  = %.9f\n", ts_1st);
-	}
-	if (area == "setup") {
-		ck_area = index($0, sngl_str);
-		if (ck_area > 0) {
-			area = sngl_str;
-			if (gb_ver == 2) {
-				area = "both";
+	if (rd_mode == 0) {
+		a="date +%s.%N";
+		a | getline tm;
+		close(a);
+		if (ts_1st == 0) {
+			ts_1st = tm+0.0;
+			printf("ts_1st  = %.9f\n", ts_1st);
+		}
+		if (area == "setup") {
+			ck_area = index($0, sngl_str);
+			if (ck_area > 0) {
+				area = sngl_str;
+				if (gb_ver == 2) {
+					area = "both";
+				}
+			}
+		} else if (area == sngl_str) {
+			ck_area = index($0, mlti_str);
+			if (ck_area > 0) {
+				area = mlti_str;
+			}
+		} else if (area == mlti_str) {
+			ck_area = index($0, "Uploading");
+			if (ck_area > 0) {
+				area = "post";
 			}
 		}
-	} else if (area == sngl_str) {
-		ck_area = index($0, mlti_str);
-		if (ck_area > 0) {
-			area = mlti_str;
+	} else {
+		if ($2 == "setup" || $2 == "post" || $2 == "Single-Core" || $2 == "Multi-Core" || $2 == "both") {
+			tm = $1+0.0;
+			area = $2;
+			if (gb_ver == 2 && web_pg == "" && index($0, "http://browser.primatelabs.com/") > 0) {
+				web_pg = $3;
+				printf("web_pg= %s\n", web_pg);
+			}
+			if (area == "post" && web_pg == "" && index($0, "http") > 0) {
+				web_pg = $3;
+			}
+			#got_multi= index($0, kill_aft);
+			#x[++lns_out] = (tm - tm_ofday) + tm_mono;
+			x[++lns_out] = tm;
+			if (area != "setup" && $3 == "Running") {
+				bg = index($0, $3) + length($3) + 1;
+				bm = substr($0, bg);
+				#printf("bm= '%s'\n", bm);
+				area_bm = area " " bm;
+				tm_idx_arr[area_bm] = lns_out;
+				tm_arr[++tm_idx] = area_bm;
+				#printf("tm_idx= %d, area= %s, bm= %s\n", tm_idx, area_bm, bm);
+			}
+			$1 = "";
+			$2 = "";
+			y[lns_out] = $0;
+			b[lns_out] = area;
+			printf("%.9f %s %s\n", x[lns_out], b[lns_out], y[lns_out]);
 		}
-	} else if (area == mlti_str) {
-		ck_area = index($0, "Uploading");
-		if (ck_area > 0) {
-			area = "post";
-		}
+		next;
 	}
 	if (gb_ver == 2 && index($0, "Uploading") == 1) {
 		area = "post";
@@ -253,7 +320,7 @@ END {
 
 
  printf("web_pg= %s\n", web_pg);
- if (web_pg != "") {
+ if (rd_mode == 0 && web_pg != "") {
  	a = "wget " web_pg " -O " ofile;
 	system(a);
 	#close(a);
@@ -264,6 +331,9 @@ END {
  #printf("lkup multi HDR= %d: %s %s %s %s\n", i, nms[i][1], nms[i][2], nms[i][3], nms[i][4]);
 
  phs_file = odir "/gb_phase.tsv";
+ if (rd_mode == 1) {
+	phs_file = "/dev/stdout";
+ }
  for (i=0; i <= tm_idx; i++) {
 	area_bm = tm_arr[i]
 	j = tm_idx_arr[area_bm];
@@ -279,16 +349,21 @@ END {
  close(phs_file);
 
  gb_txt = odir "/gb_stdout.txt";
+ if (rd_mode == 1) {
+	gb_txt = "/dev/stdout";
+ }
  for (i=0; i <= lns_out; i++) {
    printf("%.9f %s %s\n", x[i], b[i], y[i]) > gb_txt;
    #printf("ln[%d]= %s\n", i, x[i]);
  }
  close(gb_txt);
- clk_txt = odir "/clocks1.txt";
- for (i=0; i <= tm_lns; i++) {
-   printf("%s\n", tm_ln[i]) > clk_txt;
+ if (rd_mode == 0) {
+	clk_txt = odir "/clocks1.txt";
+	for (i=0; i <= tm_lns; i++) {
+		printf("%s\n", tm_ln[i]) > clk_txt;
+	}
+	close(clk_txt);
+	cmd = clks_str " > " odir "/clocks2.txt";
+	system(cmd);
  }
- close(clk_txt);
- cmd = clks_str " > " odir "/clocks2.txt";
- system(cmd);
 }
