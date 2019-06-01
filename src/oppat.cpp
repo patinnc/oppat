@@ -6318,9 +6318,22 @@ int main(int argc, char **argv)
 	if (options.cpu_diagram.size() > 0) {
 		cpu_diag_str = "cpu_diagram=";
 		std::ifstream file2;
-		file2.open (options.cpu_diagram.c_str(), std::ios::in);
+		std::string svg_file = options.cpu_diagram;
+		std::size_t pos = 0;
+		pos = svg_file.find_last_of(".");
+		if (pos == std::string::npos) {
+			printf("messed up fopen of flnm= %s. didn't find '.' in flnm. bye at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		std::string sfx = svg_file.substr(pos+1, svg_file.size());
+		printf("svg_file sfx= %s at %s %d\n", sfx.c_str(), __FILE__, __LINE__);
+		if (sfx != "svg") {
+			printf("svg_file sfx != 'svg', got %s, changing it to svg at %s %d\n", sfx.c_str(), __FILE__, __LINE__);
+			svg_file = svg_file.substr(0, pos) + ".svg";
+		}
+		file2.open (svg_file.c_str(), std::ios::in);
 		if (!file2.is_open()) {
-			printf("messed up fopen of flnm= %s at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
+			printf("messed up fopen of flnm= %s at %s %d\n", svg_file.c_str(), __FILE__, __LINE__);
 			exit(1);
 		}
 		std::string line2;
@@ -6333,7 +6346,6 @@ int main(int argc, char **argv)
 			printf("cpu_diag= '%s' at %s %d\n", cpu_diag_str.c_str(), __FILE__, __LINE__);
 		}
 		std::string flds_file = options.cpu_diagram;
-		std::size_t pos = 0;
 		pos = flds_file.find_last_of(".");
 		if (pos == std::string::npos) {
 			printf("messed up fopen of flnm= %s at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
