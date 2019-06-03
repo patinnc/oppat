@@ -76,7 +76,7 @@ IRQ_EVTS=" -e irq:irq_handler_entry -e irq:irq_handler_exit "
 IRQ_EVTS=  #  tons of events on pi 3b+... and don't have a just for it yet so comment it out
 SYSCALL_EVTS=" -e syscalls:sys_*read*  -e syscalls:sys_*write* " 
 SYSCALL_EVTS=" -e syscalls:sys_* " 
-$TRC_CMD record -C mono $TC_DISK_EVT $IRQ_EVTS $SYSCALL_EVTS -e power:cpu_frequency -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
+$TRC_CMD record -C mono -b 10000 -s 10000 $TC_DISK_EVT $SYSCALL_EVTS -f "comm != perf" $IRQ_EVTS -e power:cpu_frequency -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
 PID_TRC_CMD=$!
 
 # it takes a few seconds to get the trace cmd threads up
@@ -270,9 +270,12 @@ $BIN_DIR/clocks.x > $ODIR/clocks2.txt
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 
 kill -2 $PRF_CMD_PID2
+ps -ef | grep stat
+kill -3 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 wait $PRF_CMD_PID2
 
 ck_cmd_pid_threads_oper $TRC_CMD $PID_TRC_CMD 2 -gt 1
+kill -9 $IOSTAT_CMD $NICSTAT_CMD $VMSTAT_CMD
 
 #exit
 #sudo ../perf.sh record -a -g -e sched:sched_switch   -o $BASE.data sleep 0.5
@@ -320,6 +323,10 @@ echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"nicstat.txt\", \"wait_fil
 echo "  ]} " >> $ODIR/file_list.json
 
 chmod a+rw $ODIR/*
-chown -R 777 $ODIR
+chown -R root $ODIR
 
-#sudo ../perf.sh script -I --header -i perf.data -F hw:comm,tid,pid,time,cpu,event,ip,sym,dso,symoff,period -F trace:comm,tid,pid,time,cpu,event,trace,ip,sym,period -i perf.data > perf.txt
+# below can get errors (unreadable dirs) to we put it last. If you get a failure here the results dir is still okay
+# get the cpu topology info. the power and cpufreq subdirs contain files that cause bsdtar errors
+bsdtar cjvf $ODIR/sys_devices_system_cpu.tgz --exclude "power" --exclude "reload" --exclude "cpufreq" /sys/devices/system/cpu
+chmod a+rw $ODIR/*
+
