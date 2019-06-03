@@ -1882,6 +1882,7 @@
   {"event":
 	{
 	"evt_name": "syscall_rd_wr_MBps", "evt_type": "ftrace", "comment":"derived event for syscalls:sys_enter_*/sys_exit_*",
+	"evt_use": "y",
 	"example_rec":"sleep-11324 [000] 167433.179263491: sys_enter_close:      fd: 0x00000002",
     "example_rec":"sleep-11324 [000] 167433.179266460: sys_exit_close:       0x0",
 	"example_rec":"abcd",
@@ -1912,6 +1913,7 @@
   {"event":
 	{
 	"evt_name": "nonblock_syscall_all", "evt_type": "ftrace", "comment":"derived event for syscalls:sys_enter_*/sys_exit_*",
+	"evt_use": "y",
 	"example_rec":"sleep-11324 [000] 167433.179263491: sys_enter_close:      fd: 0x00000002",
     "example_rec":"sleep-11324 [000] 167433.179266460: sys_exit_close:       0x0",
 	"example_rec":"abcd",
@@ -1952,6 +1954,7 @@
   {"event":
 	{
 	"evt_name": "syscall_all", "evt_type": "ftrace", "comment":"derived event for syscalls:sys_enter_*/sys_exit_*",
+	"evt_use": "y",
 	"example_rec":"sleep-11324 [000] 167433.179263491: sys_enter_close:      fd: 0x00000002",
     "example_rec":"sleep-11324 [000] 167433.179266460: sys_exit_close:       0x0",
 	"example_rec":"abcd",
@@ -1991,6 +1994,7 @@
   {"event":
 	{
 	"evt_name": "syscall_sock", "evt_type": "ftrace", "comment":"derived event for syscalls:sys_enter_*/sys_exit_*",
+	"evt_use": "y",
 	"example_rec":"sleep-11324 [000] 167433.179263491: sys_enter_close:      fd: 0x00000002",
     "example_rec":"sleep-11324 [000] 167433.179266460: sys_exit_close:       0x0",
 	"example_rec":"abcd",
