@@ -234,6 +234,12 @@ get_opt_main (int argc, char **argv)
 		   "   1st draw the whole of phase0, then the whole of the next phase, until you get to the end phase.\n"
 		   "   This is different that --ph_step_int which steps from phase0 to phase1 by a time step.\n"
 		},
+		{"skip_phases_with_string",      required_argument,   0, 0, "skip phases if the phase text contains string."
+		   "   When generating PNGs using the --by_phase, there may be phases you want to skip.\n"
+		   "   For example, the way I generate Geekbench4 phases, there is an idle period between each sub-test.\n"
+		   "   OPPAT looks for the idle time and inserts a phase with the text 'idle: X' after sub-test X.\n"
+		   "   So to skip the idle phases, use '--skip_phases_with_string idle:'\n"
+		},
 		{"ph_image",      required_argument,   0, 0, "save cpu_diagram canvas using ph_image filename"
 		   "   Arg to ph_image is a filename. The cpu_diagram canvas will be converted to png (after ph_step_int actions)\n"
 		   "   and then sent to oppat and saved to filename. A number will be appended to the filename.\n"
@@ -462,6 +468,11 @@ get_opt_main (int argc, char **argv)
 			if (strcmp(long_options[option_index].name, "by_phase") == 0) {
 				options.by_phase.push_back("1");
 				printf ("option --by_phase\n");
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "skip_phases_with_string") == 0) {
+				options.skip_phases_with_string.push_back(optarg);
+				printf ("option --%s %s\n", long_options[option_index].name, optarg);
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "ph_image") == 0) {
@@ -1869,6 +1880,18 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 	prv_nxt.resize(event_table[evt_idx].data.vals.size());
 	lst_by_var.resize(event_table[evt_idx].data.vals.size(), 0);
 	prv_by_var.resize(by_var_sz, -1);
+	if (prf_obj.file_type == FILE_TYP_LUA &&
+		event_table[evt_idx].charts[chrt].chart_tag == "PHASE_CHART" && phase_vec.size() > 0) {
+		printf("PHASE: phase_vec.size= %d, event_table[%d].data.vals.size= %d at %s %d\n",
+			(uint32_t)phase_vec.size(), evt_idx,  (uint32_t)event_table[evt_idx].data.vals.size(), __FILE__, __LINE__);
+		if (phase_vec.size() == event_table[evt_idx].data.vals.size()) {
+			printf("PHASE: override data table timestamps with phase_vec timestamps & durations at %s %d\n", __FILE__, __LINE__);
+			for (uint32_t i = 0; i < event_table[evt_idx].data.vals.size(); i++) {
+				event_table[evt_idx].data.ts[i].duration = phase_vec[i].dura;
+				event_table[evt_idx].data.ts[i].ts = phase_vec[i].ts_abs;
+			}
+		}
+	}
 	for (uint32_t i = 0; i < event_table[evt_idx].data.vals.size(); i++) {
 		by_var_idx_val = 0;
 		if (by_var_idx >= 0) {
@@ -3302,6 +3325,9 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	}
 	if (event_table[evt_idx].charts[chrt].marker_connect.size() > 0) {
 		json += ", \"marker_connect\": \"" + event_table[evt_idx].charts[chrt].marker_connect + "\"";
+	}
+	if (event_table[evt_idx].charts[chrt].marker_text.size() > 0) {
+		json += ", \"marker_text\": \"" + event_table[evt_idx].charts[chrt].marker_text + "\"";
 	}
 	json += ", \"chart_tag\": \"" + event_table[evt_idx].charts[chrt].chart_tag + "\"";
 	if (event_table[evt_idx].charts[chrt].y_label.size() == 0) {
@@ -5289,6 +5315,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	uint32_t phase_fl_idx = UINT32_M1;
 	bool got_USE_AS_PHASE = false;
 	bool got_FIND_MULTI_PHASE = false;
+	bool got_FIND_IDLE_PHASE = false;
 	uint32_t ufile_tag_idx = UINT32_M1;
 	std::string fl_options;
 	for (uint32_t i=0; i < file_list.size(); i++) {
@@ -5306,13 +5333,16 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			if (file_list[i].options.find("FIND_MULTI_PHASE") != std::string::npos) {
 				got_FIND_MULTI_PHASE = true;
 			}
+			if (file_list[i].options.find("FIND_IDLE_PHASE") != std::string::npos) {
+				got_FIND_IDLE_PHASE = true;
+			}
 			fl_options = file_list[i].options;
 			break;
 		}
 	}
-	printf("ck_phase_single_multi: got_USE_AS_PHASE= %d, got_FIND_MULTI_PHASE= %d, phase_vec.size()= %d options= %s at %s %d\n",
-		got_USE_AS_PHASE, got_FIND_MULTI_PHASE, (uint32_t)phase_vec.size(), fl_options.c_str(), __FILE__, __LINE__);
-	if (!got_FIND_MULTI_PHASE || phase_vec.size() == 0) {
+	printf("ck_phase_single_multi: got_USE_AS_PHASE= %d, got_FIND_MULTI_PHASE= %d, got_FIND_IDLE_PHASE= %d, phase_vec.size()= %d options= %s at %s %d\n",
+		got_USE_AS_PHASE, got_FIND_MULTI_PHASE, got_FIND_IDLE_PHASE, (uint32_t)phase_vec.size(), fl_options.c_str(), __FILE__, __LINE__);
+	if ((!got_FIND_MULTI_PHASE && !got_FIND_IDLE_PHASE) || phase_vec.size() == 0) {
 		return 0;
 	}
 	printf("ck_phase_single_multi: x_rng= %f, %f, y_rng= %f, %f\n",
@@ -5369,7 +5399,8 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 		double tx0 = ch_lines.line[i].x[0];
 		double tx1 = ch_lines.line[i].x[1];
 		if (cpt_idx >= comm_pid_tid_vec[file_tag_idx].size()) {
-			printf("got cpt_idx = %d, sz= %d at %s %d\n",
+			if (verbose > 1)
+				printf("got cpt_idx = %d, sz= %d at %s %d\n",
 					cpt_idx, (uint32_t)comm_pid_tid_vec[file_tag_idx].size(), __FILE__, __LINE__);
 			unk_cputm += tx1 - tx0;
 			continue;
@@ -5445,7 +5476,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			ck_tot += ck;
 			double val = ch_lines.line[i].y[0] * (xcur1 - xcur0) * (double)divs;
 			tot_line[file_tag_idx].line[j] += val;
-			if (cpu >= 0) {
+			if (cpu >= 0 && cpu < nr_cpus && j < divs) {
 				if (got_follow) {
 					tot_line[file_tag_idx].follow[cpu][j] += ck;
 					follow_cputime[cpu] += ck;
@@ -5494,35 +5525,57 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 		
 	}
 
-	std::vector <double> multi_beg;
+	std::vector <double> multi_beg, idle_beg;
 	multi_beg.resize(phase_vec.size());
+	idle_beg.resize(phase_vec.size());
 
 	for (uint32_t i=0; i < phase_vec.size(); i++) {
+		if (got_FIND_IDLE_PHASE && phase_vec[i].dura == 0.0) {
+			// this better be the placeholder for the idle phase. gb_phase.lua is supposed to put a 0 dura event in for the idle phase
+			continue;
+		}
 		double ph_end = phase_vec[i].ts_abs;
 		double ph_beg = ph_end - phase_vec[i].dura;
 		double tbeg = ph_beg - ch_lines.range.ts0;
 		double tend = ph_end - ch_lines.range.ts0;
 		multi_beg[i] = -1.0;
+		idle_beg[i] = -1.0;
 		uint32_t ibeg = 1+ (tbeg / ddiv);
 		uint32_t iend = tend / ddiv;
 		uint32_t imulti= UINT32_M1;
+		if (iend > divs) {
+			iend = divs;
+		}
 		//if (tot_line[file_tag_idx].line[ibeg] <= 120.0) {
 			printf("phase[%d] beg single tm= %.3f usage[%d]= %.3f\n", i, (double)(ibeg)*ddiv, ibeg, tot_line[file_tag_idx].line[ibeg]);
 		//}
 		for (uint32_t j=ibeg; j < iend; j++) {
-			if ((tot_line[file_tag_idx].line[j]+1) >= ck_usage) {
+			if (got_FIND_MULTI_PHASE && (tot_line[file_tag_idx].line[j]+1) >= ck_usage) {
 				printf("phase[%d] beg multi  tm_diff= %.3f, tm_left= %.3f usage[%d]= %.3f\n",
 					i, (double)(j-ibeg)*ddiv, tend-((double)(j)*ddiv), j, tot_line[file_tag_idx].line[j]);
 				multi_beg[i] = (double)(j-ibeg)*ddiv; // store offset from beg of phase
 				break;
 			}
+			if (got_FIND_IDLE_PHASE && (tot_line[file_tag_idx].line[j]+1) <= 40.0) {
+				printf("phase[%d] beg idle  tm_diff= %.3f, tm_left= %.3f usage[%d]= %.3f\n",
+					i, (double)(j-ibeg)*ddiv, tend-((double)(j)*ddiv), j, tot_line[file_tag_idx].line[j]);
+				idle_beg[i] = (double)(j-ibeg)*ddiv; // store offset from beg of phase
+				break;
+			}
 		}
 	}
 	printf("phase_vec.sz beg= %d at %s %d\n", (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
+	for (uint32_t i=0; i < phase_vec.size(); i++) {
+		double ph_end = phase_vec[i].ts_abs;
+		double ph_beg = ph_end - phase_vec[i].dura;
+		printf("phase[%d] beg= %.3f end= %.3f text= %s\n", i, ph_beg, ph_end, phase_vec[i].text.c_str());
+	}
+	printf("phase_vec.sz beg loop at %s %d\n", __FILE__, __LINE__);
+	fflush(NULL);
 	int32_t pv_sz_m1 = phase_vec.size()-1;
 	int32_t mrkr_sz_m1 = marker_vec.size()-1;
 	for (int32_t i=pv_sz_m1; i >= 0; i--) {
-		if (multi_beg[i] != -1.0) {
+		if (got_FIND_MULTI_PHASE && multi_beg[i] != -1.0) {
 			// copy cur phase after current entry
 			// end tm of new entry is the same
 			// dur tm of new entry needs to be reduced by multi_beg[i]
@@ -5546,14 +5599,35 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 				marker_vec[i].dura    = multi_beg[i];
 			}
 		}
+		if (got_FIND_IDLE_PHASE && idle_beg[i] != -1.0) {
+			double ph_end = phase_vec[i].ts_abs;
+			double ph_end_orig = phase_vec[i].ts_abs;
+			double ph_dur_orig = phase_vec[i].dura;
+			double ph_beg = ph_end - phase_vec[i].dura;
+			printf("find_idle: beg[%d] ph_beg= %f, ph_end= %f, dura= %f\n", i, ph_beg, ph_end, phase_vec[i].dura);
+			fflush(NULL);
+			ph_end = ph_beg + idle_beg[i];
+			if ((i+1) <= pv_sz_m1 && phase_vec[i+1].dura == 0) {
+				phase_vec[i+1].dura = ph_dur_orig - idle_beg[i];
+			}
+			phase_vec[i].dura = idle_beg[i];
+			phase_vec[i].ts_abs = ph_end;
+			ph_end = phase_vec[i].ts_abs;
+			ph_beg = ph_end - phase_vec[i].dura;
+			printf("find_idle: aft[%d] ph_beg= %f, ph_end= %f, dura= %f sz= %d\n",
+					i, ph_beg, ph_end, phase_vec[i].dura, (uint32_t)(phase_vec.size()));
+			fflush(NULL);
+		}
 	}
 	printf("phase_vec.sz aft= %d at %s %d\n", (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
+	fflush(NULL);
 	for (uint32_t i=0; i < phase_vec.size(); i++) {
 		double ph_end = phase_vec[i].ts_abs;
 		double ph_beg = ph_end - phase_vec[i].dura;
 		printf("phase[%d] beg= %.3f end= %.3f text= %s\n", i, ph_beg, ph_end, phase_vec[i].text.c_str());
 	}
 	printf("ck_phase_single_multi: finished at %s %d\n", __FILE__, __LINE__);
+	fprintf(stderr, "ck_phase_single_multi: finished at %s %d\n", __FILE__, __LINE__);
 	fflush(NULL);
 	return 0;
 }
@@ -6120,14 +6194,20 @@ int main(int argc, char **argv)
 								grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
 						tt0 = dclock();
 						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
+#if 1
 						if (event_table[grp_list[g]][i].charts[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
 							printf("got pct_busy_by_system chart at %s %d\n", __FILE__, __LINE__);
 							ck_phase_single_multi(file_list, k, grp_list[g], i, j, event_table[grp_list[g]], verbose);
 						}
+#endif
 						tt1 = dclock();
 						if (rc == 0) {
 							this_chart_json = build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
 							chrts_json.push_back(this_chart_json);
+							if (event_table[grp_list[g]][i].charts[j].chart_tag == "PHASE_CHART") {
+								printf("for chart_tag= %s, json_str= %s at %s %d\n", 
+									event_table[grp_list[g]][i].charts[j].chart_tag.c_str(), this_chart_json.c_str(), __FILE__, __LINE__);
+							}
 							js_sz = this_chart_json.size();
 							//printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
 						}
@@ -6272,6 +6352,9 @@ int main(int argc, char **argv)
 			} else {
 				phase += ", \"by_phase\":[\"" + options.by_phase[0] + "\"]";
 			}
+		}
+		if (options.skip_phases_with_string.size() > 0) {
+			phase += ", \"skip_phases_with_string\":[\"" + options.skip_phases_with_string[0] + "\"]";
 		}
 		if (options.ph_image.size() > 0) {
 			if (got_zoom_to == UINT32_M1) {
@@ -6496,7 +6579,8 @@ int main(int argc, char **argv)
 							//file << img_str.substr(pos+10, img_str.size());
 							file.write(dst,ln);
 							file.close();
-							fprintf(stderr, "wrote flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
+							fprintf(stderr, "wrote flnm= %s, tm_elap= %f at %s %d\n",
+									flnm.c_str(), dclock()-tm_beg, __FILE__, __LINE__);
 						}
 					}
 					fflush(stdout);
