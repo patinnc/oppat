@@ -6061,6 +6061,7 @@ async function start_charts() {
 				g_cpu_diagram_draw_svg([], -1, po.lp);
 				send_blob_backend(po, xbeg, "ck_phase0");
 				reset_OS_view_image_ready();
+				myDelay_timeout = 1000;
 				jj = 0;
 				jjmax = jjmax_reset_value;
 				let old_typ = gsync_zoom_redrawn_charts.typ;
@@ -6125,7 +6126,6 @@ async function start_charts() {
 						gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1, po.lp));
 			set_zoom_all_charts(-1, gjson.phase[0].file_tag);
 			gsync_zoom_redrawn_charts.typ = "wait_for_zoom_to_phase";
-			myDelay_timeout = 1000;
 			myDelay(gsync_zoom_redrawn_charts, po);
 			console.log("---- did myDelay("+old_typ+")");
 		}
