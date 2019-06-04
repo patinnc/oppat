@@ -121,7 +121,7 @@
 		],
 	"charts": [
 		{"category":"PERF", "title":"Markers",  "var_name":"marker",
-			"chart_tag":"PHASE", "chart_type":"line", "marker":{"type":"square", "size":"10", "connect":"y"},
+			"chart_tag":"PHASE_CHART", "chart_type":"line", "marker":{"type":"none", "size":"10", "connect":"y", "text":"y"},
 			"use_chart":"y", "y_label":"markers"}
 		]
 	}
