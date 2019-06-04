@@ -64,8 +64,11 @@ function mysort(t_in)
 	--t[col.event] = evt
         -- printf("%.9f %s %.9f %.9f evt= %s\n", t[col.ts], t[col.area], t[col.watts], t[col.dura], evt)
     table.sort(t_in, function(a, b)
-        if a[col.ts] ~= b[col.ts] then
-            return a[col.ts] < b[col.ts]
+		local ts0, ts1
+        ts0 = tonumber(a[col.ts])
+        ts1 = tonumber(b[col.ts])
+        if ts0 ~= ts1 then
+            return ts0 < ts1
         end
         if a[col.event] ~= b[col.event] then
             return a[col.event] < b[col.event]
@@ -97,26 +100,50 @@ function gb_phase(file1, file2, file3, verbose)
    local file_tbl = {}
    local rows = 0
    local nsz = read_file2(file2, file_tbl)
-   local k, v, evt
+   local j, k, v, evt
    -- 'gen_line1' must match event_name field in charts.json
    local evt_str = "gb_phase"
    evt_hash[evt_str] = 0
    local dff = 0.5
    --for k,v in pairs(file_tbl) do
+   local dff_sml = 0.00001
    for k = 1, nsz, 1
    do
      local v2 = file_tbl[k]
-     local t = {}
-     t[col.ts] = v2[1]
-     rows = rows + 1
-     t[col.marker] = rows
-     t[col.dura] = v2[2]
-     t[col.extra_str] = v2[3]
-     printf("%f, %f, phas= %s\n", v2[1], v2[2], v2[3])
-     t[col.event] = evt_str
-     t[col.area]  = "test"
-     evt_hash[evt_str] = evt_hash[evt_str] + 1
-     table.insert(data_table, t)
+	 local gbv4
+	 local sngl_mlti = string.sub(v2[3], 1, 6)
+	 --printf("sngl_mlti= %s\n", sngl_mlti)
+	 if sngl_mlti == "Single" or sngl_mlti == "Multi-" then
+		 gbv4 = true
+	 else
+		gbv4 = false
+   		dff_sml = 0.0;
+	 end
+	 for j = 1, 2, 1 do
+		if j == 1 or gbv4 == true then
+		 local t = {}
+		 local adj = dff_sml
+		 if j == 2 then
+			 adj = 0.0
+		 end
+		 -- so... the rows are sort laster by timestamp and we want the non-zero dura to appear before the zero dura row
+		 t[col.ts] = tostring(tonumber(v2[1]) - adj)
+		 rows = rows + 1
+		 t[col.marker] = rows
+		 t[col.dura] = tostring(tonumber(v2[2]) - adj)
+		 t[col.extra_str] = v2[3]
+		 if j == 2 then
+			 -- these are place holder events and the dura will be filled later in oppat.cpp
+		 	t[col.dura] = "0.0"
+		 	t[col.extra_str] = "idle: " .. v2[3]
+		 end
+		 printf("%f, %f, phas= %s\n", v2[1], t[col.dura], t[col.extra_str])
+		 t[col.event] = evt_str
+		 t[col.area]  = "test"
+		 evt_hash[evt_str] = evt_hash[evt_str] + 1
+		 table.insert(data_table, t)
+	 	end
+	 end
    end
    evt_units_hash[evt_str] = "marker"
    -- this 'W' string is used as the lookup for event value in charts.json
