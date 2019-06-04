@@ -98,8 +98,8 @@ static uint32_t lkup_id_from_perf_event_list(prf_obj_str &prf_obj, uint32_t id, 
 {
 	uint32_t ck_idx = prf_obj.ids_2_evt_indxp1[id];
 	if (ck_idx == 0) {
-		printf("didn't find event num: tc_evt_num= %u from line= %d at %s %d\n",
-			id, line, __FILE__, __LINE__);
+		printf("didn't find event num: tc_evt_num= %u (0x%x) from line= %d at %s %d\n",
+			id, id, line, __FILE__, __LINE__);
 		return UINT32_M1;
 	}
 	return ck_idx;
@@ -217,21 +217,45 @@ do_page_hdr:
 		mm_read_n_bytes(mm_buf, pos, 4, __LINE__, buf, BUF_MAX);
 		uint32_t ts_top = *(buf_uint32_ptr(buf, 0));
 		uint64_t ts_top64 = ts_top;
-		tm_delta |= (ts_top64 << 27);
+		uint64_t tm_del2 = (ts_top64 << 27);
+		tm_delta |= tm_del2;
 		ts += tm_delta;
 		if (verbose)
 			printf("tm_delta= %" PRIu64 " at %s %d\n", tm_delta, __FILE__, __LINE__);
 		evt_len += 4;
 	} else if (evt_hdr_typ == tc_eh_typ_padding) {
+/*
+	struct ring_buffer_event {
+		u32		type_len:5, time_delta:27;
+		u32		array[];
+	};
+ *		@RINGBUF_TYPE_PADDING:	Left over page padding or discarded event
+ *				 If time_delta is 0:
+ *				  array is ignored
+ *				  size is variable depending on how much
+ *				  padding is needed
+ *				 If time_delta is non zero:
+ *				  array[0] holds the actual length
+ *				  size = 4 + length (bytes)
+ */
+		if (verbose > 0) {
+			printf("got evt_hdr_typ= %d(padding) evt_hdr_tm_delta= %d at %s %d\n",
+					evt_hdr_typ, evt_hdr_tm_delta, __FILE__, __LINE__);
+		}
 		if (evt_hdr_tm_delta == 0) {
+			// I'm not really sure what is supposed to happen here.
 		} else {
 			//read_n_bytes(file, pos, 4, __LINE__);
+			ts += evt_hdr_tm_delta;
 			mm_read_n_bytes(mm_buf, pos, 4, __LINE__, buf, BUF_MAX);
 			evt_len += 4;
 			uint32_t len = *(buf_uint32_ptr(buf, 0));
-			//read_n_bytes(file, pos, len, __LINE__);
+			len -= 4; // why subtract 4 from len? ... not sure really but it doesn't work unless I do.
 			mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
 			evt_len += len;
+			if (verbose > 0) {
+				printf("got evt_hdr_typ= %d(padding) evt_len= %d len= %d at %s %d\n", evt_hdr_typ, evt_len, len+4, __FILE__, __LINE__);
+			}
 		}
 	} else if (evt_hdr_typ <= tc_eh_typ_data_len_max) {
 		// see https://elixir.bootlin.com/linux/v3.8/source/include/linux/ring_buffer.h
@@ -257,10 +281,17 @@ do_page_hdr:
 			mm_read_n_bytes(mm_buf, pos, 4, __LINE__, buf, BUF_MAX);
 			//hex_dump_n_bytes_from_buf(buf, 4, "hex evt_hdr_typ==0, len:", __LINE__);
 			evt_len += 4;
+			double ts_prv = ts;
 			ts += evt_hdr_tm_delta;
 			uint32_t len = *(buf_uint32_ptr(buf, 0));
 			if (len == 0 && (pos % page_sz) == 0) {
+				if (verbose > 0) {
+					printf("got len= %d at %s %d\n", len, __FILE__, __LINE__);
+				}
 				goto do_page_hdr;
+			}
+			if (verbose > 0) {
+				printf("got len= %d ts= %f at %s %d\n", len, ts_prv, __FILE__, __LINE__);
 			}
 			if (evt_hdr_tm_delta == 0 && len == 0) {
 				// this is just a filler, no timestamp delta, no data
@@ -317,11 +348,12 @@ do_page_hdr:
 			evt_handled = true;
 			uint32_t len = 4;
 			if (!did_read_cmn_hdr) {
+				double ts_prv = ts;
 				ts += evt_hdr_tm_delta;
 				len = evt_hdr_typ << 2;
 				if(verbose) {
-					printf("do_part2: read %d bytes at pos= %ld evt_len= %d evt_hdr_typ= %d (0x%x) at %s %d\n",
-							len, pos, evt_len, evt_hdr_typ, evt_hdr_typ, __FILE__, __LINE__);
+					printf("do_part2: read %d bytes at pos= %ld evt_len= %d evt_hdr_typ= %d (0x%x) ts_prv= %f at %s %d\n",
+							len, pos, evt_len, evt_hdr_typ, evt_hdr_typ, ts_prv, __FILE__, __LINE__);
 				}
 				//mm_off = (uint64_t)pos;
 				mm_read_n_bytes(mm_buf, pos, (int)len, __LINE__, buf, BUF_MAX);
@@ -332,8 +364,8 @@ do_page_hdr:
 			}
 			char *hdr_typ_str = tc_decode_evt_hdr_typ(evt_hdr_typ);
 			if (verbose > 0)
-				printf("do_part2: evt_hdr_typ == 0x%x(%s), len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
-					evt_hdr_typ, hdr_typ_str, len, evt_len, pos_sv, pos, __FILE__, __LINE__);
+				printf("do_part2: evt_hdr_typ == 0x%x(%s), tc_ln_mx= %d, len= %d, tot_len= %d, pos_sv= %ld, pos= %ld at %s %d\n",
+					evt_hdr_typ, hdr_typ_str, tc_eh_typ_data_len_max, len, evt_len, pos_sv, pos, __FILE__, __LINE__);
 			if (evt_hdr_typ < tc_eh_typ_data_len_max) {
 				prf_samples_str pss;
 				cmn_hdr = (cmn_hdr_str *)buf;
@@ -349,6 +381,7 @@ do_page_hdr:
 
 				uint32_t ck_idx = lkup_id_from_perf_event_list(prf_obj, cmn_hdr->type, __LINE__);
 				if (ck_idx == UINT32_M1) {
+					printf("missed lookup for perf_event id= %d at %s %d\n", cmn_hdr->type, __FILE__, __LINE__);
 					printf("bye at %s %d\n", __FILE__, __LINE__);
 					exit(1);
 				}
@@ -462,8 +495,9 @@ do_page_hdr:
 #endif
 				pss.tm_str = mk_tm_str(ts, true);
 				if (verbose > 0)
-					printf("hdr:[%d] %-16.16s %d/%d [%.3d]%s %s:\n",
-					(int)prf_obj.samples.size(), pss.comm.c_str(), pid, pid, cpu, pss.tm_str.c_str(), evt_nm.c_str());
+					printf("hdr:[%d] %-16.16s %d/%d [%.3d]%s %s: at %s %d\n",
+					(int)prf_obj.samples.size(), pss.comm.c_str(), pid, pid, cpu, pss.tm_str.c_str(), evt_nm.c_str(),
+					__FILE__, __LINE__);
 				bool use_sample;
 				use_sample = true;
 				if ((options.tm_clip_beg_valid == CLIP_LVL_1 && tsn < options.tm_clip_beg) ||
@@ -1744,7 +1778,7 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 							kk, samples.back().new_vals[kk].c_str(), __FILE__, __LINE__);
 					}
 #endif
-					if (verbose > 0)
+					if (verbose > 2)
 						printf("got trigger event %s at %s %d\n",
 								prf_obj.events[new_idx].event_name.c_str(), __FILE__, __LINE__);
 				}
