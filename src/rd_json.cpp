@@ -45,6 +45,17 @@ uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::ve
 // for convenience
 using json = nlohmann::json;
 
+static int ck_y_or_n(std::string ck)
+{
+	int rc = -1;
+	if (ck == "y" || ck == "Y" || ck == "1") {
+		rc = 1;
+	}
+	if (ck == "n" || ck == "N" || ck == "0") {
+		rc = 0;
+	}
+	return rc;
+}
 
 static void prt_line(int sz)
 {
@@ -1028,13 +1039,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				} catch (...) { }
 				try {
 					cs.marker_connect = j["event_array"][i]["event"]["charts"][k]["marker"]["connect"];
-					int got=-1;
-					if (cs.marker_connect == "y" || cs.marker_type == "Y" || cs.marker_connect == "1") {
-						got = 1;
-					}
-					if (cs.marker_connect == "n" || cs.marker_type == "N" || cs.marker_connect == "0") {
-						got = 0;
-					}
+					int got = ck_y_or_n(cs.marker_connect);
 					if (got == -1) {
 						fprintf(stderr, "only support \"marker\":{\"connect\":\"y|Y|1|n|N|0\"}. Got %s. bye at %s %d\n",
 								cs.marker_connect.c_str(), __FILE__, __LINE__);
@@ -1044,6 +1049,20 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 						cs.marker_connect = "y";
 					} else {
 						cs.marker_connect = "n";
+					}
+				} catch (...) { }
+				try {
+					cs.marker_text = j["event_array"][i]["event"]["charts"][k]["marker"]["text"];
+					int got = ck_y_or_n(cs.marker_text);
+					if (got == -1) {
+						fprintf(stderr, "only support \"marker\":{\"text\":\"y|Y|1|n|N|0\"}. Got %s. bye at %s %d\n",
+								cs.marker_text.c_str(), __FILE__, __LINE__);
+						exit(1);
+					}
+					if (got == 1) {
+						cs.marker_text = "y";
+					} else {
+						cs.marker_text = "n";
 					}
 				} catch (...) { }
 				try {
