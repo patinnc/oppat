@@ -2,6 +2,7 @@ import glob
 import sys
 import imageio
 
+y_shift = 800
 gb = 1
 fpsn=10
 fpsn=1
@@ -152,23 +153,23 @@ rct_brdr = 10
 x, y = (10, 50 - fsz)
 text = "CPU front end: instructions from memory (L2+L3) -> UOPS for execution"
 w, h = font.getsize(text)
-drawd.rectangle((xfctr*x, yfctr*y, xfctr*(x) + w + 2*rct_brdr, yfctr*(y + h)), fill='black')
-drawd.text((xfctr*(x+rct_brdr), yfctr*(y)), text, fill='white', font=font)
-drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(szx-10),yfctr*(630)], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*x,       y_shift+yfctr*y, xfctr*(x) + w + 2*rct_brdr, y_shift+yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), y_shift+yfctr*(y)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),     y_shift+yfctr*(y),xfctr*(szx-10),            y_shift+yfctr*(630)], width = rct_brdr, outline="#0000ff")
 
 x, y = (10, 620)
 text = "CPU execution engine: UOPS+data execute in ports"
 w, h = font.getsize(text)
-drawd.rectangle((xfctr*(x), yfctr*(y), xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
-drawd.text((xfctr*(x+rct_brdr), yfctr*(y+4)), text, fill='white', font=font)
-drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(800),yfctr*(y+500)], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*(x),     y_shift+yfctr*(y), xfctr*(x + w + 2*rct_brdr), y_shift+yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), y_shift+yfctr*(y+4)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),     y_shift+yfctr*(y),xfctr*(800),                 y_shift+yfctr*(y+500)], width = rct_brdr, outline="#0000ff")
 
 x, y = (330, 1100)
 text = "Data to L1 from memory (L2+L3)"
 w, h = font.getsize(text)
-drawd.rectangle((xfctr*(x), yfctr*(y), xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
-drawd.text((xfctr*(x+rct_brdr), yfctr*(y)), text, fill='white', font=font)
-drawd.rectangle([xfctr*(x),yfctr*(y),xfctr*(x+600),yfctr*(y+280)], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((xfctr*(x),     y_shift+yfctr*(y), xfctr*(x + w + 2*rct_brdr), y_shift+yfctr*(y + h)), fill='black')
+drawd.text((xfctr*(x+rct_brdr), y_shift+yfctr*(y)), text, fill='white', font=font)
+drawd.rectangle([xfctr*(x),     y_shift+yfctr*(y), xfctr*(x+600),              y_shift+yfctr*(y+280)], width = rct_brdr, outline="#0000ff")
 
 imgd.save('c_test.png')
 
@@ -178,18 +179,18 @@ rct_brdr = 10
 x, y = (0, 0)
 text = "CPU block diagram: shows resource constraints between blocks"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
 x, y = (0, y+h)
 text = "in terms of UOPS/cycle or bytes/cycle"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
-drawd.rectangle([270,480,345, 530], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([240,650,335, 710], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([850,1150,950,1270], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([270,   y_shift+480,345, y_shift+530], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([240,   y_shift+650,335, y_shift+710], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([850,   y_shift+1150,950,y_shift+1270], width = rct_brdr, outline="#0000ff")
 imgd.save('d_test.png')
 
 imgd = Image.open(pdir+"pat00000.png")
@@ -198,23 +199,23 @@ rct_brdr = 10
 x, y = (0, 0)
 text = "OPPAT also shows stalls due to resource saturation such as"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
 x, y = (0, y+h)
 text = "no fill buffers, no store buffers or no reserveration station entries"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
 
-drawd.rectangle([350,140,480, 190], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([ 80,623,245, 680], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([180,740,305, 790], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([435,800,575, 850], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([905,1105,1015,1155], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([650,1175,775,1230], width = rct_brdr, outline="#0000ff")
-drawd.rectangle([680,1342,827,1400], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([350,y_shift+140, 480, y_shift+190], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([ 80,y_shift+623, 245, y_shift+680], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([180,y_shift+740, 305, y_shift+790], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([435,y_shift+800, 575, y_shift+850], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([905,y_shift+1105,1015,y_shift+1155], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([650,y_shift+1175, 775,y_shift+1230], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([680,y_shift+1342, 827,y_shift+1400], width = rct_brdr, outline="#0000ff")
 imgd.save('e_test.png')
 
 imgd = Image.open(pdir+"pat00000.png")
@@ -223,24 +224,24 @@ rct_brdr = 10
 x, y = (0, 0 )
 text = "OPPAT: system info: %busy, freq, T, power, disk & mem bw"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
 
-drawd.rectangle([0,y+h,360, 170], width = rct_brdr, outline="#0000ff")
+drawd.rectangle([0,     y_shift+y+h,360, y_shift+170], width = rct_brdr, outline="#0000ff")
 
 x, y = (0, 250 )
 text = "Display begin/end "+bmarkf+" sub-benchmark for interval, score, metric"
 w, h = font.getsize(text)
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([0,288,360, 350], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((x,     y_shift+y, x + w + 2*rct_brdr, y_shift+y + h), fill='black')
+drawd.text((x+rct_brdr, y_shift+y), text, fill='white', font=font)
+drawd.rectangle([0,     y_shift+288,360,               y_shift+350], width = rct_brdr, outline="#0000ff")
 
 x, y = (szx, 822 )
 text = "L2 miss, L3 miss, %Peak mem BW, Super Queue full"
 w, h = font.getsize(text)
-drawd.rectangle((x-w-2*rct_brdr, y, x, y + h), fill='black')
-drawd.text((x-w-rct_brdr, y), text, fill='white', font=font)
-drawd.rectangle([800,y+h,1030,1150], width = rct_brdr, outline="#0000ff")
+drawd.rectangle((x-w-2*rct_brdr, y_shift+y, x,     y_shift+y + h), fill='black')
+drawd.text((x-w-rct_brdr,        y_shift+y), text, fill='white', font=font)
+drawd.rectangle([800,            y_shift+y+h,1030, y_shift+1150], width = rct_brdr, outline="#0000ff")
 
 imgd.save('f_test.png')
 
@@ -255,7 +256,7 @@ text = bmark+" - the movie"
 w, h = font.getsize(text)
 x = szx/2 - w/2 - 100
 y = szy/10
-drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h+rct_brdr), fill='black')
+drawd.rectangle((x,     y, x + w + 2*rct_brdr, y + h+rct_brdr), fill='black')
 drawd.text((x+rct_brdr, y), text, fill='white', font=font)
 
 text = "Open Power/Performance Analysis Tool"
