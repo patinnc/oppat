@@ -149,14 +149,13 @@ function get_clocks()
 	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_boot  = arr[2]+0.0;
 	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_mono  = arr[2]+0.0;
 	getline tm < tfl; tm_ln[++tm_lns] = tm; split(tm, arr); tm_ofday = arr[2]+0.0;
+	close(tfl);
  }
- close(a);
  printf("tm_ofday= %.9f\n", tm_ofday);
 }
 BEGIN {
  #printf("odir= %s\n", odir);
  ofile = odir "/gb.html";
- rd_mode = 0;
  got_rd_md = rd_md;
  rd_mode = 0;  # 0 means running live, 1 means reading spin.txt
  if (got_rd_md == "1") {
