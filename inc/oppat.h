@@ -38,6 +38,7 @@ struct options_str {
 	std::vector <std::string> phase, phase_end;
 	std::vector <std::string> ph_step_int;
 	std::vector <std::string> by_phase;
+	std::vector <std::string> skip_phases_with_string;
 	std::vector <std::string> ph_image;
 	std::vector <std::string> img_wxh_pxls;
 	std::string j2x;
