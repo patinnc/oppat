@@ -6644,7 +6644,11 @@ int main(int argc, char **argv)
 					file.close();
 					fprintf(stderr, "wrote flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 					fflush(stdout);
-					json_2_xls(msg.substr(11, msg.size()), "pat", "json_table.json data", __FILE__, __LINE__, options.verbose);
+					int xls_rc = json_2_xls(msg.substr(11, msg.size()), "pat", "json_table.json data", __FILE__, __LINE__, options.verbose);
+					std::string rc_str = (xls_rc == 0 ? "no errors" : "got errors");
+					fprintf(stderr, "finished json_2_xls rc= %d (%s) at %s %d\n",
+							xls_rc, rc_str.c_str(),  __FILE__, __LINE__);
+					fflush(stdout);
 					
 					//ck_json(svg_str, "check parse_svg json str", __FILE__, __LINE__, options.verbose);
 				} else if (msg_len >= 9 &&  msg.substr(0, 9) == "parse_svg") {
