@@ -279,7 +279,47 @@ var gsync_zoom_last_zoom = {chrt_idx:-1, x0:0.0, x1:0.0, abs_x0:0.0, abs_x1:0.0}
 var gsync_text = "Zoom/Pan: Zoom all to last";
 var gLinkZoom_iter = 0;
 
-function set_zoom_all_charts(j, need_tag)
+function got_all_OS_view_images(whch_txt, image_whch_txt_init)
+{
+	// return true if got all the images or don't have any images
+	// else return false
+	if (g_cpu_diagram_flds === null) {
+		return true;
+	}
+	let need_imgs = 0;
+	let ready_imgs = 0;
+	for (let j=0; j < gjson.chart_data.length; j++) {
+		if (typeof gjson.chart_data[j].fl_image_ready !== 'undefined') {
+			need_imgs++;
+			if (whch_txt < 0) {
+				ready_imgs++;
+			} else {
+				if (typeof gjson.chart_data[j].image_whch_txt !== 'undefined' &&
+						gjson.chart_data[j].image_whch_txt != image_whch_txt_init) {
+					ready_imgs++;
+				}
+			}
+		}
+		if (typeof gjson.chart_data[j].image_ready !== 'undefined') {
+			need_imgs++;
+			if (whch_txt < 0) {
+				ready_imgs++;
+			} else {
+				if (typeof gjson.chart_data[j].image_whch_txt !== 'undefined' &&
+						gjson.chart_data[j].image_whch_txt != image_whch_txt_init) {
+					ready_imgs++;
+				}
+			}
+		}
+	}
+	console.log(sprintf("by_phase: ck_img: whch_txt= %d, need= %d, rdy= %d", whch_txt, need_imgs, ready_imgs));
+	if (ready_imgs == need_imgs) {
+		return true;
+	}
+	return false;
+}
+
+function set_zoom_all_charts(j, need_tag, po_lp)
 {
 		//let j = gsync_zoom_last_zoom.chrt_idx;
 		//let need_tag = gjson.chart_data[j].file_tag
@@ -322,6 +362,33 @@ function set_zoom_all_charts(j, need_tag)
 		}
 		gsync_zoom_redrawn_charts.cntr = 0;
 		gsync_zoom_redrawn_charts.need_to_redraw = need_to_redraw;
+		for (let i=0; i < gjson.chart_data.length; i++) {
+			if (gjson.chart_data[i].file_tag != need_tag) {
+				continue;
+			}
+			gjson.chart_data[i].zoom_func_obj.task.do_zoom = true;
+			gjson.chart_data[i].zoom_func_obj.task.need_to_redraw = need_to_redraw;
+			gjson.chart_data[i].zoom_func_obj.func(gjson.chart_data[i].zoom_func_obj.task);
+		}
+		if (g_cpu_diagram_draw_svg !== null) {
+			let jj= 0, jj_max = 50, image_whch_txt_init=-200;
+			console.log("call g_cpu_diagram_draw_svg beg");
+			function myDelay () {           //  create a loop function
+				setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+					console.log(sprintf('wait_for_imgs jj= %d', jj));
+					jj++;                     //  increment the counter
+					if (!got_all_OS_view_images(1, image_whch_txt_init)) {
+						myDelay();             //  ..  again which will trigger another 
+					} else {
+						console.log("call g_cpu_diagram_draw_svg");
+						g_cpu_diagram_draw_svg([], -1, po_lp);
+					}
+				}, 1000);
+			}
+			//if (!got_all_OS_view_images(1, image_whch_txt_init)) {
+				myDelay();
+			//}
+		}
 		gsync_zoom_linked = true;
 }
 
@@ -330,26 +397,11 @@ function LinkZoom( el, cb )
 	let ckd = cb.checked;
 	console.log("zoom_ck= "+ckd);
 	if (el.textContent === gsync_text) {
+		$('#lhs_menu').BootSideMenu.close();
 		console.log(sprintf("lnk_zm: x0= %f x1= %f", gsync_zoom_last_zoom.x0, gsync_zoom_last_zoom.x1));
 
 		let j = gsync_zoom_last_zoom.chrt_idx;
-		set_zoom_all_charts(gsync_zoom_last_zoom.chrt_idx, gjson.chart_data[j].file_tag);
-		let jj=0;
-		function myDelay () {           //  create a loop function
-			setTimeout(function () {    //  call a 3s setTimeout when the loop is called
-				console.log(sprintf('rdw.cntr= %d, needRdw= %d jj= %d', 
-					gsync_zoom_redrawn_charts.cntr, gsync_zoom_redrawn_charts.need_to_redraw, jj));
-				jj++;                     //  increment the counter
-				if (gsync_zoom_redrawn_charts.cntr < gsync_zoom_redrawn_charts.need_to_redraw) {
-					myDelay();             //  ..  again which will trigger another 
-				} else {
-					parse_svg();
-					console.log("++++g_charts_done aft= "+g_charts_done.cntr);
-					console.log("__end LinkZoom()");
-				}
-			}, 1000)
-		}
-		myDelay();
+		set_zoom_all_charts(gsync_zoom_last_zoom.chrt_idx, gjson.chart_data[j].file_tag, -1);
 		console.log("Zooom all done");
 		el.textContent = gsync_text;
 		cb.checked = true;
@@ -823,6 +875,31 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	reset_minx_maxx(zoom_x0, zoom_x1, zoom_y0, zoom_y1);
 
+	let zoom_function = function(task)
+	{
+		if (!task.do_zoom && !gsync_zoom_linked) {
+			return;
+		}
+		let did_grph=0;
+		let i = chrt_idx;
+		if (gsync_zoom_arr[i].iter > task.zoom_iter_last) {
+			task.zoom_iter_last = gsync_zoom_arr[i].iter;
+			let x0 = gsync_zoom_arr[i].x0 - chart_data.ts_initial.ts;
+			let x1 = gsync_zoom_arr[i].x1 - chart_data.ts_initial.ts;
+			if (typeof gsync_zoom_charts_hash[chrt_idx] === 'undefined') {
+				gsync_zoom_charts_hash[chrt_idx] = {tms:0, zoom_iter:task.zoom_iter_last, x0:x0, x1:x1}
+			}
+			gsync_zoom_charts_hash[chrt_idx].tms++;
+			gsync_zoom_charts_hash[chrt_idx].x0 = x0;
+			gsync_zoom_charts_hash[chrt_idx].x1 = x1;
+			gsync_zoom_charts_redrawn++;
+			let tm_now  = performance.now();
+			zoom_to_new_xrange(x0, x1, false);
+		}
+	}
+	let zoom_function_obj = {func:zoom_function, typ:"chart", task:{zoom_iter_last:-1, do_zoom:false}};
+	gjson.chart_data[chrt_idx].zoom_func_obj = zoom_function_obj;
+
 	zoom_ckr.addTask({
 	    name: 'zoom_ck '+hvr_clr,       // unique name of the task
 	    tickInterval: 2,    // run every 5 ticks (5 x interval = 5000 ms)
@@ -830,37 +907,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	    zoom_iter_last: -1,      // run 10 times only. (set to 0 for unlimited times)
 	    callback: function (task) {
 		// code to be executed on each run
-		//if (gsync_zoom_linked && !gsync_zoom_active_now)
-		if (gsync_zoom_linked) {
-			let did_grph=0;
-			let i = chrt_idx;
-			if (gsync_zoom_arr[i].iter > task.zoom_iter_last) {
-				//console.log('task :'+task.name + ' id= '+task.zoom_iter_last);
-				task.zoom_iter_last = gsync_zoom_arr[i].iter;
-				let x0 = gsync_zoom_arr[i].x0 - chart_data.ts_initial.ts;
-				let x1 = gsync_zoom_arr[i].x1 - chart_data.ts_initial.ts;
-				if (typeof gsync_zoom_charts_hash[chrt_idx] === 'undefined') {
-					gsync_zoom_charts_hash[chrt_idx] = {tms:0, zoom_iter:task.zoom_iter_last, x0:x0, x1:x1}
-				}
-				gsync_zoom_charts_hash[chrt_idx].tms++;
-				//if (gsync_zoom_charts_hash[chrt_idx].tms == 1 ||
-				//	x0 != gsync_zoom_charts_hash[chrt_idx].x0 || x1 != gsync_zoom_charts_hash[chrt_idx].x1) {
-					gsync_zoom_charts_hash[chrt_idx].x0 = x0;
-					gsync_zoom_charts_hash[chrt_idx].x1 = x1;
-					gsync_zoom_charts_redrawn++;
-					let tm_now  = performance.now();
-					//document.title = "upd grf "+gsync_zoom_charts_redrawn+",tm="+
-					//	tm_diff_str(0.001*(tm_now-gsync_zoom_active_redraw_beg_tm), 1, "secs");
-					zoom_to_new_xrange(x0, x1, false);
-				//}
-			}
-			//document.title = doc_title_def;
-		}
+		zoom_function_obj.func(zoom_function_obj.task);
 	    }
 	});
 
 	// Start the timer
-	zoom_ckr.start();
+	//zoom_ckr.start();
 
 
 	function my_wheel_start2(canvas) {
@@ -3113,7 +3165,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				let tot_avg2_den = 0;
 				let el_idx = tot_line.event_list_idx[sci];
 				if (el_idx < 0 || typeof event_list[el_idx] === 'undefined') {
-					console.log(sprintf("event_list[%s] undef for sci= %s of chart= %s", el_idx, sci, chart_data.chart_tag));
+					//console.log(sprintf("event_list[%s] undef for sci= %s of chart= %s", el_idx, sci, chart_data.chart_tag));
 					continue;
 				}
 				let fe_idx = event_list[el_idx].idx;
@@ -3847,7 +3899,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								ctx.translate(tx_pxl, end[1]);
 								ctx.textAlign = "center";
 								ctx.rotate(-0.5*Math.PI);
-								console.log(sprintf("abs_ts= %f str5= %s", abs_ts, str5));
+								//console.log(sprintf("abs_ts= %f str5= %s", abs_ts, str5));
 								ctx.fillText(str5, 0, 0);
 								ctx.restore();
 							}
@@ -4063,13 +4115,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			console.log("__ch["+chrt_idx+"].tm(ms)= "+tm_dff.toFixed(2)+" from "+from_where+", ttl= "+chart_data.title+", fl_tm_bld= "+fl_tm_bld.toFixed(2)+", fl_tm_rpt= "+fl_tm_rpt.toFixed(2)
 					);
 		}
-		ck_if_need_to_set_zoom_redrawn_cntr();
+		ck_if_need_to_set_zoom_redrawn_cntr("redraw");
 		ck_if_need_to_save_image(chart_data.chart_tag, mycanvas, false, can_hover, mycanvas_nm_title);
 	}
-	function ck_if_need_to_set_zoom_redrawn_cntr()
+	function ck_if_need_to_set_zoom_redrawn_cntr(from)
 	{
 		if (gsync_zoom_redrawn_charts_map[chrt_idx] == 0) {
 			gsync_zoom_redrawn_charts_map[chrt_idx] = 1;
+			//console.log(sprintf("ck_if_rdrw[%d] from= %s", chrt_idx, from));
 			gsync_zoom_redrawn_charts.cntr++;
 		}
 	}
@@ -4524,13 +4577,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//console.log("zm2nw2: "+x0+",x1="+x1+",ttl="+chart_data.title);
 		}
 		if (x1 <= x0) {
-			ck_if_need_to_set_zoom_redrawn_cntr();
+			ck_if_need_to_set_zoom_redrawn_cntr("zm_to_nw_a");
 			return;
 		}
 		//console.log("for 04, x1= "+x1);
 		if (x0 == minx && x1 == maxx && minx == chart_data.x_range.min && maxx == chart_data.x_range.max) {
 			// nothing to do, zoomed out to max;
-			ck_if_need_to_set_zoom_redrawn_cntr();
+			ck_if_need_to_set_zoom_redrawn_cntr("zm_to_nw_b");
 			return;
 		}
 		if (update_gsync_zoom) {
@@ -4544,7 +4597,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (typeof zoom_to_new_xrange.prev.x0 !== 'undefined' &&
 			zoom_to_new_xrange.prev.x0 == x0 && zoom_to_new_xrange.prev.x1 == x1) {
 			//console.log("skip zoom_2_new x0= "+x0+", x1= "+x1);
-			ck_if_need_to_set_zoom_redrawn_cntr();
+			ck_if_need_to_set_zoom_redrawn_cntr("zm_to_nw_c");
 			return;
 		}
 		if (typeof zoom_to_new_xrange.prev.x0 === 'undefined') {
@@ -5704,46 +5757,6 @@ async function start_charts() {
 
 	let image_whch_txt_init = -200;
 
-	function got_all_OS_view_images(whch_txt)
-	{
-		// return true if got all the images or don't have any images
-		// else return false
-		if (g_cpu_diagram_flds === null) {
-			return true;
-		}
-		let need_imgs = 0;
-		let ready_imgs = 0;
-		for (let j=0; j < gjson.chart_data.length; j++) {
-			if (typeof gjson.chart_data[j].fl_image_ready !== 'undefined') {
-				need_imgs++;
-				if (whch_txt < 0) {
-					ready_imgs++;
-				} else {
-					if (typeof gjson.chart_data[j].image_whch_txt !== 'undefined' &&
-							gjson.chart_data[j].image_whch_txt != image_whch_txt_init) {
-						ready_imgs++;
-					}
-				}
-			}
-			if (typeof gjson.chart_data[j].image_ready !== 'undefined') {
-				need_imgs++;
-				if (whch_txt < 0) {
-					ready_imgs++;
-				} else {
-					if (typeof gjson.chart_data[j].image_whch_txt !== 'undefined' &&
-							gjson.chart_data[j].image_whch_txt != image_whch_txt_init) {
-						ready_imgs++;
-					}
-				}
-			}
-		}
-		//console.log(sprintf("by_phase: ck_img: whch_txt= %d, need= %d, rdy= %d", whch_txt, need_imgs, ready_imgs));
-		if (ready_imgs == need_imgs) {
-			return true;
-		}
-		return false;
-	}
-
 	function reset_OS_view_image_ready()
 	{
 		if (g_cpu_diagram_flds === null) {
@@ -5873,13 +5886,13 @@ async function start_charts() {
 				 (lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw))) {
 				myDelay(lkfor_max, po);             //  ..  again which will trigger another 
 			} else if (jj < jjmax && (lkfor_max.typ == "wait_for_zoom_to_phase" && 
-				 (lkfor_max.cntr >= gsync_zoom_redrawn_charts.need_to_redraw && !got_all_OS_view_images(po.lp)))) {
+				 (lkfor_max.cntr >= gsync_zoom_redrawn_charts.need_to_redraw && !got_all_OS_view_images(po.lp, image_whch_txt_init)))) {
 					 console.log("by_phase: mxc do draw_svg lp= "+po.lp);
 				g_cpu_diagram_draw_svg([], -1, po.lp);
 				myDelay(lkfor_max, po);             //  ..  again which will trigger another 
 			} else {
 				if ((lkfor_max.typ == "wait_for_zoom_to_phase" &&
-						(lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw || !got_all_OS_view_images(po.lp))
+						(lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw || !got_all_OS_view_images(po.lp, image_whch_txt_init))
 					)) {
 					gsync_zoom_linked = false;
 				}
@@ -6061,7 +6074,7 @@ async function start_charts() {
 				g_cpu_diagram_draw_svg([], -1, po.lp);
 				send_blob_backend(po, xbeg, "ck_phase0");
 				reset_OS_view_image_ready();
-				myDelay_timeout = 1000;
+				myDelay_timeout = 2000;
 				jj = 0;
 				jjmax = jjmax_reset_value;
 				let old_typ = gsync_zoom_redrawn_charts.typ;
@@ -6070,7 +6083,7 @@ async function start_charts() {
 					ck_skip_phases_with_string(po);
 					if (po.lp < po.lp_max) {
 						set_zoom_xbeg_xend(po);
-						set_zoom_all_charts(-1, gjson.phase[0].file_tag);
+						set_zoom_all_charts(-1, gjson.phase[0].file_tag, po.lp);
 						console.log(sprintf("---- by_phase: lp= %d, wait...", po.lp));
 						myDelay(gsync_zoom_redrawn_charts, po);
 						if (cd_cpu_busy !== null) {
@@ -6086,7 +6099,7 @@ async function start_charts() {
 						let pot = po;
 						pot.lp = -1;
 						set_zoom_xbeg_xend(pot);
-						set_zoom_all_charts(-1, gjson.phase[0].file_tag);
+						set_zoom_all_charts(-1, gjson.phase[0].file_tag, po.lp);
 						console.log(sprintf("---- by_phase: lp= %d, start wait...", pot.lp));
 						*/
 					}
@@ -6124,7 +6137,7 @@ async function start_charts() {
 			set_zoom_xbeg_xend(po);
 			console.log(sprintf("===zoom x0= %s, x1= %s lp= %d %%",
 						gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1, po.lp));
-			set_zoom_all_charts(-1, gjson.phase[0].file_tag);
+			set_zoom_all_charts(-1, gjson.phase[0].file_tag, -1);
 			gsync_zoom_redrawn_charts.typ = "wait_for_zoom_to_phase";
 			myDelay(gsync_zoom_redrawn_charts, po);
 			console.log("---- did myDelay("+old_typ+")");
@@ -10482,7 +10495,7 @@ function parse_svg()
 	});
 
 	// Start the timer
-	zoom_ckr.start();
+	//zoom_ckr.start();
 
 	console.log("got to end of parse_svg()");
 }
