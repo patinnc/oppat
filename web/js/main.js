@@ -871,8 +871,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let proc_select = {};
 	let build_flame_rpt_timeout = null;
 
-	var zoom_ckr = new TaskTimer(1000);
-
 	reset_minx_maxx(zoom_x0, zoom_x1, zoom_y0, zoom_y1);
 
 	let zoom_function = function(task)
@@ -899,21 +897,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 	let zoom_function_obj = {func:zoom_function, typ:"chart", task:{zoom_iter_last:-1, do_zoom:false}};
 	gjson.chart_data[chrt_idx].zoom_func_obj = zoom_function_obj;
-
-	zoom_ckr.addTask({
-	    name: 'zoom_ck '+hvr_clr,       // unique name of the task
-	    tickInterval: 2,    // run every 5 ticks (5 x interval = 5000 ms)
-	    totalRuns: 0,      // run 10 times only. (set to 0 for unlimited times)
-	    zoom_iter_last: -1,      // run 10 times only. (set to 0 for unlimited times)
-	    callback: function (task) {
-		// code to be executed on each run
-		zoom_function_obj.func(zoom_function_obj.task);
-	    }
-	});
-
-	// Start the timer
-	//zoom_ckr.start();
-
 
 	function my_wheel_start2(canvas) {
 		var firstTouch, lastTouch;
@@ -5223,7 +5206,7 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 			let jj=0;
 			function myDelay () {           //  create a loop function
 				setTimeout(function () {    //  call a 3s setTimeout when the loop is called
-					console.log('jj= '+jj);          //  your code here
+					//console.log('jj= '+jj);          //  your code here
 					jj++;                     //  increment the counter
 					if (g_charts_done.cntr < gjson.chrt_data_sz) {
 						myDelay();             //  ..  again which will trigger another 
@@ -5863,11 +5846,13 @@ async function start_charts() {
 	 */
 	let cd_cpu_busy = null;
 	let cpu_busy_tot_line = null;
-	if (g_cpu_diagram_flds !== null) {
-		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
-			if (g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
-				cd_cpu_busy = g_cpu_diagram_flds.cpu_diagram_fields[j];
-				break;
+	if (false) {
+		if (g_cpu_diagram_flds !== null) {
+			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+				if (g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
+					cd_cpu_busy = g_cpu_diagram_flds.cpu_diagram_fields[j];
+					break;
+				}
 			}
 		}
 	}
@@ -6114,19 +6099,19 @@ async function start_charts() {
 				if (cd_cpu_busy !== null) {
 					console.log("++cpu_busy.yarray.len= ",  cd_cpu_busy.tot_line.yarray[0].length);
 					if (cpu_busy_tot_line === null) {
-					cpu_busy_tot_line = {};
-					cpu_busy_tot_line.sv_xarray  = [];
-					cpu_busy_tot_line.sv_yarray  = [];
-					let cdi = cd_cpu_busy.chrt_idx;
-					let ts   = gjson.chart_data[cdi].ts_initial.ts;
-					let ts0x = gjson.chart_data[cdi].ts_initial.ts0x;
-					let xoff = ts - ts0x;
-					for (let ii=0; ii < cd_cpu_busy.tot_line.yarray[0].length; ii++) {
-						cpu_busy_tot_line.sv_xarray.push(cd_cpu_busy.tot_line.xarray[ii]+xoff);
-						cpu_busy_tot_line.sv_yarray.push(cd_cpu_busy.tot_line.yarray[0][ii]);
-					}
-					//console.log(cpu_busy_tot_line.sv_yarray);
-					cpu_busy_tot_line.xdiff = cpu_busy_tot_line.sv_xarray[1] - cpu_busy_tot_line.sv_xarray[0];
+						cpu_busy_tot_line = {};
+						cpu_busy_tot_line.sv_xarray  = [];
+						cpu_busy_tot_line.sv_yarray  = [];
+						let cdi = cd_cpu_busy.chrt_idx;
+						let ts   = gjson.chart_data[cdi].ts_initial.ts;
+						let ts0x = gjson.chart_data[cdi].ts_initial.ts0x;
+						let xoff = ts - ts0x;
+						for (let ii=0; ii < cd_cpu_busy.tot_line.yarray[0].length; ii++) {
+							cpu_busy_tot_line.sv_xarray.push(cd_cpu_busy.tot_line.xarray[ii]+xoff);
+							cpu_busy_tot_line.sv_yarray.push(cd_cpu_busy.tot_line.yarray[0][ii]);
+						}
+						//console.log(cpu_busy_tot_line.sv_yarray);
+						cpu_busy_tot_line.xdiff = cpu_busy_tot_line.sv_xarray[1] - cpu_busy_tot_line.sv_xarray[0];
 					}
 				}
 				
@@ -10474,28 +10459,6 @@ function parse_svg()
 	}
 
 	draw_svg([], -1, -1);
-	let zoom_ckr = new TaskTimer(500);
-
-	zoom_ckr.addTask({
-	    name: 'zoom_ck '+hvr_clr,       // unique name of the task
-	    tickInterval: 2,    // run every 5 ticks (5 x interval = 5000 ms)
-	    totalRuns: 0,      // run 10 times only. (set to 0 for unlimited times)
-	    zoom_iter_last: 0,      // run 10 times only. (set to 0 for unlimited times)
-	    callback: function (task) {
-		// code to be executed on each run
-		//if (gsync_zoom_linked && !gsync_zoom_active_now)
-			if (gsync_zoom_redrawn_charts.cpu_diag_redrawn < gsync_zoom_redrawn_charts.cpu_diag_redraw_requests) {
-				//console.log('task :'+task.name + ' id= '+task.zoom_iter_last);
-				console.log("/// now redraw cpu_diagram");
-				let txt_idx = gsync_zoom_redrawn_charts.cpu_diag_redraw_text_indx;
-				draw_svg([], txt_idx, -1);
-				gsync_zoom_redrawn_charts.cpu_diag_redrawn = gsync_zoom_redrawn_charts.cpu_diag_redraw_requests;
-			}
-	    }
-	});
-
-	// Start the timer
-	//zoom_ckr.start();
 
 	console.log("got to end of parse_svg()");
 }
