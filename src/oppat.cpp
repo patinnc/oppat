@@ -5297,6 +5297,7 @@ struct tot_line_str {
 	int nr_cpus;
 	uint32_t file_tag_idx, evt_tbl_idx, evt_idx, chrt;
 	std::vector <double> line;
+	std::vector <double> line_follow;
 	std::vector <std::vector <double>> follow;
 	std::vector <std::vector <double>> cputm;
 	std::string follow_proc;
@@ -5363,6 +5364,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	tot_line[file_tag_idx].xmax = ch_lines.range.x_range[1];
 	tot_line[file_tag_idx].ddiv = ddiv;
 	tot_line[file_tag_idx].line.resize(divs);
+	tot_line[file_tag_idx].line_follow.resize(divs);
 	std::string follow;
 	std::vector <double> follow_cputime;
 	if (options.follow_proc.size() > file_tag_idx) {
@@ -5391,6 +5393,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	int fllw_comm=0, fllw_text=0, fllw_stk=0;
 	double unk_cputm = 0.0, fllw_cputm3=0.0;
 	double ck_tot = 0;
+	bool got_follow_any = false;
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
 		//if (i > 0) { json += ", "; }
 		// order of ival array values must agree with IVAL_* variables in main.js
@@ -5455,6 +5458,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			}
 		}
 		if (got_follow) {
+			got_follow_any = true;
 			fllw_cputm3 += tx1 - tx0;
 		}
 		for (uint32_t j=ibeg; j < iend; j++) {
@@ -5479,6 +5483,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			if (cpu >= 0 && cpu < nr_cpus && j < divs) {
 				if (got_follow) {
 					tot_line[file_tag_idx].follow[cpu][j] += ck;
+					tot_line[file_tag_idx].line_follow[j] += 100.0 * ck;
 					follow_cputime[cpu] += ck;
 				}
 				tot_line[file_tag_idx].cputm[cpu][j] += ck;
@@ -5528,6 +5533,9 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	std::vector <double> multi_beg, idle_beg;
 	multi_beg.resize(phase_vec.size());
 	idle_beg.resize(phase_vec.size());
+	// so 1 cpu is less than half busy. This scale assumes if 1 cpu is 100% then val=100.0, if all 4 cpus are 100% then val=400.0
+	double cpus_idle_pct = 40.0;
+	double cpus_min_idle_pct = 90.0;
 
 	for (uint32_t i=0; i < phase_vec.size(); i++) {
 		if (got_FIND_IDLE_PHASE && phase_vec[i].dura == 0.0) {
@@ -5549,26 +5557,64 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 		//if (tot_line[file_tag_idx].line[ibeg] <= 120.0) {
 			printf("phase[%d] beg single tm= %.3f usage[%d]= %.3f\n", i, (double)(ibeg)*ddiv, ibeg, tot_line[file_tag_idx].line[ibeg]);
 		//}
-		for (uint32_t j=ibeg; j < iend; j++) {
-			if (got_FIND_MULTI_PHASE && (tot_line[file_tag_idx].line[j]+1) >= ck_usage) {
-				printf("phase[%d] beg multi  tm_diff= %.3f, tm_left= %.3f usage[%d]= %.3f\n",
-					i, (double)(j-ibeg)*ddiv, tend-((double)(j)*ddiv), j, tot_line[file_tag_idx].line[j]);
-				multi_beg[i] = (double)(j-ibeg)*ddiv; // store offset from beg of phase
-				break;
+		if (got_FIND_MULTI_PHASE) {
+			for (uint32_t j=ibeg; j < iend; j++) {
+				if ((tot_line[file_tag_idx].line[j]+1) >= ck_usage) {
+					if (verbose) {
+					printf("phase[%d] beg multi  tm_diff= %.3f, tm_left= %.3f usage[%d]= %.3f\n",
+						i, (double)(j-ibeg)*ddiv, tend-((double)(j)*ddiv), j, tot_line[file_tag_idx].line[j]);
+					}
+					multi_beg[i] = (double)(j-ibeg)*ddiv; // store offset from beg of phase
+					break;
+				}
 			}
-			if (got_FIND_IDLE_PHASE && (tot_line[file_tag_idx].line[j]+1) <= 40.0) {
-				printf("phase[%d] beg idle  tm_diff= %.3f, tm_left= %.3f usage[%d]= %.3f\n",
-					i, (double)(j-ibeg)*ddiv, tend-((double)(j)*ddiv), j, tot_line[file_tag_idx].line[j]);
-				idle_beg[i] = (double)(j-ibeg)*ddiv; // store offset from beg of phase
-				break;
+		}
+		if (got_FIND_IDLE_PHASE) {
+			bool got_idle_yet = false;
+			for (uint32_t j=iend; j >= ibeg; j--) {
+#if 1
+				double tm0, tm1;
+				if (got_follow_any) {
+					tm0 = tot_line[file_tag_idx].line_follow[j]/ddiv;
+				} else {
+					tm0 = tot_line[file_tag_idx].line[j]/ddiv;
+				}
+				if (!got_idle_yet &&  (j-1) >= ibeg) {
+					double tm1;
+					if (got_follow_any) {
+						tm1 = tot_line[file_tag_idx].line_follow[j-1]/ddiv;
+					} else {
+						tm1 = tot_line[file_tag_idx].line[j-1]/ddiv;
+					}
+					if (tm0 <= cpus_idle_pct && tm1 <= cpus_idle_pct) {
+						got_idle_yet = true;
+					}
+				}
+#endif
+#if 0
+				if (i== 2) {
+					printf("i= %d, j= %d, tm0= %f, got_idle_yet= %d cpus_idle_pct= %f ddiv= %f at %s %d\n",
+							i, j, tm0, got_idle_yet, cpus_idle_pct, ddiv, __FILE__, __LINE__);
+				}
+#endif
+				if (got_idle_yet && tm0 >= 100.0) {
+					if (verbose) {
+						printf("phase[%d] beg idle  tm_diff= %.3f, tm_left= %.3f usage[%d]= %.3f\n",
+							i, (double)(j-ibeg)*ddiv, tend-((double)(j)*ddiv), j, tot_line[file_tag_idx].line[j]);
+					}
+					idle_beg[i] = (double)(j-ibeg)*ddiv; // store offset from beg of phase
+					break;
+				}
 			}
 		}
 	}
 	printf("phase_vec.sz beg= %d at %s %d\n", (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
-	for (uint32_t i=0; i < phase_vec.size(); i++) {
-		double ph_end = phase_vec[i].ts_abs;
-		double ph_beg = ph_end - phase_vec[i].dura;
-		printf("phase[%d] beg= %.3f end= %.3f text= %s\n", i, ph_beg, ph_end, phase_vec[i].text.c_str());
+	if (verbose) {
+		for (uint32_t i=0; i < phase_vec.size(); i++) {
+			double ph_end = phase_vec[i].ts_abs;
+			double ph_beg = ph_end - phase_vec[i].dura;
+			printf("phase[%d] beg= %.3f end= %.3f text= %s\n", i, ph_beg, ph_end, phase_vec[i].text.c_str());
+		}
 	}
 	printf("phase_vec.sz beg loop at %s %d\n", __FILE__, __LINE__);
 	fflush(NULL);
@@ -5604,8 +5650,8 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			double ph_end_orig = phase_vec[i].ts_abs;
 			double ph_dur_orig = phase_vec[i].dura;
 			double ph_beg = ph_end - phase_vec[i].dura;
-			printf("find_idle: beg[%d] ph_beg= %f, ph_end= %f, dura= %f\n", i, ph_beg, ph_end, phase_vec[i].dura);
-			fflush(NULL);
+			//printf("find_idle: beg[%d] ph_beg= %f, ph_end= %f, dura= %f\n", i, ph_beg, ph_end, phase_vec[i].dura);
+			//fflush(NULL);
 			ph_end = ph_beg + idle_beg[i];
 			if ((i+1) <= pv_sz_m1 && phase_vec[i+1].dura == 0) {
 				phase_vec[i+1].dura = ph_dur_orig - idle_beg[i];
@@ -5614,9 +5660,9 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			phase_vec[i].ts_abs = ph_end;
 			ph_end = phase_vec[i].ts_abs;
 			ph_beg = ph_end - phase_vec[i].dura;
-			printf("find_idle: aft[%d] ph_beg= %f, ph_end= %f, dura= %f sz= %d\n",
-					i, ph_beg, ph_end, phase_vec[i].dura, (uint32_t)(phase_vec.size()));
-			fflush(NULL);
+			//printf("find_idle: aft[%d] ph_beg= %f, ph_end= %f, dura= %f sz= %d\n",
+			//		i, ph_beg, ph_end, phase_vec[i].dura, (uint32_t)(phase_vec.size()));
+			//fflush(NULL);
 		}
 	}
 	printf("phase_vec.sz aft= %d at %s %d\n", (uint32_t)(phase_vec.size()), __FILE__, __LINE__);
@@ -5624,7 +5670,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	for (uint32_t i=0; i < phase_vec.size(); i++) {
 		double ph_end = phase_vec[i].ts_abs;
 		double ph_beg = ph_end - phase_vec[i].dura;
-		printf("phase[%d] beg= %.3f end= %.3f text= %s\n", i, ph_beg, ph_end, phase_vec[i].text.c_str());
+		printf("phase[%d] beg= %.3f end= %.3f dura= %.3f text= %s\n", i, ph_beg, ph_end, phase_vec[i].dura, phase_vec[i].text.c_str());
 	}
 	printf("ck_phase_single_multi: finished at %s %d\n", __FILE__, __LINE__);
 	fprintf(stderr, "ck_phase_single_multi: finished at %s %d\n", __FILE__, __LINE__);
