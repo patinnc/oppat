@@ -362,13 +362,21 @@ function set_zoom_all_charts(j, need_tag, po_lp)
 		}
 		gsync_zoom_redrawn_charts.cntr = 0;
 		gsync_zoom_redrawn_charts.need_to_redraw = need_to_redraw;
-		for (let i=0; i < gjson.chart_data.length; i++) {
-			if (gjson.chart_data[i].file_tag != need_tag) {
-				continue;
+		for (let j=0; j < 2; j++) {
+			// first (j==0) do charts that need to generate images
+			// then  (j==1) do charts that don't need to generate images
+			// Not really sure if this will make a difference in how long it takes to redraw all
+			for (let i=0; i < gjson.chart_data.length; i++) {
+				if (gjson.chart_data[i].file_tag != need_tag) {
+					continue;
+				}
+				if ((j == 0 && typeof gjson.chart_data[i].fl_image_ready !== 'undefined') ||
+					(j == 1 && typeof gjson.chart_data[i].fl_image_ready === 'undefined')) {
+					gjson.chart_data[i].zoom_func_obj.task.do_zoom = true;
+					gjson.chart_data[i].zoom_func_obj.task.need_to_redraw = need_to_redraw;
+					gjson.chart_data[i].zoom_func_obj.func(gjson.chart_data[i].zoom_func_obj.task);
+				}
 			}
-			gjson.chart_data[i].zoom_func_obj.task.do_zoom = true;
-			gjson.chart_data[i].zoom_func_obj.task.need_to_redraw = need_to_redraw;
-			gjson.chart_data[i].zoom_func_obj.func(gjson.chart_data[i].zoom_func_obj.task);
 		}
 		if (g_cpu_diagram_draw_svg !== null) {
 			let jj= 0, jj_max = 50, image_whch_txt_init=-200;
@@ -381,7 +389,8 @@ function set_zoom_all_charts(j, need_tag, po_lp)
 						myDelay();             //  ..  again which will trigger another 
 					} else {
 						console.log("call g_cpu_diagram_draw_svg");
-						g_cpu_diagram_draw_svg([], -1, po_lp);
+						// this call is done later
+						//g_cpu_diagram_draw_svg([], -1, po_lp);
 					}
 				}, 1000);
 			}
@@ -5817,6 +5826,7 @@ async function start_charts() {
 		} else {
 			if (po.by_phase == 1) {
 				[x0, x1, rc] = get_by_phase_beg_end(po.lp);
+				console.log(sprintf("__blob: phs[%d], x0= %.3f, x1= %.3f", po.lp, x0, x1));
 				let ret_obj = draw_svg_header(po.lp, x0, x1, false, g_svg_scale_ratio, false);
 				str = ret_obj.str;
 			} else {
@@ -5859,8 +5869,10 @@ async function start_charts() {
 
 	let jj = 0, jjmax_reset_value = 100, jjmax = jjmax_reset_value;
 	let myDelay_timeout = 5000;
+	let last_draw_svg = -100;
 
-	function myDelay (lkfor_max, po) {           //  create a loop function
+	function myDelay (lkfor_max, po)
+	{           //  create a loop function
 		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
 			jj++;                     //  increment the counter
 			console.log('====jj= '+jj+', charts_done= '+g_charts_done.cntr+", redrw= "+
@@ -5873,7 +5885,10 @@ async function start_charts() {
 			} else if (jj < jjmax && (lkfor_max.typ == "wait_for_zoom_to_phase" && 
 				 (lkfor_max.cntr >= gsync_zoom_redrawn_charts.need_to_redraw && !got_all_OS_view_images(po.lp, image_whch_txt_init)))) {
 					 console.log("by_phase: mxc do draw_svg lp= "+po.lp);
-				g_cpu_diagram_draw_svg([], -1, po.lp);
+				if (po.lp != last_draw_svg) {
+					g_cpu_diagram_draw_svg([], -1, po.lp);
+					last_draw_svg = po.lp;
+				}
 				myDelay(lkfor_max, po);             //  ..  again which will trigger another 
 			} else {
 				if ((lkfor_max.typ == "wait_for_zoom_to_phase" &&
@@ -6056,10 +6071,13 @@ async function start_charts() {
 		if (lkfor_max.typ == "wait_for_zoom_to_phase" && g_cpu_diagram_canvas !== null) {
 			if (po.by_phase == 1) {
 				console.log(sprintf("---- by_phase: lp= %d, lpmax= %d, phs_max= %d", po.lp, po.lp_max, gjson.phase.length));
-				g_cpu_diagram_draw_svg([], -1, po.lp);
+				if (po.lp != last_draw_svg) {
+					g_cpu_diagram_draw_svg([], -1, po.lp);
+					last_draw_svg = po.lp;
+				}
 				send_blob_backend(po, xbeg, "ck_phase0");
 				reset_OS_view_image_ready();
-				myDelay_timeout = 2000;
+				myDelay_timeout = 1000;
 				jj = 0;
 				jjmax = jjmax_reset_value;
 				let old_typ = gsync_zoom_redrawn_charts.typ;
@@ -6115,7 +6133,10 @@ async function start_charts() {
 					}
 				}
 				
-				g_cpu_diagram_draw_svg([], -2, -1);
+				if (-1 != last_draw_svg) {
+					g_cpu_diagram_draw_svg([], -2, -1);
+					last_draw_svg = -1;
+				}
 				send_blob_backend(po, -1.0, "ck_phase1");
 				po.lp = 0;
 			}
@@ -9338,6 +9359,7 @@ function parse_svg()
 		if (typeof g_cpu_diagram_canvas.json_text === 'undefined' || g_cpu_diagram_canvas.json_text === null) {
 			g_cpu_diagram_canvas.json_text = '{"txt":[';
 		}
+		console.log(sprintf("__svg_txt wcht_txt= %d, subtst= %d", whch_txt, subtst));
 		if (whch_txt == 0 || subtst == 0) {
 			g_cpu_diagram_canvas.json_text += "{";
 		} else {
