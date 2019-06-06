@@ -61,92 +61,163 @@ fontb = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/pr
 def gety(row):
     row[1] = row[1] + row[2]
     row[0] += 1
-    print("row= %d" % (row[0]))
+    #print("row= %d" % (row[0]))
     return row[1]
 
 img = Image.new("RGBA", (szx,szy), (255,255,255))
 draw = ImageDraw.Draw(img)
-#image = Image.open(fileList[0])
-#draw = ImageDraw.Draw(image)
-sz = 60
-row = [0, 10, 60]
+fsz = 60
+sz = fsz + int(yfctr*4)
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+row = [0, 10, fsz]
 offx = 40
 if gb == 1:
-    draw.text((offx, gety(row)), bmark+" - the movie", (0,0,0), font=fontb)
+    txt = bmark+" - the movie, v4"
 else:
-    draw.text((offx, gety(row)), "spin_test - the movie", (0,0,0), font=fontb)
-draw.text((offx, gety(row)), "Created using OPPAT", (0,0,0), font=font)
-draw.text((offx, gety(row)), "Open Power/Performance Analysis Tool", (0,0,0), font=font)
-draw.text((offx, gety(row)), "See https://patinnc.github.io/", (0,0,0), font=font)
+    txt = "spin_test - the movie, v4"
+pg_txt = [
+    txt,
+    "Created using OPPAT",
+    "Open Power/Performance Analysis Tool",
+    "See https://patinnc.github.io/",
+]
+for i in range(0, len(pg_txt)):
+    draw.text((offx, gety(row)), pg_txt[i], (0,0,0), font=font)
+
+pg_txt = [
+    "The power/perf data is from a single run of "+bmarkf+" on a",
+    "4 CPU (2 core) Intel Haswell CPU.",
+    "The OS is 64bit Ubuntu 18.04. Geekbench ver is 4.3.3.",
+    "",
+    "The Operating System (OS) view gives a system view of performance",
+    "as seen from the OS.",
+    "Hovering over an OS_view chart shows the call graph or value.",
+    "Clicking on a chart goes to the underlying chart.",
+    "The OS_view top layer is the application software.",
+    "This layer calls into the OS using the system calls.",
+    "There are some main OS stacks shown by:",
+    "  Virtual File System IO:",
+    "      File system reads/writes, swap IO, block IO and device IO",
+    "  Socket IO:",
+    "      socket operations, TCP oper/sec, UDP oper/sec, device IO",
+    "  Scheduler and Virtual memory:",
+    "      Scheduling per CPU, virtual memory usage, hard/soft page faults",
+    "Below the OS is the hardware including the CPU diagram",
+    "",
+    "Application software is shown using flamegraphs. If you hover over",
+    "The cpu diagram shows resource constraints on Haswell such as",
+    "the max UOPS/cycle (4) from the RAT. OPPAT calculates the current",
+    "resource utilization for each resource and categorizes the usage",
+    "with a simple red/yellow/green light for each core.",
+    "This lets you see whether the system is stalled on memory",
+    "L3, or L2 bandwidth, waiting on buffers, instruction misses, etc.",
+    "",
+    "Data is collected using linux perf stat/record, trace-cmd and",
+    "custom utils. Perf collects data for the 50+ hw events, frace",
+    "and flamegraphs. GB phase, system usage, power, T, disk bw is shown.",
+    "OPPAT can collect/analyze data on:",
+    " Linux/Android - perf, trace-cmd, sysfs, iostat, vmstat, iostat, other",
+    " windows - ETW, PCM, other",
+    "",
+    "This movie shows the values of a bunch of data for each",
+    "Geekbench sub-test. OPPAT tries to show just the non-idle part",
+    "of each sub-test (eliminating the idle period after each sub-test).",
+    "",
+    "On windows the movie is best viewed vertically (ctrl+alt+right_arrow)",
+    "Do ctrl+alt+up_arrow to return to normal mode.",
+    "contact patrick.99.fay@gmail.com",
+    "",
+    "Block diagram courtesy of WikiChip.org",
+]
 fsz = int(yfctr*35)
 sz = fsz + int(yfctr*4)
 font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
 row[1] += 30
 row[2] = sz
-draw.text((offx, gety(row)), "The power/perf data is from a single run of "+bmarkf+" on a", (0,0,0), font=font)
-draw.text((offx, gety(row)), "4 CPU (2 core) Intel Haswell CPU.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "The cpu diagram shows resource constraints on Haswell such as", (0,0,0), font=font)
-draw.text((offx, gety(row)), "the max UOPS/cycle (4) from the RAT. OPPAT calculates the current", (0,0,0), font=font)
-draw.text((offx, gety(row)), "resource utilization for each resource and categorizes the usage", (0,0,0), font=font)
-draw.text((offx, gety(row)), "with a simple red/yellow/green light for each core.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "This lets you see whether the system is stalled on memory", (0,0,0), font=font)
-draw.text((offx, gety(row)), "L3, or L2 bandwidth, waiting on buffers, instruction misses, etc.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "Data is collected using linux perf stat/record, trace-cmd and", (0,0,0), font=font)
-draw.text((offx, gety(row)), "custom utils. Perf collects data for the 50+ hw events, frace", (0,0,0), font=font)
-draw.text((offx, gety(row)), "and flamegraphs. GB phase, system usage, power, T, disk bw is shown.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "OPPAT can collect/analyze data on:", (0,0,0), font=font)
-draw.text((offx, gety(row)), " Linux/Android - perf, trace-cmd, sysfs, other", (0,0,0), font=font)
-draw.text((offx, gety(row)), " windows - ETW, PCM, other", (0,0,0), font=font)
-row[1] += sz
-draw.text((offx, gety(row)), "This movie shows the values of a bunch of data over 0.1 sec", (0,0,0), font=font)
-draw.text((offx, gety(row)), "subintervals during the GB run. GB has sleep intervals and,", (0,0,0), font=font)
-draw.text((offx, gety(row)), "if the system is less than half a cpu busy then the subinterval", (0,0,0), font=font)
-draw.text((offx, gety(row)), "is dropped. The actual data is much higher resolution than 0.1 sec.", (0,0,0), font=font)
-row[1] += sz
-draw.text((offx, gety(row)), "On windows the movie is best viewed vertically (ctrl+alt+right_arrow)", (0,0,0), font=font)
-draw.text((offx, gety(row)), "Do ctrl+alt+up_arrow to return to normal mode.", (0,0,0), font=font)
-draw.text((offx, gety(row)), "contact patrick.99.fay@gmail.com", (0,0,0), font=font)
-row[1] += sz
-draw.text((offx, gety(row)), "Block diagram courtesy of WikiChip.org", (0,0,0), font=font)
+for i in range(0, len(pg_txt)):
+    draw.text((offx, gety(row)), pg_txt[i], (0,0,0), font=font)
+
 print("y last= %d" % (gety(row)))
 draw = ImageDraw.Draw(img)
 img.save("a_test.png")
-#draw = ImageDraw.Draw(image)
-#image.save("a_test.png")
-#sys.exit(0)
 
-#06/30/2015  03:23 PM           175,956 ARIALN.TTF
-#06/30/2015  03:23 PM           180,740 ARIALNB.TTF
-#06/30/2015  03:23 PM           180,084 ARIALNBI.TTF
-#06/30/2015  03:23 PM           181,124 ARIALNI.TTF
-#06/30/2015  03:23 PM        23,275,812 ARIALUNI.TTF
+imgd = Image.open(pdir+"pat_base.png")
+drawd = ImageDraw.Draw(imgd)
+rct_brdr = 5
+y_shift = 0
 
-#imgd = Image.open(pdir+"pat00000.png")
-#drawd = ImageDraw.Draw(imgd)
-#rct_brdr = 10
-#x, y = (10, 50 - fsz)
-#text = "CPU front end: instructions from memory (L2+L3) -> UOPS for execution"
-#w, h = font.getsize(text)
-#drawd.rectangle((xfctr*x, yfctr*y, xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
-#drawd.text((xfctr*(x+rct_brdr), yfctr*y), text, fill='white', font=font)
-#drawd.rectangle([xfctr*x,yfctr*y,xfctr*(szx-10),yfctr*600], width = rct_brdr, outline="#0000ff")
-#
-#x, y = (10, 660 - fsz)
-#text = "CPU execution engine: UOPS+data execute in ports"
-#w, h = font.getsize(text)
-#drawd.rectangle((xfctr*x, yfctr*y, xfctr*(x + w + 2*rct_brdr), yfctr*(y + h)), fill='black')
-#drawd.text((xfctr*(x+rct_brdr), yfctr*y), text, fill='white', font=font)
-#drawd.rectangle([xfctr*x,yfctr*y,xfctr*800,yfctr*(y+500)], width = rct_brdr, outline="#0000ff")
-#
-#x, y = (330, 1100)
-#text = "Data to L1 from memory (L2+L3)"
-#w, h = font.getsize(text)
-#drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
-#drawd.text((x+rct_brdr, y), text, fill='white', font=font)
-#drawd.rectangle([x,y,x+600,y+280], width = rct_brdr, outline="#0000ff")
-#
-#imgd.save('b_test.png')
+x, y = (0, 0)
+text = "Operating System View: App SW->System calls->(Virtual File System, Sockets, Scheduler, Virtual Mem)"
+w, h = font.getsize(text)
+drawd.rectangle((x,       y,    x + w + 2*rct_brdr, (y + h)), fill='black')
+drawd.text((x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,  szx,             780], width = rct_brdr, outline="#0000ff")
 
+fsz = int(yfctr*24)
+sz = fsz + int(yfctr*4)
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+# y = 40 - 150
+x, y = (2*rct_brdr, 40)
+text = "App Software: Flamegraph for each thread. Hover shows callstack. Click goes to underlaying chart"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,        szx-2*rct_brdr, 150], width = rct_brdr, outline="#0000ff")
+
+x, y = (2*rct_brdr, 160)
+text = "App Software calls into System calls: syscalls outstanding, non-blocking & total."
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+drawd.rectangle([x,     y,        szx-2*rct_brdr, 270], width = rct_brdr, outline="#0000ff")
+
+fsz = int(yfctr*22)
+sz = fsz + int(yfctr*4)
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+x, y = (2*rct_brdr, 280)
+text = "Virtual File System"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w+rct_brdr, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+text = "app syscall rd+wr,swap,block,dev IO"
+w2, h2 = font.getsize(text)
+drawd.rectangle((x+rct_brdr,     y+h,    x + w2+rct_brdr, y + h + h2), fill='black')
+drawd.text(     (x+rct_brdr, y+h), text, fill='white', font=font)
+drawd.rectangle([x,     y,        335, 770], width = rct_brdr, outline="#0000ff")
+
+x, y = (340, 280)
+text = "Sockets:"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w+rct_brdr, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+text = "app socket syscalls,TCP,UDP,device"
+w2, h2 = font.getsize(text)
+drawd.rectangle((x+rct_brdr,     y+h,    x + w2+rct_brdr, y + h + h2), fill='black')
+drawd.text(     (x+rct_brdr, y+h), text, fill='white', font=font)
+drawd.rectangle([x,     y,        660, 770], width = rct_brdr, outline="#0000ff")
+
+x, y = (670, 280)
+text = "Scheduler,"
+w, h = font.getsize(text)
+tx_end = szx
+drawd.rectangle((x+rct_brdr,     y,    x + w+rct_brdr, y + h), fill='black')
+drawd.text(     (x+rct_brdr, y), text, fill='white', font=font)
+text = "virtual memory usage and page faults"
+w2, h2 = font.getsize(text)
+drawd.rectangle((x+rct_brdr,     y+h,    x + w2+rct_brdr, y + h + h2), fill='black')
+drawd.text(     (x+rct_brdr, y+h), text, fill='white', font=font)
+drawd.rectangle([x,     y,        szx-2*rct_brdr, 770], width = rct_brdr, outline="#0000ff")
+
+imgd.save('b_test.png')
+
+y_shift = 800
+fsz = int(yfctr*35)
+sz = fsz + int(yfctr*4)
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
 imgd = Image.open(pdir+"pat_base.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
@@ -245,6 +316,96 @@ drawd.rectangle([800,            y_shift+y+h,1030, y_shift+1150], width = rct_br
 
 imgd.save('f_test.png')
 
+row = [0, 10, 60]
+row[1] += 30
+img = Image.new("RGBA", (szx,szy), (255,255,255))
+draw = ImageDraw.Draw(img)
+fsz = int(yfctr*40)
+sz = fsz + int(yfctr*4)
+row[2] = sz
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+pg_txt = [
+"Begin Geekbench phase charts.",
+"Each chart is zoomed to (contains the only the data for) one phase.",
+"To go directly to a particular phase, go to the T=X seconds picture.",
+"For example, to see the Multi-Core SGEMM, go to T= 48 seconds.",
+"",
+"phase: Single-Core AES, 2883, 2.17 GB/sec",
+"phase: Single-Core LZMA, 3047, 4.76 MB/sec",
+"phase: Single-Core JPEG, 3604, 29.0 Mpixels/sec",
+"phase: Single-Core Canny, 3525, 48.9 Mpixels/sec",
+"phase: Single-Core Lua, 3717, 3.82 MB/sec",
+"phase: Single-Core Dijkstra, 3782, 2.56 MTE/sec",
+"phase: Single-Core SQLite, 3790, 105.1 Krows/sec",
+"phase: Single-Core HTML5 Parse, 3799, 17.2 MB/sec",
+"phase: Single-Core HTML5 DOM, 3325, 3.01 MElements/sec",
+"phase: Single-Core Histogram Equalization, 3270, 102.2 Mpixels/sec",
+"phase: Single-Core PDF Rendering, 3828, 101.7 Mpixels/sec",
+"phase: Single-Core LLVM, 6530, 449.0 functions/sec",
+"phase: Single-Core Camera, 3436, 9.53 images/sec",
+"phase: Single-Core SGEMM, 2740, 57.9 Gflops",
+"phase: Single-Core SFFT, 3423, 8.54 Gflops",
+"phase: Single-Core N-Body Physics, 3030, 2.26 Mpairs/sec",
+"phase: Single-Core Ray Tracing, 2614, 381.7 Kpixels/sec",
+"phase: Single-Core Rigid Body Physics, 3198, 9363.4 FPS",
+"phase: Single-Core HDR, 3485, 12.6 Mpixels/sec",
+"phase: Single-Core Gaussian Blur, 3373, 59.1 Mpixels/sec",
+"phase: Single-Core Speech Recognition, 3070, 26.3 Words/sec",
+"phase: Single-Core Face Detection, 3180, 928.9 Ksubwindows/sec",
+"phase: Single-Core Memory Copy, 3437, 9.52 GB/sec",
+"phase: Single-Core Memory Latency, 5382, 80.4 ns",
+"phase: Single-Core Memory Bandwidth, 2751, 14.7 GB/sec",
+"phase: Multi-Core AES, 4898, 3.69 GB/sec",
+"phase: Multi-Core LZMA, 6333, 9.89 MB/sec",
+"phase: Multi-Core JPEG, 7932, 63.8 Mpixels/sec",
+"phase: Multi-Core Canny, 7009, 97.2 Mpixels/sec",
+"phase: Multi-Core Lua, 5967, 6.13 MB/sec",
+"phase: Multi-Core Dijkstra, 9081, 6.14 MTE/sec",
+"phase: Multi-Core SQLite, 6469, 179.4 Krows/sec",
+"phase: Multi-Core HTML5 Parse, 6257, 28.4 MB/sec",
+"phase: Multi-Core HTML5 DOM, 3476, 3.15 MElements/sec",
+"phase: Multi-Core Histogram Equalization, 6614, 206.7 Mpixels/sec",
+"phase: Multi-Core PDF Rendering, 7393, 196.4 Mpixels/sec",
+"phase: Multi-Core LLVM, 12953, 890.6 functions/sec",
+"phase: Multi-Core Camera, 7091, 19.7 images/sec",
+"phase: Multi-Core SGEMM, 4367, 92.3 Gflops",
+"phase: Multi-Core SFFT, 6049, 15.1 Gflops",
+"phase: Multi-Core N-Body Physics, 5696, 4.25 Mpairs/sec",
+"phase: Multi-Core Ray Tracing, 5458, 797.1 Kpixels/sec",
+"phase: Multi-Core Rigid Body Physics, 7369, 21574.1 FPS",
+"phase: Multi-Core HDR, 7569, 27.4 Mpixels/sec",
+"phase: Multi-Core Gaussian Blur, 5618, 98.4 Mpixels/sec",
+"phase: Multi-Core Speech Recognition, 5534, 47.3 Words/sec",
+"phase: Multi-Core Face Detection, 6300, 1.84 Msubwindows/sec",
+"phase: Multi-Core Memory Copy, 4244, 11.8 GB/sec",
+"phase: Multi-Core Memory Latency, 4104, 105.5 ns",
+"phase: Multi-Core Memory Bandwidth, 3229, 17.2 GB/sec",
+]
+beg_num = 10
+fsz = int(yfctr*40)
+sz = fsz + int(yfctr*4)
+row[2] = sz
+row = [0, 0, sz]
+font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+fnt = fontb
+for i in range(0, len(pg_txt)):
+    txt = pg_txt[i]
+    if i == 1:
+        fsz = int(yfctr*33)
+        sz = fsz + int(yfctr*4)
+        row[1] += sz
+        row[2] = sz
+        font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+        fnt = font
+    if i == 3:
+        txt = "For example, to see the Multi-Core SGEMM, go to T= %d seconds." % (beg_num + 38)
+    if i > 4:
+        nm = "T= %.2d " % (i - 5 + beg_num)
+        txt = nm + txt
+    draw.text((offx, gety(row)), txt, (0,0,0), font=fnt)
+draw = ImageDraw.Draw(img)
+img.save("g_test.png")
+
 imgd = Image.open(pdir+"pat00000.png")
 drawd = ImageDraw.Draw(imgd)
 rct_brdr = 10
@@ -252,7 +413,7 @@ x, y = (0, 0 )
 fsz = 50
 sz = fsz + 4
 font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
-text = bmark+" - the movie"
+text = bmark+" - the movie, v4"
 w, h = font.getsize(text)
 x = szx/2 - w/2 - 100
 y = szy/10
@@ -277,7 +438,7 @@ drawd.text((x+rct_brdr, y), text, fill='white', font=font)
 #draw.text((offx, gety(row)), "See https://patinnc.github.io/", (0,0,0), font=font)
 imgd.save('t_test.png')
 
-addList = ("t_test.png", "a_test.png", "c_test.png", "d_test.png", "e_test.png", "f_test.png")
+addList = ("t_test.png", "a_test.png", "b_test.png", "c_test.png", "d_test.png", "e_test.png", "f_test.png", "g_test.png")
 whch = -1
 #for j in range(len(addList)-1, -1, -1):
 #    whch += 1
@@ -302,6 +463,9 @@ if gb == 1:
         #img_dta = imageio.imread('black.png').shape
         #writer.append_data(imageio.imread(im))
         writer.append_data(img_dta)
+    img_dta = imageio.imread("t_test.png")
+    writer.append_data(img_dta)
+    writer.append_data(img_dta)
     writer.close()
     sys.exit(0)
 
