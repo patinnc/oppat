@@ -32,8 +32,8 @@ Here is some example data for running an old version of Geekbench v2.4.2 (32bit 
 - the HTML of the data in the movie...See [Geekbench v2.4.2 on 4 core ARM Cortext A53 with OS_view, CPU diagram](sample_html_files/geekbench_on_ARM_A53_the_movie.html).
 
 Here is some example data for running Geekbench on Haswell CPUs:
--  a video of the changes to Haswell cpu block diagram running Geekbench: [![Geekbench - the movie v3](images/geekbench_the_movie.png)](https://youtu.be/RatUpIGYaAI)
-    - there are some introductory slides to try and explain the cpu_diagram layout and then 1 slide showing the results per each of the 50 subtests
+-  a video of the changes to OS_view and Haswell cpu block diagram running Geekbench: [![Geekbench - the movie v3](images/geekbench_the_movie.png)](https://youtu.be/RatUpIGYaAI)
+    - there are some introductory slides to try and explain the OS_view charts and the cpu_diagram layout, a slide showing at which time (in seconds) each sub-test is showing (so you can go to T= X secs to go directly to that sub-test) and then one slide for each of the 50 subtests
 - an excel file of the data in the movie:  [excel file from geekbench the movie](xls/geekbench_the_movie.xlsx)
 - the HTML of the data in the movie...See [Intel Haswell with CPU diagram 4-CPU chip running Geekbench](sample_html_files/geekbench_the_movie.html).
 
