@@ -10103,6 +10103,7 @@ function parse_svg()
 		let cma = {"t":""};
 
 		cma = {"t":""};
+		let cpu_typ_str = "Haswell";
 		let sys_tbl = [
 			["PCT_BUSY_BY_SYSTEM", "Percent busy system"]
 			,["DISK_BW_BLOCK_RQ", "Disk bandwidth"]
@@ -10127,7 +10128,7 @@ function parse_svg()
 		}
 		let t = "";
 		t += "<table border='1' style='float: left'>";
-		t += "<tr><td>Haswell system metrics</td></tr>";
+		t += "<tr><td>"+cpu_typ_str+" system metrics</td></tr>";
 		t += "<tr><td>Phase (time abs secs)</td><td align='right'>"+sprintf("%.3f", hdr_obj.tm0)+"</td><td align='right'>"+sprintf("%.3f", hdr_obj.tm1)+"</td>";
 		for (let i=0; i < flds_max_sys-2; i++) {
 			t += "<td></td>";
@@ -10141,8 +10142,27 @@ function parse_svg()
 		t += run_tbl(sys_tbl, txt_tbl, lkup, flds_max_sys, 2, cma, true);
 
 		t += "</table>";
+		let OS_view_hash = {};
+		let OS_view_tbl = [];
+		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].save_image_nm === 'undefined') {
+				// if save_image_nm not found then this chart can't be used in the OS_view charts
+				continue;
+			}
+			let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart;
+			if (ct in OS_view_hash) {
+				continue;
+			}
+			OS_view_hash[ct] = j;
+			OS_view_tbl.push([ct, j, "desc: "+ct]);
+		}
+
 		t += "<table border='1' style='float: left'>";
-		t += "<tr><td>Haswell CPU diagram metrics</td>";
+		t += "<tr><td>"+cpu_typ_str+" OS view metrics</td></tr>";
+		t += run_OS_view_tbl(OS_view_tbl);
+		t += "</table>";
+		t += "<table border='1' style='float: left'>";
+		t += "<tr><td>"+cpu_typ_str+" CPU diagram metrics</td>";
 		for (let i=0; i < flds_max; i++) {
 			t += "<td title='Value of the computed metric for core or system'>core"+i+" val</td>";
 		}
