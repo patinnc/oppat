@@ -69,6 +69,28 @@ struct run_ena_str {
 static std::vector <run_ena_str> vec_run_ena_tm;
 static std::vector <uint64_t> vec_prev_val_by_id;
 
+struct evt_nms_str {
+	std::string str;
+	size_t last_pos, last_pos2;
+	int count, len, ext_strs;
+};
+
+static int find_evt_in_line(int i, std::vector <evt_nms_str> &nms, std::string &line, size_t ln_len, std::string &extra_str)
+{
+	if (nms[i].last_pos != std::string::npos && (nms[i].last_pos+nms[i].len) <= ln_len) {
+		if (line.substr(nms[i].last_pos, nms[i].len) == nms[i].str) {
+			size_t pos = nms[i].last_pos;
+			if (nms[i].last_pos2 != std::string::npos) {
+				size_t pos2 = nms[i].last_pos2;
+				nms[i].ext_strs++;
+				extra_str = line.substr(pos + nms[i].len + pos2);
+			}
+			nms[i].count++;
+			return i;
+		}
+	}
+	return -1;
+}
 int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int verbose, std::vector <evt_str> &evt_tbl2)
 {
 	std::ifstream file;
@@ -79,12 +101,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	std::vector <evts_derived_str> evts_derived;
  	std::vector <prf_samples_str> samples;
 
-	struct nms_str {
-		std::string str;
-		int count, len, ext_strs;
-	};
-
-	std::vector <nms_str> nms;
+	std::vector <evt_nms_str> nms;
 	prf_obj.tm_beg = 1.0e-9 * (double)prf_obj.samples[0].ts;
 	prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
 	std::vector <std::string> cpu_strs;
@@ -95,9 +112,11 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		cpu_strs.push_back(std::string(cstr));
 	}
 	for (uint32_t i=0; i < prf_obj.features_event_desc.size(); i++) {
-		struct nms_str ns;
+		struct evt_nms_str ns;
 		ns.str = " " + prf_obj.features_event_desc[i].event_string + ": ";
 		ns.count = 0;
+		ns.last_pos = std::string::npos;
+		ns.last_pos2 = std::string::npos;
 		ns.ext_strs = 0;
 		ns.len = ns.str.size();
 		nms.push_back(ns);
@@ -115,8 +134,12 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		exit(1);
 	}
 	double tm_lua = 0, tm_lua_iters=0;
+	double tm_pt0=0.0, tm_pt1=0.0;
 	int64_t line_num = 0;
 	std::string unknown_mod;
+	std::string extra_str;
+	int last_evt_mtch = -1;
+	bool use_last_pos = true;
 	while(!file.eof()) {
 		//read data from file
 		std::getline (file, line);
@@ -125,6 +148,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		if (sz > 0 && line[0] == '#') {
 			lines_comments++;
 		} else if (sz > 0 && line[0] == '\t') {
+			double tma = dclock();
 			lines_callstack++;
 			size_t pos = line.find_first_not_of(" \t");
 			if (pos != std::string::npos) {
@@ -169,30 +193,71 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					//printf("cs rtn= %s, mod= %s\n", rtn.c_str(), module.c_str());
 				}
 			}
+			double tmb = dclock();
+			tm_pt0 += tmb - tma;
 		} else if (sz == 0 ) {
 			lines_null++;
 		} else {
+			double tma = dclock();
 			lines_samples++;
+			size_t ln_len = line.length();
 			store_callstack_idx = -1;
 			samples_count++;
 			unknown_mod = "";
 			int evt = -1;
-			std::string extra_str;
+			extra_str = "";
 			size_t pos = std::string::npos, pos2 = std::string::npos;
-			for (uint32_t i=0; i < nms.size(); i++) {
-				pos = line.find(nms[i].str);
-				if (pos != std::string::npos) {
-					//printf("got evt= %s, extr_str= %s at %s %d\n", nms[i].str.c_str(), extra_str.c_str(), __FILE__, __LINE__);
-					pos2 = line.substr(pos + nms[i].len).find_first_not_of(' ');
-					if (pos2 != std::string::npos) {
-						nms[i].ext_strs++;
-						extra_str = line.substr(pos + nms[i].len + pos2);
+			// this is an optimization. If the event strings are in the same position then
+			// we can skip. For example, with perf event groups, all the events (it seems) are
+			// always in the same position. 
+			if (use_last_pos) {
+				// this is another optimization. For the prf files with say 60 events (10 event groups of 6 events each)
+				// then the events within a group are printed in order. so rather than search through the entire list
+				// we'll first check if we have 'the next event in the list'.
+				uint32_t itry = last_evt_mtch + 1;
+				if (itry >= nms.size()) {
+					itry = 0;
+				}
+				evt = find_evt_in_line(itry, nms, line, ln_len, extra_str);
+				if (evt != -1) {
+					last_evt_mtch = evt;
+				} else {
+					for (uint32_t i=0; i < nms.size(); i++) {
+						evt = find_evt_in_line(i, nms, line, ln_len, extra_str);
+						if (evt != -1) {
+							last_evt_mtch = evt;
+							break;
+						}
 					}
-					nms[i].count++;
-					evt = i;
-					break;
 				}
 			}
+			if (evt == -1) {
+				// so might do the search twice if pos of evt str changes but, if we've tried
+				// using last_pos once and got back here (because we didn't get a last_pos match)
+				// then we'll turn off using last_pos
+				for (uint32_t i=0; i < nms.size(); i++) {
+					pos = line.find(nms[i].str);
+					if (pos != std::string::npos) {
+						if (nms[i].last_pos != std::string::npos && use_last_pos) {
+							// so we tried using last pos and pos is changing so don't use last pos anymore
+							use_last_pos = false;
+						}
+						nms[i].last_pos = pos;
+						//printf("got evt= %s, extr_str= %s at %s %d\n", nms[i].str.c_str(), extra_str.c_str(), __FILE__, __LINE__);
+						pos2 = line.substr(pos + nms[i].len).find_first_not_of(' ');
+						if (pos2 != std::string::npos) {
+							nms[i].last_pos2 = pos2;
+							nms[i].ext_strs++;
+							extra_str = line.substr(pos + nms[i].len + pos2);
+						}
+						nms[i].count++;
+						evt = i;
+						break;
+					}
+				}
+			}
+			double tmb = dclock();
+			tm_pt1 += tmb - tma;
 			if (evt == -1) {
 				printf("missed event lookup for line= %s at %s %d\n",
 					line.c_str(), __FILE__, __LINE__);
@@ -334,7 +399,8 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	}
 	file.close();
 	if (tm_lua > 0.0) {
-		fprintf(stderr, "prf_parse_text tm_lua= %f iters= %.0f at %s %d\n", tm_lua, tm_lua_iters, __FILE__, __LINE__);
+		fprintf(stderr, "prf_parse_text tm_lua= %f iters= %.0f pt0= %.3f, pt1= %.3f at %s %d\n",
+				tm_lua, tm_lua_iters, tm_pt0, tm_pt1, __FILE__, __LINE__);
 	}
 	if (evts_derived.size() > 0 && samples.size() > 0) {
 		double tm_cpy_beg = dclock();
