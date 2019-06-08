@@ -3670,6 +3670,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	std::vector <int> state_prev_cpu_initd;
 	double ts_0, ts_end;
 	double dura=0.0;
+	int added_evts= 0;
 
 	//run_heapchk("top of fill_data_table:", __FILE__, __LINE__, 1);
 	ts_0   = prf_obj.tm_beg;
@@ -3861,12 +3862,17 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	bool use_value = true;
 	std::vector <bool> did_actions_already;
 	did_actions_already.resize(fsz);
-	uint32_t drop_by_one_after_idx = UINT32_M1;
+
+	std::string comm, comm2, fl_evt;
 	for (uint32_t i=0; i < samples_sz; i++) {
+		if (prf_obj.file_type != FILE_TYP_ETW) {
+			if (prf_obj.samples[i].evt_idx != prf_idx) {
+				continue;
+			}
+		}
 		int cpt_idx, cpt_idx2, prf_evt_idx, fe_idx, cpu;
 		uint32_t pid, tid, pid2, tid2;
 		double ts;
-		std::string comm, comm2, fl_evt;
 
 		cpt_idx = cpt_idx2 = prf_evt_idx = fe_idx = cpu = -1;
 		ts = dura = 0.0;
@@ -3902,9 +3908,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			flnm_evt_vec[file_tag_idx][fe_idx].total++;
 			if (prf_obj.samples[i].callstack.size() > 0) {
 				flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
-			}
-			if (prf_obj.samples[i].evt_idx != prf_idx) {
-				continue;
 			}
 			ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
 			cpu = (int)prf_obj.samples[i].cpu;
@@ -4146,10 +4149,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			if (flg & (uint64_t)fte_enum::FLD_TYP_NEW_VAL) {
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
-				if (flg & (uint64_t)fte_enum::FLD_TYP_DROP_BY_ONE_AFTER) {
-					drop_by_one_after_idx = j;
-					//printf("got drop_by_one_after_idx at %s %d\n", __FILE__, __LINE__);
-				}
 				std::string nd_lkup = event_table.flds[j].lkup;
 				int got_it = -1;
 				for (uint32_t kk=0; kk < prf_obj.events[prf_evt_idx2].new_cols.size(); kk++) {
@@ -4683,26 +4682,12 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			//printf("bot of fill_data_table: got duration= %f, ts= %f at %s %d\n", dura, ts, __FILE__, __LINE__);
 			event_table.data.ts.push_back(tss);
 			event_table.data.vals.push_back(dv);
+			added_evts++;
 			event_table.data.cpt_idx[0].push_back(cpt_idx);
 			if (event_table.data.cpt_idx.size() == 2) {
 				event_table.data.cpt_idx[1].push_back(cpt_idx2);
 			}
 			event_table.data.prf_sample_idx.push_back(i);
-			if (drop_by_one_after_idx != UINT32_M1) {
-				tss.ts += 1.0e-9;
-				tss.duration = 1.0e-9;
-				event_table.data.ts.push_back(tss);
-				if (dv[drop_by_one_after_idx] > 0.0) {
-					dv[drop_by_one_after_idx]--;
-					//printf("dropped by 1, new_val= %f at %s %d\n", dv[drop_by_one_after_idx], __FILE__, __LINE__);
-				}
-				event_table.data.vals.push_back(dv);
-				event_table.data.cpt_idx[0].push_back(cpt_idx);
-				if (event_table.data.cpt_idx.size() == 2) {
-					event_table.data.cpt_idx[1].push_back(cpt_idx2);
-				}
-				event_table.data.prf_sample_idx.push_back(i);
-			}
 		}
 		//if (cpu >= 0) 
 		if (cpu >= 0 && ts != ts_cpu[cpu]) {
@@ -4717,7 +4702,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			evt_idx, (int)event_table.data.vals.size());
 	}
 	fflush(NULL);
-	return 0;
+	return added_evts;
 }
 
 
@@ -5990,6 +5975,11 @@ int main(int argc, char **argv)
 			}
 			printf("read_perf_event_list_dump(file_list[%d]) at %s %d\n", file_tag_idx, __FILE__, __LINE__);
 		}
+		if (file_list[i].use_line != "y") {
+			printf("skipping file_list line[%d] due to use:%s in at %s %d\n",
+					i, file_list[i].use_line.c_str(), __FILE__, __LINE__);
+			continue;
+		}
 		if (file_tag_idx_prev != file_tag_idx) {
 			file_tag_idx_prev = file_tag_idx;
 			use_i = i;
@@ -6063,6 +6053,7 @@ int main(int argc, char **argv)
 
 	fprintf(stderr, "before fill_data_table: grp_list.size()= %d elap_tm= %.3f at %s %d\n",
 			(int)grp_list.size(), dclock() - tm_beg, __FILE__, __LINE__);
+
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t k=0; k < file_list.size(); k++) {
 			if (verbose)
@@ -6134,14 +6125,24 @@ int main(int argc, char **argv)
 						flnm_evt_vec[file_tag_idx][fe_idx].evt_tbl_evt_idx = i;
 						event_table[grp_list[g]][i].event_idx_in_file = j;
 						event_table[grp_list[g]][i].prf_obj_idx = k;
-						if (verbose)
-							printf("file_grp= %d, match prf_feat[%d] and event_table[%d][%d] %s\n",
+						double tm0= 0.0, tm1=0.0;
+						tm0 = dclock();
+						if (verbose) {
+							fprintf(stdout, "file_grp= %d, match prf_feat[%d] and event_table[%d][%d] %s\n",
 								k, j, grp_list[g], i, event_table[grp_list[g]][i].event_name.c_str());
-						fill_data_table(j, i, k, prf_obj[k], event_table[grp_list[g]][i], file_list[file_list_1st[k]], verbose);
-						if (verbose)
+						}
+						int added_evts = fill_data_table(j, i, k, prf_obj[k], event_table[grp_list[g]][i], file_list[file_list_1st[k]], verbose);
+						if (verbose) {
 							printf("after fill_data_table: evt= %s, event_table[%d][%d].data.vals.size()= %d at %s %d\n",
 								event_table[grp_list[g]][i].event_name.c_str(),
 								grp_list[g], i, (int)event_table[grp_list[g]][i].data.vals.size(), __FILE__, __LINE__);
+						}
+						if (verbose) {
+							tm1 = dclock();
+							std::string ch_ttl = file_list[file_list_1st[k]].file_tag + " " + event_table[grp_list[g]][i].charts[0].title;
+							fprintf(stderr, "fill_data_table: j= %d, i= %d, k= %d, grp_lst= %d evt= %s, added= %d, tm= %.3f ttl0= %s at %s %d\n", 
+								j, i, k, grp_list[g], evt_nm.c_str(), added_evts, tm1-tm0, ch_ttl.c_str(), __FILE__, __LINE__);
+						}
 					}
 				}
 				if (get_signal() == 1) {
