@@ -183,7 +183,6 @@ enum class fte_enum : const uint64_t {
 	FLD_TYP_NEW_VAL       = (1ULL << 30),
 	FLD_TYP_ADD_2_EXTRA   = (1ULL << 31),
 	FLD_TYP_TM_RUN        = (1ULL << 32),
-	FLD_TYP_DROP_BY_ONE_AFTER = (1ULL << 33),
 };
 
 enum {
@@ -216,12 +215,12 @@ struct tp_event_str {
 };
 
 struct file_list_str {
-	std::string file_bin, file_txt, wait_txt, file_tag, lua_file, lua_rtn, perf_event_list_dump, path, options;
+	std::string file_bin, file_txt, wait_txt, file_tag, lua_file, lua_rtn, perf_event_list_dump, path, options, use_line;
 	std::vector <lst_ft_fmt_str> lst_ft_fmt_vec;
 	std::vector <tp_event_str> tp_events;
 	std::unordered_map<int, int> tp_id_2_event_indxp1;
 	int typ, grp, idx;
-	file_list_str(): typ(-1), grp(-1), idx(-1) {}
+	file_list_str(): typ(-1), grp(-1), idx(-1), use_line("y") {}
 };
 
 #pragma once

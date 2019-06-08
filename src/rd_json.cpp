@@ -804,12 +804,6 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				fs.mk_proc_from_comm_tid_flds.tid  = mk_proc_from_comm_tid_flds_2;
 				fs.lkup  = lkup;
 				fs.flags = lkup_flags;
-				if (lkup_typ.find("TYP_DROP_BY_ONE_AFTER") != std::string::npos) {
-					printf("drop_by_one_after str = %s at %s %d\n", lkup_typ.c_str(), __FILE__, __LINE__);
-				}
-				if (lkup_flags & (uint64_t)fte_enum::FLD_TYP_DROP_BY_ONE_AFTER) {
-					printf("drop_by_one_after fld = 0x%" PRIx64 " at %s %d\n", lkup_flags, __FILE__, __LINE__);
-				}
 				event_table.back().flds.push_back(fs);
 			}
 			if (!got_diff_ts_stuff && got_lag_2nd_by_var) {
@@ -1176,8 +1170,6 @@ static void bld_fld_typ(void)
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_NEW_VAL,       "TYP_NEW_VAL"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_ADD_2_EXTRA,   "TYP_ADD_2_EXTRA"});
 	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_TM_RUN,        "TYP_TM_RUN"});
-	fld_typ_strs.push_back({(uint64_t)fte_enum::FLD_TYP_DROP_BY_ONE_AFTER, "TYP_DROP_BY_ONE_AFTER"});
-	printf("drop_by_one_after fld = 0x%" PRIx64 " at %s %d\n", fld_typ_strs.back().flag, __FILE__, __LINE__);
 }
 
 std::string rd_json(std::string flnm)
@@ -1299,7 +1291,7 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 			printf("cur_dir= '%s' at %s %d\n", cur_dir.c_str(), __FILE__, __LINE__);
 			continue;
 		} catch (...) { }
-		std::vector <std::string> flds= {"bin_file", "txt_file", "wait_file", "type", "tag", "lua_file", "lua_rtn", "options"};
+		std::vector <std::string> flds= {"bin_file", "txt_file", "wait_file", "type", "tag", "lua_file", "lua_rtn", "options", "use"};
 		std::vector <std::string> vals;
 		uint32_t file_typ = UINT32_M1;
 		vals.resize(flds.size());
@@ -1360,6 +1352,15 @@ int parse_file_list_json(std::string json_file, std::string str, std::vector <fi
 		}
 		if (vals[7].size() > 0) {
 			fls.options   = vals[7];
+		}
+		if (vals[8].size() > 0) {
+			int got = ck_y_or_n(vals[8]);
+			if (got == -1) {
+				fprintf(stderr, "got \"use\":\"%s\". value must be \"y\" or \"n\". Error in file %s. Bye at %s %d\n",
+						vals[8].c_str(), json_file.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			fls.use_line  = vals[8];
 		}
 		if (use_file_tag.size() > 0) {
 			for (uint32_t ft=0; ft < use_file_tag.size(); ft++) {
