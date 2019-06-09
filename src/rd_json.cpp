@@ -159,12 +159,14 @@ static int32_t ck_pixels_high(std::string json_file, std::string chart, std::str
 	return pxls_high;
 }
 
-int ck_json(std::string str, std::string from_where, const char *file, int line, int verbose)
+int ck_json(std::string &str, std::string from_where, const char *file, int line, int verbose)
 {
 	uint32_t sz = (int)str.size();
 	bool use_charts_default = true;
 	bool worked=false;
 
+	bool ok = json::accept(str); // just validates?
+	if (!ok) {
 	json j;
 	try {
 		j = json::parse(str);
@@ -184,6 +186,7 @@ int ck_json(std::string str, std::string from_where, const char *file, int line,
 		prt_line(sz);
 
 		exit(1);
+	}
 	}
 	return 0;
 }
@@ -476,7 +479,17 @@ int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbo
 	return sz;
 }
 
-uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string json_file, std::string str,
+struct j_obj_str {
+	std::string json_file;
+	size_t json_str_len;
+	json j_obj;
+	json j_obj2;
+	bool did_incl;
+	j_obj_str(): did_incl(false), json_str_len(0) {}
+};
+static std::vector <j_obj_str> j_obj_vec;
+
+uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string json_file, std::string &str,
 	std::vector <evt_str> &event_table,  std::string features_cpuid, int verbose)
 {
 	if (verbose > 1)
@@ -493,19 +506,41 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 		fprintf(stderr, "do_json: enter either want_evt_num or lkfor_event_name. Bye at %s %d\n", __FILE__, __LINE__);
 		exit(1);
 	}
-	json j;
-	try {
-		j = json::parse(str);
-		worked=true;
-	} catch (json::parse_error& e) {
-		std::cout << "message: " << e.what() << '\n' << "exception id: " << e.id << '\n' << "byte position of error: " << e.byte << std::endl;
+	// saving off the parsed json file is an optimization.
+	// Just parse the json once per file_name & input string len combo
+	size_t jlen = str.size();
+	uint32_t use_j_obj = UINT32_M1;
+	for (uint32_t i=0; i < j_obj_vec.size(); i++) {
+		if (j_obj_vec[i].json_file == json_file &&
+			j_obj_vec[i].json_str_len == jlen) {
+			use_j_obj = i;
+			break;
+		}
 	}
-	if (!worked) {
-		printf("parse of json data file= %s failed. bye at %s %d\n", json_file.c_str(), __FILE__, __LINE__);
-		printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
-		prt_line(sz);
-
-		exit(1);
+	if (use_j_obj == UINT32_M1) {
+		struct j_obj_str jos;
+		try {
+			jos.j_obj = json::parse(str);
+			worked=true;
+		} catch (json::parse_error& e) {
+			std::cout << "message: " << e.what() << '\n' << "exception id: " << e.id << '\n' << "byte position of error: " << e.byte << std::endl;
+		}
+		if (!worked) {
+			printf("parse of json data file= %s failed. bye at %s %d\n", json_file.c_str(), __FILE__, __LINE__);
+			printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
+			prt_line(sz);
+			exit(1);
+		}
+		jos.json_file = json_file;
+		jos.json_str_len = jlen;
+		use_j_obj = j_obj_vec.size();
+		j_obj_vec.push_back(jos);
+	}
+	json j;
+	if (!j_obj_vec[use_j_obj].did_incl) {
+		j = j_obj_vec[use_j_obj].j_obj;
+	} else {
+		j = j_obj_vec[use_j_obj].j_obj2;
 	}
 	int32_t pixels_high_min = 100;
 	int32_t pixels_high_max = 1500;
@@ -536,8 +571,14 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			use_charts_default = false;
 		}
 	} catch (...) { };
-	do_macro_event_array(j, verbose);
-	do_include_event_array(j, verbose);
+	if (!j_obj_vec[use_j_obj].did_incl) {
+		do_macro_event_array(j, verbose);
+		do_include_event_array(j, verbose);
+		j_obj_vec[use_j_obj].j_obj2 = j;
+		j_obj_vec[use_j_obj].did_incl = true;
+	} else {
+		//j = j_obj_vec[use_j_obj].j_obj2;
+	}
 	sz = j["event_array"].size();
 	if (verbose)
 		printf("event_array.sz= %d at %s %d\n", sz, __FILE__, __LINE__);
