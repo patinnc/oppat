@@ -242,13 +242,13 @@ EXTERN_STR std::vector <chart_cat_str> chart_category;
 EXTERN_STR int read_file_list_json(std::string flnm, std::vector <file_list_str> &file_list, std::vector <std::string> use_file_tag,
 	int read_file_mode, std::string root_data_dir, int verbose);
 EXTERN_STR std::string rd_json(std::string flnm);
-EXTERN_STR uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_nm, std::string json_file, std::string str,
+EXTERN_STR uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_nm, std::string json_file, std::string &str,
 	std::vector <evt_str> &event_table,  std::string features_cpuid, int verbose);
 EXTERN_STR int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose);
 EXTERN_STR std::unordered_map<std::string, uint32_t> ETW_events_to_skip_hash;
 EXTERN_STR std::vector <std::string> ETW_events_to_skip_vec;
 
 EXTERN_STR uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str);
-EXTERN_STR int ck_json(std::string str, std::string from_where, const char *file, int line, int verbose);
+EXTERN_STR int ck_json(std::string &str, std::string from_where, const char *file, int line, int verbose);
 
 
