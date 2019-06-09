@@ -145,6 +145,7 @@ struct evts_derived_str {
 	std::vector <std::string> evts_tags;
 	std::vector <std::string> new_cols;
 	std::vector <std::string> new_vals;
+	std::vector <double> new_dvals;
 };
 
 struct prf_samples_str {
@@ -153,6 +154,7 @@ struct prf_samples_str {
 	int fe_idx, orig_order, line_num;
 	long mm_off;
 	uint64_t ts, period, tm_run;
+	std::vector <double> new_dvals;
 	std::vector <std::string> args, new_vals;
 	std::vector <prf_callstack_str> callstack;
 	prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), fe_idx(-1),
