@@ -3236,12 +3236,15 @@ static std::string drop_trailing_zeroes(std::string str)
 	return nstr;
 }
 
-static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_t evt_idx,
-		uint32_t chrt, std::vector <evt_str> event_table, int verbose)
+static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_t evt_idx,
+		uint32_t chrt, std::vector <evt_str> &event_table, std::string &json, int verbose)
 {
+	double tt0, tt1, tt2, tt3;
+	tt0 = dclock();
 	int var_idx = (int)event_table[evt_idx].charts[chrt].var_idx;
-	// main.js looks for '{ "title":' so be careful changing this string
-	std::string json = "{ ";
+	// main.js looks for '\{ "title":' so be careful changing this string
+	//std::string json = "{ ";
+	json = "{ ";
 	json += "\"title\": \"" + event_table[evt_idx].charts[chrt].title + "\"";
 	if (event_table[evt_idx].charts[chrt].options != 0) {
 		json += ", \"chart_options\":[";
@@ -3412,6 +3415,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	if (event_table[evt_idx].charts[chrt].chart_tag == "SYSCALL_TIME_CHART") {
 		ovr_totals.resize(by_sz, 0.0);
 	}
+	tt1 = dclock();
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
 		if (i > 0) { ch_lines_line_str += ", "; }
 		// order of ival array values must agree with IVAL_* variables in main.js
@@ -3479,6 +3483,7 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 		}
 		ch_lines_line_str += cs_txt + "}";
 	}
+	tt2 = dclock();
 	ch_lines_line_str += "]";
 #if 1
 	if (event_table[evt_idx].charts[chrt].chart_tag == "VMSTAT_MEM_cHART") {
@@ -3622,8 +3627,12 @@ static std::string build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx,
 	if (options.show_json > 0) {
 		printf("did build_chart_json(): '%s'\n", json.c_str());
 	}
+	tt3 = dclock();
+	if (verbose)
+		fprintf(stderr, "tt1= %.3f, tt2= %.3f, tt3= %.3f tot= %.3f at %s %d\n",
+			tt1-tt0, tt2-tt1, tt3-tt2, tt3-tt0, __FILE__, __LINE__);
 
-	return json;
+	return 0;
 }
 
 
@@ -4168,7 +4177,12 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					exit(1);
 				}
 				if ((flg & (uint64_t)fte_enum::FLD_TYP_DBL) ||(flg & (uint64_t)fte_enum::FLD_TYP_INT)) {
-					double val = atof(prf_obj.samples[i].new_vals[got_it].c_str());
+					double val;
+					if (prf_obj.samples[i].new_dvals.size() > got_it) {
+						val = prf_obj.samples[i].new_dvals[got_it];
+					} else {
+						val = atof(prf_obj.samples[i].new_vals[got_it].c_str());
+					}
 					if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF) {
 						//printf("NEW_VAL duration val= %f, ts= %f at %s %d\n", val, ts, __FILE__, __LINE__);
 						dura_idx = j;
@@ -6054,6 +6068,8 @@ int main(int argc, char **argv)
 	fprintf(stderr, "before fill_data_table: grp_list.size()= %d elap_tm= %.3f at %s %d\n",
 			(int)grp_list.size(), dclock() - tm_beg, __FILE__, __LINE__);
 
+	double tmc = 0.0;
+	double tmc2 = 0.0;
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t k=0; k < file_list.size(); k++) {
 			if (verbose)
@@ -6063,6 +6079,7 @@ int main(int argc, char **argv)
 				continue;
 			}
 			std::string evt_nm, evt_area;
+			double tt0a = dclock();
 			for (uint32_t j=0; j < prf_obj[k].events.size(); j++) {
 				if (prf_obj[k].file_type == FILE_TYP_ETW) {
 					evt_nm = prf_obj[k].events[j].event_name;
@@ -6104,6 +6121,8 @@ int main(int argc, char **argv)
 					exit(1);
 				}
 			}
+			double tt1a = dclock();
+			tmc2 += tt1a - tt0a;
 			for (uint32_t j=0; j < prf_obj[k].events.size(); j++) {
 				uint32_t file_tag_idx = prf_obj[k].file_tag_idx;
 				if (file_tag_idx == UINT32_M1) {
@@ -6137,11 +6156,13 @@ int main(int argc, char **argv)
 								event_table[grp_list[g]][i].event_name.c_str(),
 								grp_list[g], i, (int)event_table[grp_list[g]][i].data.vals.size(), __FILE__, __LINE__);
 						}
+						tm1 = dclock();
+						tmc += tm1-tm0;
 						if (verbose) {
-							tm1 = dclock();
-							std::string ch_ttl = file_list[file_list_1st[k]].file_tag + " " + event_table[grp_list[g]][i].charts[0].title;
-							fprintf(stderr, "fill_data_table: j= %d, i= %d, k= %d, grp_lst= %d evt= %s, added= %d, tm= %.3f ttl0= %s at %s %d\n", 
-								j, i, k, grp_list[g], evt_nm.c_str(), added_evts, tm1-tm0, ch_ttl.c_str(), __FILE__, __LINE__);
+							//std::string ch_ttl = file_list[file_list_1st[k]].file_tag + " " + event_table[grp_list[g]][i].charts[0].title;
+							std::string ch_ttl = event_table[grp_list[g]][i].charts[0].title;
+							fprintf(stderr, "fill_data_table: j= %d, i= %d, k= %d, grp_lst= %d, added= %d, tm= %.3f tot= %.3f evt= %s, ttl0= %s at %s %d\n", 
+								j, i, k, grp_list[g], added_evts, tm1-tm0, tmc, evt_nm.c_str(), ch_ttl.c_str(), __FILE__, __LINE__);
 						}
 					}
 				}
@@ -6152,6 +6173,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	fprintf(stderr, "fill_data_table: after, loop part1= %.3f, tm_elap= %.3f at %s %d\n", tmc2, dclock()-tm_beg, __FILE__, __LINE__);
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t k=0; k < file_list.size(); k++) {
 			if (file_list[k].grp != grp_list[g]) {
@@ -6249,7 +6271,7 @@ int main(int argc, char **argv)
 #endif
 						tt1 = dclock();
 						if (rc == 0) {
-							this_chart_json = build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], verbose);
+							build_shapes_json(file_list[k].file_tag, grp_list[g], i, j, event_table[grp_list[g]], this_chart_json, verbose);
 							chrts_json.push_back(this_chart_json);
 							if (event_table[grp_list[g]][i].charts[j].chart_tag == "PHASE_CHART") {
 								printf("for chart_tag= %s, json_str= %s at %s %d\n", 
@@ -6506,7 +6528,8 @@ int main(int argc, char **argv)
 #endif
 	}
 	fflush(NULL);
-	fprintf(stderr, "callstack_vec num_strings= %d, sum of strings len= %d\n", (int)callstack_vec.size(), (int)callstack_vec_len);
+	fprintf(stderr, "callstack_vec num_strings= %d, sum of strings len= %d tm_elap= %.3f\n",
+			(int)callstack_vec.size(), (int)callstack_vec_len, dclock()-tm_beg);
 	fprintf(stderr, "charts_json.size()= %d, sz= %f MBs at %s %d\n", (int)chrts_json.size(), (double)(1.0e-6*(double)chrts_json.size()), __FILE__, __LINE__);
 	fprintf(stderr, "str_pool.size()= %d, sz= %f MBs at %s %d\n", (int)bin_map.size(), (double)(1.0e-6*(double)bin_map.size()), __FILE__, __LINE__);
 	printf("time to read files and send it= %f secs at %s %d\n", tm_end - tm_beg, __FILE__, __LINE__);
@@ -6531,6 +6554,7 @@ int main(int argc, char **argv)
 	}
 
 
+	fprintf(stderr, "before ck_json: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
 	ck_json(bin_map, "check for valid json in str_pool", __FILE__, __LINE__, options.verbose);
 	ck_json(chrts_cats, "check for valid json in chrts_cats", __FILE__, __LINE__, options.verbose);
 	for (uint32_t i=0; i < chrts_json.size(); i++) {
