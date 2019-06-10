@@ -1471,6 +1471,7 @@ static void gen_div_ck_idx(uint32_t idx, std::string col, std::string evt_nm, in
 static double syscall_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i,
 		std::vector <evts_derived_str> &evts_derived, uint32_t j, uint32_t k,
 		std::vector <std::string> &new_vals,
+		std::vector <double> &new_dvals,
 		uint32_t &emit_var, int verbose, std::string lua_rtn)
 {
 	//abcd
@@ -1544,7 +1545,7 @@ static double syscall_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i
 	if (pos == std::string::npos) {
 		return 0;
 	}
-	std::string key = std::to_string(tid) + " " + comm + " " + evt_sml;
+	std::string key = std::to_string(tid) + " " + evt_sml + " " + comm;
 	uint32_t hsh_p1 = hash_string(evts_derived[j].gen_div.hsh_str, evts_derived[j].gen_div.vec_str, key);
 	if (hsh_p1 > evts_derived[j].gen_div.det.size()) {
 		evts_derived[j].gen_div.det.resize(hsh_p1);
@@ -1590,17 +1591,18 @@ static double syscall_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i
 			emit_var = 1;
 			if (is_rdwr) {
 				if (ts_diff > 0.0) {
-					new_vals[evts_derived[j].gen_div.col_val_idx] = std::to_string(dval/ts_diff);
+					//new_vals[evts_derived[j].gen_div.col_val_idx] = std::to_string(dval/ts_diff);
+					new_dvals[evts_derived[j].gen_div.col_val_idx] = (double)(dval/ts_diff);
 				} else {
-					new_vals[evts_derived[j].gen_div.col_val_idx] = "0.0";
+					new_dvals[evts_derived[j].gen_div.col_val_idx] = (double)0.0;
 				}
 			}
-			new_vals[evts_derived[j].gen_div.col_emt_idx]  = "1";
-			new_vals[evts_derived[j].gen_div.col_dur_idx]  = std::to_string(ts_diff);
-			new_vals[evts_derived[j].gen_div.col_area_idx] = evt_sml;
-			new_vals[evts_derived[j].gen_div.col_num_idx]  = std::to_string(dval);
+			new_dvals[ evts_derived[j].gen_div.col_emt_idx]  = (double)1;
+			new_dvals[evts_derived[j].gen_div.col_dur_idx]  = (double)ts_diff;
+			new_vals[ evts_derived[j].gen_div.col_area_idx] = evt_sml;
+			new_dvals[evts_derived[j].gen_div.col_num_idx]  = (double)dval;
 			if (!is_rdwr) {
-				new_vals[evts_derived[j].gen_div.col_den_idx]  = "1.0";
+				new_dvals[evts_derived[j].gen_div.col_den_idx]  = (double)1.0;
 			}
 	}
 	return 0;
@@ -1609,6 +1611,7 @@ static double syscall_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i
 static double gen_div_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i,
 		std::vector <evts_derived_str> &evts_derived, uint32_t j, uint32_t k,
 		std::vector <std::string> &new_vals,
+		std::vector <double> &new_dvals,
 		uint32_t &emit_var, int verbose)
 {
 	//abcd
@@ -1698,16 +1701,16 @@ static double gen_div_der_evt(prf_obj_str &prf_obj, uint32_t new_idx, uint32_t i
 			emit_var = 1;
 			dura = 1e-9 * (double)(evts_derived[j].gen_div.det[cpu].ts[0] -
 						evts_derived[j].gen_div.det[cpu].ts_prev[0]);
-			new_vals[evts_derived[j].gen_div.col_val_idx]  = std::to_string(val);
-			new_vals[evts_derived[j].gen_div.col_emt_idx]  = "1";
-			new_vals[evts_derived[j].gen_div.col_dur_idx]  = std::to_string(dura);
-			new_vals[evts_derived[j].gen_div.col_area_idx] = std::to_string(cpu);
-			new_vals[evts_derived[j].gen_div.col_num_idx]  = std::to_string(evts_derived[j].gen_div.det[cpu].val[0]);
-			new_vals[evts_derived[j].gen_div.col_den_idx]  = std::to_string(evts_derived[j].gen_div.det[cpu].val[1]);
-#if 1
+			new_dvals[evts_derived[j].gen_div.col_val_idx]  = (double)val;
+			new_dvals[ evts_derived[j].gen_div.col_emt_idx] = (double)1;
+			new_dvals[evts_derived[j].gen_div.col_dur_idx]  = (double)dura;
+			new_vals[ evts_derived[j].gen_div.col_area_idx] = std::to_string(cpu);
+			new_dvals[evts_derived[j].gen_div.col_num_idx]  = (double)evts_derived[j].gen_div.det[cpu].val[0];
+			new_dvals[evts_derived[j].gen_div.col_den_idx]  = (double)evts_derived[j].gen_div.det[cpu].val[1];
+#if 0
 			if (dura > 2.0) {
 			printf("new_vals ed[%d].cpu[%d]: val= %f, new_vals[%d]= %s, dura= %f at %s %d\n",
-					j, cpu, val, evts_derived[j].gen_div.col_dur_idx, new_vals[evts_derived[j].gen_div.col_dur_idx].c_str(),
+					j, cpu, val, evts_derived[j].gen_div.col_dur_idx, new_dvals[evts_derived[j].gen_div.col_dur_idx].c_str(),
 					dura, __FILE__, __LINE__);
 			}
 #endif
@@ -1743,22 +1746,26 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 				//printf("got evts_used= %s ts %s, at %s %d\n", tkns[0].c_str(), tkns[1].c_str(), __FILE__, __LINE__);
 				std::string lua_file = evt_tbl2[tbl2_idx].evt_derived.lua_file;
 				std::string lua_rtn  = evt_tbl2[tbl2_idx].evt_derived.lua_rtn;
-				std::vector <std::string> new_vals;
-				new_vals.resize(new_sz);
+				if (evts_derived[j].new_vals.size() != new_sz) {
+					evts_derived[j].new_vals.resize(new_sz);
+					evts_derived[j].new_dvals.resize(new_sz);
+				}
 
 				double tm_beg = dclock();
 				uint32_t emit_var=0;
 				//abcd
 				if ((lua_rtn == "syscalls_all" || lua_rtn == "syscalls_rdwr") &&
 						lua_file.find("tc_syscalls.lua") != std::string::npos) {
-					syscall_der_evt(prf_obj, new_idx, i, evts_derived, j, k, new_vals, emit_var, verbose, lua_rtn);
+					syscall_der_evt(prf_obj, new_idx, i, evts_derived, j, k,
+							evts_derived[j].new_vals, evts_derived[j].new_dvals, emit_var, verbose, lua_rtn);
 				} else if (lua_file.find("gen_div_pair.lua") != std::string::npos) {
-					gen_div_der_evt(prf_obj, new_idx, i, evts_derived, j, k, new_vals, emit_var, verbose);
+					gen_div_der_evt(prf_obj, new_idx, i, evts_derived, j, k,
+							evts_derived[j].new_vals, evts_derived[j].new_dvals, emit_var, verbose);
 				} else {
 					//printf("new_idx= %d, j= %d, evt= %s at %s %d\n",
 					//		new_idx, j,prf_obj.events[new_idx].event_name.c_str(), __FILE__, __LINE__); 
 					lua_derived_tc_prf(j, lua_file, lua_rtn, prf_obj.events[new_idx].event_name, prf_obj.samples[i],
-						evts_derived[j].new_cols, new_vals, emit_var, evts_derived[j].evts_tags[k], verbose);
+						evts_derived[j].new_cols, evts_derived[j].new_vals, emit_var, evts_derived[j].evts_tags[k], verbose);
 				}
 				double tm_end = dclock();
 				tm_lua_derived += tm_end - tm_beg;
@@ -1769,8 +1776,10 @@ void ck_if_evt_used_in_evts_derived(int mtch, prf_obj_str &prf_obj, int verbose,
 					samples.back().orig_order++;
 					samples.back().evt_idx = new_idx;
 					prf_obj.events[new_idx].evt_count++;
-					samples.back().new_vals.resize(new_vals.size());
-					samples.back().new_vals = new_vals;
+					samples.back().new_vals.resize(evts_derived[j].new_vals.size());
+					samples.back().new_vals = evts_derived[j].new_vals;
+					samples.back().new_dvals.resize(evts_derived[j].new_dvals.size());
+					samples.back().new_dvals = evts_derived[j].new_dvals;
 #endif
 #if 0
 					for (uint32_t kk=0; kk < new_sz; kk++) {
