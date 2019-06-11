@@ -536,12 +536,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 		use_j_obj = j_obj_vec.size();
 		j_obj_vec.push_back(jos);
 	}
-	json j;
-	if (!j_obj_vec[use_j_obj].did_incl) {
-		j = j_obj_vec[use_j_obj].j_obj;
-	} else {
-		j = j_obj_vec[use_j_obj].j_obj2;
-	}
+	json &j = (j_obj_vec[use_j_obj].did_incl ?  j_obj_vec[use_j_obj].j_obj2 : j_obj_vec[use_j_obj].j_obj);
 	int32_t pixels_high_min = 100;
 	int32_t pixels_high_max = 1500;
 	int32_t pixels_high_default = 250;
