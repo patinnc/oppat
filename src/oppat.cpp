@@ -6679,8 +6679,10 @@ int main(int argc, char **argv)
 				} else if (msg_len >= 9 &&  msg.substr(0, 9) == "parse_svg") {
 					fprintf(stderr, "got svg msg %s %d\n", __FILE__, __LINE__);
 					svg_str = msg.substr(10, msg.size());
-					fprintf(stdout, "%s\n", svg_str.c_str());
-					fflush(stdout);
+					if (verbose) {
+						fprintf(stdout, "%s\n", svg_str.c_str());
+						fflush(stdout);
+					}
 					ck_json(svg_str, "check parse_svg json str", __FILE__, __LINE__, options.verbose);
 				}
 
