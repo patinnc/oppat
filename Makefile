@@ -16,7 +16,10 @@ ifeq ($(OS),Windows_NT)
   ZLIB_CMD = cmd.exe /c mk_zlib.bat
   LIBXLSWRITER   = libxlswriter/src/libxlswriter.lib
   LIBXLSWRITER_CMD = cmd.exe /c mk_xls.bat
-  GCC_ARGS = /EHsc
+  DEBUG_VEC_CMP = /D_DEBUG /D_ITERATOR_DEBUG_LEVEL=1
+  DEBUG_VEC_LIB = libcmtd.lib
+  # add $(DEBUG_VEC_CMP) to GCC_ARGS (and have to add DEBUG_VEC_LIB to PLAT_LDFLAGS too) to check vector bounds
+  GCC_ARGS = /EHsc 
   MY_LIBS   = 
   OBJ_EXT = obj
   EXE_EXT = exe
@@ -24,7 +27,8 @@ ifeq ($(OS),Windows_NT)
   MK_DEPENDS_FILE = depends_win.mk
   OFILE = /Fo:
   OEXE = /Fe:
-  PLAT_LDFLAGS =
+  # add $(DEBUG_VEC_LIB) to PLAT_LDFLAGS to check vector bounds
+  PLAT_LDFLAGS = 
   #OFILE = -o
 else
   #Linux stuff
