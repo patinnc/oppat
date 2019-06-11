@@ -3644,7 +3644,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (fe_idx == -1 || (typeof event_select[fe_idx] !== 'undefined' &&
 					(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
 					do_event = true;
-					if (event_select[fe_idx][1] == 'highlight') {
+					if (typeof event_select[fe_idx] !== 'undefined' && event_select[fe_idx][1] == 'highlight') {
 						do_event_highlight = true;
 					}
 				}
