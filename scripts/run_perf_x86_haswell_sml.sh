@@ -77,7 +77,7 @@ IRQ_EVTS=" -e irq:irq_handler_entry -e irq:irq_handler_exit "
 IRQ_EVTS=  #  tons of events on pi 3b+... and don't have a just for it yet so comment it out
 SYSCALL_EVTS=" -e syscalls:sys_*read*  -e syscalls:sys_*write* " 
 SYSCALL_EVTS=" -e syscalls:sys_* " 
-$TRC_CMD record -C mono $TC_DISK_EVT $IRQ_EVTS $SYSCALL_EVTS -e power:cpu_frequency -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
+$TRC_CMD record -C mono $TC_DISK_EVT $IRQ_EVTS $SYSCALL_EVTS -f "comm != perf" -e power:cpu_frequency -e power:powernv_throttle -e i915:intel_gpu_freq_change -e i915:i915_flip_complete -e thermal:thermal_temperature $CPU_IDLE -o $ODIR/tc_trace.dat > $ODIR/trace_cmd_out.txt &
 PID_TRC_CMD=$!
 
 # it takes a few seconds to get the trace cmd threads up
