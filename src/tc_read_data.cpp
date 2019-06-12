@@ -1019,7 +1019,7 @@ int tp_read_event_formats(file_list_str &file_list, std::string flnm, int verbos
 		printf("messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
-	std::string str, ev_file, fstr;
+	std::string evt, area, str, ev_file, fstr;
 	lst_ft_fmt_str ffs;
 	int doing_common=0;
 	while (std::getline(file, str))
@@ -1041,14 +1041,14 @@ int tp_read_event_formats(file_list_str &file_list, std::string flnm, int verbos
 				printf("mess up here at %s %d\n", __FILE__, __LINE__);
 				exit(1);
 			}
-			std::string evt = str.substr(n+1);
+			evt = str.substr(n+1);
 			str = str.substr(0, n);
 			n = str.find_last_of("/");
 			if (n <= 0) {
 				printf("mess up here at %s %d\n", __FILE__, __LINE__);
 				exit(1);
 			}
-			std::string area = str.substr(n+1);
+			area = str.substr(n+1);
 			ffs.area = area;
 			ffs.event = evt;
 			if (verbose > 0)
