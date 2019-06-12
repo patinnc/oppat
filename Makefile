@@ -19,7 +19,8 @@ ifeq ($(OS),Windows_NT)
   DEBUG_VEC_CMP = /D_DEBUG /D_ITERATOR_DEBUG_LEVEL=1
   DEBUG_VEC_LIB = libcmtd.lib
   # add $(DEBUG_VEC_CMP) to GCC_ARGS (and have to add DEBUG_VEC_LIB to PLAT_LDFLAGS too) to check vector bounds
-  GCC_ARGS = /EHsc 
+  GCC_ARGS = /EHsc $(DEBUG_VEC_CMP)
+  GCC_ARGS = /EHsc
   MY_LIBS   = 
   OBJ_EXT = obj
   EXE_EXT = exe
@@ -28,7 +29,8 @@ ifeq ($(OS),Windows_NT)
   OFILE = /Fo:
   OEXE = /Fe:
   # add $(DEBUG_VEC_LIB) to PLAT_LDFLAGS to check vector bounds
-  PLAT_LDFLAGS = 
+  PLAT_LDFLAGS = $(DEBUG_VEC_LIB)
+  PLAT_LDFLAGS =
   #OFILE = -o
 else
   #Linux stuff
