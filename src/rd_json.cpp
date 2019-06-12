@@ -159,15 +159,21 @@ static int32_t ck_pixels_high(std::string json_file, std::string chart, std::str
 	return pxls_high;
 }
 
-int ck_json(std::string &str, std::string from_where, const char *file, int line, int verbose)
+int ck_json(std::string &str, std::string from_where, bool just_parse, json &jobj, const char *file, int line, int verbose)
 {
 	uint32_t sz = (int)str.size();
 	bool use_charts_default = true;
 	bool worked=false;
+	json jo;
 
-	bool ok = json::accept(str); // just validates?
+	bool ok;
+	if (just_parse) {
+		ok = false;
+	} else {
+		ok = json::accept(str); // just validates?
+	}
 	if (!ok) {
-	json j;
+		json &j = (just_parse ? jobj : jo);
 	try {
 		j = json::parse(str);
 		worked=true;
@@ -194,19 +200,33 @@ int ck_json(std::string &str, std::string from_where, const char *file, int line
 static uint32_t do_macro_event_array(json &j, int verbose)
 {
 	uint32_t sz;
-	sz = j["macro_event_array"].size();
+	std::string s0 = "macro_event_array";
 	std::vector <json> evt_new;
-	if (verbose)
-		printf("try macro_event_array at %s %d\n", __FILE__, __LINE__);
-	for (uint32_t i=0; i < sz; i++) {
-		try {
+	if (j.find(s0) != j.end()) {
+		if (verbose)
+			printf("try macro_event_array at %s %d\n", __FILE__, __LINE__);
+		sz = j[s0].size();
+		for (uint32_t i=0; i < sz; i++) {
 			std::vector <std::string> str_new;
-			std::string old = j["macro_event_array"][i]["substitute"]["old"];
-			uint32_t ksz = j["macro_event_array"][i]["substitute"]["new"].size();
-			for (uint32_t k=0; k < ksz; k++) {
-				str_new.push_back(j["macro_event_array"][i]["substitute"]["new"][k]);
+			json &jmi = j[s0][i];
+			std::string s1 = "substitute";
+			if (jmi.find(s1) == jmi.end()) {
+				continue;
 			}
-			std::string evt = j["macro_event_array"][i]["target"].dump();
+			json &jmis = jmi[s1];
+			if (jmis.find("old") == jmis.end() ||
+			   jmis.find("new") == jmis.end() ||
+			   jmi.find("target") == jmi.end()) {
+				printf("charts json file, macro_event_array[%d] got subtitute field but missing 'old' or 'new' or 'target' fields. bye at %s %d\n",
+					i, __FILE__, __LINE__);
+				exit(1);
+			}
+			std::string old = jmis["old"];
+			uint32_t ksz = jmis["new"].size();
+			for (uint32_t k=0; k < ksz; k++) {
+				str_new.push_back(jmis["new"][k]);
+			}
+			std::string evt = jmi["target"].dump();
 			if (verbose > 0) {
 				printf("try macro_event_array ksz= %d at %s %d\n", ksz, __FILE__, __LINE__);
 				printf("prv_evt= '%s' at %s %d\n", evt.c_str(), __FILE__, __LINE__);
@@ -219,12 +239,12 @@ static uint32_t do_macro_event_array(json &j, int verbose)
 				replace_substr(str_t, old, str_new[k], verbose);
 				evt_new.push_back(json::parse(str_t));
 				if (verbose > 0) {
-				printf("json macro_event_array did sub[%d] old= %s new= %s at %s %d\n",
-					k, old.c_str(), str_new[k].c_str(), __FILE__, __LINE__);
-				printf("prv_nevt[%d]= '%s' at %s %d\n", k, str_t.c_str(), __FILE__, __LINE__);
+					printf("json macro_event_array did sub[%d] old= %s new= %s at %s %d\n",
+						k, old.c_str(), str_new[k].c_str(), __FILE__, __LINE__);
+					printf("prv_nevt[%d]= '%s' at %s %d\n", k, str_t.c_str(), __FILE__, __LINE__);
 				}
 			}
-		} catch (...) { }
+		}
 	}
 	sz = j["event_array"].size();
 	if (verbose > 0) {
@@ -318,7 +338,7 @@ static uint32_t do_include_event_array(json &j, int verbose)
 				printf("found include_event_array[%d] chart json file %s at %s %d\n", i, ch_file_base.c_str(), __FILE__, __LINE__);
 			} catch (...) { }
 		}
-		for (uint32_t i=0; i < sz; i++) {
+		for (uint32_t i=0; i < ch_files.size(); i++) {
 			std::vector <std::string> tried_names;
 			std::string ch_file;
 			std::string ch_file_base = ch_files[i];
@@ -331,8 +351,9 @@ static uint32_t do_include_event_array(json &j, int verbose)
 			printf("found chart json file %s using filename= %s at %s %d\n", ch_file_base.c_str(), ch_file.c_str(), __FILE__, __LINE__);
 			json_include_event_files.push_back(ch_file);
 			std::string json_str = rd_json_file(ch_file, __LINE__);
-			ck_json(json_str, "from file "+ch_file, __FILE__, __LINE__, verbose);
-			json jt = json::parse(json_str);
+			//json jt = json::parse(json_str);
+			json jt;
+			ck_json(json_str, "from file "+ch_file, true, jt, __FILE__, __LINE__, verbose);
 			//std::cout << "new evt array: " << jt["event_array"].dump() << std::endl;
 			json_include_event_array.push_back(jt);
 		}
@@ -349,12 +370,14 @@ static uint32_t do_include_event_array(json &j, int verbose)
 	}
 	uint32_t esz_new = j["event_array"].size();
 	uint32_t k = 0;
+	std::string t, use_it2;
 	for (uint32_t i=0; i < j["event_array"].size(); i++) {
 		try {
-			std::string t = j["event_array"][i]["event"]["evt_name"];
+			json &jie = j["event_array"][i]["event"];
+			t = jie["evt_name"];
 			bool use_it = true;
 			try {
-				std::string use_it2 = j["event_array"][i]["event"]["evt_use"];
+				use_it2 = jie["evt_use"];
 				if (use_it2 == "n") {
 					use_it = false;
 				}
@@ -406,14 +429,62 @@ static uint32_t do_include_event_array(json &j, int verbose)
 	return 0;
 }
 
+struct j_obj_str {
+	std::string json_file;
+	size_t json_str_len;
+	json j_obj;
+	json j_obj2;
+	bool did_incl;
+	j_obj_str(): did_incl(false), json_str_len(0) {}
+};
+static std::vector <j_obj_str> j_obj_vec;
+
+uint32_t get_json_obj(std::string &str, std::string json_file, char *file, int line)
+{
+	size_t jlen = str.size();
+	uint32_t use_j_obj = UINT32_M1;
+
+	for (uint32_t i=0; i < j_obj_vec.size(); i++) {
+		if (j_obj_vec[i].json_file == json_file &&
+			j_obj_vec[i].json_str_len == jlen) {
+			use_j_obj = i;
+			break;
+		}
+	}
+	if (use_j_obj == UINT32_M1) {
+		struct j_obj_str jos;
+		bool worked = false;
+		try {
+			jos.j_obj = json::parse(str);
+			worked=true;
+		} catch (json::parse_error& e) {
+			std::cout << "message: " << e.what() << '\n' << "exception id: " << e.id << '\n' << "byte position of error: " << e.byte << std::endl;
+		}
+		if (!worked) {
+			printf("parse of json data file= %s failed. bye at %s %d\n", json_file.c_str(), __FILE__, __LINE__);
+			printf("Here is the string we tried to parse (from %s %d) at %s %d:\n%s\n", file, line, __FILE__, __LINE__, str.c_str());
+			uint32_t sz = (int)str.size();
+			prt_line(sz);
+			exit(1);
+		}
+		jos.json_file = json_file;
+		jos.json_str_len = jlen;
+		use_j_obj = j_obj_vec.size();
+		j_obj_vec.push_back(jos);
+	}
+	return use_j_obj;
+}
+
 int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbose)
 {
 	if (verbose > 0)
 		std::cout << str << std::endl;
 	uint32_t sz = (int)str.size();
 	bool use_charts_default = true;
-	bool worked=false;
 
+	uint32_t use_j_obj = get_json_obj(str, json_file,  __FILE__, __LINE__);
+	json &j = (j_obj_vec[use_j_obj].did_incl ?  j_obj_vec[use_j_obj].j_obj2 : j_obj_vec[use_j_obj].j_obj);
+#if 0
 	json j;
 	try {
 		j = json::parse(str);
@@ -431,63 +502,72 @@ int do_json_evt_chrts_defaults(std::string json_file, std::string str, int verbo
 
 		exit(1);
 	}
-	sz = j["ETW_events_to_skip"].size();
+#endif
+#if 0
+	if (json_field_data[p]["reactions"]["summary"].find("total_count") != json_field_data[p]["reactions"]["summary"].end())
+	// now you can be sure json_field_data[p]["reactions"]["summary"]["total_count"] exists
+	Alternatively, you could use value and provide a default value (e.g., 0):
+	totallike = json_field_data[p]["reactions"]["summary"].value("total_count", 0);
+#endif
+	std::string str2;
+	json &j_ets = j["ETW_events_to_skip"];
+	sz = j_ets.size();
 	for (uint32_t i=0; i < sz; i++) {
-		try {
-			std::string str = j["ETW_events_to_skip"][i];
-			hash_string(ETW_events_to_skip_hash, ETW_events_to_skip_vec, str);
-			if (verbose > 0) {
-				printf("ETW_events_to_skip[%d]= '%s' hsh= %d, at %s %d\n",
-						i, str.c_str(), ETW_events_to_skip_hash[str], __FILE__, __LINE__);
-			}
-		} catch (...) { }
+		str2 = j_ets[i];
+		hash_string(ETW_events_to_skip_hash, ETW_events_to_skip_vec, str2);
+		if (verbose > 0) {
+			printf("ETW_events_to_skip[%d]= '%s' hsh= %d, at %s %d\n",
+					i, str2.c_str(), ETW_events_to_skip_hash[str2], __FILE__, __LINE__);
+		}
 	}
-	sz = j["chart_category_priority"].size();
+	json &j_ccp = j["chart_category_priority"];
+	sz = j_ccp.size();
+
 	for (uint32_t i=0; i < sz; i++) {
-		try {
+		auto fnd_name = j_ccp[i].find("name");
+		auto fnd_priority = j_ccp[i].find("priority");
+		if (fnd_name != j_ccp[i].end() && fnd_priority != j_ccp[i].end()) {
 			chart_cat_str ch_cat;
-			ch_cat.name     = j["chart_category_priority"][i]["name"];
-			ch_cat.priority = j["chart_category_priority"][i]["priority"];
+			ch_cat.name     = *fnd_name;
+			ch_cat.priority = *fnd_priority;
 			if (verbose > 0) {
 				printf("chart_category[%d] name= '%s', priority= %d at %s %d\n",
 						i, ch_cat.name.c_str(), ch_cat.priority, __FILE__, __LINE__);
 			}
 			chart_category.push_back(ch_cat);
-		} catch (...) { }
+		}
 	}
-	sz = j["event_aliases"].size();
+	json &j_ea = j["event_aliases"];
+	sz = j_ea.size();
 	for (uint32_t i=0; i < sz; i++) {
-		try {
+		auto fnd_evt_name = j_ea[i].find("evt_name");
+		auto fnd_arch     = j_ea[i].find("arch");
+		auto fnd_aliases  = j_ea[i].find("aliases");
+		if (fnd_evt_name != j_ea[i].end() && fnd_arch != j_ea[i].end() && fnd_aliases != j_ea[i].end()) {
 			evt_aliases_str e_a;
-			e_a.evt_name     = j["event_aliases"][i]["evt_name"];
-			e_a.arch         = j["event_aliases"][i]["arch"];
-			uint32_t sz1     = j["event_aliases"][i]["aliases"].size();
+			e_a.evt_name     = *fnd_evt_name;
+			e_a.arch         = *fnd_arch;
+			uint32_t sz1     = j_ea[i]["aliases"].size();
 			printf("event_alias[%d].evt_name= %s, arch= %s list=[", i, e_a.evt_name.c_str(), e_a.arch.c_str());
 			evt_aliases_vec.push_back(e_a);
 			for (uint32_t k=0; k < sz1; k++) {
-				std::string str = j["event_aliases"][i]["aliases"][k];
+				std::string str = j_ea[i]["aliases"][k];
 				printf("%s%s", (k>0?",":""), str.c_str());
 				evt_aliases_vec.back().aliases.push_back(str);
 			}
 			printf("]\n");
-		} catch (...) { }
+		}
 	}
 
-	do_macro_event_array(j, verbose);
-	do_include_event_array(j, verbose);
+	if (!j_obj_vec[use_j_obj].did_incl) {
+		do_macro_event_array(j, verbose);
+		do_include_event_array(j, verbose);
+		j_obj_vec[use_j_obj].j_obj2 = j;
+		j_obj_vec[use_j_obj].did_incl = true;
+	}
 	sz = j["event_array"].size();
 	return sz;
 }
-
-struct j_obj_str {
-	std::string json_file;
-	size_t json_str_len;
-	json j_obj;
-	json j_obj2;
-	bool did_incl;
-	j_obj_str(): did_incl(false), json_str_len(0) {}
-};
-static std::vector <j_obj_str> j_obj_vec;
 
 uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string json_file, std::string &str,
 	std::vector <evt_str> &event_table,  std::string features_cpuid, int verbose)
@@ -508,73 +588,58 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 	}
 	// saving off the parsed json file is an optimization.
 	// Just parse the json once per file_name & input string len combo
-	size_t jlen = str.size();
-	uint32_t use_j_obj = UINT32_M1;
-	for (uint32_t i=0; i < j_obj_vec.size(); i++) {
-		if (j_obj_vec[i].json_file == json_file &&
-			j_obj_vec[i].json_str_len == jlen) {
-			use_j_obj = i;
-			break;
-		}
-	}
-	if (use_j_obj == UINT32_M1) {
-		struct j_obj_str jos;
-		try {
-			jos.j_obj = json::parse(str);
-			worked=true;
-		} catch (json::parse_error& e) {
-			std::cout << "message: " << e.what() << '\n' << "exception id: " << e.id << '\n' << "byte position of error: " << e.byte << std::endl;
-		}
-		if (!worked) {
-			printf("parse of json data file= %s failed. bye at %s %d\n", json_file.c_str(), __FILE__, __LINE__);
-			printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
-			prt_line(sz);
-			exit(1);
-		}
-		jos.json_file = json_file;
-		jos.json_str_len = jlen;
-		use_j_obj = j_obj_vec.size();
-		j_obj_vec.push_back(jos);
-	}
+	uint32_t use_j_obj = get_json_obj(str, json_file, __FILE__, __LINE__);
 	json &j = (j_obj_vec[use_j_obj].did_incl ?  j_obj_vec[use_j_obj].j_obj2 : j_obj_vec[use_j_obj].j_obj);
 	int32_t pixels_high_min = 100;
 	int32_t pixels_high_max = 1500;
 	int32_t pixels_high_default = 250;
-	try {
+	{
 		std::string fld = "pixels_high_default";
-		int32_t pxls_high = j[fld];
-		pixels_high_default = ck_pixels_high(json_file, "set defaults", fld, pxls_high, __LINE__);
-	} catch (...) { };
-	chart_defaults.pixels_high_default;
+		auto aa = j.find(fld);
+		if (aa != j.end()) {
+			pixels_high_default = ck_pixels_high(json_file, "set defaults", fld, *aa, __LINE__);
+		}
+	}
+	chart_defaults.pixels_high_default = pixels_high_default;
 	int32_t drop_event_if_samples_exceed = 200000;
-	try {
+	{
 		std::string fld = "drop_event_if_samples_exceed";
-		drop_event_if_samples_exceed = j[fld];
-	} catch (...) { };
+		auto aa = j.find(fld);
+		if (aa != j.end()) {
+			drop_event_if_samples_exceed = *aa;
+		}
+	}
 	chart_defaults.drop_event_if_samples_exceed = drop_event_if_samples_exceed;
 	int32_t dont_show_events_on_cpu_busy_if_samples_exceed = 500000;
-	try {
+	{
 		std::string fld = "dont_show_events_on_cpu_busy_if_samples_exceed";
-		dont_show_events_on_cpu_busy_if_samples_exceed = j[fld];
-	} catch (...) { };
+		auto aa = j.find(fld);
+		if (aa != j.end()) {
+			dont_show_events_on_cpu_busy_if_samples_exceed = *aa;
+		}
+	}
 	chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed = dont_show_events_on_cpu_busy_if_samples_exceed;
-	try {
-		std::string use_def = j["chart_use_default"];
+	{
+		std::string fld = "chart_use_default";
+		std::string use_def;
+		auto aa = j.find(fld);
+		if (aa != j.end()) {
+			use_def = *aa;
+		}
 		if (use_def == "y") {
 			use_charts_default = true;
 		} else {
 			use_charts_default = false;
 		}
-	} catch (...) { };
+	}
 	if (!j_obj_vec[use_j_obj].did_incl) {
 		do_macro_event_array(j, verbose);
 		do_include_event_array(j, verbose);
 		j_obj_vec[use_j_obj].j_obj2 = j;
 		j_obj_vec[use_j_obj].did_incl = true;
-	} else {
-		//j = j_obj_vec[use_j_obj].j_obj2;
 	}
-	sz = j["event_array"].size();
+	json &j_ea = j["event_array"];
+	sz = j_ea.size();
 	if (verbose)
 		printf("event_array.sz= %d at %s %d\n", sz, __FILE__, __LINE__);
 	std::vector <std::string> evt_aliases;
@@ -586,30 +651,42 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			po_arch = "ARM"; // TBD need to verify that arm prf stuff has this string
 		}
 	}
+	std::string str2;
 	if (verbose > 0) {
 		printf("sz= %d\n", sz);
 	}
+#if 0
 	try {
+#endif
 		for (uint32_t i=0; i < sz; i++) {
 			if (want_evt_num != UINT32_M1 && i != want_evt_num) {
 				continue;
 			}
+			std::string fld = "event";
+			auto aa = j_ea[i].find(fld);
+			if (aa == j_ea[i].end()) {
+				continue;
+			}
+			json &ji = j_ea[i]["event"];
 			if (verbose > 4) {
-				std::cout << j["event_array"][i]["event"].dump() << std::endl;
+				std::cout << ji.dump() << std::endl;
 				//fflush(NULL);
 			}
-			std::string evt_nm  = j["event_array"][i]["event"]["evt_name"];
+			std::string evt_nm  = ji["evt_name"];
 			if (verbose > 2) {
 				printf("evt_alias ck[%d] evt_nm= %s, lkfor_evt_name= %s at %s %d\n",
 					i, evt_nm.c_str(), lkfor_evt_name.c_str(), __FILE__, __LINE__);
 			}
 			bool use_it = true;
-			try {
-				std::string use_it2 = j["event_array"][i]["event"]["evt_use"];
+			fld = "evt_use";
+			auto ab = ji.find(fld);
+			//printf("got to here at %s %d\n", __FILE__, __LINE__);
+			if (*ab != nullptr && ab != ji.end()) {
+				std::string use_it2 = *ab;
 				if (use_it2 == "n") {
 					use_it = false;
 				}
-			} catch (...) { }
+			}
 			if (!use_it) {
 				printf("skipping charts.json evt_name= %s due to evt_use=n at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
 				continue;
@@ -643,11 +720,14 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					}
 				}
 			}
-			std::string evt_typ = j["event_array"][i]["event"]["evt_type"];
+			//printf("got to ab: %s %d\n", __FILE__, __LINE__);
+			//fflush(NULL);
+			std::string evt_typ = ji["evt_type"];
 			std::string evt_arch;
-			try {
-				evt_arch = j["event_array"][i]["event"]["arch"];
-			} catch (...) { }
+			auto ji_arch = ji.find("arch");
+			if (ji_arch != ji.end()) {
+				evt_arch = *ji_arch;
+			}
 			if (po_arch.size() > 0 && evt_arch.size() > 0 && po_arch != evt_arch) {
 				if (verbose > 3) {
 					printf("skip evt_nm[%d]= '%s', typ= '%s', arch= '%s' due to prf_obj arch= %s at %s %d\n",
@@ -674,7 +754,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				}
 			}
 			if (verbose > 3) {
-				std::cout << j["event_array"][i]["event"]["evt_flds"].dump() << std::endl;
+				std::cout << ji["evt_flds"].dump() << std::endl;
 			}
 			struct evt_str es;
 			es.event_name = evt_nm;
@@ -682,10 +762,25 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 			es.event_arch = evt_arch;
 			event_table.push_back(es);
 			uint32_t fsz = 0;
-			try {
-				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_tags"].size();
+#if 0
+			fld = "evt_use";
+			auto ab = ji.find(fld);
+			printf("got to here at %s %d\n", __FILE__, __LINE__);
+			if (*ab != nullptr && ab != ji.end()) {
+				std::cout << "aa= " << *ab << std::endl;
+				std::string use_it2 = *ab;
+				if (use_it2 == "n") {
+					use_it = false;
+				}
+			}
+#endif
+			fld = "evt_derived";
+			auto ab1 = ji.find(fld);
+			if (ab1 != ji.end()) {
+				json &jied = ji[fld];
+				fsz = jied["evts_tags"].size();
 				for (uint32_t k=0; k < fsz; k++) {
-					std::string e_nm = j["event_array"][i]["event"]["evt_derived"]["evts_tags"][k]["evt"];
+					std::string e_nm = jied["evts_tags"][k]["evt"];
 					for (uint32_t m=0; m < evt_aliases_vec.size(); m++) {
 						if (evt_aliases_vec[m].arch.size() > 0 && evt_arch.size() > 0 &&
 							evt_aliases_vec[m].arch != evt_arch) {
@@ -712,135 +807,176 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					}
 					event_table.back().evt_derived.evts_used.push_back(e_nm);
 					event_table.back().evt_derived.evts_tags.push_back(
-							j["event_array"][i]["event"]["evt_derived"]["evts_tags"][k]["tag"]);
+							jied["evts_tags"][k]["tag"]);
+					//printf("got to evt_nm= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
 				}
-			} catch (...) { }
-			if (fsz == 0) {
-			try {
-				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_used"].size();
-				for (uint32_t k=0; k < fsz; k++) {
-					event_table.back().evt_derived.evts_used.push_back(
-							j["event_array"][i]["event"]["evt_derived"]["evts_used"][k]);
-					event_table.back().evt_derived.evts_tags.push_back(
-							j["event_array"][i]["event"]["evt_derived"]["evts_used"][k]);
+				std::string fld2 = "evts_used";
+				auto ac = jied.find(fld2);
+				if (ac != jied.end()) {
+					fsz = jied[fld2].size();
+					for (uint32_t k=0; k < fsz; k++) {
+						str2 = jied[fld2][k];
+						event_table.back().evt_derived.evts_used.push_back(str2);
+						event_table.back().evt_derived.evts_tags.push_back(str2);
+					}
 				}
-			} catch (...) { }
+				fld2 = "evts_to_exclude";
+				auto ad = jied.find(fld2);
+				if (ad != jied.end()) {
+					fsz = jied[fld2].size();
+					for (uint32_t k=0; k < fsz; k++) {
+						str2 = jied[fld2][k];
+						event_table.back().evt_derived.evts_to_exclude.push_back(str2);
+					}
+				}
+				fld2 = "new_cols";
+				auto ae = jied.find(fld2);
+				if (ae != jied.end()) {
+					fsz = jied[fld2].size();
+					for (uint32_t k=0; k < fsz; k++) {
+						str2 = jied[fld2][k];
+						event_table.back().evt_derived.new_cols.push_back(str2);
+						//printf("der_evt cols[%d]= %s evt_nm= %s at %s %d\n", k, str2.c_str(), evt_nm.c_str(), __FILE__, __LINE__);
+					}
+				}
+				fld2 = "evt_trigger";
+				ae = jied.find(fld2);
+				if (ae != jied.end()) {
+					event_table.back().evt_derived.evt_trigger = *ae;
+				}
+				fld2 = "lua_file";
+				ae = jied.find(fld2);
+				if (ae != jied.end()) {
+					event_table.back().evt_derived.lua_file    = *ae;
+				}
+				fld2 = "lua_rtn";
+				ae = jied.find(fld2);
+				if (ae != jied.end()) {
+					event_table.back().evt_derived.lua_rtn     = *ae;
+				}
 			}
-			try {
-				fsz = j["event_array"][i]["event"]["evt_derived"]["evts_to_exclude"].size();
-				for (uint32_t k=0; k < fsz; k++) {
-					event_table.back().evt_derived.evts_to_exclude.push_back(
-							j["event_array"][i]["event"]["evt_derived"]["evts_to_exclude"][k]);
-				}
-			} catch (...) { }
-			try {
-				fsz = j["event_array"][i]["event"]["evt_derived"]["new_cols"].size();
-				for (uint32_t k=0; k < fsz; k++) {
-					event_table.back().evt_derived.new_cols.push_back(j["event_array"][i]["event"]["evt_derived"]["new_cols"][k]);
-				}
-			} catch (...) { }
-			try {
-				event_table.back().evt_derived.evt_trigger = j["event_array"][i]["event"]["evt_derived"]["evt_trigger"];
-				event_table.back().evt_derived.lua_file    = j["event_array"][i]["event"]["evt_derived"]["lua_file"];
-				event_table.back().evt_derived.lua_rtn     = j["event_array"][i]["event"]["evt_derived"]["lua_rtn"];
-			} catch (...) { }
-			//fflush(NULL);
-			try {
-				fsz = j["event_array"][i]["event"]["evt_flds"].size();
-			} catch (...) { }
 			
 			bool got_diff_ts_stuff = false;
 			bool  got_lag_2nd_by_var = false;
-			for (uint32_t k=0; k < fsz; k++) {
-				struct fld_str fs;
-				std::string name     = j["event_array"][i]["event"]["evt_flds"][k]["name"];
-				std::string lkup     = j["event_array"][i]["event"]["evt_flds"][k]["lkup"];
-				std::string lkup_typ = j["event_array"][i]["event"]["evt_flds"][k]["lkup_typ"];
-				std::string lkup_dlm_str;
-				try {
-					lkup_dlm_str = j["event_array"][i]["event"]["evt_flds"][k]["lkup_dlm_str"];
-				} catch (...) { }
+			fld = "evt_flds";
+			aa = ji.find(fld);
+			if (aa != ji.end()) {
+				fsz = ji["evt_flds"].size();
+				std::string name, lkup, lkup_typ, lkup_dlm_str;
 				std::string diff_ts_with_ts_of_prev_by_var_using_fld;
-				try {
-					diff_ts_with_ts_of_prev_by_var_using_fld = j["event_array"][i]["event"]["evt_flds"][k]["diff_ts_with_ts_of_prev_by_var_using_fld"];
-					got_diff_ts_stuff = true;
-				} catch (...) { }
 				std::string lag_prev_by_var_using_fld;
-				uint32_t lag_by_var=0;
-				try {
-					lag_prev_by_var_using_fld = j["event_array"][i]["event"]["evt_flds"][k]["lag_prev_by_var_using_fld"]["name"];
-					lag_by_var = j["event_array"][i]["event"]["evt_flds"][k]["lag_prev_by_var_using_fld"]["by_var"];
-				} catch (...) { }
-				if (lag_prev_by_var_using_fld.size() > 0 && (lag_by_var != 0 && lag_by_var != 1)) {
-					printf("for input json file event= %s, fld_name= %s: got lag_prev_by_var_using_fld= %s but lag_by_var must be 0 or 1. got lag_by_var= %d. Bye at %s %d\n",
-							evt_nm.c_str(), name.c_str(), lag_prev_by_var_using_fld.c_str(), lag_by_var, __FILE__, __LINE__);
-					exit(1);
-				}
 				std::string mk_proc_from_comm_tid_flds_1, mk_proc_from_comm_tid_flds_2;
-				try {
-					mk_proc_from_comm_tid_flds_1 = j["event_array"][i]["event"]["evt_flds"][k]["mk_proc_from_comm_tid_flds"]["comm"];
-					mk_proc_from_comm_tid_flds_2 = j["event_array"][i]["event"]["evt_flds"][k]["mk_proc_from_comm_tid_flds"]["tid"];
-				} catch (...) { }
-				if (mk_proc_from_comm_tid_flds_1.size() > 0 && mk_proc_from_comm_tid_flds_2.size() == 0) {
-					printf("for input json file event= %s, fld_name= %s: got mk_proc_from_comm_tid_flds.comm= %s but tid is missing. Bye at %s %d\n",
-							evt_nm.c_str(), name.c_str(), mk_proc_from_comm_tid_flds_1.c_str(), __FILE__, __LINE__);
-					exit(1);
-				}
 				std::string next_for_name;
-				try {
-					next_for_name = j["event_array"][i]["event"]["evt_flds"][k]["next_for_name"];
-				} catch (...) { }
-				std::vector <std::string> stg = {"actions", "actions_stage2"};
-				for (uint32_t kk=0; kk < stg.size(); kk++) {
-					try {
-					uint32_t asz = j["event_array"][i]["event"]["evt_flds"][k][stg[kk]].size();
-					if (verbose > 0) {
-						printf("%s size= %d at %s %d\n", stg[kk].c_str(), asz, __FILE__, __LINE__);
+				uint32_t lag_by_var=0;
+				for (uint32_t k=0; k < fsz; k++) {
+					struct fld_str fs;
+					json &jief = ji[fld][k];
+					name = lkup = lkup_typ = lkup_dlm_str = "";
+					if (jief.find("name") != jief.end()) {
+						name     = jief["name"];
 					}
-					for (uint32_t m=0; m < asz; m++) {
-						action_str as;
-						as.oper = j["event_array"][i]["event"]["evt_flds"][k][stg[kk]][m]["oper"];
-						as.val  = j["event_array"][i]["event"]["evt_flds"][k][stg[kk]][m]["val"];
-						if (stg[kk] == "actions") {
-							fs.actions.push_back(as);
-						} else {
-							fs.actions_stage2.push_back(as);
-						}
-						if (verbose)
-							printf("%s[%d] oper= %s, val= %f %g\n", stg[kk].c_str(), m, as.oper.c_str(), as.val, as.val);
-						if (!is_action_oper_valid(as.oper)) {
-							printf("invalid %s in chart json file: got oper= '%s' at %s %d\n", stg[kk].c_str(), as.oper.c_str(), __FILE__, __LINE__);
+					if (jief.find("lkup") != jief.end()) {
+						lkup     = jief["lkup"];
+					}
+					if (jief.find("lkup_typ") != jief.end()) {
+						lkup_typ = jief["lkup_typ"];
+					}
+					if (jief.find("lkup_dlm_str") != jief.end()) {
+						lkup_dlm_str = jief["lkup_dlm_str"];
+					}
+					diff_ts_with_ts_of_prev_by_var_using_fld = "";
+					if (jief.find("diff_ts_with_ts_of_prev_by_var_using_fld") != jief.end()) {
+						diff_ts_with_ts_of_prev_by_var_using_fld = jief["diff_ts_with_ts_of_prev_by_var_using_fld"];
+						got_diff_ts_stuff = true;
+					}
+					lag_prev_by_var_using_fld;
+					lag_by_var=0;
+					if (jief.find("lag_prev_by_var_using_fld") != jief.end()) {
+						lag_prev_by_var_using_fld = jief["lag_prev_by_var_using_fld"]["name"];
+						lag_by_var = jief["lag_prev_by_var_using_fld"]["by_var"];
+					}
+					if (lag_prev_by_var_using_fld.size() > 0 && (lag_by_var != 0 && lag_by_var != 1)) {
+						printf("for input json file event= %s, fld_name= %s: got lag_prev_by_var_using_fld= %s but lag_by_var must be 0 or 1. got lag_by_var= %d. Bye at %s %d\n",
+								evt_nm.c_str(), name.c_str(), lag_prev_by_var_using_fld.c_str(), lag_by_var, __FILE__, __LINE__);
+						exit(1);
+					}
+					mk_proc_from_comm_tid_flds_1 = mk_proc_from_comm_tid_flds_2 = "";
+					str2 = "mk_proc_from_comm_tid_flds";
+					if (jief.find(str2) != jief.end()) {
+						json &jiefs = jief[str2];
+						if (jiefs.find("comm") == jiefs.end() || jiefs.find("tid") == jiefs.end()) {
+							printf("for input json file event= %s, fld_name= %s: got mk_proc_from_comm_tid_flds comm or tid is missing. Bye at %s %d\n",
+								evt_nm.c_str(), name.c_str(), __FILE__, __LINE__);
 							exit(1);
+						} else {
+							mk_proc_from_comm_tid_flds_1 = jiefs["comm"];
+							mk_proc_from_comm_tid_flds_2 = jiefs["tid"];
 						}
-						try {
-							as.val  = j["event_array"][i]["event"]["evt_flds"][k][stg[kk]][m]["val1"];
-							if (stg[kk] == "actions") {
-								fs.actions.back().val1 = as.val;
-							} else {
-								fs.actions_stage2.back().val1 = as.val;
-							}
-						} catch (...) { }
 					}
-					} catch (...) { }
+					next_for_name = "";
+					if (jief.find("next_for_name") != jief.end()) {
+						next_for_name = jief["next_for_name"];
+					}
+					std::vector <std::string> stg = {"actions", "actions_stage2"};
+					for (uint32_t kk=0; kk < stg.size(); kk++) {
+						if (jief.find(stg[kk]) == jief.end()) {
+							continue;
+						}
+						uint32_t asz = jief[stg[kk]].size();
+						if (verbose > 0) {
+							printf("%s size= %d at %s %d\n", stg[kk].c_str(), asz, __FILE__, __LINE__);
+						}
+						for (uint32_t m=0; m < asz; m++) {
+							action_str as;
+							json &jiefm = jief[stg[kk]][m];
+							if (jiefm.find("oper") == jiefm.end() ||
+								jiefm.find("val") == jiefm.end()) {
+								printf("for evt= %s, got action obj= %s m= %d but didn't find oper or val field. Bye at %s %d\n",
+										evt_nm.c_str(), stg[kk].c_str(), m, __FILE__, __LINE__);
+								exit(1);
+							}
+							as.oper = jiefm["oper"];
+							as.val  = jiefm["val"];
+							if (stg[kk] == "actions") {
+								fs.actions.push_back(as);
+							} else {
+								fs.actions_stage2.push_back(as);
+							}
+							if (verbose)
+								printf("%s[%d] oper= %s, val= %f %g\n", stg[kk].c_str(), m, as.oper.c_str(), as.val, as.val);
+							if (!is_action_oper_valid(as.oper)) {
+								printf("invalid %s in chart json file: got oper= '%s' at %s %d\n", stg[kk].c_str(), as.oper.c_str(), __FILE__, __LINE__);
+								exit(1);
+							}
+							if (jiefm.find("val1") != jiefm.end()) {
+								as.val  = jiefm["val1"];
+								if (stg[kk] == "actions") {
+									fs.actions.back().val1 = as.val;
+								} else {
+									fs.actions_stage2.back().val1 = as.val;
+								}
+							}
+						}
+					}
+					if (verbose > 0) {
+						printf("flds[%d] name= '%s', lkup= '%s', typ= '%s' actions.sz= %d, actions_stage2.sz= %d\n",
+						k, name.c_str(), lkup.c_str(), lkup_typ.c_str(), (int)fs.actions.size(), (int)fs.actions_stage2.size());
+					}
+					uint64_t lkup_flags = 0;
+					std::vector <std::string> found_opts_strs;
+					get_lkup_typ(fld_typ_strs, lkup_typ, lkup_flags, found_opts_strs, verbose);
+					fs.name  = name;
+					fs.next_for_name = next_for_name;
+					fs.lkup_dlm_str  = lkup_dlm_str;
+					fs.diff_ts_with_ts_of_prev_by_var_using_fld  = diff_ts_with_ts_of_prev_by_var_using_fld;
+					fs.lag_prev_by_var_using_fld  = lag_prev_by_var_using_fld;
+					fs.lag_by_var  = lag_by_var;
+					fs.mk_proc_from_comm_tid_flds.comm = mk_proc_from_comm_tid_flds_1;
+					fs.mk_proc_from_comm_tid_flds.tid  = mk_proc_from_comm_tid_flds_2;
+					fs.lkup  = lkup;
+					fs.flags = lkup_flags;
+					event_table.back().flds.push_back(fs);
 				}
-				if (verbose > 0) {
-					printf("flds[%d] name= '%s', lkup= '%s', typ= '%s' actions.sz= %d, actions_stage2.sz= %d\n",
-					k, name.c_str(), lkup.c_str(), lkup_typ.c_str(), (int)fs.actions.size(), (int)fs.actions_stage2.size());
-				}
-				uint64_t lkup_flags = 0;
-				std::vector <std::string> found_opts_strs;
-				get_lkup_typ(fld_typ_strs, lkup_typ, lkup_flags, found_opts_strs, verbose);
-				fs.name  = name;
-				fs.next_for_name = next_for_name;
-				fs.lkup_dlm_str  = lkup_dlm_str;
-				fs.diff_ts_with_ts_of_prev_by_var_using_fld  = diff_ts_with_ts_of_prev_by_var_using_fld;
-				fs.lag_prev_by_var_using_fld  = lag_prev_by_var_using_fld;
-				fs.lag_by_var  = lag_by_var;
-				fs.mk_proc_from_comm_tid_flds.comm = mk_proc_from_comm_tid_flds_1;
-				fs.mk_proc_from_comm_tid_flds.tid  = mk_proc_from_comm_tid_flds_2;
-				fs.lkup  = lkup;
-				fs.flags = lkup_flags;
-				event_table.back().flds.push_back(fs);
 			}
 			if (!got_diff_ts_stuff && got_lag_2nd_by_var) {
 				printf("for input json file event= %s, got lag_prev_by_var_using_fld and it's lag by_var=1 but you must have specified diff_ts_with_ts_of_prev_by_var_using_fld field too (in order to have set up the secondary by var). Bye at %s %d\n",
@@ -889,15 +1025,18 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					}
 				}
 			}
-			uint32_t csz = j["event_array"][i]["event"]["charts"].size();
+			uint32_t csz = ji["charts"].size();
 			if (verbose > 0) {
 				printf("charts.size()= %d\n", (int)csz);
 			}
+			std::string tot_line, y_fmt, by_val_ts, by_val_dura;
 			for (uint32_t k=0; k < csz; k++) {
 				struct chart_str cs;
 				bool use_chart = use_charts_default;
-				try {
-					std::string use_chrt = j["event_array"][i]["event"]["charts"][k]["use_chart"];
+				json &jick = ji["charts"][k];
+				aa = jick.find("use_chart");
+				if (aa != jick.end()) {
+					std::string use_chrt = *aa;
 					if (use_chrt == "y") {
 						use_chart = true;
 					} else if (use_chrt == "d") {
@@ -905,33 +1044,51 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					} else {
 						use_chart = false;
 					}
-				} catch (...) { }
+				}
 				cs.use_chart = use_chart;
-				std::string tot_line, y_fmt, by_val_ts, by_val_dura;
 				struct tot_line_opts_str tot_line_opts;
-				try {
-					tot_line = j["event_array"][i]["event"]["charts"][k]["tot_line"];
-				} catch (...) { }
+				tot_line = y_fmt = by_val_ts = by_val_dura = "";
+				tot_line_opts.xform = "";
+				tot_line_opts.yval_fmt = "";
+				tot_line_opts.yvar_fmt = "";
+				tot_line_opts.desc = "";
+				cs.tot_line_opts.yval_fmt = "";
+				aa = jick.find("tot_line");
+				if (aa != jick.end()) {
+					tot_line = *aa;
+				}
 				cs.tot_line = tot_line;
-				try {
-					tot_line_opts.xform = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["xform"];
-				} catch (...) { }
-				cs.tot_line_opts.xform = tot_line_opts.xform;
-				try {
-					tot_line_opts.yval_fmt = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["yval_fmt"];
-				} catch (...) { }
-				cs.tot_line_opts.yval_fmt = tot_line_opts.yval_fmt;
-				try {
-					tot_line_opts.yvar_fmt = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["yvar_fmt"];
-				} catch (...) { }
-				cs.tot_line_opts.yvar_fmt = tot_line_opts.yvar_fmt;
-				try {
-					uint32_t scp_sz = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["scope"].size();
-					for (uint32_t m=0; m < scp_sz; m++) {
-						tot_line_opts.scope.push_back(
-							j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["scope"][m]);
+				aa = jick.find("tot_line_options");
+				if (aa != jick.end()) {
+					json &ji_tlo = jick["tot_line_options"];
+					ab = ji_tlo.find("xform");
+					if (ab != ji_tlo.end()) {
+						tot_line_opts.xform = ji_tlo["xform"];
 					}
-				} catch (...) { }
+					ab = ji_tlo.find("yval_fmt");
+					if (ab != ji_tlo.end()) {
+						tot_line_opts.yval_fmt = ji_tlo["yval_fmt"];
+					}
+					ab = ji_tlo.find("yvar_fmt");
+					if (ab != ji_tlo.end()) {
+						tot_line_opts.yvar_fmt = ji_tlo["yvar_fmt"];
+					}
+					ab = ji_tlo.find("desc");
+					if (ab != ji_tlo.end()) {
+						tot_line_opts.desc = ji_tlo["desc"];
+					}
+					ab = ji_tlo.find("scope");
+					if (ab != ji_tlo.end()) {
+						uint32_t scp_sz = ji_tlo["scope"].size();
+						for (uint32_t m=0; m < scp_sz; m++) {
+							tot_line_opts.scope.push_back(ji_tlo["scope"][m]);
+						}
+					}
+				}
+				cs.tot_line_opts.xform    = tot_line_opts.xform;
+				cs.tot_line_opts.yval_fmt = tot_line_opts.yval_fmt;
+				cs.tot_line_opts.yvar_fmt = tot_line_opts.yvar_fmt;
+				cs.tot_line_opts.desc     = tot_line_opts.desc;
 				if (tot_line_opts.scope.size() > 0) {
 					uint32_t scp_sz = tot_line_opts.scope.size();
 					if (scp_sz != 2) {
@@ -955,42 +1112,37 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 						cs.tot_line_opts.scope.push_back(tot_line_opts.scope[m]);
 					}
 				}
-				try {
-					tot_line_opts.desc = j["event_array"][i]["event"]["charts"][k]["tot_line_options"]["desc"];
-				} catch (...) { }
-				cs.tot_line_opts.desc = tot_line_opts.desc;
-				try {
-					y_fmt = j["event_array"][i]["event"]["charts"][k]["y_fmt"];
-				} catch (...) { }
+				if (jick.find("y_fmt") != jick.end()) {
+					y_fmt = jick["y_fmt"];
+				}
 				cs.y_fmt = y_fmt;
-				try {
-					by_val_ts = j["event_array"][i]["event"]["charts"][k]["by_val_ts"];
-				} catch (...) { }
+				if (jick.find("by_val_ts") != jick.end()) {
+					by_val_ts = jick["by_val_ts"];
+				}
+				if (jick.find("by_val_dura") != jick.end()) {
+					by_val_dura = jick["by_val_dura"];
+				}
 				cs.by_val_ts = by_val_ts;
-				try {
-					by_val_dura = j["event_array"][i]["event"]["charts"][k]["by_val_dura"];
-				} catch (...) { }
 				cs.by_val_dura = by_val_dura;
-				cs.title    = j["event_array"][i]["event"]["charts"][k]["title"];
-				cs.var_name = j["event_array"][i]["event"]["charts"][k]["var_name"];
-				try {
-					cs.by_var   = j["event_array"][i]["event"]["charts"][k]["by_var"];
-				} catch (...) { }
-				try {
+				cs.title    = jick["title"];
+				cs.var_name = jick["var_name"];
+				if (jick.find("by_var") != jick.end()) {
+					cs.by_var   = jick["by_var"];
+				}
+				if (jick.find("options") != jick.end()) {
 					uint64_t lkup_flags = 0;
-					std::string lkup_typ = j["event_array"][i]["event"]["charts"][k]["options"];
+					std::string lkup_typ = jick["options"];
 					get_lkup_typ(copt_strs, lkup_typ, lkup_flags, cs.options_strs, verbose);
 					cs.options = lkup_flags;
 					if (verbose)
 						printf("chart options= %" PRIx64 " at %s %d\n", lkup_flags, __FILE__, __LINE__);
-				} catch (...) { }
+				}
 				cs.pixels_high = -1;
-				try {
-					std::string fld = "pixels_high";
-					int32_t pxls_high = j["event_array"][i]["event"]["charts"][k][fld];
-					//cs.pixels_high = ck_pixels_high(json_file, cs.title, fld, pxls_high, __LINE__);
+				fld = "pixels_high";
+				if (jick.find(fld) != jick.end()) {
+					int32_t pxls_high = jick[fld];
 					cs.pixels_high = pxls_high;
-				} catch (...) { }
+				}
 				for (uint32_t m=0; m < event_table.back().flds.size(); m++) {
 					uint64_t flg = event_table.back().flds[m].flags;
 					if ((flg & (uint64_t)fte_enum::FLD_TYP_BY_VAR0) && event_table.back().flds[m].name != cs.by_var) {
@@ -1002,108 +1154,117 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 					}
 				}
 				std::string chrt_actn = "actions";
-				try {
-				json jact = j["event_array"][i]["event"]["charts"][k][chrt_actn];
-				//uint32_t asz = j["event_array"][i]["event"]["charts"][k][chrt_actn].size();
-				uint32_t asz = jact.size();
-				for (uint32_t m=0; m < asz; m++) {
-					action_str as;
-					as.oper = jact[m]["oper"];
-					cs.actions.push_back(as);
-					try {
-						as.val  = jact[m]["val"];
-						cs.actions.back().val = as.val;
-					} catch (...) { }
-					if (verbose > 0) {
-						printf("oper= %s, val= %f %g\n", as.oper.c_str(), as.val, as.val);
-					}
-					if (!is_action_oper_valid(as.oper)) {
-						printf("invalid in chart json file: got oper= '%s' at %s %d\n", as.oper.c_str(), __FILE__, __LINE__);
-						exit(1);
-					}
-					try {
-						as.val  = jact[m]["val1"];
-						cs.actions.back().val1 = as.val;
-					} catch (...) { }
-					try {
-						as.str  = jact[m]["str"];
-						cs.actions.back().str = as.str;
-					} catch (...) { }
-					try {
-						as.str1  = jact[m]["str1"];
-						cs.actions.back().str1 = as.str1;
-					} catch (...) { }
-					if (as.oper == "filter_regex" && cs.actions.back().str1.size() > 0) {
-						cs.actions.back().regx = std::regex(cs.actions.back().str1);
+				if (jick.find(chrt_actn) != jick.end()) {
+					json jact = jick[chrt_actn];
+					//uint32_t asz = jick[chrt_actn].size();
+					uint32_t asz = jact.size();
+					for (uint32_t m=0; m < asz; m++) {
+						action_str as;
+						json &jactm = jact[m];
+						if (jactm.find("oper") == jactm.end()) {
+							printf("err evt_nm= %s, chart title= %s, actions: didn't find oper field. Bye at %s %d\n",
+									evt_nm.c_str(), cs.title.c_str(), __FILE__, __LINE__);
+							exit(1);
+						}
+						as.oper = jactm["oper"];
+						cs.actions.push_back(as);
+						if (jactm.find("val") != jactm.end()) {
+							as.val  = jactm["val"];
+							cs.actions.back().val = as.val;
+						}
+						if (verbose > 0) {
+							printf("oper= %s, val= %f %g\n", as.oper.c_str(), as.val, as.val);
+						}
+						if (!is_action_oper_valid(as.oper)) {
+							printf("invalid in chart json file: got oper= '%s' at %s %d\n", as.oper.c_str(), __FILE__, __LINE__);
+							exit(1);
+						}
+						if (jactm.find("val1") != jactm.end()) {
+							as.val  = jactm["val1"];
+							cs.actions.back().val1 = as.val;
+						}
+						if (jactm.find("str") != jactm.end()) {
+							as.str  = jactm["str"];
+							cs.actions.back().str = as.str;
+						}
+						if (jactm.find("str1") != jactm.end()) {
+							as.str1  = jactm["str1"];
+							cs.actions.back().str1 = as.str1;
+						}
+						if (as.oper == "filter_regex" && cs.actions.back().str1.size() > 0) {
+							cs.actions.back().regx = std::regex(cs.actions.back().str1);
+						}
 					}
 				}
-				} catch (...) { }
-				try {
-					cs.chart_tag = j["event_array"][i]["event"]["charts"][k]["chart_tag"];
-				} catch (...) { }
-				try {
-					cs.marker_type = j["event_array"][i]["event"]["charts"][k]["marker"]["type"];
-					if (cs.marker_type != "square" && cs.marker_type != "none") {
-						fprintf(stderr, "only support \"marker\":{\"type\":\"square\" or \"none\"}. Got %s. bye at %s %d\n",
-								cs.marker_type.c_str(), __FILE__, __LINE__);
-						exit(1);
+				if (jick.find("chart_tag") != jick.end()) {
+					cs.chart_tag = jick["chart_tag"];
+				}
+				if (jick.find("marker") != jick.end()) {
+					json &jmrk = jick["marker"];
+					if (jmrk.find("type") != jmrk.end()) {
+						cs.marker_type = jmrk["type"];
+						if (cs.marker_type != "square" && cs.marker_type != "none") {
+							fprintf(stderr, "only support \"marker\":{\"type\":\"square\" or \"none\"}. Got %s. bye at %s %d\n",
+									cs.marker_type.c_str(), __FILE__, __LINE__);
+							exit(1);
+						}
 					}
-				} catch (...) { }
-				try {
-					cs.marker_size = j["event_array"][i]["event"]["charts"][k]["marker"]["size"];
-					int sz = atoi(cs.marker_size.c_str());
-					if (sz <= 0) {
-						fprintf(stderr, "Got support \"marker\":{\"size\":\"%s\"} which is <= 0. bye at %s %d\n",
+					if (jmrk.find("size") != jmrk.end()) {
+						cs.marker_size = jmrk["size"];
+						int sz = atoi(cs.marker_size.c_str());
+						if (sz <= 0) {
+							fprintf(stderr, "Got support \"marker\":{\"size\":\"%s\"} which is <= 0. bye at %s %d\n",
 								cs.marker_size.c_str(), __FILE__, __LINE__);
-						exit(1);
+							exit(1);
+						}
 					}
-				} catch (...) { }
-				try {
-					cs.marker_ymin = j["event_array"][i]["event"]["charts"][k]["marker"]["ymin"];
-					double ymn = atof(cs.marker_ymin.c_str());
-					if (ymn < 0.0) {
-						fprintf(stderr, "Got support \"marker\":{\"ymin\":\"%s\"} and ymin is < 0.0. bye at %s %d\n",
+					if (jmrk.find("ymin") != jmrk.end()) {
+						cs.marker_ymin = jmrk["ymin"];
+						double ymn = atof(cs.marker_ymin.c_str());
+						if (ymn < 0.0) {
+							fprintf(stderr, "Got support \"marker\":{\"ymin\":\"%s\"} and ymin is < 0.0. bye at %s %d\n",
 								cs.marker_ymin.c_str(), __FILE__, __LINE__);
-						exit(1);
+							exit(1);
+						}
 					}
-				} catch (...) { }
-				try {
-					cs.marker_connect = j["event_array"][i]["event"]["charts"][k]["marker"]["connect"];
-					int got = ck_y_or_n(cs.marker_connect);
-					if (got == -1) {
-						fprintf(stderr, "only support \"marker\":{\"connect\":\"y|Y|1|n|N|0\"}. Got %s. bye at %s %d\n",
-								cs.marker_connect.c_str(), __FILE__, __LINE__);
-						exit(1);
+					if (jmrk.find("connect") != jmrk.end()) {
+						cs.marker_connect = jmrk["connect"];
+						int got = ck_y_or_n(cs.marker_connect);
+						if (got == -1) {
+							fprintf(stderr, "only support \"marker\":{\"connect\":\"y|Y|1|n|N|0\"}. Got %s. bye at %s %d\n",
+									cs.marker_connect.c_str(), __FILE__, __LINE__);
+							exit(1);
+						}
+						if (got == 1) {
+							cs.marker_connect = "y";
+						} else {
+							cs.marker_connect = "n";
+						}
 					}
-					if (got == 1) {
-						cs.marker_connect = "y";
-					} else {
-						cs.marker_connect = "n";
+					if (jmrk.find("text") != jmrk.end()) {
+						cs.marker_text = jmrk["text"];
+						int got = ck_y_or_n(cs.marker_text);
+						if (got == -1) {
+							fprintf(stderr, "only support \"marker\":{\"text\":\"y|Y|1|n|N|0\"}. Got %s. bye at %s %d\n",
+									cs.marker_text.c_str(), __FILE__, __LINE__);
+							exit(1);
+						}
+						if (got == 1) {
+							cs.marker_text = "y";
+						} else {
+							cs.marker_text = "n";
+						}
 					}
-				} catch (...) { }
-				try {
-					cs.marker_text = j["event_array"][i]["event"]["charts"][k]["marker"]["text"];
-					int got = ck_y_or_n(cs.marker_text);
-					if (got == -1) {
-						fprintf(stderr, "only support \"marker\":{\"text\":\"y|Y|1|n|N|0\"}. Got %s. bye at %s %d\n",
-								cs.marker_text.c_str(), __FILE__, __LINE__);
-						exit(1);
-					}
-					if (got == 1) {
-						cs.marker_text = "y";
-					} else {
-						cs.marker_text = "n";
-					}
-				} catch (...) { }
-				try {
-					cs.y_label = j["event_array"][i]["event"]["charts"][k]["y_label"];
-				} catch (...) { }
-				try {
-					cs.chart_category = j["event_array"][i]["event"]["charts"][k]["category"];
-				} catch (...) { }
-				try {
-					cs.chart_type = j["event_array"][i]["event"]["charts"][k]["chart_type"];
-				} catch (...) { }
+				}
+				if (jick.find("y_label") != jick.end()) {
+					cs.y_label = jick["y_label"];
+				}
+				if (jick.find("category") != jick.end()) {
+					cs.chart_category = jick["category"];
+				}
+				if (jick.find("chart_type") != jick.end()) {
+					cs.chart_type = jick["chart_type"];
+				}
 				if (verbose > 0) {
 					printf("charts[%d] title= '%s', var_name= '%s', by_var= '%s', tag='%s', type= '%s'\n",
 						k, cs.title.c_str(), cs.var_name.c_str(), cs.by_var.c_str(),
@@ -1134,11 +1295,13 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 				event_table.back().charts.push_back(cs);
 			}
 		}
+#if 0
 	} catch (json::exception& e) {
 		// output exception information
-		std::cout << "message: " << e.what() << '\n'
+		std::cout << "error on parse json_file " << json_file << ", event_array message: " << e.what() << '\n'
 			  << "exception id: " << e.id << ", at " << __FILE__ << " " << __LINE__ << std::endl;
 	};
+#endif
 	fflush(NULL);
 	//std::cout << j.dump() << std::endl;
 	//std::cout << j.dump(4) << std::endl;
