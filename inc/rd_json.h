@@ -4,6 +4,7 @@
  */
 #include <regex>
 #include <unordered_map>
+#include "json.hpp"
 
 enum {
 	FILE_MODE_FIRST = 0x01,
@@ -249,6 +250,6 @@ EXTERN_STR std::unordered_map<std::string, uint32_t> ETW_events_to_skip_hash;
 EXTERN_STR std::vector <std::string> ETW_events_to_skip_vec;
 
 EXTERN_STR uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str);
-EXTERN_STR int ck_json(std::string &str, std::string from_where, const char *file, int line, int verbose);
+EXTERN_STR int ck_json(std::string &str, std::string from_where, bool just_parse, nlohmann::json &jobj, const char *file, int line, int verbose);
 
 
