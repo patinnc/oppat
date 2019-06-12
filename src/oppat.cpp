@@ -3322,7 +3322,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 	}
 	if (event_table[evt_idx].charts[chrt].marker_ymin.size() > 0) {
 		std::string ymin_str = ", \"marker_ymin\": \"" + event_table[evt_idx].charts[chrt].marker_ymin + "\"";
-		printf("chart: marker_ymin str= %s at %s %d\n", ymin_str.c_str(), __FILE__, __LINE__);
+		//printf("chart: marker_ymin str= %s at %s %d\n", ymin_str.c_str(), __FILE__, __LINE__);
 		//json += ", \"marker_ymin\": \"" + event_table[evt_idx].charts[chrt].marker_ymin + "\"";
 		json += ymin_str;
 	}
@@ -3485,7 +3485,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 	}
 	tt2 = dclock();
 	ch_lines_line_str += "]";
-#if 1
+#if 0
 	if (event_table[evt_idx].charts[chrt].chart_tag == "VMSTAT_MEM_cHART") {
 		printf("%s ch_line data at %s %d:\n%s\n",
 				event_table[evt_idx].charts[chrt].chart_tag.c_str(), __FILE__, __LINE__, ch_lines_line_str.c_str());
@@ -3616,11 +3616,13 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		}
 	}
 	sc_rng += "]";
+#if 0
 	//if (verbose)
 	if (event_table[evt_idx].charts[chrt].chart_tag == "VMSTAT_MEM_cHART") {
 		printf("subcat_rng(chart_tag=%s)= '%s' at %s %d\n",
 				event_table[evt_idx].charts[chrt].chart_tag.c_str(), sc_rng.c_str(), __FILE__, __LINE__);
 	}
+#endif
 	json += sc_rng;
 	json += "}";
 	// below can print lots
@@ -4807,7 +4809,7 @@ static std::string cpu_diag_str, cpu_diag_flds;
 static std::string cpu_diag_flds_beg="cpu_diagram_flds=";
 static std::string cpu_diag_flds_filenm;
 
-void create_web_file(int verbose)
+static void create_web_file(int verbose)
 {
 	double tm_beg = dclock();
 	std::ifstream file, file2;
@@ -5049,7 +5051,7 @@ void create_web_file(int verbose)
 			tm_now-tm_beg, 1.0e-6*dsz, options.web_file.c_str(), __FILE__, __LINE__);
 }
 
-void do_load_replay(int verbose)
+static void do_load_replay(int verbose)
 {
 	std::ifstream file;
 	//long pos = 0;
@@ -5092,7 +5094,7 @@ void do_load_replay(int verbose)
 			(int)bin_map.size(), (int)chrts_json.size(), options.replay_filename.c_str(), __FILE__, __LINE__);
 }
 
-int read_perf_event_list_dump(file_list_str &file_list)
+static int read_perf_event_list_dump(file_list_str &file_list)
 {
 	// read the list of perf events and their format.
 	// Create perf_event_list_dump.txt with dump_all_perf_events.sh (on linux of course).
@@ -5110,7 +5112,7 @@ int read_perf_event_list_dump(file_list_str &file_list)
 }
 
 
-int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <marker_str> &marker_vec)
+static int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str> &prf_obj, std::vector <marker_str> &marker_vec)
 {
 	std::string evt_nm;
 	bool got_marker_beg_num = false, got_marker_end_num = false;
@@ -5677,7 +5679,7 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 	return 0;
 }
 
-int read_cpu_diag_flds_file(std::string flds_file)
+static int read_cpu_diag_flds_file(std::string flds_file)
 {
 	std::ifstream file2;
 	std::string line2;
@@ -5696,7 +5698,8 @@ int read_cpu_diag_flds_file(std::string flds_file)
 		cpu_diag_json += line2;
 	}
 	file2.close();
-	ck_json(cpu_diag_json, "check for valid json in cpu_diagram .flds file: "+flds_file, __FILE__, __LINE__, options.verbose);
+	nlohmann::json jobj;
+	ck_json(cpu_diag_json, "check for valid json in cpu_diagram .flds file: "+flds_file, false, jobj, __FILE__, __LINE__, options.verbose);
 	if (options.verbose > 0) {
 		printf("cpu_diag_flds= '%s' at %s %d\n", cpu_diag_flds.c_str(), __FILE__, __LINE__);
 	}
@@ -5985,7 +5988,7 @@ int main(int argc, char **argv)
 			comm_pid_tid_hash.resize(file_tag_idx+1);
 			comm_pid_tid_vec.resize(file_tag_idx+1);
 			if (need_perf_event_list_file) {
-			read_perf_event_list_dump(file_list[i]);
+				read_perf_event_list_dump(file_list[i]);
 			}
 			printf("read_perf_event_list_dump(file_list[%d]) at %s %d\n", file_tag_idx, __FILE__, __LINE__);
 		}
@@ -6555,11 +6558,12 @@ int main(int argc, char **argv)
 
 
 	fprintf(stderr, "before ck_json: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
-	ck_json(bin_map, "check for valid json in str_pool", __FILE__, __LINE__, options.verbose);
-	ck_json(chrts_cats, "check for valid json in chrts_cats", __FILE__, __LINE__, options.verbose);
+	nlohmann::json jobj;
+	ck_json(bin_map, "check for valid json in str_pool", false, jobj, __FILE__, __LINE__, options.verbose);
+	ck_json(chrts_cats, "check for valid json in chrts_cats", false, jobj, __FILE__, __LINE__, options.verbose);
 	for (uint32_t i=0; i < chrts_json.size(); i++) {
 		std::string hdr = "check for valid json in chrts_json[" + std::to_string(i) + "]";
-		ck_json(chrts_json[i], hdr.c_str(), __FILE__, __LINE__, options.verbose);
+		ck_json(chrts_json[i], hdr.c_str(), false, jobj, __FILE__, __LINE__, options.verbose);
 	}
 
 	if (options.web_file.size() > 0) {
@@ -6683,7 +6687,8 @@ int main(int argc, char **argv)
 						fprintf(stdout, "%s\n", svg_str.c_str());
 						fflush(stdout);
 					}
-					ck_json(svg_str, "check parse_svg json str", __FILE__, __LINE__, options.verbose);
+					nlohmann::json jobj;
+					ck_json(svg_str, "check parse_svg json str", false, jobj, __FILE__, __LINE__, options.verbose);
 				}
 
 			}
