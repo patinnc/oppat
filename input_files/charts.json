@@ -120,7 +120,7 @@
 		{"name":"dura",     "lkup":"_DURATION_",   "lkup_typ": "TYP_DURATION_BEF|TYP_DBL"}
 		],
 	"charts": [
-		{"category":"PERF", "title":"Markers",  "var_name":"marker",
+		{"category":"PERF", "title":"Phases",  "var_name":"marker",
 			"chart_tag":"PHASE_CHART", "chart_type":"line", "marker":{"type":"none", "size":"10", "connect":"y", "text":"y"},
 			"use_chart":"y", "y_label":"markers"}
 		]
