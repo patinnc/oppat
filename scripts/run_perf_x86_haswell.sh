@@ -254,7 +254,7 @@ SPIN_ARGS="4 mem_bw_2rd2wr 64 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 c
 SPIN_ARGS="4 mem_bw 64 100k"
 SPIN_ARGS="4 mem_bw"
 SPIN_ARGS="4 mem_bw_2rd 64 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
-SPIN_ARGS="-f input_files/haswell_spin_input.txt" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
+SPIN_ARGS="-f input_files/haswell_spin_input.txt -p $ODIR/phase.tsv" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
 sleep 1 # it takes about a 1 second (it seems) for the previous perf cmd (with all the events) to get up and running
 $BIN_DIR/clocks.x > $ODIR/clocks1.txt
 #$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
@@ -314,6 +314,7 @@ echo "   {\"bin_file\":\"prf_trace2.data\", \"txt_file\":\"prf_trace2.txt\", \"t
 echo "   {\"bin_file\":\"tc_trace.dat\",   \"txt_file\":\"tc_trace.txt\",  \"tag\":\"%cur_tag%\", \"type\":\"TRACE_CMD\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"prf_energy.txt\", \"txt_file\":\"prf_energy2.txt\", \"wait_file\":\"wait.txt\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\"}," >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"spin.txt\", \"txt_file\":\"\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"spin.lua\", \"lua_rtn\":\"spin\"}, " >> $ODIR/file_list.json
+echo "   {\"bin_file\":\"\", \"txt_file\":\"phase.tsv\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"gb_phase.lua\", \"lua_rtn\":\"gb_phase\", \"options\":\"USE_AS_PHASE,USE_EXTRA_STR\"}, " >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"iostat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"iostat.lua\", \"lua_rtn\":\"iostat\"}, " >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"vmstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"vmstat.lua\", \"lua_rtn\":\"vmstat\"}, " >> $ODIR/file_list.json
 echo "   {\"bin_file\":\"clocks1.txt\", \"txt_file\":\"nicstat.txt\", \"wait_file\":\"\", \"tag\":\"%cur_tag%\", \"type\":\"LUA\", \"lua_file\":\"nicstat.lua\", \"lua_rtn\":\"nicstat\"} " >> $ODIR/file_list.json
