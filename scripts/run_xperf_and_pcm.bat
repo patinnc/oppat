@@ -1,6 +1,6 @@
 
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
-set SFX=mem_bw_pcm
+set SFX=spin10_pcm
 set PFX=win
 set ODIR=..\oppat_data\%PFX%\%SFX%
 set SCR_DIR=%~dp0
@@ -39,7 +39,8 @@ for /f "delims=" %%x in (%WAIT_FILE%) do set pid=%%x
 xperf -on PROC_THREAD+LOADER+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch
 
 
-%BIN_DIR%\spin.exe 4 mem_bw > %ODIR%\spin.txt
+@rem %BIN_DIR%\spin.exe 4 mem_bw > %ODIR%\spin.txt
+%BIN_DIR%\spin.exe -f input_files\haswell_spin_input.txt -p %ODIR%\phase.tsv > %ODIR%\spin.txt
 @rem xperf -stop usersession -stop -d %ODIR%\etw_trace.etl
 %BIN_DIR%\win_send_signal.exe %pid%
 taskkill /im pcm.exe
@@ -52,6 +53,7 @@ del %WAIT_FILE%
 @echo    {"cur_tag":"%PFX%_%SFX%"}, >> %ODIR%/file_list.json
 @echo    {"txt_file":"etw_trace.txt", "tag":"%%cur_tag%%", "type":"ETW"}, >> %ODIR%/file_list.json
 @echo    {"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%%cur_tag%%", "type":"LUA"}, >> %ODIR%/file_list.json
+@echo    {"bin_file":"", "txt_file":"phase.tsv", "wait_file":"", "tag":"%%cur_tag%%", "type":"LUA", "lua_file":"gb_phase.lua", "lua_rtn":"gb_phase", "options":"USE_AS_PHASE,USE_EXTRA_STR"}, >> %ODIR%/file_list.json
 @echo    {"bin_file":"pcm.csv", "txt_file":"", "wait_file":"", "tag":"%cur_tag%", "type":"LUA", "lua_file":"pcm.lua", "lua_rtn":"read_pcm"} >> %ODIR%/file_list.json
 
 @echo   ]} >> %ODIR%/file_list.json
