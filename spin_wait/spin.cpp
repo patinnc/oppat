@@ -13,6 +13,7 @@
 #endif
 
 #include <iostream>
+#include <iomanip>
 #include <time.h>
 #include <stdlib.h>
 #include <fstream>
@@ -114,6 +115,12 @@ struct args_str {
 	std::string loops_str, adder_str, units;
 	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0),
 		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1) {}
+};
+
+struct phase_str {
+	std::string work, filename, phase;
+	double tm_end, perf, dura;
+	phase_str(): tm_end(0.0), perf(0.0), dura(0.0) {}
 };
 
 uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t adder, uint64_t &ops)
@@ -419,6 +426,7 @@ float disk_all(unsigned int i)
 		dura2 = 1.0;
 	}
 	args[i].dura = dura;
+	args[i].tm_end = tm_end;
 	args[i].perf = 1.0e-6 * (double)(bytes)/dura2;
 	args[i].units = "MiB/sec";
 	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, %s= %f\n",
@@ -489,6 +497,7 @@ float mem_bw(unsigned int i)
 		dura2 = 1.0;
 	}
 	args[i].dura = dura;
+	args[i].tm_end = tm_end;
 	args[i].units = "GB/sec";
 	args[i].perf = 1.0e-9 * (double)(bytes)/(dura2);
 	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
@@ -526,6 +535,7 @@ float simd_dot0(unsigned int i)
 		dura2 = 1.0;
 	}
 	args[i].dura = dura;
+	args[i].tm_end = tm_end;
 	args[i].units = "Gops/sec";
 	args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
 	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
@@ -677,9 +687,18 @@ int main(int argc, char **argv)
 
 	uint32_t wrk_typ = WRK_SPIN;
 	std::string work = "spin";
+	std::string phase_file;
+	std::vector <phase_str> phase_vec;
 
 	if (argc >= 2 && std::string(argv[1]) == "-f") {
 		read_options_file(argv[0], argv[2], argvs);
+		for (int j=1; j < (argc-1); j++) {
+			if (strcmp(argv[j], "-p") == 0) {
+				phase_file = argv[j+1];
+				printf("phase_file= %s at %s %d\n", phase_file.c_str(), __FILE__, __LINE__);
+				break;
+			}
+		}
 	} else {
 		std::vector <std::string> av;
 		for (int j=0; j < argc; j++) {
@@ -800,6 +819,11 @@ int main(int argc, char **argv)
 				tot += args[i].perf;
 			}
 			if (phase.size() > 0) {
+				phase_str ps;
+				ps.phase = phase+", "+args[0].units+"= "+std::to_string(tot);
+				ps.dura = args[0].dura;
+				ps.tm_end = args[0].tm_end;
+				phase_vec.push_back(ps);
 				std::string str = "end phase MT "+phase+", dura= "+std::to_string(args[0].dura)+", "+args[0].units+"= "+std::to_string(tot);
 				trace_marker_write(str);
 				printf("%s\n", str.c_str());
@@ -815,6 +839,18 @@ int main(int argc, char **argv)
 	proc_cputime = dclock_vari(CLOCK_PROCESS_CPUTIME_ID) - proc_cputime;
 	printf("process cpu_time= %.6f secs at %s %d\n", proc_cputime, __FILE__, __LINE__);
 #endif
+	if (phase_file.size() > 0) {
+		std::ofstream file2;
+		file2.open (phase_file.c_str(), std::ios::out);
+		if (!file2.is_open()) {
+			printf("messed up fopen of flnm= %s at %s %d\n", phase_file.c_str(), __FILE__, __LINE__);
+			exit(1);
+		}
+		for (uint32_t i=0; i < phase_vec.size(); i++) {
+			file2 << std::fixed << std::setprecision( 9 ) << phase_vec[i].tm_end << "\t" << phase_vec[i].dura << "\t" << phase_vec[i].phase << std::endl;
+		}
+		file2.close();
+	}
 	if (argc > 20) {
 		for (unsigned i=0; i < num_cpus; i++) {
 			printf("rezult[%d]= %lu\n", i, args[i].rezult);
