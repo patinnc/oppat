@@ -2656,7 +2656,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 			let fl_title_str = fl_menu_ch_title_str;
 			mytitle3.innerHTML = file_tag+fl_title_str+unzoom_str+zoom_str;
-			if (g_fl_arr[file_tag_idx][cs_idx].event == "sched:sched_switch") {
+			if (g_fl_arr[file_tag_idx][cs_idx].event == "sched:sched_switch" ||
+				g_fl_arr[file_tag_idx][cs_idx].event == "CSwitch") {
 				ck_if_need_to_save_image(chart_data.chart_tag, mycanvas3, true, fl_hover, mycanvas3_nm_title);
 			}
 			//console.log("fl.ymx= "+got_y_max+", title= "+fl_title_str);
