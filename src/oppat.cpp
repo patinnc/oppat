@@ -1763,12 +1763,14 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 	double ts0 = prf_obj.tm_beg;
 	ch_lines.tm_beg_offset_due_to_clip = prf_obj.tm_beg_offset_due_to_clip;
 	ch_lines.prf_obj = &prf_obj;
-	if (verbose)
+	if (verbose) {
 		printf("build_chart_lines(%d, %d): ts0= %f chart= '%s' by_var_idx= %d by_var_str.size()= %d by_var_vals.sz= %d at %s %d\n",
 		evt_idx, chrt, ts0, event_table[evt_idx].charts[chrt].title.c_str(), (int)by_var_idx,
 		(int)event_table[evt_idx].charts[chrt].by_var_strs.size(),
 		(int)event_table[evt_idx].charts[chrt].by_var_vals.size(),
 		__FILE__, __LINE__);
+		fflush(NULL);
+	}
 	ch_lines.line.clear();
 	uint32_t by_var_sz;
 	if (by_var_idx >= 0) {
@@ -3809,13 +3811,14 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	if (prf_obj.file_type != FILE_TYP_ETW) {
 		samples_sz = prf_obj.samples.size();
 	} else {
-		printf("ETW event= %s at %s %d\n", prf_obj.events[prf_idx].event_name.c_str(), __FILE__, __LINE__);
 		if (prf_idx >= prf_obj.etw_evts_set.size()) {
 			printf("out of bounds prf_idx(%d) >= etw_evts_set.sz(%d). Bye at %s %d\n",
 				(int)prf_idx, (int)prf_obj.etw_evts_set.size(), __FILE__, __LINE__);
 			exit(1);
 		}
 		samples_sz = prf_obj.etw_evts_set[prf_idx].size();
+		//printf("ETW event= %s samples_sz= %d, at %s %d\n",
+		//	prf_obj.events[prf_idx].event_name.c_str(), samples_sz, __FILE__, __LINE__);
 		for (uint32_t j=0; j < fsz; j++) {
 			uint64_t flg = event_table.flds[j].flags;
 			if ((flg & (uint64_t)fte_enum::FLD_TYP_SYS_CPU) && event_table.flds[j].lkup.size() > 0) {
@@ -3875,6 +3878,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	did_actions_already.resize(fsz);
 
 	std::string comm, comm2, fl_evt;
+	//printf("ETW event= %s samples_sz= %d at %s %d\n", prf_obj.events[prf_idx].event_name.c_str(), samples_sz, __FILE__, __LINE__);
+	//fflush(NULL);
 	for (uint32_t i=0; i < samples_sz; i++) {
 		if (prf_obj.file_type != FILE_TYP_ETW) {
 			if (prf_obj.samples[i].evt_idx != prf_idx) {
@@ -4158,7 +4163,14 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					continue;
 				}
 			}
-			if (flg & (uint64_t)fte_enum::FLD_TYP_NEW_VAL) {
+#if 0
+	printf("ETW event= %s i= %d fsz= %d j= %d lkup= %s at %s %d\n",
+			prf_obj.events[prf_idx].event_name.c_str(), i, fsz, j,
+			event_table.flds[j].lkup.c_str(), __FILE__, __LINE__);
+	fflush(NULL);
+#endif
+			if (prf_obj.file_type != FILE_TYP_ETW &&
+				(flg & (uint64_t)fte_enum::FLD_TYP_NEW_VAL)) {
 				int prf_evt_idx2 = (int)prf_obj.samples[i].evt_idx;
 				std::string nd_lkup = event_table.flds[j].lkup;
 				int got_it = -1;
