@@ -36,7 +36,7 @@ for /f "delims=" %%x in (%WAIT_FILE%) do set pid=%%x
 
 
 @rem xperf -on PROC_THREAD+LOADER+PROFILE+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch+profile -start usersession -on Microsoft-Windows-Win32k
-xperf -on PROC_THREAD+LOADER+CSWITCH+DISPATCHER+DISK_IO+NetworkTrace -stackWalk cswitch
+xperf -on SYSCALL+MEMINFO+PROC_THREAD+LOADER+CSWITCH+DISPATCHER+HARD_FAULTS+FILE_IO+FILE_IO_INIT+DISK_IO+NetworkTrace -stackWalk cswitch
 
 
 @rem %BIN_DIR%\spin.exe 4 mem_bw > %ODIR%\spin.txt
