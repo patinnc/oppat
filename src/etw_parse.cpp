@@ -287,23 +287,42 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 				eds.evts_used.push_back(hsh_ck - 1);
 			}
 			std::string trigger = evt_tbl2[i].evt_derived.evt_trigger;
+			uint32_t trgr_idx = UINT32_M1;
 			if (okay) {
-				hsh_ck = prf_obj.etw_evts_hsh[trigger];
-				if (hsh_ck == 0) {
-					okay = false;
+				if (trigger != "__EMIT__") {
+					hsh_ck = prf_obj.etw_evts_hsh[trigger];
+					if (hsh_ck == 0) {
+						okay = false;
+					}
+				} else {
+					trgr_idx = UINT32_M2;
 				}
 			}
 			if (okay) {
 				std::string new_nm  = evt_tbl2[i].event_name;
-				hsh_ck = prf_obj.etw_evts_hsh[trigger] - 1;
-				std::vector <std::string> tkns = prf_obj.events[hsh_ck].etw_cols;
-				tkns[0] = new_nm;
-				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
-					tkns.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
+				std::vector <std::string> tkns;
+				if (trgr_idx != UINT32_M2) {
+					hsh_ck = prf_obj.etw_evts_hsh[trigger] - 1;
+					tkns = prf_obj.events[hsh_ck].etw_cols;
+					tkns[0] = new_nm;
+					for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
+						tkns.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
+					}
+				} else {
+					hsh_ck = prf_obj.etw_evts_hsh[evt_tbl2[i].evt_derived.evts_used[0]] - 1;
+					tkns = prf_obj.events[hsh_ck].etw_cols;
+					tkns[0] = new_nm;
+					for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
+						tkns.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
+					}
 				}
 				uint32_t new_idx = add_evt_and_cols(prf_obj, tkns, nms);
 				eds.evt_tbl2_idx = i;
-				eds.trigger_idx = hsh_ck;
+				if (trgr_idx != UINT32_M2) {
+					eds.trigger_idx = hsh_ck;
+				} else {
+					eds.trigger_idx = trgr_idx;
+				}
 				eds.evt_new_idx = new_idx;
 				evts_derived.push_back(eds);
 				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
@@ -312,6 +331,11 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 				printf("trigger= %s, tkns[0]= %s, new_nm= %s trg_idx= %d, new_idx= %d evts_der.back().used.sz= %d at %s %d\n",
 					trigger.c_str(), tkns[0].c_str(), new_nm.c_str(), hsh_ck, new_idx,
 					(int)evts_derived.back().evts_used.size(), __FILE__, __LINE__);
+				for (uint32_t j=0; j < evts_derived.back().evts_used.size(); j++) {
+					hsh_ck = prf_obj.etw_evts_hsh[evt_tbl2[i].evt_derived.evts_used[j]] - 1;
+					std::string nm = prf_obj.events[hsh_ck].etw_cols[0];
+					printf("evt_used[%d]= %s at %s %d\n", j, nm.c_str(), __FILE__, __LINE__);
+				}
 			}
 		}
 	}
@@ -465,7 +489,7 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 			es.ts -= first_ts;
 			prf_obj.etw_evts_set[evt_idx].push_back(es);
 			prf_obj.etw_data.push_back(tkns);
-			bool got_it = false;
+			bool prt = false, got_it = false;
 			for (uint32_t j=0; j < evts_derived.size(); j++) {
 				uint32_t tbl2_idx = evts_derived[j].evt_tbl2_idx;
 				uint32_t trig_idx = evts_derived[j].trigger_idx;
@@ -488,8 +512,8 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 						std::vector <std::string> new_vals;
 						new_vals.resize(new_sz);
 
-						lua_derived_evt(lua_file, lua_rtn, cols[0], cols, tkns, evts_derived[j].new_cols, new_vals, verbose);
-						if (trig_idx == evt_idx) {
+						int trig = lua_derived_evt(lua_file, lua_rtn, cols[0], cols, tkns, evts_derived[j].new_cols, new_vals, verbose);
+						if (trig_idx == evt_idx || (trig_idx == UINT32_M2 &&  trig == 1)) {
 							tkns2[0] = prf_obj.events[new_idx].etw_cols[0];
 							if (verbose > 0)
 								printf("trigger: new_idx= %d, etw_cols.zs= %d, tkns2.sz= %d, at %s %d\n",
@@ -511,9 +535,12 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 						break;
 					}
 				}
+				/*
 				if (got_it) {
+					// if we break here then, if an event is used in more than 1 derived event, the 2+ der_evt won't see the event
 					break;
 				}
+				*/
 			}
 			if (evt_idx != stk_idx) {
 				evt_idx_prv = evt_idx;
