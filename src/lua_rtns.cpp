@@ -440,13 +440,17 @@ double lua_derived_evt(std::string lua_file, std::string lua_rtn, std::string &e
 				(int)new_cols.size(), (int)new_vals.size(), __FILE__, __LINE__);
 		exit(1);
 	}
+	int rc = 0;
 	for (uint32_t i=0; i < new_cols.size(); i++) {
 		new_vals[i] = lua_states[lua_idx]->lua["new_vals"][i+1];
+		if (new_cols[i] == "__EMIT__" && new_vals[i] == "1") {
+			rc = 1;
+		}
 		if (verbose > 0) {
 			printf("lua new_val[%d]= %s at %s %d\n", i, new_vals[i].c_str(), __FILE__, __LINE__);
 		}
 	}
-	return 0;
+	return rc;
 }
 
 double lua_derived_tc_prf(uint32_t der_evt_idx, std::string lua_file, std::string lua_rtn, std::string &evt_nm,
