@@ -81,13 +81,13 @@ void replace_substr(std::string &base_str, std::string lkfor_str, std::string re
 	}
 	size_t pos = base_str.find(lkfor_str);
 	if (pos != std::string::npos) {
-		if (verbose)
+		if (verbose > 1)
 			printf("ckfor bef cur_tag in str= %s at %s %d\n", base_str.c_str(), __FILE__, __LINE__);
 		while(pos != std::string::npos) {
 			base_str.replace(pos, lkfor_str.size(), replace_with_str);
 			pos = base_str.find(lkfor_str, pos+replace_with_str.size());
 		}
-		if (verbose)
+		if (verbose > 1)
 			printf("ckfor aft replace in str= %s at %s %d\n", base_str.c_str(), __FILE__, __LINE__);
 	}
 }
