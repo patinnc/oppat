@@ -81,15 +81,15 @@
 , {"fld":{"x":10,  "y":10, "use_box_nm":"syscall_outstanding"}, "save_image_nm":"syscall_out_img", "chart":"SYSCALL_OUTSTANDING_CHART", "print":"n", "pfx":"outstanding: "}
 , {"fld":{"x":10,  "y":10, "use_box_nm":"syscall_active"}, "save_image_nm":"syscall_active_img", "chart":"SYSCALL_ACTIVE_CHART",   "print":"n", "pfx":"active: "}
 , {"fld":{"x":10,  "y":10}, "save_image_nm":"syscall_sockets_active_img", "chart":"SYSCALL_SOCKETS_ACTIVE_CHART",   "print":"n", "pfx":"active: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"nicstat_tcp_packets_img", "chart":"NICSTAT_TCP_PACKETS_PER_SEC_cHART",   "print":"n", "pfx":"active: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"nicstat_udp_packets_img", "chart":"NICSTAT_UDP_DG_PER_SEC_cHART",   "print":"n", "pfx":"active: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"nicstat_dev_packets_img", "chart":"NICSTAT_PACKETS_PER_SEC_cHART",   "print":"n", "pfx":"active: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"nicstat_tcp_packets_img", "chart":"NICSTAT_TCP_PACKETS_PER_SEC_CHART",   "print":"n", "pfx":"active: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"nicstat_udp_packets_img", "chart":"NICSTAT_UDP_DG_PER_SEC_CHART",   "print":"n", "pfx":"active: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"nicstat_dev_packets_img", "chart":"NICSTAT_PACKETS_PER_SEC_CHART",   "print":"n", "pfx":"active: "}
 , {"fld":{"x":10,  "y":10}, "save_image_nm":"syscall_out_nonblock_img", "chart":"SYSCALL_OUTSTANDING_NONBLOCK_CHART", "print":"n", "pfx":"outstanding: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"vmstat_mem_img", "chart":"VMSTAT_MEM_cHART", "print":"n", "pfx":"outstanding: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"vmstat_io_img", "chart":"VMSTAT_IO_cHART", "print":"n", "pfx":"outstanding: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"vmstat_swap_img", "chart":"VMSTAT_SWAP_cHART", "print":"n", "pfx":"outstanding: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"perf_faults_sec_img", "chart":"PERF_FAULTS_SEC_cHART", "print":"n", "pfx":"outstanding: "}
-, {"fld":{"x":10,  "y":10}, "save_image_nm":"iostat_img", "chart":"IOSTAT_cHART", "print":"n", "pfx":"outstanding: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"vmstat_mem_img", "chart":"VMSTAT_MEM_CHART", "print":"n", "pfx":"outstanding: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"vmstat_io_img", "chart":"VMSTAT_IO_CHART", "print":"n", "pfx":"outstanding: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"vmstat_swap_img", "chart":"VMSTAT_SWAP_CHART", "print":"n", "pfx":"outstanding: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"perf_faults_sec_img", "chart":"PERF_FAULTS_SEC_CHART", "print":"n", "pfx":"outstanding: "}
+, {"fld":{"x":10,  "y":10}, "save_image_nm":"iostat_img", "chart":"IOSTAT_CHART", "print":"n", "pfx":"outstanding: "}
 , {"fld":{"x":10,  "y":10, "use_box_nm":"IO_MBps"}, "save_image_nm":"VFS_image", "chart":"SYSCALL_READ_WRITE_MBPS_CHART",   "print":"n", "pfx":"active: "}
 , {"fld":{"x":10,  "y":10, "use_box_nm":"Scheduler"}, "save_image_nm":"cpu_busy_image", "chart":"PCT_BUSY_BY_CPU",   "print":"n", "pfx":"active: "}
 , {"fld":{"x":10,  "y":60},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
