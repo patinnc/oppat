@@ -140,6 +140,7 @@ static bool is_action_oper_valid(std::string oper)
 {
 	if (oper == "drop_if_gt" || oper == "cap" || oper == "set" || oper == "mult" ||
 		oper == "diff_ts_last_by_val" ||
+		oper == "drop_if_str_contains" ||
 		oper == "div" || oper == "add" || oper == "replace" || oper == "replace_any" ||
 		oper == "filter_regex") {
 		return true;
@@ -930,13 +931,19 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 							action_str as;
 							json &jiefm = jief[stg[kk]][m];
 							if (jiefm.find("oper") == jiefm.end() ||
-								jiefm.find("val") == jiefm.end()) {
-								printf("for evt= %s, got action obj= %s m= %d but didn't find oper or val field. Bye at %s %d\n",
+								(jiefm.find("str") == jiefm.end() &&
+								jiefm.find("val") == jiefm.end())) {
+								printf("for evt= %s, got action obj= %s m= %d but didn't find oper or (val or str) field. Bye at %s %d\n",
 										evt_nm.c_str(), stg[kk].c_str(), m, __FILE__, __LINE__);
 								exit(1);
 							}
 							as.oper = jiefm["oper"];
-							as.val  = jiefm["val"];
+							if (jiefm.find("val") != jiefm.end()) {
+								as.val  = jiefm["val"];
+							}
+							if (jiefm.find("str") != jiefm.end()) {
+								as.str  = jiefm["str"];
+							}
 							if (stg[kk] == "actions") {
 								fs.actions.push_back(as);
 							} else {
@@ -1329,6 +1336,7 @@ static void bld_copt(void)
 	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_LEGEND_WEIGHT_BY_DURA,	"TOT_LINE_LEGEND_WEIGHT_BY_DURA"});
 	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_BUCKET_BY_END_OF_SAMPLE, "TOT_LINE_BUCKET_BY_END_OF_SAMPLE"});
 	copt_strs.push_back({(uint64_t)copt_enum::SHOW_EVEN_IF_ALL_ZERO,			"SHOW_EVEN_IF_ALL_ZERO"});
+	copt_strs.push_back({(uint64_t)copt_enum::SUM_TO_INTERVAL,					"SUM_TO_INTERVAL"});
 }
 
 static void bld_fld_typ(void)
