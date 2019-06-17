@@ -90,21 +90,14 @@ function sockets(verbose)
 		tbl = {}
 	end
 	new_vals[emit_idx] = 0
-	--log_pid = data_cols_hash["LoggingProcessName ( PID)"]
-	--log_tid = data_cols_hash["LoggingThreadID"]
-	--log_irp = data_cols_hash["IrpPtr"]
-	--log_file= data_cols_hash["FileObject"]
-		--printf("got sockets type= %s\n", log_type)
-		--local log_size = tonumber(data_vals[size_idx])
-		--local dura = tonumber(data_vals[time_idx])
-		local dura = 1.0e-6
-		new_vals[area_idx] = data_vals[1]
-		new_vals[call_idx] = 1.0
-		new_vals[num_idx]  = 1.0
-		new_vals[den_idx]  = 1.0
-		new_vals[dura_idx] = dura
-		new_vals[emit_idx] = 1
-		if verbose > 0 then
-			printf("got sockets area= %s, calls= %.3f dura= %.3f\n", new_vals[area_idx], 1.0, dura)
-		end
+	local dura = 1.0e-5
+	new_vals[area_idx] = data_vals[1]
+	new_vals[call_idx] = 1.0
+	new_vals[num_idx]  = 1.0
+	new_vals[den_idx]  = 1.0
+	new_vals[dura_idx] = dura
+	new_vals[emit_idx] = 1
+	if verbose > 0 then
+		printf("got sockets area= %s, calls= %.3f dura= %.3f\n", new_vals[area_idx], 1.0, dura)
+	end
 end
