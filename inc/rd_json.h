@@ -26,9 +26,10 @@ struct flnm_evt_str {
 struct action_str {
 	std::string oper;
 	double val, val1;
-	std::string str, str1;
-	uint32_t regex_fld_idx;
+	std::string str, str1, drop_if_str;
+	uint32_t regex_fld_idx, drop_if_fld_idx;
 	std::regex regx;
+	action_str(): regex_fld_idx(-1), drop_if_fld_idx(-1) {}
 };
 struct comm_tid_str {
 	std::string comm, tid;
@@ -148,6 +149,7 @@ enum class copt_enum : const uint64_t {
 	TOT_LINE_LEGEND_WEIGHT_BY_DURA  = (1ULL << 3),
 	TOT_LINE_BUCKET_BY_END_OF_SAMPLE= (1ULL << 4),
 	SHOW_EVEN_IF_ALL_ZERO           = (1ULL << 5),
+	SUM_TO_INTERVAL           		= (1ULL << 6),
 };
 
 enum class fte_enum : const uint64_t {
