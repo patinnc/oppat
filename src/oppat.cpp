@@ -1049,7 +1049,7 @@ static uint32_t get_by_var_idx(std::unordered_map <double, uint32_t> hsh_dbl, do
 	return idx-1;
 }
 
-static void run_actions(double &val, std::vector <action_str> actions, bool &use_value)
+static void run_actions(double &val, std::vector <action_str> actions, bool &use_value, evt_str &event_table)
 {
 	for (uint32_t k=0; k < actions.size(); k++) {
 		if (actions[k].oper == "replace" && actions[k].val == val) {
@@ -1072,7 +1072,20 @@ static void run_actions(double &val, std::vector <action_str> actions, bool &use
 			if (val > actions[k].val) {
 				use_value = false;
 			}
+#if 1
+		} else if (actions[k].oper == "drop_if_str_contains") {
+			uint32_t ival = val - 1;
+			//printf("got drop_if_str_contains at %s %d\n", __FILE__, __LINE__);
+			if (ival < event_table.vec_str.size() && actions[k].str.size() > 0) {
+				std::string str = event_table.vec_str[ival];
+				//printf("got drop_if_str_contains str= %s at %s %d\n", str.c_str(), __FILE__, __LINE__);
+				if (str.find(actions[k].str) != std::string::npos) {
+					//printf("got drop_if_str_contains drop at %s %d\n", __FILE__, __LINE__);
+					use_value = false;
+				}
+			}
 		}
+#endif
 	}
 }
 
@@ -1285,7 +1298,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 			if (prv_ts_div_req_idx != (uint32_t)-1 && dura > 0.0) {
 				event_table.data.vals[i][prv_ts_div_req_idx] /= dura;
 				run_actions(event_table.data.vals[i][prv_ts_div_req_idx],
-					event_table.flds[prv_ts_div_req_idx].actions_stage2, use_value);
+					event_table.flds[prv_ts_div_req_idx].actions_stage2, use_value, event_table);
 			}
 		}
 	}
@@ -1760,6 +1773,27 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			have_filter_regex = true;
 		}
 	}
+	uint32_t have_drop_if_contains = UINT32_M1;
+	for (uint32_t i=0; i < event_table[evt_idx].charts[chrt].actions.size(); i++) {
+		if (event_table[evt_idx].charts[chrt].actions[i].oper == "drop_if_str_contains") {
+			event_table[evt_idx].charts[chrt].actions[i].drop_if_fld_idx = UINT32_M1;
+			for (uint32_t j=0; j < fsz; j++) {
+				if (event_table[evt_idx].flds[j].name == event_table[evt_idx].charts[chrt].actions[i].str) {
+					event_table[evt_idx].charts[chrt].actions[i].drop_if_fld_idx = j;
+					event_table[evt_idx].charts[chrt].actions[i].drop_if_str =
+						event_table[evt_idx].charts[chrt].actions[i].str1;
+					have_drop_if_contains = i;
+					break;
+				}
+			}
+			if (event_table[evt_idx].charts[chrt].actions[i].drop_if_fld_idx == UINT32_M1) {
+				fprintf(stderr, "didn't find drop_if_flds.name= %s in chart.json for chart title= '%s'. bye at %s %d\n",
+					event_table[evt_idx].charts[chrt].actions[i].str.c_str(),
+					event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+		}
+	}
 	double ts0 = prf_obj.tm_beg;
 	ch_lines.tm_beg_offset_due_to_clip = prf_obj.tm_beg_offset_due_to_clip;
 	ch_lines.prf_obj = &prf_obj;
@@ -2022,6 +2056,27 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					continue;
 				}
 			}
+			if (have_drop_if_contains != UINT32_M1) {
+				bool skip = false;
+				for (uint32_t ii=0; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
+					if (event_table[evt_idx].charts[chrt].actions[ii].oper == "drop_if_str_contains") {
+						uint32_t fld_idx = event_table[evt_idx].charts[chrt].actions[ii].drop_if_fld_idx;
+						uint32_t val = event_table[evt_idx].data.vals[i][fld_idx];
+						std::string str = event_table[evt_idx].vec_str[val-1];
+						std::string lkfor = event_table[evt_idx].charts[chrt].actions[ii].drop_if_str;
+						if (str.find(lkfor) != std::string::npos) {
+							//printf("skipping area str= %s due to containing str= %s at %s %d\n",
+							//		str.c_str(), lkfor.c_str(), __FILE__, __LINE__);
+							skip = true;
+							break;
+						}
+					}
+				}
+				if (skip) {
+					cur_idx--;
+					continue;
+				}
+			}
 			bool tmp_verbose = false;
 
 			if (chart_type != CHART_TYPE_STACKED) {
@@ -2138,6 +2193,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (overlaps_max_sz < overlaps_sz) {
 				overlaps_max_sz = overlaps_sz;
 			}
+			
+				by_var_idx_val = lst_by_var[cur_idx];
 				//printf("overlaps_sz= %d at %s %d\n", overlaps_sz, __FILE__, __LINE__);
 			if (handle_overlap == OVERLAP_TRUNC) {
 				uint32_t prv = prv_nxt[cur_idx].prv;
@@ -2158,7 +2215,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 				if (event_table[evt_idx].charts[chrt].actions.size() > 0) {
 					bool use_value = true;
-					run_actions(new_val, event_table[evt_idx].charts[chrt].actions, use_value);
+					run_actions(new_val, event_table[evt_idx].charts[chrt].actions, use_value, event_table[evt_idx]);
 				}
 				y_val[by_var_idx_val] = new_val;
 			} else {
@@ -2241,7 +2298,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					}
 					if (event_table[evt_idx].charts[chrt].actions.size() > 0) {
 						bool use_value = true;
-						run_actions(new_val, event_table[evt_idx].charts[chrt].actions, use_value);
+						run_actions(new_val, event_table[evt_idx].charts[chrt].actions, use_value, event_table[evt_idx]);
 					}
 					if (new_val < 0.0 && var_val >= 0.0 && ((x1 - x0) < 0.0 || (fx1 - sx0) < 0.0)) {
 						printf("screw up here, new_val= %f, var_val= %f, x0= %f, x1= %f, dff= %f sx0= %f, fx1= %f dff= %f at %s %d\n",
@@ -4275,7 +4332,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					if (!(flg & (uint64_t)fte_enum::FLD_TYP_TM_CHG_BY_CPU) && (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
 						if (event_table.flds[j].actions.size() > 0) {
 							did_actions_already[j] = true;
-							run_actions(x, event_table.flds[j].actions, use_value);
+							run_actions(x, event_table.flds[j].actions, use_value, event_table);
 						}
 						if (dura_idx > -1) {
 							dura = x;
@@ -4291,7 +4348,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					double x = 0.0;
 					if (event_table.flds[j].actions.size() > 0) {
 						did_actions_already[j] = true;
-						run_actions(x, event_table.flds[j].actions, use_value);
+						run_actions(x, event_table.flds[j].actions, use_value, event_table);
 					}
 					dura = x;
 					if (j < dv.size()) {
@@ -4621,7 +4678,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 					(flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF)) {
 					if (event_table.flds[j].actions.size() > 0) {
 						did_actions_already[j] = true;
-						run_actions(x, event_table.flds[j].actions, use_value);
+						run_actions(x, event_table.flds[j].actions, use_value, event_table);
 					}
 					if (dura_idx > -1) {
 						dura = x;
@@ -4679,7 +4736,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			if (did_actions_already[j]) {
 				continue;
 			}
-			run_actions(dv[j], event_table.flds[j].actions, use_value);
+			run_actions(dv[j], event_table.flds[j].actions, use_value, event_table);
 			uint64_t flg = event_table.flds[j].flags;
 			if (flg & (uint64_t)fte_enum::FLD_TYP_STATE_AFTER) {
 				if (state_prev_cpu_initd[cpu] == 0) {
