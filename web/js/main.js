@@ -605,6 +605,7 @@ function get_chart_options(chart_options)
 		tot_line_add_values_in_interval:false,
 		tot_line_legend_weight_by_dura:false,
 		tot_line_bucket_by_end_of_sample:false,
+		sum_to_interval:false,
 		show_even_if_all_zero:false,
 	}
 	if (typeof chart_options !== 'undefined') {
@@ -627,6 +628,10 @@ function get_chart_options(chart_options)
 		tst_opt = "SHOW_EVEN_IF_ALL_ZERO";
 		if (chart_options.indexOf(tst_opt) >= 0) {
 			ch_options.show_even_if_all_zero = true;
+		}
+		tst_opt = "SUM_TO_INTERVAL";
+		if (chart_options.indexOf(tst_opt) >= 0) {
+			ch_options.sum_to_interval = true;
 		}
 	}
 	return ch_options;
@@ -3075,6 +3080,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					if (ch_options.tot_line_bucket_by_end_of_sample && ibeg < (iend-1)) {
 						ibeg = iend-1;
 					}
+					if (ch_options.sum_to_interval) {
+						ibeg = iend-1;
+					}
 					//console.log("i= "+i+", beg= "+ibeg+", end= "+iend);
 					for (let j=ibeg; j < iend; j++) {
 						let xcur0, xcur1;
@@ -3127,7 +3135,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							if (!use_cpu0_x || cpu == 0) {
 								tot_line.xarray2[sci][j] += x_den;
 							}
-							if (tot_line.xarray2[sci][j] > 0.0) {
+							if (ch_options.sum_to_interval) {
+								tot_line.yarray[sci][j] += yval;
+							} else if (tot_line.xarray2[sci][j] > 0.0) {
 								tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
 							} else {
 								tot_line.yarray[sci][j] = 0.0;
@@ -3142,11 +3152,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 								}
 								*/
 						} else {
-							if (!ch_options.tot_line_add_values_in_interval) {
+							if (ch_options.sum_to_interval || ch_options.tot_line_add_values_in_interval) {
+								tot_line.yarray[sci][j] += yval;
+							} else {
 								// calc the fraction of yval in the current interval
 								tot_line.yarray[sci][j] += yval * (xcur1 - xcur0) * tot_line.divisions;
-							} else {
-								tot_line.yarray[sci][j] += yval;
 							}
 						}
 					}
