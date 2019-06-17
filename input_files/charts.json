@@ -2174,12 +2174,13 @@
 	"evt_derived":{
 		"evts_used":["SysCallEnter", "SysCallExit"],
 		"evt_trigger":"SysCallExit",
-		"new_cols":["duration", "area"],
+		"new_cols":["duration", "area", "count"],
 		"lua_file":"etw_syscalls.lua",
 		"lua_rtn":"syscalls_all"
 	},
 	"evt_flds": [
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_NEW_VAL|TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]},
+		{"name":"count",  "lkup": "count", "lkup_typ": "TYP_NEW_VAL|TYP_DBL"},
 		{"name":"area",  "lkup": "area", "lkup_typ": "TYP_NEW_VAL|TYP_STR"}
 		],
 	"charts": [
@@ -2187,6 +2188,21 @@
 			"chart_tag":"SYSCALL_OUTSTANDING_CHART", "chart_type":"line", "use_chart":"d",
 			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
 			"marker":{"connect":"y", "ymin":"0.0"},
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on etw syscall event",
+				"xform":"select_vars", "yvar_fmt":"av.%s"}
+		},
+		{"category":"PERF", "title":"syscalls calls/interval",  "var_name":"count", "by_var": "area",
+			"chart_tag":"SYSCALL_ACTIVE_CHART", "chart_type":"line", "use_chart":"d",
+			"options":"SUM_TO_INTERVAL|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
+			"marker":{"connect":"y", "ymin":"0.0"},
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on etw syscall event",
+				"xform":"select_vars", "yvar_fmt":"av.%s"}
+		},
+		{"category":"PERF", "title":"syscalls excl Wait outstanding",  "var_name":"dura", "by_var": "area",
+			"chart_tag":"SYSCALL_OUTSTANDING_NONBLOCK_CHART", "chart_type":"line", "use_chart":"d",
+			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
+			"marker":{"connect":"y", "ymin":"0.0"},
+			"actions":[{"oper":"drop_if_str_contains", "str":"area", "str1":"Wait"}],
 			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on etw syscall event",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
 		}
@@ -2255,6 +2271,36 @@
   },
   {"event":
 	{
+	"evt_name": "etw_Faults",
+	"evt_type": "ETW",
+	"evt_derived":{
+		"evts_used":["HardFault", "PageFault"],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["__EMIT__", "area", "dura", "calls", "num", "den"],
+		"lua_file":"etw_sockets.lua",
+		"lua_rtn":"sockets"
+	},
+	"evt_flds": [
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"},
+		{"name":"numerator", "lkup": "num", "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":1}]},
+		{"name":"denominator", "lkup": "den", "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":1}]},
+		{"name":"dura",  "lkup": "dura", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":1}]},
+		{"name":"calls", "lkup": "calls", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_DBL",  "actions":[{"oper":"mult", "val":1}]}
+		],
+	"charts": [
+		{"category":"Disk", "title":"PageFaults and HardFaults",  "var_name":"numerator",
+			"by_var": "area", "chart_tag":"PERF_FAULTS_SEC_CHART", "chart_type":"line", "use_chart":"y", "y_label":"calls",
+			"options":"SUM_TO_INTERVAL|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
+			"marker":{"connect":"y", "ymin":"0.0"},
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP calls",
+				"xform":"select_vars", "yvar_fmt":"av.%s"}
+		}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "etw_socket",
 	"evt_type": "ETW",
 	"evt_derived":{
@@ -2273,9 +2319,9 @@
 		{"name":"calls", "lkup": "calls", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_DBL",  "actions":[{"oper":"mult", "val":1}]}
 		],
 	"charts": [
-		{"category":"Network", "title":"TCP/UDP calls/sec",  "var_name":"numerator",
+		{"category":"Network", "title":"TCP/UDP calls/interval",  "var_name":"numerator",
 			"by_var": "area", "chart_tag":"SYSCALL_SOCKETS_ACTIVE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"calls",
-			"options":"SHOW_EVEN_IF_ALL_ZERO|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
+			"options":"SHOW_EVEN_IF_ALL_ZERO|SUM_TO_INTERVAL|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
 			"marker":{"connect":"y", "ymin":"0.0"},
 			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP calls",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
@@ -2305,7 +2351,7 @@
 	"charts": [
 		{"category":"Network", "title":"TCP bytes/interval",  "var_name":"numerator",
 			"by_var": "area", "chart_tag":"NICSTAT_TCP_PACKETS_PER_SEC_CHART", "chart_type":"line", "use_chart":"y", "y_label":"bytes",
-			"options":"SHOW_EVEN_IF_ALL_ZERO|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
+			"options":"SHOW_EVEN_IF_ALL_ZERO|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
 			"marker":{"connect":"y", "ymin":"0.0"},
 			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP bytes",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
@@ -2335,7 +2381,7 @@
 	"charts": [
 		{"category":"Network", "title":"UDP bytes/interval",  "var_name":"numerator",
 			"by_var": "area", "chart_tag":"NICSTAT_UDP_DG_PER_SEC_CHART", "chart_type":"line", "use_chart":"y", "y_label":"bytes",
-			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
+			"options":"SHOW_EVEN_IF_ALL_ZERO|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
 			"marker":{"connect":"y", "ymin":"0.0"},
 			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP bytes",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
