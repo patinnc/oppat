@@ -61,7 +61,7 @@ function syscalls_all(verbose)
     		data_cols_hash[t] = k
 		end
 		--local tst = {"area", "duration", "__EMIT__"}
-		local tst = {"area", "duration"}
+		local tst = {"area", "duration", "count"}
 		for k,t in ipairs(tst) do
 			local idx = new_cols_hash[t]
 			if idx == nil then
@@ -76,6 +76,7 @@ function syscalls_all(verbose)
 --		end
 		area_idx  = new_cols_hash["area"]
 		dura_idx  = new_cols_hash["duration"]
+		count_idx  = new_cols_hash["count"]
 		--emit_idx  = new_cols_hash["__EMIT__"]
 	end
 
@@ -112,6 +113,7 @@ function syscalls_all(verbose)
 			end
 			new_vals[dura_idx] = new_val
 			new_vals[area_idx] = myevt
+			new_vals[count_idx] = 1.0
 			if verbose > 0 then
 				printf("syscalls area= %s, dura= %d\n", myevt, new_val)
 			end
