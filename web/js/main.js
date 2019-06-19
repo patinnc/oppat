@@ -742,7 +742,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let num_events = chart_data.subcat_rng.length;
 			for (let j=0; j < num_events; j++) {
 				let nm     = chart_data.subcat_rng[j].cat_text;
-				//console.log(sprintf("xform sel_var[%d] %s", j, nm));
+				if (chart_data.subcat_rng[j].total == 0) {
+					nm += ", no data";
+				}
+				if (chart_data.title == "PageFaults and HardFaults") {
+					console.log(sprintf("__xform sel_var[%d] %s, ttl= %s", j, nm, chart_data.title));
+					console.log("__xform: ", chart_data.subcat_rng[j]);
+				}
 				u_hsh[j] = nm;
 				u_arr.push(j);
 			}
