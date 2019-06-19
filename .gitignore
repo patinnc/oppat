@@ -69,6 +69,9 @@ wait.pid.txt
 drivers/
 
 # temp files
+pat00*.png
+?_test.png
+pat_test.png
 zoom_win.bat
 zoom_lnx.bat
 gen_html_files.bat
