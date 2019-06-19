@@ -754,7 +754,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				uint64_t ip = *(buf_uint64_ptr(buf, off));
 				off += sizeof(ip);
 			}
-			u32 pid=(u32)-1;
+			u32 pid=UINT32_M1;
 			u32 tid=pid, cpu=pid, res=pid;
 			u64 time=0, addr, id, stream_id=(u64)-1, period=0;
 		 //	{ u32			pid, tid; } && PERF_SAMPLE_TID
@@ -994,8 +994,14 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			if (orig_order == 0) {
 				printf("1st timestamp= %" PRIu64 " at %s %d\n", time, __FILE__, __LINE__);
 			}
-			if (pid != (u32)-1 && tid != (u32)-1 && pid > 0 && tid == 0) {
-				// why is this needed? There are lines like:
+			if (pid == UINT32_M1) {
+				printf("got pid= -1 for event_name= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+			}
+			if ((pid == UINT32_M1 && (evt_nm == "sched_switch" || evt_nm == "sched:sched_switch")) || (pid != UINT32_M1 && tid != UINT32_M1 && pid > 0 && tid == 0)) {
+				// sched_switch can also have the case where thread going out is going to die (a zombie)
+				// :-1    -1/-1    [000]   216.513672743:          1 sched:sched_switch:                       prev_comm=spin.x prev_pid=2729 prev_prio=120 prev_state=Z ==> next_comm=swapper/0 next_pid=0 next_prio=120
+
+				// older stuff: why is this needed? There are lines like:
 	// swapper  8451/0     [003] 15524.509388277:          1   sched:sched_switch:               prev_comm=spin.x prev_pid=8455 prev_prio=120 prev_state=x ==> next_comm=swapper/3 next_pid=0 next_prio=120
 				// above we see a sched switch with comm='swapper', pid > 0, tid==0 but prev_comm/pid = spin.x 8455
 				// This is about 0.1 secs before the thread is killed.d > 0, tid==0 but prev_comm/pid = spin.x 8455
@@ -1023,6 +1029,9 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 						printf("still missed loookup of comm for pid= %d, tid= %d, evt_nm= %s at %s %d\n",
 							s_sw->prev_pid, s_sw->prev_pid, evt_nm.c_str(), __FILE__, __LINE__);
 						exit(1);
+					}
+					if (pid == UINT32_M1) {
+						pid = tid;
 					}
 				}
 			}
