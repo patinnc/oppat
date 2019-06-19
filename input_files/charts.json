@@ -2241,36 +2241,6 @@
   },
   {"event":
 	{
-	"evt_name": "etw_HardFault",
-	"evt_type": "ETW",
-	"evt_derived":{
-		"evts_used":["HardFault"],
-		"evt_trigger":"__EMIT__",
-		"new_cols":["__EMIT__", "area", "dura", "bytes", "num", "den"],
-		"lua_file":"etw_HardFault.lua",
-		"lua_rtn":"HardFault"
-	},
-	"evt_flds": [
-		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
-		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"},
-		{"name":"numerator", "lkup": "num", "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}]},
-		{"name":"denominator", "lkup": "den", "lkup_typ": "TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]},
-		{"name":"dura",  "lkup": "dura", "lkup_typ": "TYP_DURATION_BEF|TYP_DBL", "actions":[{"oper":"mult", "val":0.000001}]},
-		{"name":"Disk MB/s", "lkup": "bytes", "lkup_typ": "TYP_DIV_BY_INTERVAL|TYP_DBL",  "actions":[{"oper":"mult", "val":1.0e-6}]}
-		],
-	"charts": [
-		{"category":"Disk", "title":"Hard PageFaults BW (MiB/sec)",  "var_name":"Disk MB/s",
-			"by_var": "area", "chart_tag":"VMSTAT_SWAP_CHART", "chart_type":"line", "use_chart":"y", "y_label":"MiB/sec",
-			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
-			"marker":{"connect":"y", "ymin":"0.0"},
-			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on FileIoRead/Write",
-				"xform":"select_vars", "yvar_fmt":"av.%s"}
-		}
-		]
-	}
-  },
-  {"event":
-	{
 	"evt_name": "etw_Faults",
 	"evt_type": "ETW",
 	"evt_derived":{
@@ -2293,7 +2263,7 @@
 			"by_var": "area", "chart_tag":"PERF_FAULTS_SEC_CHART", "chart_type":"line", "use_chart":"y", "y_label":"calls",
 			"options":"SUM_TO_INTERVAL|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
 			"marker":{"connect":"y", "ymin":"0.0"},
-			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP calls",
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on HardFault and PageFault events",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
 		}
 		]
@@ -2323,7 +2293,7 @@
 			"by_var": "area", "chart_tag":"SYSCALL_SOCKETS_ACTIVE_CHART", "chart_type":"line", "use_chart":"y", "y_label":"calls",
 			"options":"SHOW_EVEN_IF_ALL_ZERO|SUM_TO_INTERVAL|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
 			"marker":{"connect":"y", "ymin":"0.0"},
-			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP calls",
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP/UDP syscalls",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
 		}
 		]
@@ -2383,7 +2353,7 @@
 			"by_var": "area", "chart_tag":"NICSTAT_UDP_DG_PER_SEC_CHART", "chart_type":"line", "use_chart":"y", "y_label":"bytes",
 			"options":"SHOW_EVEN_IF_ALL_ZERO|OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_ADD_VALUES_IN_INTERVAL|TOT_LINE_BUCKET_BY_END_OF_SAMPLE",
 			"marker":{"connect":"y", "ymin":"0.0"},
-			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on TCP bytes",
+			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on UDP bytes",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
 		}
 		]
