@@ -354,6 +354,7 @@ obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/tc_read_data.h
 obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/utils.h
 obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/utils2.h
 obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/web_api.h
+obj/oppat.$(OBJ_EXT): src/oppat.cpp  inc/xls.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/MemoryMapped.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/ck_nesting.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/dump.hpp
@@ -367,6 +368,7 @@ obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/rd_json.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/rd_json2.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/tc_read_data.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/utils.h
+obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/utils2.h
 obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/web_api.h
 obj/printf.$(OBJ_EXT): src/printf.cpp  inc/printf.h
 obj/printf.$(OBJ_EXT): src/printf.cpp  inc/rd_json.h
@@ -398,3 +400,7 @@ obj/win_msr.$(OBJ_EXT): src/win_msr.c  inc/OlsApiInit.h
 obj/win_msr.$(OBJ_EXT): src/win_msr.c  inc/OlsDef.h
 obj/win_msr.$(OBJ_EXT): src/win_msr.c  inc/utils.h
 obj/win_msr.$(OBJ_EXT): src/win_msr.c  inc/win_msr.h
+obj/xls.$(OBJ_EXT): src/xls.cpp  inc/json.hpp
+obj/xls.$(OBJ_EXT): src/xls.cpp  inc/utils.h
+obj/xls.$(OBJ_EXT): src/xls.cpp  inc/utils2.h
+obj/xls.$(OBJ_EXT): src/xls.cpp  inc/xls.h
