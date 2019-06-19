@@ -1824,8 +1824,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				ch_lines.subcats[i].resize(1);
 			}
 			ch_lines.subcats[i][0] = event_table[evt_idx].flds[var_idx].name;
-			//printf("by_var_idx= %d, subcats[%d][%d] size= %d at %s %d\n",
-			//	(int)by_var_idx, i, (int)ch_lines.subcats[i].size(), (int)ch_lines.subcats[i][0].size(), __FILE__, __LINE__);
+#if 0
+			printf("by_var_idx= %d, subcats[%d][%d] size= %d legend[%d] = %s at %s %d\n",
+				(int)by_var_idx, i, (int)ch_lines.subcats[i].size(), (int)ch_lines.subcats[i][0].size(),
+				i, ch_lines.legend[i].c_str(), __FILE__, __LINE__);
+#endif
 		}
 	} else {
 		ch_lines.legend[0] = event_table[evt_idx].flds[var_idx].name;
