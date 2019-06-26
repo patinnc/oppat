@@ -2170,6 +2170,7 @@
   {"event":
 	{
 	"evt_name":"etw_syscall_all",
+	"evt_use": "y",
 	"evt_type": "ETW",
 	"evt_derived":{
 		"evts_used":["SysCallEnter", "SysCallExit"],
@@ -2185,8 +2186,8 @@
 		],
 	"charts": [
 		{"category":"PERF", "title":"syscalls outstanding",  "var_name":"dura", "by_var": "area",
-			"chart_tag":"SYSCALL_OUTSTANDING_CHART", "chart_type":"line", "use_chart":"d",
-			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
+			"chart_tag":"SYSCALL_OUTSTANDING_CHART", "chart_type":"line", "use_chart":"y",
+			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y",
 			"marker":{"connect":"y", "ymin":"0.0"},
 			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on etw syscall event",
 				"xform":"select_vars", "yvar_fmt":"av.%s"}
@@ -2200,7 +2201,7 @@
 		},
 		{"category":"PERF", "title":"syscalls excl Wait outstanding",  "var_name":"dura", "by_var": "area",
 			"chart_tag":"SYSCALL_OUTSTANDING_NONBLOCK_CHART", "chart_type":"line", "use_chart":"d",
-			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_DURA",
+			"options":"OVERLAPPING_RANGES_WITHIN_AREA|TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y",
 			"marker":{"connect":"y", "ymin":"0.0"},
 			"actions":[{"oper":"drop_if_str_contains", "str":"area", "str1":"Wait"}],
 			"tot_line":"__total__", "tot_line_options":{"yval_fmt":"%.2f", "desc":"Based on etw syscall event",
