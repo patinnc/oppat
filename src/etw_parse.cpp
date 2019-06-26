@@ -115,7 +115,7 @@ int etw_split_comm(const std::string &s, std::string &comm, std::string &pid, do
 
 static std::vector <std::string> WinSAT_SystemConfig;
 
-int add_threads(std::vector <std::string> cols, prf_obj_str &prf_obj, uint32_t t_idx, double ts, int verbose)
+int add_threads(std::vector <std::string> &cols, prf_obj_str &prf_obj, uint32_t t_idx, double ts, int verbose)
 {
 	uint32_t pids = 0;
 	uint32_t pid_col = prf_obj.events[t_idx].etw_col_hsh["Process Name ( PID)"] - 1;
@@ -395,9 +395,12 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	uint32_t thr_st0 = prf_obj.etw_evts_hsh["T-DCStart"] - 1;
 	uint32_t thr_st1 = prf_obj.etw_evts_hsh["T-Start"] - 1;
 	double tm_beg2 = dclock();
-	while(!file.eof()){
+	while(!file.eof()) {
 		//read data from file
 		std::getline (file, line);
+		if (line.size() < 2) {
+			continue;
+		}
 		if (pop_char && line.size()) {
 			line.pop_back();
 		}
@@ -479,13 +482,6 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 				first_ts_valid = true;
 			}
 			last_ts = es.ts;
-#if 0
-			if (sysconfig_idx != evt_idx) {
-				last_ts = es.ts;
-			} else {
-				es.ts = last_ts;
-			}
-#endif
 			es.ts -= first_ts;
 			prf_obj.etw_evts_set[evt_idx].push_back(es);
 			prf_obj.etw_data.push_back(tkns);
@@ -601,164 +597,5 @@ int etw_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					i, avg, count, prf_obj.events[i].event_name.c_str(), (int)prf_obj.etw_evts_set[i].size(), __FILE__, __LINE__);
 		}
 	}
-#if 0
-	uint32_t pids = 0;
-	std::vector <std::string> t_arr = {"T-DCStart", "T-Start"};
-	for (uint32_t j=0; j < t_arr.size(); j++) {
-		uint32_t t_idx  = prf_obj.etw_evts_hsh[t_arr[j]] -1;
-		if (t_idx == UINT32_M1) {
-			printf("Can't find '%s' event in ETW trace file %s. Maybe need LOADER? Bye at %s %d\n", t_arr[j].c_str(), flnm.c_str(), __FILE__, __LINE__);
-			exit(1);
-		}
-		uint32_t pid_col = prf_obj.events[t_idx].etw_col_hsh["Process Name ( PID)"] - 1;
-		uint32_t tid_col = prf_obj.events[t_idx].etw_col_hsh["ThreadID"] - 1;
-		printf("T-Start cols: pid= %d, tid= %d\n", pid_col, tid_col);
-		std::string comm, pid, tid;
-		for (uint32_t i=0; i < prf_obj.etw_evts_set[t_idx].size(); i++) {
-			uint32_t data_idx = prf_obj.etw_evts_set[t_idx][i].data_idx;
-			uint64_t ts       = prf_obj.etw_evts_set[t_idx][i].ts;
-			etw_split_comm(prf_obj.etw_data[data_idx][pid_col], comm, pid);
-			tid = prf_obj.etw_data[data_idx][tid_col];
-			uint32_t ipid, itid;
-			ipid = atoi(pid.c_str());
-			itid = atoi(tid.c_str());
-			double tm = 1.0e-6 * (double)ts + 1.0e-7 * (double)start_time;
-			prf_add_comm(ipid, itid, comm, prf_obj, tm);
-			//hash_comm_pid_tid(comm_pid_tid_hash, comm_pid_tid_vec, comm, ipid, itid);
-			if (verbose > 0) 
-				printf("tid[%d]: %s %s, comm= '%s', pid= %s, tm= %f\n", pids, prf_obj.etw_data[data_idx][pid_col].c_str(),
-					tid.c_str(), comm.c_str(), pid.c_str(), tm);
-			pids++;
-		}
-	}
-#endif
 	return 0;
-#if 0
-	printf("bye at %s %d\n", __FILE__, __LINE__);
-	exit(1);
-	std::string unknown_mod;
-	while(!file.eof()){
-		//read data from file
-		std::getline (file, line);
-		int sz = line.size();
-		if (sz > 0 && line[0] == '#') {
-			lines_comments++;
-		} else if (sz > 0 && line[0] == '\t') {
-			lines_callstack++;
-			size_t pos = line.find_first_not_of(" \t");
-			if (pos != std::string::npos) {
-				size_t pos2 = line.substr(pos).find(' ');
-				std::string rtn, module;
-				if (pos2 != std::string::npos) {
-					std::string nstr = line.substr(pos+pos2+1);
-					size_t pos3 = nstr.find("+0x");
-					if (pos3 != std::string::npos) {
-						rtn = nstr.substr(0, pos3);
-						size_t pos4 = nstr.substr(pos3).find(" ");
-						if (pos4 != std::string::npos) {
-							module = nstr.substr(pos3+pos4+1);
-						}
-					} else {
-						pos3 = nstr.find(" ");
-						if (pos3 != std::string::npos) {
-							rtn = nstr.substr(0, pos3);
-							size_t pos4 = nstr.substr(pos3).find(" ");
-							if (pos4 != std::string::npos) {
-								module = nstr.substr(pos3+pos4+1);
-							}
-						}
-					}
-					int msz = module.size();
-					if (msz > 2 && module.substr(0, 1) == "(" && module.substr(msz-1, 1) == ")") {
-						module = module.substr(1, msz - 2);
-					}
-					if (rtn == "[unknown]") {
-						if (msz > 0 && module == unknown_mod) {
-							// if we have more than 1 unknown rtns for a module then don't add 
-							continue;
-						}
-						unknown_mod = module;
-					}
-					if (store_callstack_idx > -1) {
-						struct prf_callstack_str pcs;
-						pcs.mod = module;
-						pcs.rtn = rtn;
-						prf_obj.samples[store_callstack_idx].callstack.push_back(pcs);
-					}
-					//printf("cs rtn= %s, mod= %s\n", rtn.c_str(), module.c_str());
-				}
-			}
-		} else if (sz == 0 ) {
-			lines_null++;
-		} else {
-			lines_samples++;
-			store_callstack_idx = -1;
-			samples++;
-			unknown_mod = "";
-			int evt = -1;
-			std::string extra_str;
-			for (uint32_t i=0; i < nms.size(); i++) {
-				size_t pos = line.find(nms[i].str);
-				if (pos != std::string::npos) {
-					size_t pos2 = line.substr(pos + nms[i].len).find_first_not_of(' ');
-					if (pos2 != std::string::npos) {
-						nms[i].ext_strs++;
-						extra_str = line.substr(pos + nms[i].len + pos2);
-					}
-					nms[i].count++;
-					evt = i;
-					break;
-				}
-			}
-			if (evt == -1) {
-				printf("missed event lookup for line= %s at %s %d\n",
-					line.c_str(), __FILE__, __LINE__);
-				exit(1);
-			}
-			int i_beg = s_idx, sz = prf_obj.samples.size();
-			if (i_beg < 0) {
-				i_beg = 0;
-			}
-			if (sz > (i_beg+100)) {
-				sz = i_beg + 100;
-			}
-			int mtch=-1;
-			for (int i=i_beg; i < sz; i++) {
-				if (line.find(prf_obj.samples[i].tm_str) != std::string::npos) {
-					s_idx = i;
-					store_callstack_idx = i;
-					mtch = i;
-					if (extra_str.size() > 0) {
-						prf_obj.samples[i].args.push_back(extra_str);
-					}
-					prf_obj.samples[i].evt_idx = evt;
-					//printf("ck tm[%d]= %s, line= %s\n", i, prf_obj.samples[i].tm_str.c_str(), line.c_str());
-					break;
-				}
-			}
-			if (mtch == -1) {
-				std::string tm;
-				if (s_idx >= 0 && s_idx < (int)prf_obj.samples.size()) {
-					tm = prf_obj.samples[s_idx].tm_str;
-				}
-				printf("missed samples %d, s_idx= %d, i_beg= %d, tm[%d]= '%s', line= %s\n",
-					samples, s_idx, i_beg, s_idx, tm.c_str(), line.c_str());
-				exit(1);
-			}
-			if (s_idx == -1) {
-				s_idx = -2;
-			}
-		}
-	}
-	file.close();
-	double tm_end = dclock();
-	printf("prf_parse_text: tm_end - tm_beg = %f, tm from begin= %f\n", tm_end - tm_beg, tm_end - tm_beg_in);
-	printf("cmmnts= %d, samples= %d, callstack= %d, null= %d\n",
-		lines_comments, lines_samples, lines_callstack, lines_null);
-	for (uint32_t i=0; i < nms.size(); i++) {
-		printf("event[%d]: %s, count= %d, extra_strings= %d\n",
-			i, prf_obj.features_event_desc[i].event_string.c_str(), nms[i].count, nms[i].ext_strs);
-	}
-	return 0;
-#endif
 }
