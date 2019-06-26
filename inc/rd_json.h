@@ -82,7 +82,7 @@ struct chart_str {
 	int32_t pixels_high;
 	uint64_t options;
 	std::vector <std::string> options_strs;
-	std::unordered_map <double, uint32_t> by_var_hsh;
+	std::unordered_map <uint32_t, uint32_t> by_var_hsh;
 	std::vector <double> by_var_vals, by_var_sub_tots;
 	std::vector <double> dura_prev_ts;
 	std::vector <double> next_ts;
@@ -150,6 +150,7 @@ enum class copt_enum : const uint64_t {
 	TOT_LINE_BUCKET_BY_END_OF_SAMPLE= (1ULL << 4),
 	SHOW_EVEN_IF_ALL_ZERO           = (1ULL << 5),
 	SUM_TO_INTERVAL           		= (1ULL << 6),
+	TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y  = (1ULL << 7),
 };
 
 enum class fte_enum : const uint64_t {
