@@ -1027,6 +1027,20 @@ static uint32_t hash_dbl(std::unordered_map <double, uint32_t> &hsh_dbl, std::ve
 	return idx;
 }
 
+static uint32_t hash_dbl_by_var(std::unordered_map <uint32_t, uint32_t> &hsh_u32, std::vector <double> &vec_dbl, double by_var_dbl, std::vector <double> &sub_tot, double var_dbl)
+{
+	uint32_t val = (uint32_t)by_var_dbl;
+	uint32_t idx = hsh_u32[val];
+	if (idx == 0) {
+		vec_dbl.push_back(by_var_dbl);
+		idx = hsh_u32[val] = (uint32_t)vec_dbl.size(); // so we are storing vec_str idx+1
+		sub_tot.push_back(var_dbl);
+	} else {
+		sub_tot[idx-1] += var_dbl;
+	}
+	return idx;
+}
+
 uint32_t hash_uint32(std::unordered_map <uint32_t, uint32_t> &hsh_u32, std::vector <uint32_t> &vec_u32, uint32_t lkup, uint32_t val)
 {
 	uint32_t idx = hsh_u32[lkup];
@@ -1039,9 +1053,12 @@ uint32_t hash_uint32(std::unordered_map <uint32_t, uint32_t> &hsh_u32, std::vect
 
 // given a by_var dbl value, returns the index value in the by_var.
 // This is intended to be used for the chart_str by_var_hsh
-static uint32_t get_by_var_idx(std::unordered_map <double, uint32_t> hsh_dbl, double by_var_dbl, int line)
+//static uint32_t get_by_var_idx(std::unordered_map <double, uint32_t> hsh_dbl, double by_var_dbl, int line)
+static uint32_t get_by_var_idx(std::unordered_map <uint32_t, uint32_t> &hsh_uint32, double by_var_dbl, int line)
 {
-	uint32_t idx = hsh_dbl[by_var_dbl];
+	uint32_t val = (uint32_t)by_var_dbl;
+	//uint32_t idx = hsh_dbl[by_var_dbl];
+	uint32_t idx = hsh_uint32[val];
 	if (idx == 0) {
 		printf("got by_var_idx == 0. Shouldn't happen if we call this after build_chart_data(). called from line %d. Bye at %s %d\n", line, __FILE__, __LINE__);
 		exit(1);
@@ -1198,7 +1215,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 		if (by_var_idx >= 0) {
 			double by_var_val = event_table.data.vals[i][by_var_idx];
 			byvv = by_var_val;
-			idx = (int)hash_dbl( event_table.charts[chrt].by_var_hsh,
+			idx = (int)hash_dbl_by_var( event_table.charts[chrt].by_var_hsh,
 				event_table.charts[chrt].by_var_vals, by_var_val,
 				event_table.charts[chrt].by_var_sub_tots, var_val) - 1;
 			if (idx >= (int)last_val_for_by_var_idx.size()) {
@@ -1223,7 +1240,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 		if (other_by_var_idx != UINT32_M1) {
 			double by_var_val = event_table.data.vals[i][other_by_var_idx];
 			obyvv = by_var_val;
-			other_idx = (int)hash_dbl( event_table.charts[chrt].by_var_hsh,
+			other_idx = (int)hash_dbl_by_var( event_table.charts[chrt].by_var_hsh,
 				event_table.charts[chrt].by_var_vals, by_var_val,
 				event_table.charts[chrt].by_var_sub_tots, 0.0) - 1;
 			if (other_idx >= (int)last_other_by_var_ts.size()) {
@@ -1334,7 +1351,7 @@ static int build_chart_data(uint32_t evt_idx, uint32_t chrt, evt_str &event_tabl
 			event_table.data.prf_sample_idx.push_back(event_table.data.prf_sample_idx[idx]);
 			if (by_var_idx >= 0) {
 				double by_var_val = event_table.data.vals.back()[by_var_idx];
-				hash_dbl( event_table.charts[chrt].by_var_hsh,
+				hash_dbl_by_var( event_table.charts[chrt].by_var_hsh,
 					event_table.charts[chrt].by_var_vals, by_var_val,
 					event_table.charts[chrt].by_var_sub_tots, var_val);
 			} else {
@@ -1663,7 +1680,6 @@ enum {
 	OVERLAP_IGNORE,
 };
 
-
 static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_obj, std::vector <evt_str> &event_table, int verbose)
 {
 	int var_pid_idx= -1, var_comm_idx = -1, var_cpu_idx=-1, var_idx, by_var_idx=-1;
@@ -1752,7 +1768,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 		}
 	}
-	bool have_filter_regex = false;
+	uint32_t have_filter_regex = UINT32_M1;
 	for (uint32_t i=0; i < event_table[evt_idx].charts[chrt].actions.size(); i++) {
 		if (event_table[evt_idx].charts[chrt].actions[i].oper == "filter_regex") {
 			event_table[evt_idx].charts[chrt].actions[i].regex_fld_idx = UINT32_M1;
@@ -1770,7 +1786,9 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					event_table[evt_idx].charts[chrt].title.c_str(), __FILE__, __LINE__);
 				exit(1);
 			}
-			have_filter_regex = true;
+			if (have_filter_regex == UINT32_M1) {
+				have_filter_regex = i;
+			}
 		}
 	}
 	uint32_t have_drop_if_contains = UINT32_M1;
@@ -1782,7 +1800,9 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					event_table[evt_idx].charts[chrt].actions[i].drop_if_fld_idx = j;
 					event_table[evt_idx].charts[chrt].actions[i].drop_if_str =
 						event_table[evt_idx].charts[chrt].actions[i].str1;
-					have_drop_if_contains = i;
+					if (have_drop_if_contains == UINT32_M1) {
+						have_drop_if_contains = i;
+					}
 					break;
 				}
 			}
@@ -1952,12 +1972,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		uint32_t oby_var_idx_val;
 		for (uint32_t i = 0; i < event_table[evt_idx].data.vals.size(); i++) {
 			by_var_idx_val = 0;
+			oby_var_idx_val = 0;
 			if (by_var_idx >= 0) {
 				int by_var_val = (int)event_table[evt_idx].data.vals[i][by_var_idx];
 				by_var_idx_val = get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, by_var_val, __LINE__);
-			}
-			if (by_var_idx >= 0) {
-				int by_var_val = (int)event_table[evt_idx].data.vals[i][other_by_var_idx];
+				by_var_val = (int)event_table[evt_idx].data.vals[i][other_by_var_idx];
 				oby_var_idx_val = get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, by_var_val, __LINE__);
 			}
 			int prv = oprv_by_var[by_var_idx_val];
@@ -2008,6 +2027,13 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		std::vector <int> overlaps_idx_used;
 		overlaps_used_sum.resize(beg_idx+1, 0.0);
 		overlaps_idx_used.resize(beg_idx+1, -1);
+		int handle_overlap = OVERLAP_ADD;
+		if (prf_obj.has_tm_run && chart_type == CHART_TYPE_LINE) {
+			handle_overlap = OVERLAP_TRUNC;
+			if (event_table[evt_idx].charts[chrt].options & (uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA) {
+				handle_overlap = OVERLAP_IGNORE;
+			}
+		}
 #if 1
 		bool line_ck_overlap;
 		lines_str *ls0p;
@@ -2033,9 +2059,9 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				continue;
 			}
 #endif
-			if (have_filter_regex) {
+			if (have_filter_regex != UINT32_M1) {
 				bool skip = false;
-				for (uint32_t ii=0; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
+				for (uint32_t ii=have_filter_regex; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
 					if (event_table[evt_idx].charts[chrt].actions[ii].oper == "filter_regex") {
 						uint32_t fld_idx = event_table[evt_idx].charts[chrt].actions[ii].regex_fld_idx;
 						uint32_t val = event_table[evt_idx].data.vals[i][fld_idx];
@@ -2061,7 +2087,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 			if (have_drop_if_contains != UINT32_M1) {
 				bool skip = false;
-				for (uint32_t ii=0; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
+				for (uint32_t ii=have_drop_if_contains; ii < event_table[evt_idx].charts[chrt].actions.size(); ii++) {
 					if (event_table[evt_idx].charts[chrt].actions[ii].oper == "drop_if_str_contains") {
 						uint32_t fld_idx = event_table[evt_idx].charts[chrt].actions[ii].drop_if_fld_idx;
 						uint32_t val = event_table[evt_idx].data.vals[i][fld_idx];
@@ -2100,13 +2126,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				//fx1 -= used_so_far;
 			}
 			sx0 = 0.0;
-			int handle_overlap = OVERLAP_ADD;
-			if (prf_obj.has_tm_run && chart_type == CHART_TYPE_LINE) {
-				handle_overlap = OVERLAP_TRUNC;
-				if (event_table[evt_idx].charts[chrt].options & (uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA) {
-					handle_overlap = OVERLAP_IGNORE;
-				}
-			}
 			if (chart_type == CHART_TYPE_STACKED) {
 				if (i > 0) {
 					sx0 = event_table[evt_idx].data.ts[i-1].ts - ts0;
@@ -2128,8 +2147,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						// so this event ends before the cur interval
 						break;
 					}
-					if (chart_type == CHART_TYPE_LINE &&
-						event_table[evt_idx].charts[chrt].options & (uint64_t)copt_enum::OVERLAPPING_RANGES_WITHIN_AREA) {
+					if (chart_type == CHART_TYPE_LINE && handle_overlap == OVERLAP_IGNORE) {
 						break;
 					}
 #if 0
@@ -2310,22 +2328,24 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					y_val[by_var_idx_val] += new_val;
 				}
 			}
-			i = 0;
-			while (i < overlaps_sz) {
-				if (overlaps_sum[i] <= 0.0 && overlaps_sz > 0) {
-					// used all of this one
-					//printf(" drp i= %d, fx0= %f, fx1= %f, sz= %d\n", overlaps_idx[i], fx0, fx1, (int)overlaps_sz);
-					overlaps_idx_used[ overlaps_idx[i] ] = -2;
-					overlaps_idx[i] = overlaps_idx[overlaps_sz-1];
-					overlaps_sum[i] = overlaps_sum[overlaps_sz-1];
-					overlaps_sz--;
-					continue;
+			if (handle_overlap != OVERLAP_IGNORE) {
+				i = 0;
+				while (i < overlaps_sz) {
+					if (overlaps_sum[i] <= 0.0 && overlaps_sz > 0) {
+						// used all of this one
+						//printf(" drp i= %d, fx0= %f, fx1= %f, sz= %d\n", overlaps_idx[i], fx0, fx1, (int)overlaps_sz);
+						overlaps_idx_used[ overlaps_idx[i] ] = -2;
+						overlaps_idx[i] = overlaps_idx[overlaps_sz-1];
+						overlaps_sum[i] = overlaps_sum[overlaps_sz-1];
+						overlaps_sz--;
+						continue;
+					}
+					i++;
 				}
-				i++;
+				//printf(" end cur_idx= %d sz= %d\n", cur_idx, (int)overlaps_sz);
+				overlaps_idx.resize(overlaps_sz);
+				overlaps_sum.resize(overlaps_sz);
 			}
-			//printf(" end cur_idx= %d sz= %d\n", cur_idx, (int)overlaps_sz);
-			overlaps_idx.resize(overlaps_sz);
-			overlaps_sum.resize(overlaps_sz);
 			std::string comm, legnd;
 			i = cur_idx;
 
@@ -2703,26 +2723,29 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					chart_lines_ck_rng(ls0p->x[1], ls0p->y[1], ts0, ls0p->cat, ls0p->subcat, y_val[by_var_idx_val], 0.0, ls0p->fe_idx);
 					ch_lines.line.push_back(*ls0p);
 				}
-				i = 0;
-				overlaps_sz = (int)overlaps_idx.size();
-				while (i < overlaps_sz) {
-					if (overlaps_idx[i] == cur_idx) {
-						// used all of this one
-						//printf(" dr2 i= %d, fx0= %f, fx1= %f, sz= %d\n", overlaps_idx[i], fx0, fx1, (int)overlaps_sz);
-						overlaps_idx[i] = overlaps_idx[overlaps_sz-1];
-						overlaps_sum[i] = overlaps_sum[overlaps_sz-1];
-						overlaps_sz--;
-						break;
+				if (handle_overlap != OVERLAP_IGNORE) {
+					i = 0;
+					overlaps_sz = (int)overlaps_idx.size();
+					while (i < overlaps_sz) {
+						if (overlaps_idx[i] == cur_idx) {
+							// used all of this one
+							//printf(" dr2 i= %d, fx0= %f, fx1= %f, sz= %d\n", overlaps_idx[i], fx0, fx1, (int)overlaps_sz);
+							overlaps_idx[i] = overlaps_idx[overlaps_sz-1];
+							overlaps_sum[i] = overlaps_sum[overlaps_sz-1];
+							overlaps_sz--;
+							break;
+						}
+						i++;
 					}
-					i++;
+					overlaps_idx_used[ cur_idx ] = -2;
+					//printf(" en2 i= %d, fx0= %f, fx1= %f, sz= %d\n", cur_idx, fx0, fx1, (int)overlaps_sz);
+					overlaps_idx.resize(overlaps_sz);
+					overlaps_sum.resize(overlaps_sz);
 				}
-				overlaps_idx_used[ cur_idx ] = -2;
-				//printf(" en2 i= %d, fx0= %f, fx1= %f, sz= %d\n", cur_idx, fx0, fx1, (int)overlaps_sz);
-				overlaps_idx.resize(overlaps_sz);
-				overlaps_sum.resize(overlaps_sz);
 				cur_idx--;
 				continue;
 			}
+			double tm_srt1 = dclock();
 
 			ycumu = 0.0;
 			for (uint32_t kk=0; kk < by_var_sz; kk++) {
@@ -3018,7 +3041,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		// if sched_switch didn't occur on a cpu, we can get errors in get_by_var_idx (since the cpu won't have been registered)
 		double cpu = i;
 		if (event_table[evt_idx].charts[chrt].by_var_hsh[cpu] == 0) {
-			hash_dbl( event_table[evt_idx].charts[chrt].by_var_hsh,
+			hash_dbl_by_var( event_table[evt_idx].charts[chrt].by_var_hsh,
 					event_table[evt_idx].charts[chrt].by_var_vals, cpu,
 					event_table[evt_idx].charts[chrt].by_var_sub_tots, 0.0);
 			std::string by_var_str = std::to_string(i);
