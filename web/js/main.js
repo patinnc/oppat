@@ -319,86 +319,137 @@ function got_all_OS_view_images(whch_txt, image_whch_txt_init)
 	return false;
 }
 
-function set_zoom_all_charts(j, need_tag, po_lp)
+function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 {
-		//let j = gsync_zoom_last_zoom.chrt_idx;
-		//let need_tag = gjson.chart_data[j].file_tag
-		gLinkZoom_iter++;
-		if (j >= 0) {
-			console.log(sprintf("lnk_zm[%d]: x0= %f x1= %f need_tag= %s", j, gcanvas_args[j][6], gcanvas_args[j][7], need_tag));
-		}
-		if (gsync_zoom_arr.length == 0) {
-			for (let i=0; i < gjson.chart_data.length; i++) {
-				gsync_zoom_arr.push({iter:-1, x0:-1.0, x1:0.0, file_tag:gjson.chart_data[i].file_tag});
-			}
-		}
-		gsync_zoom_redrawn_charts_map.length = gjson.chart_data.length;
+	//let j = gsync_zoom_last_zoom.chrt_idx;
+	//let need_tag = gjson.chart_data[j].file_tag
+	let j_sv = j;
+	gLinkZoom_iter++;
+	if (j_sv >= 0) {
+		console.log(sprintf("lnk_zm[%d]: x0= %f x1= %f need_tag= %s", j_sv, gcanvas_args[j_sv][6], gcanvas_args[j_sv][7], need_tag));
+	}
+	let ft = gjson.chart_data[j_sv].file_tag;
+	let ct = gjson.chart_data[j_sv].chart_tag;
+	if (gsync_zoom_arr.length == 0) {
 		for (let i=0; i < gjson.chart_data.length; i++) {
-			gsync_zoom_redrawn_charts_map[i] = 0;
+			gsync_zoom_arr.push({iter:-1, x0:-1.0, x1:0.0, file_tag:gjson.chart_data[i].file_tag});
 		}
+	}
+	gsync_zoom_redrawn_charts_map.length = gjson.chart_data.length;
+	for (let i=0; i < gjson.chart_data.length; i++) {
+		gsync_zoom_redrawn_charts_map[i] = 0;
+	}
 
-		let need_to_redraw = 0;
+	let need_to_redraw = 0;
+	for (let i=0; i < gjson.chart_data.length; i++) {
+		if (gjson.chart_data[i].file_tag != need_tag) {
+			continue;
+		}
+		need_to_redraw++;
+		//el.textContent = "Zoom/Pan: zooming i="+i;
+		let t0      = gjson.chart_data[i].ts_initial.ts;
+		let zoom_x0 = gjson.chart_data[i].x_range.min;
+		let zoom_x1 = gjson.chart_data[i].x_range.max;
+		let tabs_x0 = t0 + zoom_x0;
+		let tabs_x1 = t0 + zoom_x1;
+		if (tabs_x0 != gsync_zoom_last_zoom.abs_x0) {
+			tabs_x0 = gsync_zoom_last_zoom.abs_x0;
+		}
+		if (tabs_x1 != gsync_zoom_last_zoom.abs_x1) {
+			tabs_x1 = gsync_zoom_last_zoom.abs_x1;
+		}
+		gsync_zoom_arr[i].x0 = tabs_x0;
+		gsync_zoom_arr[i].x1 = tabs_x1;
+		gsync_zoom_arr[i].iter = gLinkZoom_iter;
+		//console.log("Zooom ii= "+i);
+	}
+	gsync_zoom_redrawn_charts.cntr = 0;
+	gsync_zoom_redrawn_charts.need_to_redraw = need_to_redraw;
+	let tm_n00 = performance.now();
+	let tm_arr = [];
+	tm_arr.length = gjson.chart_data.length;
+	tm_arr.fill(0.0);
+	let cntr = 0;
+	for (let j=0; j < 2; j++) {
+		// first (j==0) do charts that need to generate images
+		// then  (j==1) do charts that don't need to generate images
+		// Not really sure if this will make a difference in how long it takes to redraw all
 		for (let i=0; i < gjson.chart_data.length; i++) {
 			if (gjson.chart_data[i].file_tag != need_tag) {
 				continue;
 			}
-			need_to_redraw++;
-			//el.textContent = "Zoom/Pan: zooming i="+i;
-			let t0      = gjson.chart_data[i].ts_initial.ts;
-			let zoom_x0 = gjson.chart_data[i].x_range.min;
-			let zoom_x1 = gjson.chart_data[i].x_range.max;
-			let tabs_x0 = t0 + zoom_x0;
-			let tabs_x1 = t0 + zoom_x1;
-			if (tabs_x0 != gsync_zoom_last_zoom.abs_x0) {
-				tabs_x0 = gsync_zoom_last_zoom.abs_x0;
+			if (i == j_sv) {
+				continue;
 			}
-			if (tabs_x1 != gsync_zoom_last_zoom.abs_x1) {
-				tabs_x1 = gsync_zoom_last_zoom.abs_x1;
-			}
-			gsync_zoom_arr[i].x0 = tabs_x0;
-			gsync_zoom_arr[i].x1 = tabs_x1;
-			gsync_zoom_arr[i].iter = gLinkZoom_iter;
-			//console.log("Zooom ii= "+i);
-		}
-		gsync_zoom_redrawn_charts.cntr = 0;
-		gsync_zoom_redrawn_charts.need_to_redraw = need_to_redraw;
-		for (let j=0; j < 2; j++) {
-			// first (j==0) do charts that need to generate images
-			// then  (j==1) do charts that don't need to generate images
-			// Not really sure if this will make a difference in how long it takes to redraw all
-			for (let i=0; i < gjson.chart_data.length; i++) {
-				if (gjson.chart_data[i].file_tag != need_tag) {
-					continue;
+			if ((j == 0 && typeof gjson.chart_data[i].fl_image_ready !== 'undefined') ||
+				(j == 1 && typeof gjson.chart_data[i].fl_image_ready === 'undefined')) {
+				if (from_where == "LinkZoom") {
+					let tm_n = performance.now();
+					let txt = sprintf("draw chrt %d of %d, elap_tm= %.2f secs",
+							++cntr, gjson.chart_data.length, 0.001 * (tm_n-tm_n00));
+					mymodal_span_text.innerHTML = txt;
+					update_status(txt);
 				}
-				if ((j == 0 && typeof gjson.chart_data[i].fl_image_ready !== 'undefined') ||
-					(j == 1 && typeof gjson.chart_data[i].fl_image_ready === 'undefined')) {
-					gjson.chart_data[i].zoom_func_obj.task.do_zoom = true;
-					gjson.chart_data[i].zoom_func_obj.task.need_to_redraw = need_to_redraw;
-					gjson.chart_data[i].zoom_func_obj.func(gjson.chart_data[i].zoom_func_obj.task);
-				}
+				gjson.chart_data[i].zoom_func_obj.task.do_zoom = true;
+				gjson.chart_data[i].zoom_func_obj.task.need_to_redraw = need_to_redraw;
+				let tm_0 = performance.now();
+				gjson.chart_data[i].zoom_func_obj.func(gjson.chart_data[i].zoom_func_obj.task);
+				let tm_1 = performance.now();
+				tm_arr[i] += tm_1 - tm_0;
 			}
 		}
-		if (g_cpu_diagram_draw_svg !== null) {
-			let jj= 0, jj_max = 50, image_whch_txt_init=-200;
-			console.log("call g_cpu_diagram_draw_svg beg");
-			function myDelay () {           //  create a loop function
-				setTimeout(function () {    //  call a 3s setTimeout when the loop is called
-					console.log(sprintf('wait_for_imgs jj= %d', jj));
-					jj++;                     //  increment the counter
-					if (!got_all_OS_view_images(1, image_whch_txt_init)) {
-						myDelay();             //  ..  again which will trigger another 
-					} else {
-						console.log("call g_cpu_diagram_draw_svg");
-						// this call is done later
-						//g_cpu_diagram_draw_svg([], -1, po_lp);
+	}
+	let tm_n01 = performance.now();
+	if (g_cpu_diagram_draw_svg !== null) {
+		let jj= 0, jj_max = 50, image_whch_txt_init=-200;
+		console.log("call g_cpu_diagram_draw_svg beg");
+		function myDelay () {           //  create a loop function
+			setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+				console.log(sprintf('wait_for_imgs jj= %d', jj));
+				jj++;                     //  increment the counter
+				if (!got_all_OS_view_images(1, image_whch_txt_init)) {
+					myDelay();             //  ..  again which will trigger another 
+				} else {
+					console.log("__mem: call g_cpu_diagram_draw_svg");
+					// this call is done later if now LinkZoom
+					if (from_where == "LinkZoom") {
+						g_cpu_diagram_draw_svg([], -1, -1);
 					}
-				}, 1000);
-			}
-			//if (!got_all_OS_view_images(1, image_whch_txt_init)) {
-				myDelay();
-			//}
+				}
+			}, 500);
 		}
-		gsync_zoom_linked = true;
+		//if (!got_all_OS_view_images(1, image_whch_txt_init)) {
+			myDelay();
+		//}
+	}
+	let tm_n02 = performance.now();
+	if (ct == "SYSCALL_OUTSTANDING_CHART") {
+		let totl = 0.0;
+		if (false) {
+		tm_arr.sort(function(a, b){return b - a});
+		let tp = (tm_arr.length > 10 ? 10 : tm_arr.length);
+		for (let i=0; i < tp; i++) {
+			console.log(sprintf("__mem: top tms[%d] tm= %.2f ttl= %s", i, tm_arr[i], 
+				gjson.chart_data[i].title));
+		}
+		for (let i=0; i < tm_arr.length; i++) {
+			totl += tm_arr[i];
+		}
+		}
+		console.log(sprintf("__mem: set_zoom_all_charts: tm_tot= %.2f, pt1= %.2f, pt2= %.2f, from= %s tm_arr_tot= %.2f",
+					tm_n02-tm_n00, tm_n01-tm_n00, tm_n02-tm_n01, from_where, totl));
+
+	}
+	if (from_where == "LinkZoom") {
+		let tm_n = performance.now();
+		let txt = sprintf("finished zoom all of %d charts. time to zoom all: %.2f secs. ", cntr, 0.001 * (tm_n-tm_n00));
+		update_status(txt);
+		setTimeout(function () {
+			mymodal.style.display = "none";
+			document.title = doc_title_def;
+    	}, 2000);
+	}
+	gsync_zoom_linked = true;
 }
 
 function LinkZoom( el, cb )
@@ -410,7 +461,18 @@ function LinkZoom( el, cb )
 		console.log(sprintf("lnk_zm: x0= %f x1= %f", gsync_zoom_last_zoom.x0, gsync_zoom_last_zoom.x1));
 
 		let j = gsync_zoom_last_zoom.chrt_idx;
-		set_zoom_all_charts(gsync_zoom_last_zoom.chrt_idx, gjson.chart_data[j].file_tag, -1);
+		//abcd
+		let txt = "doing zoom all";
+		document.title = txt;
+		mymodal.style.display = "none";
+		mymodal_span_text.innerHTML = document.title;
+		update_status(txt);
+		mymodal.style.display = "block";
+		console.log(txt);
+		setTimeout(function () {
+			set_zoom_all_charts(gsync_zoom_last_zoom.chrt_idx, gjson.chart_data[j].file_tag, -1, "LinkZoom");
+    	}, 500);
+
 		console.log("Zooom all done");
 		el.textContent = gsync_text;
 		cb.checked = true;
@@ -604,6 +666,7 @@ function get_chart_options(chart_options)
 		overlapping_ranges_within_area:false,
 		tot_line_add_values_in_interval:false,
 		tot_line_legend_weight_by_dura:false,
+		tot_line_legend_weight_by_x_by_y:false,
 		tot_line_bucket_by_end_of_sample:false,
 		sum_to_interval:false,
 		show_even_if_all_zero:false,
@@ -620,6 +683,10 @@ function get_chart_options(chart_options)
 		tst_opt = "TOT_LINE_LEGEND_WEIGHT_BY_DURA";
 		if (chart_options.indexOf(tst_opt) >= 0) {
 			ch_options.tot_line_legend_weight_by_dura = true;
+		}
+		tst_opt = "TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y";
+		if (chart_options.indexOf(tst_opt) >= 0) {
+			ch_options.tot_line_legend_weight_by_x_by_y = true;
 		}
 		tst_opt = "TOT_LINE_BUCKET_BY_END_OF_SAMPLE";
 		if (chart_options.indexOf(tst_opt) >= 0) {
@@ -688,97 +755,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let draw_mini_box = {};
 	let draw_mini_cursor_prev = null;
 	let mycanvas2_ctx = null;
-	let tot_line = {};
-	tot_line.evt_str = [];
-	tot_line.lkup  = [];
-	tot_line.xarray  = [];
-	tot_line.yarray  = [];
-	tot_line.xarray2 = [];
-	tot_line.yarray2 = [];
-	tot_line.evt_str_base_val_arr = [];
-	if (chart_data.tot_line != "") {
-		//if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART")
-		if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
-			( chart_data.tot_line_opts_xform == "map_cpu_2_core" ||
-				chart_data.tot_line_opts_xform == "map_cpu_2_socket")) {
-			let u_hsh = {};
-			let u_arr = [];
-			for (let i=0; i < chart_data.map_cpu_2_core.length; i++) {
-				let val;
-				if ( chart_data.tot_line_opts_xform == "map_cpu_2_core") {
-					val = chart_data.map_cpu_2_core[i].core;
-				}
-				if (chart_data.tot_line_opts_xform == "map_cpu_2_socket") {
-					val = chart_data.map_cpu_2_core[i].socket;
-				}
-				if (typeof u_hsh[val] === 'undefined') {
-					u_hsh[val] = i;
-					u_arr.push(val);
-				}
-			}
-			u_arr.sort(function(a, b){return a - b});
-			for (let i=0; i < u_arr.length; i++) {
-				let str = sprintf("%d", u_arr[i]);
-				tot_line.evt_str_base_val_arr.push(u_arr[i]);
-				if (typeof chart_data.tot_line_opts_yvar_fmt !== 'undefined') {
-					str = sprintf(chart_data.tot_line_opts_yvar_fmt, u_arr[i]);
-				}
-				tot_line.evt_str.push(str);
-				tot_line.lkup.push([]);
-				tot_line.yarray.push([]);
-				tot_line.yarray2.push([]);
-				tot_line.xarray2.push([]);
-			}
-			/*
-			if (chart_data.tot_line_opts_xform == "map_cpu_2_socket") {
-				console.log("map_c2s: es_bva: ", tot_line.evt_str_base_val_arr);
-				console.log("map_c2s: es: ", tot_line.evt_str);
-			}
-			*/
-		} else if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
-			chart_data.tot_line_opts_xform == "select_vars") {
-			let u_hsh = {};
-			let u_arr = [];
-			let num_events = chart_data.subcat_rng.length;
-			for (let j=0; j < num_events; j++) {
-				let nm     = chart_data.subcat_rng[j].cat_text;
-				if (chart_data.subcat_rng[j].total == 0) {
-					nm += ", no data";
-				}
-				if (chart_data.title == "PageFaults and HardFaults") {
-					console.log(sprintf("__xform sel_var[%d] %s, ttl= %s", j, nm, chart_data.title));
-					console.log("__xform: ", chart_data.subcat_rng[j]);
-				}
-				u_hsh[j] = nm;
-				u_arr.push(j);
-			}
-			for (let i=0; i < u_arr.length; i++) {
-				let str = u_hsh[u_arr[i]];
-				tot_line.evt_str_base_val_arr.push(u_arr[i]);
-				if (typeof chart_data.tot_line_opts_yvar_fmt !== 'undefined') {
-					str = sprintf(chart_data.tot_line_opts_yvar_fmt, str);
-				}
-				tot_line.evt_str.push(str);
-				tot_line.lkup.push([]);
-				tot_line.yarray.push([]);
-				tot_line.yarray2.push([]);
-				tot_line.xarray2.push([]);
-			}
-			console.log("sel_var tot_line.evt_str.len= "+ tot_line.evt_str.length);
-		} else {
-			tot_line.evt_str.push(chart_data.tot_line);
-			tot_line.lkup.push([]);
-			tot_line.yarray.push([]);
-			tot_line.yarray2.push([]);
-			tot_line.xarray2.push([]);
-		}
-	}
-	tot_line.subcat_rng_idx = {};
-	tot_line.subcat_rng_arr = [];
-	tot_line.event_list_idx = [];
-	//console.log("tot_line.evt_str= '"+tot_line.evt_str+"'");
 
 	function reset_minx_maxx(zm_x0, zm_x1, zm_y0, zm_y1) {
+		let tm_n0 = performance.now();
 		if (gsync_zoom_linked) {
 			minx = zm_x0;
 			maxx = zm_x1;
@@ -817,6 +796,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		gsync_zoom_last_zoom.x1 = maxx;
 		gsync_zoom_last_zoom.abs_x0 = minx + chart_data.ts_initial.ts;
 		gsync_zoom_last_zoom.abs_x1 = maxx + chart_data.ts_initial.ts;
+		let tm_n01 = performance.now();
 		//console.log(sprintf("zm.x0= %f, zm.x1= %f", minx, maxx));
 		if (mycanvas2_ctx !== null) {
 			/*
@@ -838,6 +818,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			} else {
 				draw_mini(xd2, "a");
 			}
+		}
+		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+			let tm_n1 = performance.now();
+			console.log(sprintf("__mem: reset mnmx tm= %.2f tm0-1= %.2f", tm_n1-tm_n0, tm_n1-tm_n01));
 		}
 	}
 
@@ -890,6 +874,112 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let tm_here_01 = performance.now();
 	let proc_select = {};
 	let build_flame_rpt_timeout = null;
+	let follow_arr = [];
+	let follow_proc = null
+	let event_select = {};
+	let event_id_begin = 10000;
+	let tot_line = {};
+	tot_line.evt_str = [];
+	tot_line.lkup  = [];
+	tot_line.lkup_ckr= [];
+	tot_line.xarray  = [];
+	tot_line.yarray  = [];
+	tot_line.xarray2 = [];
+	tot_line.yarray2 = [];
+	tot_line.totals  = [];
+	tot_line.evt_str_base_val_arr = [];
+	tot_line.evt_str_base_val_hsh = {};
+	tot_line.divisions = g_tot_line_divisions.max;
+	tot_line.smpl_2_sci = [];
+	if (chart_data.tot_line != "") {
+		//if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART")
+		if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
+			( chart_data.tot_line_opts_xform == "map_cpu_2_core" ||
+				chart_data.tot_line_opts_xform == "map_cpu_2_socket")) {
+			let u_hsh = {};
+			let u_arr = [];
+			for (let i=0; i < chart_data.map_cpu_2_core.length; i++) {
+				let val;
+				if ( chart_data.tot_line_opts_xform == "map_cpu_2_core") {
+					val = chart_data.map_cpu_2_core[i].core;
+				}
+				if (chart_data.tot_line_opts_xform == "map_cpu_2_socket") {
+					val = chart_data.map_cpu_2_core[i].socket;
+				}
+				if (typeof u_hsh[val] === 'undefined') {
+					u_hsh[val] = i;
+					u_arr.push(val);
+				}
+			}
+			u_arr.sort(function(a, b){return a - b});
+			for (let i=0; i < u_arr.length; i++) {
+				let str = sprintf("%d", u_arr[i]);
+				tot_line.evt_str_base_val_arr.push(u_arr[i]);
+				tot_line.evt_str_base_val_hsh[u_arr[i]] = i;
+				if (typeof chart_data.tot_line_opts_yvar_fmt !== 'undefined') {
+					str = sprintf(chart_data.tot_line_opts_yvar_fmt, u_arr[i]);
+				}
+				tot_line.evt_str.push(str);
+				tot_line.lkup.push([]);
+				tot_line.lkup_ckr.push([]);
+				tot_line.yarray.push([]);
+				tot_line.yarray2.push([]);
+				tot_line.xarray2.push([]);
+				tot_line.totals.push({});
+			}
+			/*
+			if (chart_data.tot_line_opts_xform == "map_cpu_2_socket") {
+				console.log("map_c2s: es_bva: ", tot_line.evt_str_base_val_arr);
+				console.log("map_c2s: es: ", tot_line.evt_str);
+			}
+			*/
+		} else if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
+			chart_data.tot_line_opts_xform == "select_vars") {
+			let u_hsh = {};
+			let u_arr = [];
+			let num_events = chart_data.subcat_rng.length;
+			for (let j=0; j < num_events; j++) {
+				let nm     = chart_data.subcat_rng[j].cat_text;
+				if (chart_data.subcat_rng[j].total == 0) {
+					nm += ", no data";
+				}
+				if (chart_data.title == "PageFaults and HardFaults") {
+					console.log(sprintf("__xform sel_var[%d] %s, ttl= %s", j, nm, chart_data.title));
+					console.log("__xform: ", chart_data.subcat_rng[j]);
+				}
+				u_hsh[j] = nm;
+				u_arr.push(j);
+			}
+			for (let i=0; i < u_arr.length; i++) {
+				let str = u_hsh[u_arr[i]];
+				tot_line.evt_str_base_val_arr.push(u_arr[i]);
+				tot_line.evt_str_base_val_hsh[u_arr[i]] = i;
+				if (typeof chart_data.tot_line_opts_yvar_fmt !== 'undefined') {
+					str = sprintf(chart_data.tot_line_opts_yvar_fmt, str);
+				}
+				tot_line.evt_str.push(str);
+				tot_line.lkup.push([]);
+				tot_line.lkup_ckr.push([]);
+				tot_line.yarray.push([]);
+				tot_line.yarray2.push([]);
+				tot_line.xarray2.push([]);
+				tot_line.totals.push({});
+			}
+			console.log("sel_var tot_line.evt_str.len= "+ tot_line.evt_str.length);
+		} else {
+			tot_line.evt_str.push(chart_data.tot_line);
+			tot_line.lkup.push([]);
+			tot_line.lkup_ckr.push([]);
+			tot_line.yarray.push([]);
+			tot_line.yarray2.push([]);
+			tot_line.xarray2.push([]);
+			tot_line.totals.push({});
+		}
+	}
+	tot_line.subcat_rng_idx = {};
+	tot_line.subcat_rng_arr = [];
+	tot_line.event_list_idx = [];
+	//console.log("tot_line.evt_str= '"+tot_line.evt_str+"'");
 
 	reset_minx_maxx(zoom_x0, zoom_x1, zoom_y0, zoom_y1);
 
@@ -1252,8 +1342,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					}
 				}
 				chart_data.subcat_rng.push({x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:use_fe_idx, event:tot_line.evt_str[myi],
-					 tot_dura:use_dura,
-					 total:use_total, is_tot_line:true, cat:use_mx_cat, subcat:0, cat_text:tot_line.evt_str[myi]});
+					tot_dura:use_dura, total:use_total, is_tot_line:true, is_tot_line_num:myi,
+					cat:use_mx_cat, subcat:0, cat_text:tot_line.evt_str[myi]});
 				if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART") {
 				console.log(sprintf("==tot_line: fe_idx= %d, mx_cat= %d, bef_len= %d", use_fe_idx, use_mx_cat, bef_len));
 				}
@@ -1267,14 +1357,27 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			tot_line.subcat_rng_idx = {};
 			tot_line.subcat_rng_arr = [];
 		}
-
-		//abcd
 		num_events = chart_data.subcat_rng.length;
+		if (ch_options.tot_line_legend_weight_by_x_by_y) {
+			tot_line_get_values();
+			for (let j=0; j < num_events; j++) {
+				if (chart_data.subcat_rng[j].is_tot_line) {
+					let sci = chart_data.subcat_rng[j].is_tot_line_num;
+					let tot_x_by_y = tot_line.totals[sci].tot_x_by_y;
+					chart_data.subcat_rng[j].tot_x_by_y = tot_x_by_y;
+				}
+			}
+		}
+
 		for (let j=0; j < num_events; j++) {
 			let fe_idx = chart_data.subcat_rng[j].fe_idx;
 			event_list.push({event:chart_data.subcat_rng[j].cat_text, idx:chart_data.subcat_rng[j].cat,
 				tot_dura:chart_data.subcat_rng[j].tot_dura,
-				total:chart_data.subcat_rng[j].total, fe_idx:fe_idx, is_tot_line:chart_data.subcat_rng[j].is_tot_line});
+				total:chart_data.subcat_rng[j].total, fe_idx:fe_idx,
+				is_tot_line:chart_data.subcat_rng[j].is_tot_line,
+				is_tot_line_num:chart_data.subcat_rng[j].is_tot_line_num,
+				tot_x_by_y:chart_data.subcat_rng[j].tot_x_by_y,
+			});
 			//if (tot_line.evt_str.length > 0 && (j+1) < num_events)
 			if (typeof chart_data.subcat_rng[j].is_tot_line === 'undefined') {
 				// don't add the fake __total__ total
@@ -1288,6 +1391,21 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		function sortCat(a, b) {
 			return b.total - a.total;
 		}
+		function sort_x_by_y(a, b) {
+			let atd = 0.0;
+			let btd = 0.0;
+			if (a.is_tot_line === true) {
+				atd = a.tot_x_by_y + big_val;
+			} else {
+				atd = a.tot_dura;
+			}
+			if (b.is_tot_line === true) {
+				btd = b.tot_x_by_y + big_val;
+			} else {
+				btd = b.tot_dura;
+			}
+			return btd - atd;
+		}
 		function sortDura(a, b) {
 			let atd = a.tot_dura;
 			let btd = b.tot_dura;
@@ -1299,7 +1417,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			}
 			return btd - atd;
 		}
-		if (ch_options.tot_line_legend_weight_by_dura) {
+		if (ch_options.tot_line_legend_weight_by_x_by_y) {
+			console.log("sort legend by x_by_y for chart= "+chart_data.chart_tag);
+			event_list.sort(sort_x_by_y);
+		} else if (ch_options.tot_line_legend_weight_by_dura) {
 			console.log("sort legend by dura for chart= "+chart_data.chart_tag);
 			event_list.sort(sortDura);
 		} else {
@@ -1366,8 +1487,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let event_cumu = 0.0;
 	let proc_rank = {};
 	let legend_str = "";
-	let event_select = {};
-	let event_id_begin = 10000;
 	//let c10 = d3.schemeCategory10;
 	// cmd below is what the above cmd accomplishes but I don't have to include d3 anymore
 	let c10 = g_d3_clrs_c20;
@@ -1910,6 +2029,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 
 	let tm_here_04 = performance.now();
 	let lkup = [];
+	let lkup_pts_per_pxl = [];
 	let lkup_use_linearSearch = [];
 	let flm_obj = {};
 	let fl_end_sum = 0;
@@ -2848,13 +2968,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	}
 
-	tot_line.divisions = g_tot_line_divisions.max;
 	if (chart_data.chart_tag == "PCT_BUSY_BY_SYSTEM") {
 		console.log("++cpu_busy= "+g_tot_line_divisions.max);
 	}
 
-	let follow_arr = [];
-	let follow_proc = null
 	if (chart_data.chart_tag == "PCT_BUSY_BY_SYSTEM") {
 		if (typeof chart_data.follow_proc !== 'undefined' && chart_data.follow_proc.length > file_tag_idx) {
 			follow_proc = chart_data.follow_proc[file_tag_idx];
@@ -2868,7 +2985,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 	}
 	if (false && ch_options.overlapping_ranges_within_area == true) {
-		//abcd
 		for (let i=0; i < chart_data.myshapes.length; i++) {
 			let x0 = chart_data.myshapes[i].pts[PTS_X0];
 			let x1 = chart_data.myshapes[i].pts[PTS_X1];
@@ -2895,10 +3011,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (tot_line.evt_str.length == 0) {
 			return ret_data;
 		}
-		for (let i=0; i < follow_arr.length; i++) {
-			follow_arr[i].idle = 0.0;
-			follow_arr[i].follow = 0.0;
-			follow_arr[i].other  = 0.0;
+		if (typeof follow_arr !== 'undefined') {
+			for (let i=0; i < follow_arr.length; i++) {
+				follow_arr[i].idle = 0.0;
+				follow_arr[i].follow = 0.0;
+				follow_arr[i].other  = 0.0;
+			}
 		}
 		maxy_new = null;
 		let fld_1st_time = {};
@@ -2960,28 +3078,77 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			if (tot_line.divisions != (g_tot_line_divisions.max)) {
 				tot_line.divisions = g_tot_line_divisions.max;
 			}
+			let do_map_cpu_2_core = false, do_map_cpu_2_socket = false, do_sel_vars = false;
+			if (tot_line.evt_str_base_val_arr.length > 0) {
+				if (typeof chart_data.tot_line_opts_xform !== 'undefined') {
+					if (chart_data.tot_line_opts_xform == 'map_cpu_2_core' ||
+						chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
+						if (chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
+							do_map_cpu_2_core = true;
+						}
+						else if (chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
+							do_map_cpu_2_socket = true;
+						}
+					} else if (chart_data.tot_line_opts_xform == 'select_vars') {
+						do_sel_vars = true;
+					}
+				}
+			}
+			let tm_top_00 = performance.now();
 			tot_line.xarray.length = tot_line.divisions+1;
+			tot_line.xarray.fill(0.0);
 			let tot_dura = [];
+			let tot_pts = 0;
+			let tm_loop = 0.0;
 			tot_dura.length = tot_line.evt_str.length;
 			for (let sci= 0; sci < tot_line.evt_str.length; sci++) {
-				tot_line.lkup[sci].length = tot_line.divisions+1;
-				tot_line.xarray2[sci].length = tot_line.divisions+1;
-				tot_line.yarray2[sci].length = tot_line.divisions+1;
-				tot_line.yarray[sci].length = tot_line.divisions+1;
+				if (tot_line.lkup[sci].length != tot_line.divisions+1) {
+					tot_line.lkup[sci].length = tot_line.divisions+1;
+					//tot_line.lkup_ckr[sci].length = tot_line.divisions+1;
+					tot_line.xarray2[sci].length = tot_line.divisions+1;
+					tot_line.yarray2[sci].length = tot_line.divisions+1;
+					tot_line.yarray[sci].length = tot_line.divisions+1;
+				}
+				tot_line.yarray[sci].fill(0.0);
+				tot_line.yarray2[sci].fill(0.0);
+				tot_line.xarray2[sci].fill(0.0);
+				tot_line.totals[sci] = {tot:0.0, tot_x_by_y:0.0};
 				for (let j=0; j < tot_line.yarray[sci].length; j++) {
 					tot_line.lkup[sci][j] = [];
-					tot_line.yarray[sci][j] = 0.0;
-					tot_line.yarray2[sci][j] = 0.0;
-					tot_line.xarray2[sci][j] = 0.0;
-					tot_line.xarray[j] = 0.0;
+					//tot_line.lkup_ckr[sci][j] = {};
 				}
 				tot_dura[sci] = {dura:0.0, smpl:0};
+			}
+			if (tot_line.smpl_2_sci.length == 0) {
+				tot_line.smpl_2_sci.length = chart_data.myshapes.length;
 				for (let i=0; i < chart_data.myshapes.length; i++) {
-					let x0 = chart_data.myshapes[i].pts[PTS_X0];
-					let x1 = chart_data.myshapes[i].pts[PTS_X1];
+					let usci = -1;
+					let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 					let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
+					if (do_sel_vars) {
+						usci = tot_line.evt_str_base_val_hsh[chart_data.myshapes[i].ival[IVAL_CAT]];
+					} else if (do_map_cpu_2_core) {
+						usci = tot_line.evt_str_base_val_hsh[chart_data.map_cpu_2_core[cpu].core];
+					} else if (do_map_cpu_2_socket) {
+						usci = tot_line.evt_str_base_val_hsh[chart_data.map_cpu_2_core[cpu].socket];
+					} else {
+						usci = 0;
+					}
+					tot_line.smpl_2_sci[i] = usci;
+				}
+			}
+			//for (let sci= 0; sci < tot_line.evt_str.length; sci++)
+			{
+				let sci;
+				for (let i=0; i < chart_data.myshapes.length; i++) {
+					sci = tot_line.smpl_2_sci[i];
 					let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 					let do_event = false;
+					let frst_tm = false;
+					if (typeof event_list === 'undefined' || event_list.length == 0) {
+						frst_tm = true;
+					}
+					if (!frst_tm) {
 					if (fe_idx == -1 || (typeof event_select[fe_idx] !== 'undefined' &&
 						(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
 						do_event = true;
@@ -2989,32 +3156,32 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					if (!do_event) {
 						continue;
 					}
-					if (tot_line.evt_str_base_val_arr.length > 0) {
-						if (typeof chart_data.tot_line_opts_xform !== 'undefined') {
-							if (chart_data.tot_line_opts_xform == 'map_cpu_2_core' ||
-								chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
-								let val;
-								if (chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
-									val = chart_data.map_cpu_2_core[cpu].core;
-								}
-								else if (chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
-									val = chart_data.map_cpu_2_core[cpu].socket;
-								}
-								if (tot_line.evt_str_base_val_arr[sci] != val) {
-									continue;
-								}
-							}
-							else if (chart_data.tot_line_opts_xform == 'select_vars') {
-								let icat = chart_data.myshapes[i].ival[IVAL_CAT];
-								if (tot_line.evt_str_base_val_arr[sci] != icat) {
-									continue;
-								}
-							}
+					}
+					let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
+					if (do_sel_vars) {
+						if (chart_data.myshapes[i].ival[IVAL_CAT] != tot_line.evt_str_base_val_arr[sci]) {
+							continue;
+						}
+					} else if (do_map_cpu_2_core) {
+						if (chart_data.map_cpu_2_core[cpu].core != tot_line.evt_str_base_val_arr[sci]) {
+							continue;
+						}
+					} else if (do_map_cpu_2_socket) {
+						if (chart_data.map_cpu_2_core[cpu].socket != tot_line.evt_str_base_val_arr[sci]) {
+							continue;
 						}
 					}
+					let usci = tot_line.smpl_2_sci[i];
+					if (usci != sci) {
+						console.log(sprintf("usci= %d, sci= %d, no match", usci, sci));
+						fail;
+					}
+					let x0 = chart_data.myshapes[i].pts[PTS_X0];
+					let x1 = chart_data.myshapes[i].pts[PTS_X1];
 					if (x1 < minx || x0 > maxx) {
 						continue;
 					}
+					//let tm_top_20 = performance.now();
 					let tx0 = x0;
 					let tx1 = x1;
 					if (x0 < minx) {
@@ -3025,6 +3192,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					}
 					tot_dura[sci].dura += tx1 - tx0;
 					tot_dura[sci].smpl += 1;
+						if (sci == 189) {
+							tot_pts++;
+						}
+					//let tm_top_21 = performance.now();
+					//tm_loop += tm_top_21 - tm_top_20;
 					if (chart_data.chart_tag == "PCT_BUSY_BY_SYSTEM") {
 						let icpu = chart_data.myshapes[i].ival[IVAL_CPU];
 						let cpt = chart_data.myshapes[i].ival[IVAL_CPT];
@@ -3039,18 +3211,20 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						if (typeof txtidx !== 'undefined') {
 							tstr = gjson_str_pool.str_pool[0].strs[txtidx];
 						}
-						if (follow_arr.length > 0) {
-							if (pid == 0 && tid == 0) {
-								follow_arr[icpu].idle += tx1 - tx0;
-							} else if (tstr !== null && follow_proc !== null) {
-								if (tstr.indexOf(follow_proc) >= 0) {
-									follow_arr[icpu].follow += tx1 - tx0;
+						if (typeof follow_arr !== 'undefined') {
+							if (follow_arr.length > 0) {
+								if (pid == 0 && tid == 0) {
+									follow_arr[icpu].idle += tx1 - tx0;
+								} else if (tstr !== null && follow_proc !== null) {
+									if (tstr.indexOf(follow_proc) >= 0) {
+										follow_arr[icpu].follow += tx1 - tx0;
+									} else {
+										follow_arr[icpu].other += tx1 - tx0;
+									}
+
 								} else {
 									follow_arr[icpu].other += tx1 - tx0;
 								}
-
-							} else {
-								follow_arr[icpu].other += tx1 - tx0;
 							}
 						}
 					}
@@ -3103,16 +3277,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						} else {
 							xcur1 = (j+1)/tot_line.divisions;
 						}
-						let already_added_to_lkup = false;
-						for (let lk=0; lk < tot_line.lkup[sci][j].length; lk++) {
-							if (tot_line.lkup[sci][j][lk] == i) {
-								already_added_to_lkup = true;
-								break;
-							}
-						}
-						if (!already_added_to_lkup) {
-							tot_line.lkup[sci][j].push(i);
-						}
+						tot_line.lkup[sci][j].push(i);
 						if (map_num_den > 0) {
 							let y_num, x_den;
 							if (!ch_options.tot_line_add_values_in_interval) {
@@ -3148,15 +3313,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							} else {
 								tot_line.yarray[sci][j] = 0.0;
 							}
-							/*
-								tot_line.yarray2[sci][j] += y_num;
-								tot_line.xarray2[sci][j] += x_den;
-								if (tot_line.xarray2[sci][j] > 0.0) {
-									tot_line.yarray[sci][j] = tot_line.yarray2[sci][j]/tot_line.xarray2[sci][j];
-								} else {
-									tot_line.yarray[sci][j] = 0.0;
-								}
-								*/
 						} else {
 							if (ch_options.sum_to_interval || ch_options.tot_line_add_values_in_interval) {
 								tot_line.yarray[sci][j] += yval;
@@ -3168,20 +3324,33 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					}
 				}
 			}
+			let tm_top_02 = performance.now();
+			if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+				console.log(sprintf("__mem get_tot_val tm0= %.2f, scim= %d, div= %d, tm_loop= %.2f",
+					tm_top_02-tm_top_00, tot_line.yarray.length, tot_line.divisions, tm_loop));
+			}
 			for (let sci= 0; sci < tot_line.evt_str.length; sci++) {
 				let tot_avg = 0, tot_avg2= 0;
 				let tot_avg2_num = 0;
 				let tot_avg2_den = 0;
-				let el_idx = tot_line.event_list_idx[sci];
-				if (el_idx < 0 || typeof event_list[el_idx] === 'undefined') {
-					//console.log(sprintf("event_list[%s] undef for sci= %s of chart= %s", el_idx, sci, chart_data.chart_tag));
-					continue;
-				}
-				let fe_idx = event_list[el_idx].idx;
 				let do_event = false;
-				if (fe_idx == -1 || (typeof event_select[fe_idx] !== 'undefined' &&
-					(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
-					do_event = true;
+				let el_idx = tot_line.event_list_idx[sci];
+				let fe_idx = -1;
+				let frst_tm = false;
+				if (typeof event_list === 'undefined' || event_list.length == 0) {
+					frst_tm = true;
+				}
+
+				if (!frst_tm) {
+					if (el_idx < 0 || typeof event_list[el_idx] === 'undefined') {
+						//console.log(sprintf("event_list[%s] undef for sci= %s of chart= %s", el_idx, sci, chart_data.chart_tag));
+							continue;
+					}
+					fe_idx = event_list[el_idx].idx;
+					if (fe_idx == -1 || (typeof event_select[fe_idx] !== 'undefined' &&
+						(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
+						do_event = true;
+					}
 				}
 				for (let j=0; j < (tot_line.divisions+1); j++) {
 					tot_line.xarray[j] = minx + j * (maxx - minx) / tot_line.divisions;
@@ -3193,6 +3362,8 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						ret_data = {maxy_new: maxy_new, typ: "ck"}
 					}
 				}
+				let tot_x_by_y = tot_avg;
+				tot_line.totals[sci] = {tot:tot_avg, tot_x_by_y:tot_x_by_y};
 				if (tot_line.divisions > 0) {
 					if (!ch_options.tot_line_add_values_in_interval) {
 						tot_avg /= tot_line.divisions;
@@ -3242,7 +3413,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			//console.log(tot_line.xarray);
 			//console.log(tot_line.yarray);
 		}
-		if (chart_data.chart_tag == "PCT_BUSY_BY_SYSTEM") {
+		if (chart_data.chart_tag == "PCT_BUSY_BY_SYSTEM" && typeof follow_arr !== 'undefined') {
 			let x_rng = maxx - minx;
 			for (let i=0; i < follow_arr.length; i++) {
 				let tot = follow_arr[i].idle + follow_arr[i].follow + follow_arr[i].other;
@@ -3292,11 +3463,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	}
 
 	function chart_redraw(from_where) {
+		let tm_here_04a = performance.now();
 		let tl_maxy_new = tot_line_get_values();
 		let maxy_new = tl_maxy_new.maxy_new;
+		let tm_here_04ab = performance.now();
 		redo_ylkup(ctx);
+		let tm_here_04ac = performance.now();
 		let build_fl_tm = 0.0;
-		let tm_here_04a = performance.now();
 		let displayed_lines= 0;
 		ctx.clearRect(0, 0, mycanvas.width, mycanvas.height);
 		// draw yaxis label
@@ -3461,9 +3634,15 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		ctx.stroke();
 		let line_done = [];
 		lkup = [];
+		//abcd
+		lkup_pts_per_pxl = [];
 		for (let i=0; i < chart_data.subcat_rng.length; i++) {
 			line_done.push({});
 			lkup.push([]);
+			lkup_pts_per_pxl.push([]);
+			for (let j=0; j <= px_wide; j++) {
+				lkup_pts_per_pxl[i].push(0.0);
+			}
 			step.push([-1, -1]);
 		}
 		let filtering = false;
@@ -3933,6 +4112,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 									if (Math.abs(beg[0] - step[subcat_idx][0]) >= 0) {
 										ctx.lineTo(beg[0], yPxlzero);
 										lkup[subcat_idx].push([step[subcat_idx][0], yPxlzero, beg[0], yPxlzero, i, 0, step[subcat_idx][2], x0]);
+										//abcd
 										ctx.lineTo(beg[0], beg[1]);
 										//ctx.stroke();
 									} else {
@@ -3983,16 +4163,20 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			if (!filtering || drew_this_shape)
 			{
 				lkup[subcat_idx].push([beg[0], beg[1], end[0], end[1], i]);
+				for (let j=beg[0]; j <= end[0]; j++) {
+					lkup_pts_per_pxl[subcat_idx][j] += 1;
+				}
+				if (false) {
+				}
 			}
 		}
+		let tm_here_04a1 = performance.now();
 		// now draw __total__ line if needed
 		if (tot_line.evt_str.length > 0) {
 			//for (let sci= 0; sci < tot_line.evt_str.length; sci++)
 			for (let sci= 0; sci < tot_line.subcat_rng_arr.length; sci++) {
 			//let sc_idx = tot_line.subcat_rng_idx;
 			let sc_idx = tot_line.subcat_rng_arr[sci];
-			//chart_data.subcat_rng[sc_idx].{x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:mx_fe_idx, event:tot_line.evt_str, total:0.001,
-			//	cat:mx_cat, subcat:0, cat_text:tot_line.evt_str});
 			let el_idx = tot_line.event_list_idx[sci];
 			let fe_idx = event_list[el_idx].idx;
 			//let fe_idx = event_list[tot_line.event_list_idx[sci]].fe_idx;
@@ -4126,6 +4310,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		ck_if_need_to_set_zoom_redrawn_cntr("redraw");
 		ck_if_need_to_save_image(chart_data.chart_tag, mycanvas, false, can_hover, mycanvas_nm_title);
+		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+			let tm_n = performance.now();
+			console.log(sprintf("__mem: soc totTm= %.1f, rdrw= %.1f, tt_ln= %.1f rest= %.1f get_tot_lns= %.1f, ylkup= %.1f x:mn= %.1f, mx= %.1f, from_where= %s",
+				tm_n - tm_here_04a, tm_here_04a1 - tm_here_04ac, tm_here_04b - tm_here_04a1, tm_n - tm_here_04b,
+				tm_here_04ab - tm_here_04a, tm_here_04ac - tm_here_04ab, minx, maxx,
+				from_where));
+		}
 	}
 	function ck_if_need_to_set_zoom_redrawn_cntr(from)
 	{
@@ -4214,6 +4405,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		if (isNaN(zero_to_one)) {
 			return;
 		}
+		let tm_n00 = performance.now();
 		//console.log("draw_mini["+chrt_idx+"]("+zero_to_one+", arg= "+arg2+")");
 		if ( typeof draw_mini.x_prev === 'undefined' ||
 			draw_mini.invocation_num != can_shape.invocation_num) {
@@ -4223,6 +4415,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			draw_mini.image = new Image();
 			draw_mini.image.src = mycanvas.toDataURL("image/png");
 			//draw_mini.image.src = mycanvas.toDataURL();
+			if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+				let tm_n01 = performance.now();
+				console.log(sprintf("__mem nw_img tm= %.2f", tm_n01-tm_n00));
+			}
+
 			draw_mini.image.onload = function(){
 				draw_mini.image_rdy = 1;
 				mycanvas2_ctx.drawImage(draw_mini.image, 0, 0, mycanvas2.width, mycanvas2.height);
@@ -4237,13 +4434,24 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					xx = xn/xd;
 				}
 				//console.log(sprintf("chrt= %d, xn= %f, xd= %d, xx= %f", chrt_idx, xn, xd, xx));
-
+				if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+					let tm_n01 = performance.now();
+					console.log(sprintf("__mem on_ld tm= %.2f", tm_n01-tm_n00));
+				}
 				draw_mini(xx, "b");
+				if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+					let tm_n01 = performance.now();
+					console.log(sprintf("__mem drw_mini tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
+				}
 			};
 			}
 			draw_mini.invocation_num = can_shape.invocation_num;
 			//console.log("__draw_mini save image");
 		}
+		//if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		//	let tm_n01 = performance.now();
+		//	console.log(sprintf("__mem drw_mini_a tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
+		//}
 
 		let x_int = Math.trunc(zero_to_one * 1000);
 		if (x_int == draw_mini.x_prev) {
@@ -4284,7 +4492,15 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		x0 = +xn - xdiff;
 		x1 = +xn + xdiff;
 		//console.log("__xn= "+xn+", z2one= "+zero_to_one+", xdff= "+xdiff+", x0= "+x0+", x1= "+x1);
+		//if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		//	let tm_n01 = performance.now();
+		//	console.log(sprintf("__mem drw_mini_tot_m1 tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
+		//}
 		zoom_to_new_xrange(x0, x1, true);
+		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+			let tm_n01 = performance.now();
+			console.log(sprintf("__mem drw_mini_tot tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
+		}
 	}
 	if (chart_did_image[chrt_idx] === null || copy_canvas == true) {
 		//grab the context from your destination canvas
@@ -4451,6 +4667,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			y = Math.trunc(e.clientY - rect.top);
 	   	ms_dn_pos = [x, y];
 	   	mycanvas.onmouseup = function (evt) {
+			let tm_ms_up1 = performance.now();
 			let rect = this.getBoundingClientRect(),
 				x = Math.trunc(evt.clientX - rect.left - xPadding),
 				y = Math.trunc(evt.clientY - rect.top);
@@ -4518,10 +4735,19 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 				let args = gcanvas_args[idx];
 				set_gsync_zoom(gcanvas_args[idx][6], gcanvas_args[idx][7], chart_data.file_tag, chart_data.ts_initial.ts);
+				let tm_ms_up201 = performance.now();
 				console.log("Drag xdiff= "+(x - ms_dn_pos[0])+", rel pxl from left= "+xdiff1)
 				reset_minx_maxx(gcanvas_args[idx][6], gcanvas_args[idx][7], gcanvas_args[idx][8], gcanvas_args[idx][9]);
-				chart_redraw("cnvs_mouseup");
+				let tm_ms_up202 = performance.now();
+				//chart_redraw("cnvs_mouseup"); // this seems to be unnecessary. Already done by zoom_2_new
+				let tm_ms_up203 = performance.now();
+				console.log(sprintf("__mem: ms_up: tm201-tm1= %.2f, tm202-201= %.2f, tm203-202= %.2f",
+							tm_ms_up201 - tm_ms_up1,
+							tm_ms_up202-tm_ms_up201,
+							tm_ms_up203-tm_ms_up202));
 			}
+			let tm_ms_up2 = performance.now();
+			console.log(sprintf("__mem: ms_up: tm= %.2f", tm_ms_up2 - tm_ms_up1));
 			//mycanvas.offmouseup = null;
 		};
 	};
@@ -4558,6 +4784,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			zoom_to_new_xrange.prev = {};
 			zoom_to_new_xrange.invocation_num = can_shape.invocation_num;
 		}
+		let tm_00 = performance.now();
 		let idx = chrt_idx;
     		//console.log("pan x0= "+x0+", x1= "+x1);
 		let xdiff = +0.5 * (maxx - minx);
@@ -4585,6 +4812,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		} else {
 			//console.log("zm2nw2: "+x0+",x1="+x1+",ttl="+chart_data.title);
 		}
+		// get rid of noise in computation. We only have nanosec resolution so don't compare more than 9 decimal pts
+		let x0s = x0.toFixed(9);
+		let x1s = x1.toFixed(9);
+		x0 = parseFloat(x0s);
+		x1 = parseFloat(x1s);
 		if (x1 <= x0) {
 			ck_if_need_to_set_zoom_redrawn_cntr("zm_to_nw_a");
 			return;
@@ -4601,8 +4833,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		//console.log("zoom: x0: "+x0+",x1= "+x1+", abs x0="+(x0+chart_data.ts_initial.ts)+",ax1="+(x1+chart_data.ts_initial.ts));
 		gcanvas_args[idx][6] = x0;
 		gcanvas_args[idx][7] = x1;
-		let args = gcanvas_args[idx];
-		reset_minx_maxx(args[6], args[7], args[8], args[9]);
+		reset_minx_maxx(gcanvas_args[idx][6], gcanvas_args[idx][7], gcanvas_args[idx][8], gcanvas_args[idx][9]);
+		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+			console.log(sprintf("__mem: zoom_2_new: x0= %.9f, x1= %.9f, prv: x0= %s x1= %s",
+					x0, x1, zoom_to_new_xrange.prev.x0, zoom_to_new_xrange.prev.x1));
+		}
 		if (typeof zoom_to_new_xrange.prev.x0 !== 'undefined' &&
 			zoom_to_new_xrange.prev.x0 == x0 && zoom_to_new_xrange.prev.x1 == x1) {
 			//console.log("skip zoom_2_new x0= "+x0+", x1= "+x1);
@@ -4617,6 +4852,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		//console.log("zoom: x0: "+x0+",x1= "+x1+", abs x0="+(x0+chart_data.ts_initial.ts)+",ax1="+(x1+chart_data.ts_initial.ts));
 		chart_redraw("zoom_2_new");
 		let tm_1 = performance.now();
+		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+			console.log(sprintf("__mem: __end: zoom_to_new_xrange redraw tm= %.2f tot_tm= %.2f invo= %d",
+						tm_1 - tm_0, tm_1 - tm_00, zoom_to_new_xrange.invocation_num));
+		}
 		//console.log("ch["+chrt_idx+"].rdrw tm= "+tm_diff_str(tm_1-tm_0, 6, 'secs'));
 	}
 	function fmt_val(val) {
@@ -4636,7 +4875,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	{
 		/*
 		if (chart_data.chart_tag == "PCT_BUSY_BY_CPU") {
-			//abcd
 			console.log("in hover for "+chart_data.chart_tag);
 		}
 		*/
@@ -4849,7 +5087,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							str += "<br>x="+myx0+"-"+myx1+","+chart_data.y_by_var+"="+chart_data.subcat_rng[fnd_list[k].row].cat_text;
 							if (false) 
 							{
-								//abcd
 							let sc_idx = tot_line.subcat_rng_arr[sci];
 							let el_idx = tot_line.event_list_idx[sci];
 							let fe_idx = event_list[el_idx].idx;
@@ -5427,12 +5664,23 @@ function draw_svg_footer(xmx, ymx, copyright)
 		}, 'image/png', 1.0);
 	}
 
+function get_mem_usage(str)
+{
+	// might need to start chrome with --enable-precise-memory-info
+	// otalJSHeapSize: 1038017615, usedJSHeapSize: 703481759, jsHeapSizeLimit: 2162163712}
+	let mem = window.performance.memory;
+	let fctr = 1.0/(1024.0 * 1024.0);
+	console.log(sprintf("%s usedHeap: %.3f, totHeap= %.3f MBs",
+				str, fctr * mem.usedJSHeapSize, fctr * mem.totalJSHeapSize));
+}
+
 async function start_charts() {
 	let tm_beg = performance.now();
 	let tm_now = performance.now();
 	console.log("can_shape beg. elap ms= " + (tm_now-tm_beg));
 	chart_divs.length = 0;
 	let ch_did_it = [];
+	get_mem_usage("__mem: at 0: ");
 	for (let i=0; i < gjson.chart_data.length; i++) {
 		chart_did_image.push(null);
 		ch_did_it.push(false);
@@ -5570,6 +5818,7 @@ async function start_charts() {
 	//console.log("tm_now - tm_top0= "+(tm_now - tm_top0));
 	update_status("finished "+chrts_started+" graphs, chart loop took "+tm_diff_str(0.001*(tm_now-tm_top0), 3, "secs"));
 	mymodal.style.display = "none";
+	get_mem_usage("__mem: at 1: ");
 	document.getElementById("chart_container").style.display = "block";
 	// if (msWriteProfilerMark) {
 	//   msWriteProfilerMark("mark1");
@@ -5707,7 +5956,6 @@ async function start_charts() {
 		// so both --phase0 and --phase1 entered
 		[xbeg, xend, rc] = get_by_phase_beg_end(ibeg);
 
-		//abcde
 		phobj.lp_max = 1+iend-ibeg; // need to do + 1 since end condition is lp < mx
 		divisions = 100;
 		let try_divi = get_cpu_busy_divisions();
@@ -6077,7 +6325,7 @@ async function start_charts() {
 						g_cpu_diagram_draw_svg([], -1, -1);
 						po.lp++;
 						do_draws(po);
-						g_cpu_diagram_canvas.json_text += ']}';
+						g_cpu_diagram_canvas.json_text += "]}";
 						webSocket.send("json_table="+g_cpu_diagram_canvas.json_text);
 						console.log("sent json_table to server");
 						//console.log(g_cpu_diagram_canvas.json_text);
@@ -6103,14 +6351,14 @@ async function start_charts() {
 					ck_skip_phases_with_string(po);
 					if (po.lp < po.lp_max) {
 						set_zoom_xbeg_xend(po);
-						set_zoom_all_charts(-1, gjson.phase[0].file_tag, po.lp);
+						set_zoom_all_charts(-1, gjson.phase[0].file_tag, po.lp, "ck_phase 0");
 						console.log(sprintf("---- by_phase: lp= %d, wait...", po.lp));
 						myDelay(gsync_zoom_redrawn_charts, po);
 						if (cd_cpu_busy !== null) {
 							console.log("++cpu_busy.yarray.len= ", cpu_busy_tot_line.sv_yarray.length);
 						}
 					} else {
-						g_cpu_diagram_canvas.json_text += ']}';
+						g_cpu_diagram_canvas.json_text += "]}";
 						webSocket.send("json_table="+g_cpu_diagram_canvas.json_text);
 						console.log("sent json_table to server");
 						// this is the end of the loop
@@ -6160,12 +6408,13 @@ async function start_charts() {
 			set_zoom_xbeg_xend(po);
 			console.log(sprintf("===zoom x0= %s, x1= %s lp= %d %%",
 						gsync_zoom_last_zoom.abs_x0, gsync_zoom_last_zoom.abs_x1, po.lp));
-			set_zoom_all_charts(-1, gjson.phase[0].file_tag, -1);
+			set_zoom_all_charts(-1, gjson.phase[0].file_tag, -1, "ck_phase 1");
 			gsync_zoom_redrawn_charts.typ = "wait_for_zoom_to_phase";
 			myDelay(gsync_zoom_redrawn_charts, po);
 			console.log("---- did myDelay("+old_typ+")");
 		}
 	}
+	get_mem_usage("__mem: at 2: ");
 
 	return;
 }
@@ -6339,9 +6588,6 @@ function openSocket(port_num) {
 		ckln = ck_cmd(event.data, sln, 'chrts_json_sz= ');
 		if (ckln > 0) {
 			gjson.chrt_data_sz = parseInt(event.data.substring(ckln));
-			//if (typeof gjson.chart_data !== 'undefined') {
-			//	gjson.chart_data.length = 0;
-			//}
 			gjson.chart_data = [];
 			return;
 		}
