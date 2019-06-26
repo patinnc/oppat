@@ -5669,6 +5669,11 @@ function get_mem_usage(str)
 	// might need to start chrome with --enable-precise-memory-info
 	// otalJSHeapSize: 1038017615, usedJSHeapSize: 703481759, jsHeapSizeLimit: 2162163712}
 	let mem = window.performance.memory;
+	if (typeof mem === 'undefined' || mem === null) {
+		// MS edge browser seems to not support this.
+		return;
+	}
+	// chrome/firebox/brave seem to support it.
 	let fctr = 1.0/(1024.0 * 1024.0);
 	console.log(sprintf("%s usedHeap: %.3f, totHeap= %.3f MBs",
 				str, fctr * mem.usedJSHeapSize, fctr * mem.totalJSHeapSize));
