@@ -3514,7 +3514,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 	}
 
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
-		tmr[0] = dclock();
+		//tmr[0] = dclock();
 		if (i > 0) { ch_lines_line_str += ", "; }
 		// order of ival array values must agree with IVAL_* variables in main.js
 		if (ovr_totals.size() > 0) {
@@ -3578,7 +3578,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 				ch_lines.line[i].y[0], ch_lines.line[i].y[1], __FILE__, __LINE__);
 		}
 #endif
-		tmr[1] = dclock();
+		//tmr[1] = dclock();
 		if (ch_lines.line[i].use_num_denom > -1) {
 #if 0
 			double nval= ch_lines.line[i].denom;
@@ -3598,7 +3598,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 				ch_lines.line[i].y[1], __FILE__, __LINE__);
 #endif
 		}
-		tmr[2] = dclock();
+		//tmr[2] = dclock();
 		if (ch_lines.line[i].text.size() > 0) {
 			//printf("ch_lines.line[%d].text= %s at %s %d\n", i, ch_lines.line[i].text.c_str(), __FILE__, __LINE__);
 			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
@@ -3615,10 +3615,10 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 			cs_txt = ",\"cs_strs\":[" + cs_txt + "]";
 		}
 		ch_lines_line_str += cs_txt + "}";
-		tmr[3] = dclock();
-		tmr[5] += tmr[1] - tmr[0];
-		tmr[6] += tmr[2] - tmr[1];
-		tmr[7] += tmr[3] - tmr[2];
+		//tmr[3] = dclock();
+		//tmr[5] += tmr[1] - tmr[0];
+		//tmr[6] += tmr[2] - tmr[1];
+		//tmr[7] += tmr[3] - tmr[2];
 	}
 	tt2 = dclock();
 	ch_lines_line_str += "]";
