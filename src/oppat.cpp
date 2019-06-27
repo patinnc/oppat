@@ -744,6 +744,7 @@ struct lines_str {
 enum {
 	SHAPE_LINE,
 	SHAPE_RECT,
+	SHAPE_MAX,
 };
 
 struct min_max_str {
@@ -3299,7 +3300,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 static std::unordered_map<std::string, uint32_t> chart_categories_hash;
 static std::vector <std::string> chart_categories_vec;
 
-static std::string drop_trailing_zeroes(std::string str)
+static std::string drop_trailing_zeroes(std::string &str)
 {
 	size_t pos = str.find(".");
 	if (pos == std::string::npos) {
@@ -3308,11 +3309,11 @@ static std::string drop_trailing_zeroes(std::string str)
 	std::string nstr = str;
 	size_t len = str.size();
 	for (uint32_t i= len-1; i >= pos; i--) {
-		if (nstr.substr(i) == ".") {
+		if (nstr.substr(i, 1) == ".") {
 			nstr.pop_back();
 			return nstr;
 		}
-		if (nstr.substr(i) == "0") {
+		if (nstr.substr(i, 1) == "0") {
 			nstr.pop_back();
 		} else {
 			break;
@@ -3325,6 +3326,8 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		uint32_t chrt, std::vector <evt_str> &event_table, std::string &json, int verbose)
 {
 	double tt0, tt1, tt2, tt3;
+	double tmr[10];
+	for (uint32_t i=0; i < 10; i++) { tmr[i] = 0.0;}
 	tt0 = dclock();
 	int var_idx = (int)event_table[evt_idx].charts[chrt].var_idx;
 	// main.js looks for '\{ "title":' so be careful changing this string
@@ -3501,31 +3504,73 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		ovr_totals.resize(by_sz, 0.0);
 	}
 	tt1 = dclock();
+	std::string nstr;
+	double y0_prv=-1001.99, y1_prv=-1002.99; // all the y values have been >= -1 so far so this should be okay.
+	double x0_prv=-1001.99, x1_prv=-1002.99; // all the x values have been >= 0 so far so this should be okay.
+	std::string x0, x1, y0, y1;
+	std::vector <std::string> typ_vec;
+	for (uint32_t i=0; i < SHAPE_MAX; i++) {
+		typ_vec.push_back(std::to_string(i));
+	}
+
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
+		tmr[0] = dclock();
 		if (i > 0) { ch_lines_line_str += ", "; }
 		// order of ival array values must agree with IVAL_* variables in main.js
 		if (ovr_totals.size() > 0) {
 			ovr_totals[ch_lines.line[i].cat] += ch_lines.line[i].x[1] - ch_lines.line[i].x[0];
 		}
+		// try optimizing loop.
+		// For the cpu_busy chart, there are rectangles and vertical lines (x0==x1)
+		// The y values might be the same as the previous values.
+		// For line charts, the y0 == y1.
+		// These checks let us avoid the costly (over 100,000s of pts) the conv_2_string and get rid of trailing zeroes stuff
+		if (ch_lines.line[i].y[0] != y0_prv) {
+			y0 = drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[0]));
+			y0_prv = ch_lines.line[i].y[0];
+		}
+		if (ch_lines.line[i].y[0] == ch_lines.line[i].y[1]) {
+			if (ch_lines.line[i].y[1] != y1_prv) {
+			y1 = y0;
+			}
+		} else {
+			if (ch_lines.line[i].y[1] != y1_prv) {
+				y1 = drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[1]));
+			}
+		}
+		y1_prv = ch_lines.line[i].y[1];
+		if (ch_lines.line[i].x[0] != x0_prv) {
+			// for the 'collect all the samples based on trigger event the x0 and x1 will be the same for the group
+			x0 = drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[0]));
+			x0_prv = ch_lines.line[i].x[0];
+		}
+		if (ch_lines.line[i].x[0] == ch_lines.line[i].x[1]) {
+			x1 = x0;
+		} else {
+			if (ch_lines.line[i].x[1] != x1_prv) {
+				x1 = drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[1]));
+			}
+		}
+		x1_prv = ch_lines.line[i].x[1];
 		ch_lines_line_str += std::string("{\"ival\":[") +
-				drop_trailing_zeroes(std::to_string(ch_lines.line[i].typ)) +
+				typ_vec[ch_lines.line[i].typ] +
 				"," +
-				drop_trailing_zeroes(std::to_string(ch_lines.line[i].cpt_idx)) +
+				std::to_string(ch_lines.line[i].cpt_idx) +
 				"," +
-				drop_trailing_zeroes(std::to_string(ch_lines.line[i].fe_idx)) +
+				std::to_string(ch_lines.line[i].fe_idx) +
 				"," +
-				drop_trailing_zeroes(std::to_string(ch_lines.line[i].cat)) +
+				std::to_string(ch_lines.line[i].cat) +
 				"," +
-				drop_trailing_zeroes(std::to_string(ch_lines.line[i].subcat)) +
+				std::to_string(ch_lines.line[i].subcat) +
 				"," +
 				drop_trailing_zeroes(std::to_string(ch_lines.line[i].period)) +
 				"," +
-				drop_trailing_zeroes(std::to_string(ch_lines.line[i].cpu)) +
+				std::to_string(ch_lines.line[i].cpu) +
 				"],\"pts\":[" +
-				drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[0])) +
-				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[0])) +
-				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].x[1])) +
-				"," + drop_trailing_zeroes(std::to_string(ch_lines.line[i].y[1])) +
+				x0 +
+				"," + y0 +
+				"," + x1 +
+				"," + y1 +
 				"]";
 #if 0
 		if (ch_lines.line[i].cat >= 0 && ch_lines.legend[ch_lines.line[i].cat] == "nanosleep") {
@@ -3533,14 +3578,16 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 				ch_lines.line[i].y[0], ch_lines.line[i].y[1], __FILE__, __LINE__);
 		}
 #endif
-		//abcd
+		tmr[1] = dclock();
 		if (ch_lines.line[i].use_num_denom > -1) {
+#if 0
 			double nval= ch_lines.line[i].denom;
 			if (nval != 0.0) {
 				nval = ch_lines.line[i].numerator / nval;
 			} else {
 				nval = 0.0;
 			}
+#endif
 			ch_lines_line_str += std::string(", \"num\":") +
 				drop_trailing_zeroes(std::to_string(ch_lines.line[i].numerator));
 			ch_lines_line_str += std::string(", \"den\":") +
@@ -3551,6 +3598,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 				ch_lines.line[i].y[1], __FILE__, __LINE__);
 #endif
 		}
+		tmr[2] = dclock();
 		if (ch_lines.line[i].text.size() > 0) {
 			//printf("ch_lines.line[%d].text= %s at %s %d\n", i, ch_lines.line[i].text.c_str(), __FILE__, __LINE__);
 			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
@@ -3567,6 +3615,10 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 			cs_txt = ",\"cs_strs\":[" + cs_txt + "]";
 		}
 		ch_lines_line_str += cs_txt + "}";
+		tmr[3] = dclock();
+		tmr[5] += tmr[1] - tmr[0];
+		tmr[6] += tmr[2] - tmr[1];
+		tmr[7] += tmr[3] - tmr[2];
 	}
 	tt2 = dclock();
 	ch_lines_line_str += "]";
@@ -3700,6 +3752,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 			did_line = true;
 		}
 	}
+	tmr[3] = dclock();
 	sc_rng += "]";
 #if 0
 	//if (verbose)
@@ -3715,9 +3768,13 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		printf("did build_chart_json(): '%s'\n", json.c_str());
 	}
 	tt3 = dclock();
-	if (verbose)
-		fprintf(stderr, "tt1= %.3f, tt2= %.3f, tt3= %.3f tot= %.3f at %s %d\n",
-			tt1-tt0, tt2-tt1, tt3-tt2, tt3-tt0, __FILE__, __LINE__);
+	std::string ct = event_table[evt_idx].charts[chrt].chart_tag;
+//abcd
+	//if (verbose)
+	if (ct == "PCT_BUSY_BY_CPU" || ct == "SYSCALL_OUTSTANDING_CHART") {
+		fprintf(stderr, "tt1= %.3f, tt2= %.3f, tt3= %.3f tot= %.3f tmr[5]= %.3f, tmr[6]= %.3f, tmr[7]= %.3f at %s %d\n",
+			tt1-tt0, tt2-tt1, tt3-tt2, tt3-tt0, tmr[5], tmr[6], tmr[7], __FILE__, __LINE__);
+	}
 
 	return 0;
 }
@@ -6379,8 +6436,8 @@ int main(int argc, char **argv)
 							//printf("this_chart_json: %s at %s %d\n", this_chart_json.c_str(), __FILE__, __LINE__);
 						}
 						tt2 = dclock();
-						fprintf(stderr, "tm build_chart_lines(): %f, build_shapes_json: %f str_sz= %.3f MBs, title= %s at %s %d\n",
-								tt1-tt0, tt2-tt1, 1.0e-6 * js_sz,
+						fprintf(stderr, "tm build_chart_lines(): %.3f, build_shapes_json: %.3f elap= %.3f str_sz= %.3f MBs, title= %s at %s %d\n",
+								tt1-tt0, tt2-tt1, tt2-tm_beg, 1.0e-6 * js_sz,
 								event_table[grp_list[g]][i].charts[j].title.c_str(),
 								__FILE__, __LINE__);
 					}
