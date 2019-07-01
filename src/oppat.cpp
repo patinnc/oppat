@@ -962,7 +962,7 @@ static std::vector <std::string> callstack_vec;
 
 static uint32_t idle_cpt_idx_m1 = UINT32_M1;
 
-uint32_t hash_comm_pid_tid(std::unordered_map<std::string, int> &hsh_str, std::vector <comm_pid_tid_str> &vec_str, std::string comm, int pid, int tid)
+uint32_t hash_comm_pid_tid(std::unordered_map<std::string, int> &hsh_str, std::vector <comm_pid_tid_str> &vec_str, std::string &comm, int pid, int tid)
 {
 	std::string str = comm + " " + std::to_string(pid) + "/" + std::to_string(tid);
 	int idx = hsh_str[str];
@@ -1602,7 +1602,7 @@ static std::string build_flnm_evt_string(uint32_t file_grp, int evt_idx, std::ve
 static uint64_t callstack_sz = 0;
 
 void prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
-		std::vector <int> &callstacks, int line, std::vector <std::string> prefx)
+		std::vector <int> &callstacks, int line, std::vector <std::string> &prefx)
 {
 	std::string mod_new, cs_new, cs_prv;
 	for (uint32_t k=0; k < prf_obj.samples[prf_idx].callstack.size(); k++) {
@@ -1629,9 +1629,9 @@ void prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 	callstack_sz += callstacks.size();
 }
 
-void etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
+static void etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 				int stk_mod_rtn_idx, std::vector <int> &callstacks, int line,
-				std::vector <std::string> prefx)
+				std::vector <std::string> &prefx)
 {
 	uint32_t cs_beg = prf_obj.etw_evts_set[set_idx][i].cs_idx_beg;
 	if (cs_beg == UINT32_M1) {
@@ -3552,6 +3552,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 			}
 		}
 		x1_prv = ch_lines.line[i].x[1];
+		// IVAL array
 		ch_lines_line_str += std::string("{\"ival\":[") +
 				typ_vec[ch_lines.line[i].typ] +
 				"," +
@@ -3891,8 +3892,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		}
 		if (event_table.flds[j].lag_prev_by_var_using_fld.size() > 0) {
 			for (uint32_t k=0; k < (int)fsz; k++) {
-				if (event_table.flds[j].lag_prev_by_var_using_fld ==
-					event_table.flds[k].name) {
+				if (event_table.flds[j].lag_prev_by_var_using_fld == event_table.flds[k].name) {
 					lag_by_var[j] = k;
 					break;
 				}
@@ -4021,16 +4021,26 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	//printf("ETW event= %s samples_sz= %d at %s %d\n", prf_obj.events[prf_idx].event_name.c_str(), samples_sz, __FILE__, __LINE__);
 	//fflush(NULL);
 	for (uint32_t i=0; i < samples_sz; i++) {
+		uint32_t pid, tid, pid2, tid2;
+		double ts;
+		int cpt_idx, cpt_idx2, prf_evt_idx, fe_idx, cpu;
+		cpt_idx = cpt_idx2 = prf_evt_idx = fe_idx = cpu = -1;
 		if (prf_obj.file_type != FILE_TYP_ETW) {
+			if (prf_obj.samples[i].fe_idx == -1) {
+				prf_evt_idx = (int)prf_obj.samples[i].evt_idx;
+				fl_evt = flnm + prf_obj.events[prf_evt_idx].event_name_w_area;
+				uint32_t file_tag_idx = prf_obj.file_tag_idx;
+				fe_idx = flnm_evt_hash[file_tag_idx][fl_evt] - 1;
+				prf_obj.samples[i].fe_idx = fe_idx;
+				if (prf_obj.samples[i].callstack.size() > 0) {
+					flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
+				}
+			}
 			if (prf_obj.samples[i].evt_idx != prf_idx) {
 				continue;
 			}
 		}
-		int cpt_idx, cpt_idx2, prf_evt_idx, fe_idx, cpu;
-		uint32_t pid, tid, pid2, tid2;
-		double ts;
 
-		cpt_idx = cpt_idx2 = prf_evt_idx = fe_idx = cpu = -1;
 		ts = dura = 0.0;
 		pid = tid = pid2 = tid2 = UINT32_M1;
 		comm  = "";
@@ -4050,22 +4060,12 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			}
 			fl_evt = flnm + prf_obj.events[prf_evt_idx].event_name_w_area;
 			uint32_t file_tag_idx = prf_obj.file_tag_idx;
-			fe_idx = flnm_evt_hash[file_tag_idx][fl_evt] - 1;
-			if (fe_idx == -1) {
-				printf("messed up hash of str='%s', evt_nm= %s, prf_evt_idx= %d, evt_nm_w_area= %s at %s %d\n",
-					fl_evt.c_str(),
-					prf_obj.samples[i].event.c_str(),
-					prf_evt_idx,
-					prf_obj.events[prf_evt_idx].event_name_w_area.c_str(),
-					__FILE__, __LINE__);
-				exit(1);
-			}
-			prf_obj.samples[i].fe_idx = fe_idx;
+			fe_idx = prf_obj.samples[i].fe_idx;
 			flnm_evt_vec[file_tag_idx][fe_idx].total++;
+			ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
 			if (prf_obj.samples[i].callstack.size() > 0) {
 				flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
 			}
-			ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
 			cpu = (int)prf_obj.samples[i].cpu;
 		}
 		if (prf_obj.file_type == FILE_TYP_ETW) {
@@ -6177,9 +6177,11 @@ int main(int argc, char **argv)
 			prf_obj_prv = &prf_obj[i];
 			if (verbose)
 				fprintf(stderr, "begin prf_parse_text(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
+			fprintf(stderr, "befor prf_parse_text(i=%d) elap= %f flnm= %s at %s %d\n",
+					i, dclock()-tm_beg, file_list[i].file_txt.c_str(), __FILE__, __LINE__);
 			prf_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
 			fprintf(stderr, "after prf_parse_text(i=%d) elap= %f flnm= %s at %s %d\n",
-					i, dclock()-tm_beg, file_list[i].file_bin.c_str(), __FILE__, __LINE__);
+					i, dclock()-tm_beg, file_list[i].file_txt.c_str(), __FILE__, __LINE__);
 		} else if (file_list[i].typ == FILE_TYP_LUA) {
 			if (verbose)
 				fprintf(stderr, "begin lua_read__data(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
@@ -6712,7 +6714,9 @@ int main(int argc, char **argv)
 	fprintf(stderr, "before ck_json: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
 	nlohmann::json jobj;
 	ck_json(bin_map, "check for valid json in str_pool", false, jobj, __FILE__, __LINE__, options.verbose);
+	fprintf(stderr, "after  ck_json: bin_map: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
 	ck_json(chrts_cats, "check for valid json in chrts_cats", false, jobj, __FILE__, __LINE__, options.verbose);
+	fprintf(stderr, "begore ck_json: chrts_json: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
 	for (uint32_t i=0; i < chrts_json.size(); i++) {
 		std::string hdr = "check for valid json in chrts_json[" + std::to_string(i) + "]";
 		ck_json(chrts_json[i], hdr.c_str(), false, jobj, __FILE__, __LINE__, options.verbose);

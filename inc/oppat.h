@@ -240,7 +240,7 @@ EXTERN2 struct options_str options;
 
 void prf_add_ids(uint32_t id, int evt_idx, prf_obj_str &prf_obj);
 void prf_add_comm(uint32_t pid, uint32_t tid, std::string comm, prf_obj_str &prf_obj, double tm);
-uint32_t hash_comm_pid_tid(std::unordered_map<std::string, int> &hsh_str, std::vector <comm_pid_tid_str> &vec_str, std::string comm, int pid, int tid);
+uint32_t hash_comm_pid_tid(std::unordered_map<std::string, int> &hsh_str, std::vector <comm_pid_tid_str> &vec_str, std::string &comm, int pid, int tid);
 uint32_t hash_uint32(std::unordered_map <uint32_t, uint32_t> &hsh_u32, std::vector <uint32_t> &vec_u32, uint32_t lkup, uint32_t val);
 uint64_t *buf_uint64_ptr(char *buf, int off);
 uint16_t *buf_uint16_ptr(char *buf, int off);
