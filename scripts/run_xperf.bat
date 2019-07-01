@@ -54,7 +54,7 @@ del %WAIT_FILE%
 @echo    {"cur_tag":"%PFX%_%SFX%"}, >> %ODIR%/file_list.json
 @echo    {"txt_file":"etw_trace.txt", "tag":"%%cur_tag%%", "type":"ETW"}, >> %ODIR%/file_list.json
 @echo    {"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%%cur_tag%%", "type":"LUA"}, >> %ODIR%/file_list.json
-@echo    {"bin_file":"spin.txt", "txt_file":"", "wait_file":"", "tag":"%cur_tag%", "type":"LUA", "lua_file":"spin.lua", "lua_rtn":"spin"} >> %ODIR%/file_list.json
+@echo    {"bin_file":"spin.txt", "txt_file":"", "wait_file":"", "tag":"%%cur_tag%%", "type":"LUA", "lua_file":"spin.lua", "lua_rtn":"spin"} >> %ODIR%/file_list.json
 @echo   ]} >> %ODIR%/file_list.json
 
 goto :EOF

@@ -54,7 +54,7 @@ del %WAIT_FILE%
 @echo    {"txt_file":"etw_trace.txt", "tag":"%%cur_tag%%", "type":"ETW"}, >> %ODIR%/file_list.json
 @echo    {"txt_file":"etw_energy2.txt", "wait_file":"wait.txt", "tag":"%%cur_tag%%", "type":"LUA"}, >> %ODIR%/file_list.json
 @echo    {"bin_file":"", "txt_file":"phase.tsv", "wait_file":"", "tag":"%%cur_tag%%", "type":"LUA", "lua_file":"gb_phase.lua", "lua_rtn":"gb_phase", "options":"USE_AS_PHASE,USE_EXTRA_STR"}, >> %ODIR%/file_list.json
-@echo    {"bin_file":"pcm.csv", "txt_file":"", "wait_file":"", "tag":"%cur_tag%", "type":"LUA", "lua_file":"pcm.lua", "lua_rtn":"read_pcm"} >> %ODIR%/file_list.json
+@echo    {"bin_file":"pcm.csv", "txt_file":"", "wait_file":"", "tag":"%%cur_tag%%", "type":"LUA", "lua_file":"pcm.lua", "lua_rtn":"read_pcm"} >> %ODIR%/file_list.json
 
 @echo   ]} >> %ODIR%/file_list.json
 
