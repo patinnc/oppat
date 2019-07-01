@@ -11,6 +11,7 @@ var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
 var gcanvas_args = [];
+var g_chart_tag_tm_trace = "BW_BY_TYPE";
 var g_charts_done = {cntr:0, typ:""};
 var g_cpu_diagram_flds = null;
 var g_cpu_diagram_canvas = null;
@@ -423,7 +424,7 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 		//}
 	}
 	let tm_n02 = performance.now();
-	if (ct == "SYSCALL_OUTSTANDING_CHART") {
+	if (ct == g_chart_tag_tm_trace) {
 		let totl = 0.0;
 		if (false) {
 		tm_arr.sort(function(a, b){return b - a});
@@ -819,7 +820,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				draw_mini(xd2, "a");
 			}
 		}
-		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 			let tm_n1 = performance.now();
 			console.log(sprintf("__mem: reset mnmx tm= %.2f tm0-1= %.2f", tm_n1-tm_n0, tm_n1-tm_n01));
 		}
@@ -1254,6 +1255,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		let yout = Math.trunc((canvas_px_high(null) - yPadding) * (1.0 - (yin - uminy)/ (umaxy - uminy)));
 		return [xout, yout];
 	}
+
 
 	let num_events = 0;
 	let event_list = [];
@@ -3325,7 +3327,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 			}
 			let tm_top_02 = performance.now();
-			if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+			if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 				console.log(sprintf("__mem get_tot_val tm0= %.2f, scim= %d, div= %d, tm_loop= %.2f",
 					tm_top_02-tm_top_00, tot_line.yarray.length, tot_line.divisions, tm_loop));
 			}
@@ -3462,7 +3464,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		return rct;
 	}
 
+	let doing_trace_chart_tag = false;
+	if (chart_data.chart_tag == g_chart_tag_tm_trace) {
+		doing_trace_chart_tag = true;
+	}
+
 	function chart_redraw(from_where) {
+		let tm_t00_sum = 0.0;
 		let tm_here_04a = performance.now();
 		let tl_maxy_new = tot_line_get_values();
 		let maxy_new = tl_maxy_new.maxy_new;
@@ -3662,6 +3670,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		gjson.chart_data[chrt_idx].last_used_x_min_max = {minx:minx, maxx:maxx};
 		let fl_tm_bld = 0;
 		let fl_tm_rpt = 0;
+		let did_err_msg = 0;
 		for (let i=0; i < chart_data.myshapes.length; i++) {
 			let x0 = chart_data.myshapes[i].pts[PTS_X0];
 			let x1 = chart_data.myshapes[i].pts[PTS_X1];
@@ -3820,8 +3829,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					//let fe_2 = event_lkup[fe_idx];
 				} else {
 					fe_idx = chart_data.myshapes[i].ival[IVAL_FE];
-					if (fe_idx < 0 || fe_idx >= event_lkup.length) {
-						console.log("got fe_idx= "+fe_idx+" event_.sz= "+event_list.length);
+					if (did_err_msg == 0 && (fe_idx < 0 || fe_idx >= event_lkup.length)) {
+						console.log("got fe_idx= "+fe_idx+" event_.sz= "+event_list.length+", chrt= "+chart_data.chart_tag);
+						did_err_msg++;
 					}
 					let fe_2 = event_lkup[fe_idx];
 					//console.log("got fe_idx= "+fe_2+" flnm_evt.sz= "+event_list.length);
@@ -4026,6 +4036,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						drew_this_shape = true;
 					}
 				} else if (ch_type == CH_TYPE_LINE || line_done[subcat_idx][beg[0]] != 1) {
+					let tm_t00 = 0.0, tm_t01=0.0;
 					let do_event = false;
 					let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 					if (ch_type == CH_TYPE_BLOCK) {
@@ -4094,6 +4105,9 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						}
 						let yPxlzero = canvas_px_high(null) - yPadding;
 						if (connect_lines) {
+							if (doing_trace_chart_tag) {
+								tm_t00 = performance.now();
+							}
 							if (do_step) {
 								if (do_event_highlight) {
 									ctx.lineWidth = 5;
@@ -4127,6 +4141,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 							ctx.lineTo(end[0], end[1]);
 							ctx.stroke();
 							drew_this_shape = true;
+						if (doing_trace_chart_tag) {
+							tm_t01 = performance.now();
+							tm_t00_sum += tm_t01-tm_t00;
+						}
 						}
 						step[subcat_idx][0] = end[0];
 						step[subcat_idx][1] = end[1];
@@ -4310,11 +4328,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		}
 		ck_if_need_to_set_zoom_redrawn_cntr("redraw");
 		ck_if_need_to_save_image(chart_data.chart_tag, mycanvas, false, can_hover, mycanvas_nm_title);
-		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 			let tm_n = performance.now();
-			console.log(sprintf("__mem: soc totTm= %.1f, rdrw= %.1f, tt_ln= %.1f rest= %.1f get_tot_lns= %.1f, ylkup= %.1f x:mn= %.1f, mx= %.1f, from_where= %s",
+			console.log(sprintf("__mem: soc totTm= %.1f, rdrw= %.1f, tt_ln= %.1f rest= %.1f get_tot_lns= %.1f, ylkup= %.1f x:mn= %.1f, mx= %.1f, tm_t00_sum= %.2f from_where= %s",
 				tm_n - tm_here_04a, tm_here_04a1 - tm_here_04ac, tm_here_04b - tm_here_04a1, tm_n - tm_here_04b,
-				tm_here_04ab - tm_here_04a, tm_here_04ac - tm_here_04ab, minx, maxx,
+				tm_here_04ab - tm_here_04a, tm_here_04ac - tm_here_04ab, minx, maxx, tm_t00_sum,
 				from_where));
 		}
 	}
@@ -4415,7 +4433,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			draw_mini.image = new Image();
 			draw_mini.image.src = mycanvas.toDataURL("image/png");
 			//draw_mini.image.src = mycanvas.toDataURL();
-			if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+			if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 				let tm_n01 = performance.now();
 				console.log(sprintf("__mem nw_img tm= %.2f", tm_n01-tm_n00));
 			}
@@ -4434,12 +4452,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 					xx = xn/xd;
 				}
 				//console.log(sprintf("chrt= %d, xn= %f, xd= %d, xx= %f", chrt_idx, xn, xd, xx));
-				if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+				if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 					let tm_n01 = performance.now();
 					console.log(sprintf("__mem on_ld tm= %.2f", tm_n01-tm_n00));
 				}
 				draw_mini(xx, "b");
-				if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+				if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 					let tm_n01 = performance.now();
 					console.log(sprintf("__mem drw_mini tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
 				}
@@ -4448,7 +4466,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			draw_mini.invocation_num = can_shape.invocation_num;
 			//console.log("__draw_mini save image");
 		}
-		//if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		//if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 		//	let tm_n01 = performance.now();
 		//	console.log(sprintf("__mem drw_mini_a tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
 		//}
@@ -4492,12 +4510,12 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		x0 = +xn - xdiff;
 		x1 = +xn + xdiff;
 		//console.log("__xn= "+xn+", z2one= "+zero_to_one+", xdff= "+xdiff+", x0= "+x0+", x1= "+x1);
-		//if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		//if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 		//	let tm_n01 = performance.now();
 		//	console.log(sprintf("__mem drw_mini_tot_m1 tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
 		//}
 		zoom_to_new_xrange(x0, x1, true);
-		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 			let tm_n01 = performance.now();
 			console.log(sprintf("__mem drw_mini_tot tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
 		}
@@ -4834,7 +4852,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		gcanvas_args[idx][6] = x0;
 		gcanvas_args[idx][7] = x1;
 		reset_minx_maxx(gcanvas_args[idx][6], gcanvas_args[idx][7], gcanvas_args[idx][8], gcanvas_args[idx][9]);
-		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 			console.log(sprintf("__mem: zoom_2_new: x0= %.9f, x1= %.9f, prv: x0= %s x1= %s",
 					x0, x1, zoom_to_new_xrange.prev.x0, zoom_to_new_xrange.prev.x1));
 		}
@@ -4852,7 +4870,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		//console.log("zoom: x0: "+x0+",x1= "+x1+", abs x0="+(x0+chart_data.ts_initial.ts)+",ax1="+(x1+chart_data.ts_initial.ts));
 		chart_redraw("zoom_2_new");
 		let tm_1 = performance.now();
-		if (chart_data.chart_tag == "SYSCALL_OUTSTANDING_CHART") {
+		if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 			console.log(sprintf("__mem: __end: zoom_to_new_xrange redraw tm= %.2f tot_tm= %.2f invo= %d",
 						tm_1 - tm_0, tm_1 - tm_00, zoom_to_new_xrange.invocation_num));
 		}
@@ -5305,7 +5323,10 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				}
 			} else {
 				let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
-				let ev_str = chart_data.flnm_evt[fe_idx].event;
+				let ev_str = "unknown5";
+				if (fe_idx > -1) {
+					ev_str = chart_data.flnm_evt[fe_idx].event;
+				}
 				str += ", proc= "+nm+", cpu= "+cpu+"<br>evt= "+ev_str;
 			}
 			current_tooltip_shape = shape_idx;
@@ -5320,10 +5341,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 						let cpu_str = sprintf("[%03d] ", cpu);
 						let tm_str = sprintf("%.9f: ", (chart_data.ts_initial.ts +chart_data.myshapes[shape_idx].pts[PTS_X1]));
 						let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
+						let evt_str = "";
+						if (fe_idx > -1) {
+							evt_str = chart_data.flnm_evt[fe_idx].event;
+						}
 						let ph_str = chart_data.proc_arr[cpt].comm+" "+
 							chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid+" "+ 
 							cpu_str + tm_str + chart_data.myshapes[shape_idx].ival[IVAL_PERIOD] + " " +
-							chart_data.flnm_evt[fe_idx].event;
+							evt_str;
 						tstr = tstr.replace("_P_", ph_str);
 					}
 				}
@@ -5389,15 +5414,17 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 		return num.toFixed(dec);
 	}
 	let tm_here_06 = performance.now();
-	//console.log("cs time01= "+(tm_here_01 - tm_top0).toFixed(2));
-	//console.log("cs time02= "+(tm_here_02 - tm_here_01).toFixed(2));
-	//console.log("cs time03= "+(tm_here_03 - tm_here_02).toFixed(2));
-	//console.log("cs time04= "+(tm_here_04 - tm_here_03).toFixed(2));
-	//console.log("cs time05= "+(tm_here_05 - tm_here_04).toFixed(2));
-	//console.log("cs time06= "+(tm_here_06 - tm_here_05).toFixed(2));
 	let tm_dff = tm_here_06 - tm_top0;
 	if (tm_dff > 500) {
-		console.log("cs time= "+tm_dff.toFixed(2));
+		console.log("cs time= "+tm_dff.toFixed(2)+", ct= "+chart_data.chart_tag);
+		if (false) {
+			console.log("cs time01= "+(tm_here_01 - tm_top0).toFixed(2));
+			console.log("cs time02= "+(tm_here_02 - tm_here_01).toFixed(2));
+			console.log("cs time03= "+(tm_here_03 - tm_here_02).toFixed(2));
+			console.log("cs time04= "+(tm_here_04 - tm_here_03).toFixed(2));
+			console.log("cs time05= "+(tm_here_05 - tm_here_04).toFixed(2));
+			console.log("cs time06= "+(tm_here_06 - tm_here_05).toFixed(2));
+		}
 	}
 	g_charts_done.cntr++;
 	return;
@@ -8196,7 +8223,6 @@ function parse_svg()
 						ctx.fillStyle = 'black';
 						ctx.fillText(j, x, y);
 						ctx.fillStyle = fl;
-						//let fl = ctx.strokeStyle = 'black';
 					}
 					let jm1 = j-1;
 					let jp1 = j+1;
