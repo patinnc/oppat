@@ -134,7 +134,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		exit(1);
 	}
 	double tm_lua = 0, tm_lua_iters=0;
-	double tm_pt0=0.0, tm_pt1=0.0;
+	double tm_pt0=0.0, tm_pt1=0.0, tm_pt2=0.0, tm_pt3=0.0;
 	int64_t line_num = 0;
 	std::string unknown_mod;
 	std::string extra_str;
@@ -142,7 +142,10 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	bool use_last_pos = true;
 	while(!file.eof()) {
 		//read data from file
+		double tma_0 = dclock();
 		std::getline (file, line);
+		double tma_1 = dclock();
+		tm_pt3 += tma_1 - tma_0;
 		line_num++;
 		int sz = line.size();
 		if (sz > 0 && line[0] == '#') {
@@ -180,6 +183,8 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 					if (rtn == "[unknown]") {
 						if (msz > 0 && module == unknown_mod) {
 							// if we have more than 1 unknown rtns for a module then don't add 
+							double tmb = dclock();
+							tm_pt0 += tmb - tma;
 							continue;
 						}
 						unknown_mod = module;
@@ -395,12 +400,14 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 				tm_lua += tm_lua_end - tm_lua_beg;
 				tm_lua_iters++;
 			}
+			double tmc = dclock();
+			tm_pt2 += tmc - tmb;
 		}
 	}
 	file.close();
 	if (tm_lua > 0.0) {
-		fprintf(stderr, "prf_parse_text tm_lua= %f iters= %.0f pt0= %.3f, pt1= %.3f at %s %d\n",
-				tm_lua, tm_lua_iters, tm_pt0, tm_pt1, __FILE__, __LINE__);
+		fprintf(stderr, "prf_parse_text tm_lua= %f iters= %.0f pt0= %.2f, pt1= %.2f pt2= %.2f rd= %.2f at %s %d\n",
+				tm_lua, tm_lua_iters, tm_pt0, tm_pt1, tm_pt2, tm_pt3, __FILE__, __LINE__);
 	}
 	if (evts_derived.size() > 0 && samples.size() > 0) {
 		double tm_cpy_beg = dclock();
@@ -727,6 +734,10 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 					prf_obj.events.size(), __FILE__, __LINE__);
 				exit(1);
 			}
+			if (prf_obj.events.size() == 1) {
+				whch_evt = 0;
+				evt_nm = prf_obj.events[whch_evt].event_name;
+			}
 			if (exp_id || exp_identifier) {
 				if (prf_obj.events.size() == 1) {
 					whch_evt = 0;
@@ -994,8 +1005,15 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			if (orig_order == 0) {
 				printf("1st timestamp= %" PRIu64 " at %s %d\n", time, __FILE__, __LINE__);
 			}
-			if (pid == UINT32_M1) {
-				printf("got pid= -1 for event_name= %s at %s %d\n", evt_nm.c_str(), __FILE__, __LINE__);
+			if (pid == UINT32_M1 && !(evt_nm == "sched_switch" || evt_nm == "sched:sched_switch")) {
+				printf("got pid= -1 for event_name= %s file= %s num_evts= %d at %s %d\n",
+						evt_nm.c_str(), prf_obj.filename_bin.c_str(), (int)prf_obj.events.size(), __FILE__, __LINE__);
+#if 0
+				printf("pea.type= 0x%x, TRC_PT= 0x%x lst_ft_ftm_idx= %d, whch_evt= %d evt0= %s at %s %d\n", 
+					(int)prf_obj.events[0].pea.type, (int)PERF_TYPE_TRACEPOINT,
+						(int)prf_obj.events[0].lst_ft_fmt_idx, whch_evt,
+						prf_obj.events[0].event_name.c_str(), __FILE__, __LINE__);
+#endif
 			}
 			if ((pid == UINT32_M1 && (evt_nm == "sched_switch" || evt_nm == "sched:sched_switch")) || (pid != UINT32_M1 && tid != UINT32_M1 && pid > 0 && tid == 0)) {
 				// sched_switch can also have the case where thread going out is going to die (a zombie)
