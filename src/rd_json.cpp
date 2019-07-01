@@ -172,28 +172,30 @@ int ck_json(std::string &str, std::string from_where, bool just_parse, json &job
 		ok = false;
 	} else {
 		ok = json::accept(str); // just validates?
+		if (verbose)
+			fprintf(stderr, "ck_json: rc= %d desc= %s from %s %d at %s %d\n", ok, from_where.c_str(), file, line, __FILE__, __LINE__);
 	}
 	if (!ok) {
-		json &j = (just_parse ? jobj : jo);
-	try {
-		j = json::parse(str);
-		worked=true;
-	} catch (json::parse_error& e) {
-			// output exception information
-			std::cout << "message: " << e.what() << '\n'
-				  << "exception id: " << e.id << '\n'
-				  << "byte position of error: " << e.byte << std::endl;
-	}
-	if (!worked) {
-		printf("parse of json str %s failed called by %s %d. bye at %s %d\n",
-				from_where.c_str(), file, line, __FILE__, __LINE__);
-		fprintf(stderr, "parse of json str %s failed called by %s %d. bye at %s %d\n",
-				from_where.c_str(), file, line, __FILE__, __LINE__);
-		printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
-		prt_line(sz);
+			json &j = (just_parse ? jobj : jo);
+		try {
+			j = json::parse(str);
+			worked=true;
+		} catch (json::parse_error& e) {
+				// output exception information
+				std::cout << "message: " << e.what() << '\n'
+					  << "exception id: " << e.id << '\n'
+					  << "byte position of error: " << e.byte << std::endl;
+		}
+		if (!worked) {
+			printf("parse of json str %s failed called by %s %d. bye at %s %d\n",
+					from_where.c_str(), file, line, __FILE__, __LINE__);
+			fprintf(stderr, "parse of json str %s failed called by %s %d. bye at %s %d\n",
+					from_where.c_str(), file, line, __FILE__, __LINE__);
+			printf("Here is the string we tried to parse at %s %d:\n%s\n", __FILE__, __LINE__, str.c_str());
+			prt_line(sz);
 
-		exit(1);
-	}
+			exit(1);
+		}
 	}
 	return 0;
 }
