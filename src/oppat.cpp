@@ -6168,8 +6168,9 @@ int main(int argc, char **argv)
 
 		if (file_list[i].typ == FILE_TYP_TRC_CMD) {
 			tc_read_data_bin(file_list[i].file_bin, v_tmp, prf_obj[i], tm_beg, prf_obj_prv, file_list[file_list_1st[i]]);
+			fprintf(stderr, "after tc_read_data_bin: elap= %.3f, tc_read_data_bin(%s) at %s %d\n", dclock()-tm_beg, file_list[i].file_bin.c_str(), __FILE__, __LINE__);
 			tc_parse_text(file_list[i].file_txt, prf_obj[i], tm_beg, v_tmp, evt_tbl2[0]);
-			printf("\nafter tc_read_data_bin(%s) at %s %d\n", file_list[i].file_bin.c_str(), __FILE__, __LINE__);
+			fprintf(stderr, "after tc_parse_text: elap= %.3f, tc_read_data_txt(%s) at %s %d\n", dclock()-tm_beg, file_list[i].file_txt.c_str(), __FILE__, __LINE__);
 		} else if (file_list[i].typ == FILE_TYP_PERF) {
 			if (verbose)
 				fprintf(stderr, "begin prf_read_data_bin(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
