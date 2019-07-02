@@ -5438,6 +5438,7 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 	if ( typeof standaloneJob.data === 'undefined' ) {
 		standaloneJob.data = null;
 		standaloneJob.chdata = [];
+		standaloneJob.ch_data2_len = [];
 	}
   return new Promise(resolve => {
   	console.log('Start standaloneJob: i= ' + i + ", j= "+j);
@@ -5453,7 +5454,12 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 		parse_str_pool(standaloneJob.data);
 	}
 	if (i == 2 && j > -1 && j < ch_data2.length) {
-		standaloneJob.chdata.push(decompress_str('chrt_data', ch_data2[j]));
+		let ch_data2_len = ch_data2[j].length;
+		standaloneJob.ch_data2_len.push(ch_data2_len);
+		setTimeout(function() {
+			standaloneJob.chdata.push(decompress_str('chrt_data', ch_data2[j]));
+			ch_data2[j] = "";
+		}, 0);
 		//standaloneJob.data = ch_data;
 	}
 	let ch_len = 0;
@@ -5463,7 +5469,9 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 		}
 		ch_len = standaloneJob.chdata[j].length;
 		console.log("try parse_chart_data j="+j+", sz= "+ch_len);
+		setTimeout(function() {
 		parse_chart_data(standaloneJob.chdata[j]);
+		}, 0);
 	}
 	if (i == 4) {
 		standaloneJob.chdata = [];
@@ -5479,7 +5487,7 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 		//wrk_nxt = "<br>starting "+wrk_arr[i+1];
 		if (i == 2) {
 			wrk_nxt = "<br>";
-			let sz_str = sprintf(" chdata["+j+"] is %.3f MB,", [1.0e-6 * (ch_data2[j].length)]);
+			let sz_str = sprintf(" chdata["+j+"] is %.3f MB,", [1.0e-6 * (standaloneJob.ch_data2_len[j])]);
 			wrk_nxt += " (input is "+sz_str+" please be patient...a 10 MB file can take ~20 seconds)"
 			n_of_m = ", file "+j+ " of "+ch_data2.length;
 		}
@@ -5513,7 +5521,7 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 		}
 	}
 
-	mymodal_span_text.innerHTML = "finished work "+wrk+n_of_m+", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm+wrk_nxt;
+	mymodal_span_text.innerHTML = "doing work "+wrk+n_of_m+", tm_tot_elap="+elap_tm_tot+", tm_this_chrt= "+elap_tm+wrk_nxt;
 	setTimeout(() => {
 		//console.log('End: ' + i);
 		resolve(i);
