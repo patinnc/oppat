@@ -72,8 +72,13 @@ static std::vector <uint64_t> vec_prev_val_by_id;
 struct evt_nms_str {
 	std::string str;
 	size_t last_pos, last_pos2;
-	int count, len, ext_strs;
+	int count, ocount, len, ext_strs;
 };
+
+static bool compareOcount(const evt_nms_str &a, const evt_nms_str &b)
+{
+	return a.ocount >= b.ocount;
+}
 
 static int find_evt_in_line(int i, std::vector <evt_nms_str> &nms, std::string &line, size_t ln_len, std::string &extra_str)
 {
@@ -101,6 +106,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	std::vector <evts_derived_str> evts_derived;
  	std::vector <prf_samples_str> samples;
 
+	double tm_beg = dclock();
 	std::vector <evt_nms_str> nms;
 	prf_obj.tm_beg = 1.0e-9 * (double)prf_obj.samples[0].ts;
 	prf_obj.tm_end = 1.0e-9 * (double)prf_obj.samples.back().ts;
@@ -115,6 +121,7 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 		struct evt_nms_str ns;
 		ns.str = " " + prf_obj.features_event_desc[i].event_string + ": ";
 		ns.count = 0;
+		ns.ocount = prf_obj.events[i].evt_count;
 		ns.last_pos = std::string::npos;
 		ns.last_pos2 = std::string::npos;
 		ns.ext_strs = 0;
@@ -127,7 +134,6 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 
 	prf_obj.filename_text = flnm;
 	int store_callstack_idx = -1;
-	double tm_beg = dclock();
 	file.open (flnm.c_str(), std::ios::in);
 	if (!file.is_open()) {
 		printf("messed up fopen of flnm= %s at %s %d\n", flnm.c_str(), __FILE__, __LINE__);
@@ -411,15 +417,13 @@ int prf_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int
 	}
 	if (evts_derived.size() > 0 && samples.size() > 0) {
 		double tm_cpy_beg = dclock();
-		for (uint32_t i=0; i < samples.size(); i++) {
-			prf_obj.samples.push_back(samples[i]);
-		}
+		prf_obj.samples.insert( prf_obj.samples.end(), samples.begin(), samples.end() );
 		std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
 		double tm_cpy_end = dclock();
-		printf("prf_parse_text: samples copy tm= %f at %s %d\n", tm_cpy_end-tm_cpy_beg, __FILE__, __LINE__);
+		fprintf(stderr, "prf_parse_text: samples copy+sort tm= %f at %s %d\n", tm_cpy_end-tm_cpy_beg, __FILE__, __LINE__);
 	}
 	double tm_end = dclock();
-	printf("prf_parse_text: tm_end - tm_beg = %f, tm from begin= %f\n", tm_end - tm_beg, tm_end - tm_beg_in);
+	fprintf(stderr, "prf_parse_text: tm_end - tm_beg = %f, tm from begin= %f\n", tm_end - tm_beg, tm_end - tm_beg_in);
 	printf("cmmnts= %d, samples= %d, callstack= %d, null= %d\n",
 		lines_comments, lines_samples, lines_callstack, lines_null);
 	for (uint32_t i=0; i < nms.size(); i++) {
@@ -572,24 +576,28 @@ size_t prf_sample_to_string(int idx, std::string &ostr, prf_obj_str &prf_obj)
 {
 	static char *snbuf = NULL;
 	static size_t sz = 0;
-	size_t osz = snprintf(snbuf, sz, "%s %d/%d [%.3d]%s %" PRIu64 " %s:",
-		prf_obj.samples[idx].comm.c_str(), prf_obj.samples[idx].pid, prf_obj.samples[idx].tid, prf_obj.samples[idx].cpu,
-		prf_obj.samples[idx].tm_str.c_str(), prf_obj.samples[idx].period, prf_obj.samples[idx].event.c_str());
-	if (osz >= sz) {
-		sz = 2 * osz;
-		if (snbuf != NULL) {
-			free(snbuf);
-		}
-		if (sz < (4*1024)) {
-			sz = 4 * 1024;
-		}
-		snbuf = (char *)malloc(sz);
+	size_t osz = 0;
+	bool redo = false;
+	for (int i=0; i < 2; i++) {
 		osz = snprintf(snbuf, sz, "%s %d/%d [%.3d]%s %" PRIu64 " %s:",
 			prf_obj.samples[idx].comm.c_str(), prf_obj.samples[idx].pid, prf_obj.samples[idx].tid, prf_obj.samples[idx].cpu,
 			prf_obj.samples[idx].tm_str.c_str(), prf_obj.samples[idx].period, prf_obj.samples[idx].event.c_str());
 		if (osz >= sz) {
-			printf("ummm... how is this possible? osz = %d, sz = %d at %s %d\n", (int)osz, (int)sz, __FILE__, __LINE__);
-			exit(1);
+			redo = true;
+			sz = 2 * osz;
+			if (snbuf != NULL) {
+				free(snbuf);
+			}
+			if (sz < (4*1024)) {
+				sz = 4 * 1024;
+			}
+			snbuf = (char *)malloc(sz);
+		} else {
+			if (i == 1 && redo) {
+				printf("ummm... how is this possible? osz = %d, sz = %d at %s %d\n", (int)osz, (int)sz, __FILE__, __LINE__);
+				exit(1);
+			}
+			break;
 		}
 	}
 	ostr = std::string(snbuf);
@@ -1024,7 +1032,8 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 				// above we see a sched switch with comm='swapper', pid > 0, tid==0 but prev_comm/pid = spin.x 8455
 				// This is about 0.1 secs before the thread is killed.d > 0, tid==0 but prev_comm/pid = spin.x 8455
 				if (raw_offset != -1 && (evt_nm == "sched_switch" || evt_nm == "sched:sched_switch")) {
-					printf("try using sched_switch data for missed pid= %d at %s %d\n", pid, __FILE__, __LINE__);
+					if (verbose)
+						printf("try using sched_switch data for missed pid= %d at %s %d\n", pid, __FILE__, __LINE__);
 #pragma pack(push, 1)
 					struct sched_switch_str {
 						uint8_t hdr[8];
@@ -1037,8 +1046,9 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 					} *s_sw;
 #pragma pack(pop)
 					s_sw = (sched_switch_str *)(buf + raw_offset);
-					printf("prev_pid= %d, prev_comm= %s, next_pid= %d, next_comm= %s at %s %d\n",
-						s_sw->prev_pid, s_sw->prev_comm, s_sw->next_pid, s_sw->next_comm, __FILE__, __LINE__);
+					if (verbose)
+						printf("prev_pid= %d, prev_comm= %s, next_pid= %d, next_comm= %s at %s %d\n",
+							s_sw->prev_pid, s_sw->prev_comm, s_sw->next_pid, s_sw->next_comm, __FILE__, __LINE__);
 					prf_add_comm(pid, s_sw->prev_pid, std::string(s_sw->prev_comm), prf_obj, tm);
 					tid = (uint32_t)s_sw->prev_pid;
 					//tid = sw_sw->prev_pid;
@@ -2077,11 +2087,11 @@ assigned by the linker to an executable.
 		}
 		recs++;
 	}
+	std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
 	fprintf(stderr, "after read data section, elap= %f, tm_in_rd= %f, tm_in_decode= %f at %s %d\n", dclock() - tm_beg, tm_in_rd, tm_in_dec, __FILE__, __LINE__);
 	if (verbose) {
 		tm_print();
 	}
-	std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
 	//file.close();
 	return 0;
 }
