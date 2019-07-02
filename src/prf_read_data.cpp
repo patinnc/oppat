@@ -577,13 +577,15 @@ size_t prf_sample_to_string(int idx, std::string &ostr, prf_obj_str &prf_obj)
 	static char *snbuf = NULL;
 	static size_t sz = 0;
 	size_t osz = 0;
-	bool redo = false;
-	for (int i=0; i < 2; i++) {
+	for (int i=0; i < 3; i++) {
 		osz = snprintf(snbuf, sz, "%s %d/%d [%.3d]%s %" PRIu64 " %s:",
 			prf_obj.samples[idx].comm.c_str(), prf_obj.samples[idx].pid, prf_obj.samples[idx].tid, prf_obj.samples[idx].cpu,
 			prf_obj.samples[idx].tm_str.c_str(), prf_obj.samples[idx].period, prf_obj.samples[idx].event.c_str());
 		if (osz >= sz) {
-			redo = true;
+			if (i >= 2) {
+				printf("ummm... how is this possible? Such big string size? osz = %d, sz = %d at %s %d\n", (int)osz, (int)sz, __FILE__, __LINE__);
+				exit(1);
+			}
 			sz = 2 * osz;
 			if (snbuf != NULL) {
 				free(snbuf);
@@ -593,10 +595,6 @@ size_t prf_sample_to_string(int idx, std::string &ostr, prf_obj_str &prf_obj)
 			}
 			snbuf = (char *)malloc(sz);
 		} else {
-			if (i == 1 && redo) {
-				printf("ummm... how is this possible? osz = %d, sz = %d at %s %d\n", (int)osz, (int)sz, __FILE__, __LINE__);
-				exit(1);
-			}
 			break;
 		}
 	}
