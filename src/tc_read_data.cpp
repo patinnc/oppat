@@ -423,7 +423,7 @@ do_page_hdr:
 						} *s_sw;
 #pragma pack(pop)
 						s_sw = (sched_switch_str *)buf;
-						printf("prev_pid= %d, prev_comm= %s, next_pid= %d, next_comm= %s at %s %d\n",
+						printf("\tprev_pid= %d, prev_comm= %s, next_pid= %d, next_comm= %s at %s %d\n",
 							s_sw->prev_pid, s_sw->prev_comm, s_sw->next_pid, s_sw->next_comm, __FILE__, __LINE__);
 						prf_add_comm((uint32_t)s_sw->prev_pid, (uint32_t)s_sw->prev_pid, std::string(s_sw->prev_comm), prf_obj, tsn);
 						pid_indx = prf_obj.tid_2_comm_indxp1[(uint32_t)pid];
@@ -435,27 +435,27 @@ do_page_hdr:
 						// see if we've already read the prf bin file and if prf_bin is the same 'file_tag'
 						// prf bin has more complete pid/tid info. see if we can find the tid there.
 						if (prf_obj_prev != NULL) {
-						printf("prf_obj_prev= %p, ft0= %d, ft1= %d at %s %d\n",
+						printf("\tprf_obj_prev= %p, ft0= %d, ft1= %d at %s %d\n",
 							prf_obj_prev, prf_obj.file_tag_idx, prf_obj_prev->file_tag_idx, __FILE__, __LINE__);
 						}
 						if (prf_obj_prev != NULL && prf_obj.file_tag_idx == prf_obj_prev->file_tag_idx) {
 							pid_indx = (int)prf_obj_prev->tid_2_comm_indxp1[(uint32_t)pid];
 							if (pid_indx == 0) {
-								printf("didn't find the pid in PERF prf_obj either. Adding is as comm=unknown at %s %d\n", __FILE__, __LINE__);
+								printf("\tdidn't find the pid in PERF prf_obj either. Adding is as comm=unknown at %s %d\n", __FILE__, __LINE__);
 							prf_add_comm((uint32_t)pid, (uint32_t)pid, std::string("unknown-")+std::to_string(pid), prf_obj, tsn);
 							pid_indx = prf_obj.tid_2_comm_indxp1[(uint32_t)pid];
 								//exit(1);
 							} else {
 							prf_add_comm((uint32_t)prf_obj_prev->comm[pid_indx-1].pid, (uint32_t)prf_obj_prev->comm[pid_indx-1].tid,
 								std::string(prf_obj_prev->comm[pid_indx-1].comm), prf_obj, tsn);
-							printf("old pid_indx= %d, got pid in prf_obj_prev: pid= %d, tid= %d, comm= %s at %s %d\n",
+							printf("\tgot old pid_indx= %d, got pid in prf_obj_prev: pid= %d, tid= %d, comm= %s at %s %d\n",
 								pid_indx, (uint32_t)prf_obj_prev->comm[pid_indx-1].pid, (uint32_t)prf_obj_prev->comm[pid_indx-1].tid,
 								std::string(prf_obj_prev->comm[pid_indx-1].comm).c_str(), __FILE__, __LINE__);
 							pid_indx = prf_obj.tid_2_comm_indxp1[(uint32_t)pid];
 							}
 						}
 						if (pid_indx == 0) {
-							printf("didn't find the pid in PERF prf_obj either2. Adding it as comm='unknown' at %s %d\n", __FILE__, __LINE__);
+							printf("\tdidn't find the pid in PERF prf_obj either2. Adding it as comm='unknown' at %s %d\n", __FILE__, __LINE__);
 							prf_add_comm((uint32_t)pid, (uint32_t)pid, std::string("unknown"), prf_obj, tsn);
 							pid_indx = prf_obj.tid_2_comm_indxp1[(uint32_t)pid];
 							//exit(1);
@@ -682,6 +682,16 @@ static int tc_parse_pid_buf(int buf_sz, char *buf_in, prf_obj_str &prf_obj, doub
 		prf_add_comm((uint32_t)pid_num, (uint32_t)pid_num, std::string(pid_str), prf_obj, tm);
 	}
 	return 0;
+}
+
+struct tc_nms_str {
+	std::string str;
+	int count, ocount, len, ext_strs, evt;
+};
+
+static bool compareOcount(const tc_nms_str &a, const tc_nms_str &b)
+{
+	return a.ocount >= b.ocount;
 }
 
 int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg_in,
@@ -1435,10 +1445,12 @@ void ck_evts_derived(prf_obj_str &prf_obj, std::vector <evt_str> &evt_tbl2,
 			}
 			if (okay) {
 				std::string new_nm  = evt_tbl2[i].event_name;
-				std::vector <std::string> tkns;
+				std::vector <std::string> tkns(evt_tbl2[i].evt_derived.new_cols);
+#if 0
 				for (uint32_t j=0; j < evt_tbl2[i].evt_derived.new_cols.size(); j++) {
 					tkns.push_back(evt_tbl2[i].evt_derived.new_cols[j]);
 				}
+#endif
 				uint32_t new_idx = add_evt_and_cols(prf_obj, new_nm, tkns, verbose);
 				eds.evt_tbl2_idx = i;
 				eds.trigger_idx = trgr_idx;
@@ -1807,23 +1819,28 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 	int samples_count = -1, s_idx = -1;
 	std::vector <evts_derived_str> evts_derived;
 	std::vector <prf_samples_str> samples;
+#define TMR_MAX 10
+	double tmr[TMR_MAX];
+	for (int i=0; i < TMR_MAX; i++) {
+		tmr[i] = 0;
+	}
 
-	struct nms_str {
-		std::string str;
-		int count, len, ext_strs, evt;
-	};
 
-	std::vector <nms_str> nms;
+	std::vector <tc_nms_str> nms;
 
 	for (int i=0; i < (int)prf_obj.events.size(); i++) {
-		struct nms_str ns;
+		struct tc_nms_str ns;
 		ns.str = " " + prf_obj.events[i].event_name + ": ";
 		ns.count = 0;
+		ns.ocount = prf_obj.events[i].evt_count;
 		ns.ext_strs = 0;
 		ns.evt = i;
 		ns.len = ns.str.size();
 		nms.push_back(ns);
 	}
+
+	std::sort(nms.begin(), nms.end(), compareOcount);
+
 	ck_evts_derived(prf_obj, evt_tbl2, evts_derived, verbose);
 
 	if (prf_obj.samples.size() > 0) {
@@ -1847,7 +1864,10 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 	std::string unknown_mod;
 	while(!file.eof()) {
 		//read data from file
+		double tmr_0a = dclock();
 		std::getline (file, line);
+		double tmr_0b = dclock();
+		tmr[0] += tmr_0b - tmr_0a;
 		line_num++;
 		int sz = line.size();
 		if (sz > 5 && line.substr(0, 5) == "cpus=") {
@@ -1857,6 +1877,8 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 		} else if (sz > 0 && line[0] == '#') {
 			lines_comments++;
 		} else if (sz > 0 && line[0] == '\t') {
+			double tmr_1a = dclock();
+			tmr[0] += tmr_0b - tmr_0a;
 			lines_callstack++;
 			size_t pos = line.find_first_not_of(" \t");
 			if (pos != std::string::npos) {
@@ -1901,9 +1923,12 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 					//printf("cs rtn= %s, mod= %s\n", rtn.c_str(), module.c_str());
 				}
 			}
+			double tmr_1b = dclock();
+			tmr[1] += tmr_1b - tmr_1a;
 		} else if (sz == 0 ) {
 			lines_null++;
 		} else {
+			double tmr_2a = dclock();
 			lines_samples++;
 			store_callstack_idx = -1;
 			samples_count++;
@@ -1978,6 +2003,8 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 			if (nxt != -1) {
 				s_idx = nxt;
 			}
+			double tmr_2b = dclock();
+			tmr[2] += tmr_2b - tmr_2a;
 			if (mtch != -1) {
 #if 0
 				printf("line= %s, evt= %s, tm_str= %s at %s %d\n",
@@ -2002,15 +2029,14 @@ int tc_parse_text(std::string flnm, prf_obj_str &prf_obj, double tm_beg_in, int 
 	file.close();
 	if (evts_derived.size() > 0 && samples.size() > 0) {
 		double tm_cpy_beg = dclock();
-		for (uint32_t i=0; i < samples.size(); i++) {
-			prf_obj.samples.push_back(samples[i]);
-		}
+		prf_obj.samples.insert( prf_obj.samples.end(), samples.begin(), samples.end() );
 		std::sort(prf_obj.samples.begin(), prf_obj.samples.end(), compareByTime);
 		double tm_cpy_end = dclock();
-		printf("tc_parse_text: samples copy tm= %f at %s %d\n", tm_cpy_end-tm_cpy_beg, __FILE__, __LINE__);
+		fprintf(stderr, "tc_parse_text: samples copy+sort tm= %f at %s %d\n", tm_cpy_end-tm_cpy_beg, __FILE__, __LINE__);
 	}
 	double tm_end = dclock();
-	printf("tc_parse_text: tm_end - tm_beg = %f, tm from begin= %f\n", tm_end - tm_beg, tm_end - tm_beg_in);
+	fprintf(stderr, "tc_parse_text: rtn_elap = %f, tm from begin= %f, pt0= %.2f, pt1= %.2f, pt2= %.2f\n",
+			tm_end - tm_beg, tm_end - tm_beg_in, tmr[0], tmr[1], tmr[2]);
 	printf("cmmnts= %d, samples= %d, callstack= %d, null= %d\n",
 		lines_comments, lines_samples, lines_callstack, lines_null);
 	for (uint32_t i=0; i < nms.size(); i++) {
