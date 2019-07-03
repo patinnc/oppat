@@ -5458,7 +5458,7 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 		standaloneJob.ch_data2_len.push(ch_data2_len);
 		setTimeout(function() {
 			standaloneJob.chdata.push(decompress_str('chrt_data', ch_data2[j]));
-			ch_data2[j] = "";
+			ch_data2[j] = ""; // try to reduce memory usage
 		}, 0);
 		//standaloneJob.data = ch_data;
 	}
@@ -5471,6 +5471,7 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 		console.log("try parse_chart_data j="+j+", sz= "+ch_len);
 		setTimeout(function() {
 		parse_chart_data(standaloneJob.chdata[j]);
+		standaloneJob.chdata[j] = ""; // try to reduce memory usage
 		}, 0);
 	}
 	if (i == 4) {
