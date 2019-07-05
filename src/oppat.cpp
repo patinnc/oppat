@@ -4029,7 +4029,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 
 	struct fe_str {
 		int fe_idx, got_prf_idx;
-		fe_str(): fe_idx(-1), got_prf_idx(-1) {}
+		fe_str(): fe_idx(-1), got_prf_idx(0) {}
 	};
 	static std::vector <fe_str> fe_idx_vec;
 
@@ -4064,7 +4064,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			if (prf_evt_idx >= fe_idx_vec.size()) {
 				fe_idx_vec.resize(prf_evt_idx+1);
 			}
-			fe_idx_vec[prf_evt_idx].got_prf_idx = 1;
+			fe_idx_vec[prf_evt_idx].got_prf_idx++;
 			
 			fe_idx = prf_obj.samples[i].fe_idx;
 			if (fe_idx == -1) {
@@ -4092,15 +4092,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		did_prf_obj_idx[prf_obj_idx] = true;
 	}
 
-	//printf("ETW event= %s samples_sz= %d at %s %d\n", prf_obj.events[prf_idx].event_name.c_str(), samples_sz, __FILE__, __LINE__);
-	//fflush(NULL);
-	if (fe_idx_vec[prf_idx].got_prf_idx == -1) {
-		// so this event doesn't occur in this prf_obj
-		// As far as I know the reason is because like cycles might occur in multple multiplex groups
-		// but the evt_idx used for the event is always the prf_idx of the 1st instance of cycles.
-		// Or the event is in the event list but has no data.
-		printf("skipping prf_idx= %d at %s %d\n", prf_idx, __FILE__, __LINE__);
-	} else {
+	int got_prf_rec_count = 0;
 	for (uint32_t i=0; i < samples_sz; i++) {
 #ifdef TMR_FDT
 		double tm_00 = dclock();
@@ -4111,6 +4103,11 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		cpt_idx = cpt_idx2 = prf_evt_idx = fe_idx = cpu = -1;
 		if (prf_obj.file_type != FILE_TYP_ETW) {
 			if (prf_obj.samples[i].evt_idx != prf_idx) {
+				if (fe_idx_vec[prf_idx].got_prf_idx == got_prf_rec_count) {
+					printf("skipping prf_idx= %d after %d samples  at %s %d\n", prf_idx, got_prf_rec_count, __FILE__, __LINE__);
+					// so if we've already processed all the events we are looking for then break
+					break;
+				}
 #ifdef TMR_FDT
 				double tm_00a = dclock();
 				tmr[3] += tm_00a - tm_00;
@@ -4118,6 +4115,7 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				skipped_evts++;
 				continue;
 			}
+			got_prf_rec_count++;
 		}
 
 		ts = dura = 0.0;
@@ -4937,7 +4935,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		double tm_00c = dclock();
 		tmr[2] += tm_00c - tm_00b;
 #endif
-	}
 	}
 	double tm_1 = dclock();
 	tm_cumulative += tm_1 - tm_0;
