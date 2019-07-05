@@ -21,6 +21,8 @@
 #include "utils2.h"
 #include "utils.h"
 
+#include "rapid_json.h"
+
 // from https://github.com/nlohmann/json
 #include "json.hpp"
 
@@ -160,7 +162,7 @@ static int32_t ck_pixels_high(std::string json_file, std::string chart, std::str
 	return pxls_high;
 }
 
-int ck_json(std::string &str, std::string from_where, bool just_parse, json &jobj, const char *file, int line, int verbose)
+bool ck_json(std::string &str, std::string from_where, bool just_parse, json &jobj, const char *file, int line, int verbose)
 {
 	uint32_t sz = (int)str.size();
 	bool use_charts_default = true;
@@ -171,7 +173,8 @@ int ck_json(std::string &str, std::string from_where, bool just_parse, json &job
 	if (just_parse) {
 		ok = false;
 	} else {
-		ok = json::accept(str); // just validates?
+		//ok = json::accept(str); // just validates?
+		ok = rapid_ck_json(str, from_where, file, line);
 		if (verbose)
 			fprintf(stderr, "ck_json: rc= %d desc= %s from %s %d at %s %d\n", ok, from_where.c_str(), file, line, __FILE__, __LINE__);
 	}
@@ -197,7 +200,7 @@ int ck_json(std::string &str, std::string from_where, bool just_parse, json &job
 			exit(1);
 		}
 	}
-	return 0;
+	return ok;
 }
 
 static uint32_t do_macro_event_array(json &j, int verbose)
