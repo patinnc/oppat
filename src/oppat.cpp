@@ -1593,7 +1593,8 @@ static std::string build_flnm_evt_string(uint32_t file_grp, int evt_idx, std::ve
 		did_line = 1;
 	}
 	str += "]";
-	if (options.show_json > 0) {
+	if (options.show_json > 0) 
+	{
 		printf("flnm_evt: %s\n", str.c_str());
 	}
 	return str;
@@ -3824,11 +3825,18 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	std::vector <int> state_prev_cpu_initd;
 	double ts_0, ts_end;
 	double dura=0.0;
-	int added_evts= 0;
+	int skipped_evts= 0, added_evts= 0;
 
 	//run_heapchk("top of fill_data_table:", __FILE__, __LINE__, 1);
 	ts_0   = prf_obj.tm_beg;
 	ts_end = prf_obj.tm_end;
+#define TMR_MAX 10
+	double tmr[TMR_MAX];
+	for (uint32_t i=0; i < TMR_MAX; i++) {
+		tmr[i] = 0.0;
+	}
+	double tm_0 = dclock();
+	static double tm_cumulative = 0.0;
 
 	ts_cpu.resize(prf_obj.features_nr_cpus_online, ts_0);
 	state_prev_cpu.resize(prf_obj.features_nr_cpus_online, 0);
@@ -3852,6 +3860,8 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	event_table.prf_ts_initial = ts_0;
 	event_table.ts_last = ts_end;
 	uint32_t fsz = (uint32_t)event_table.flds.size();
+	static std::string flnm_prev;
+	static std::vector <bool> did_prf_obj_idx;
 
 	std::vector <uint32_t> lua_col_map;
 	std::vector <uint32_t> etw_col_map;
@@ -4017,26 +4027,95 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 	std::vector <bool> did_actions_already;
 	did_actions_already.resize(fsz);
 
+	struct fe_str {
+		int fe_idx, got_prf_idx;
+		fe_str(): fe_idx(-1), got_prf_idx(-1) {}
+	};
+	static std::vector <fe_str> fe_idx_vec;
+
+	uint32_t file_tag_idx = prf_obj.file_tag_idx;
+	//prf_obj_idx should always increase within a file_group
+	if (flnm != flnm_prev || (prf_obj_idx == 0 && did_prf_obj_idx.size() > 1)) {
+		// if we are doing multiple groups I'm not sure but we might get prf_obj_idx 0 for file group 0 and group 1
+		did_prf_obj_idx.resize(0);
+		fe_idx_vec.resize(0);
+	}
+	if (prf_obj_idx >= did_prf_obj_idx.size()) {
+		did_prf_obj_idx.resize(prf_obj_idx+1, false);
+	}
+	if (flnm != flnm_prev) {
+		printf("fill_data_table: flnm= %s, flnm_prev= %s, prf_obj_idx= %d at %s %d\n",
+				flnm.c_str(), flnm_prev.c_str(), prf_obj_idx, __FILE__, __LINE__);
+		flnm_prev = flnm;
+	}
 	std::string comm, comm2, fl_evt;
+	if (!did_prf_obj_idx[prf_obj_idx] && prf_obj.file_type != FILE_TYP_ETW) {
+		int prf_evt_idx, fe_idx;
+		if (prf_obj.events.size() < fe_idx_vec.size()) {
+			fe_idx_vec.resize(prf_obj.events.size());
+		}
+		for (uint32_t i=0; i < samples_sz; i++) {
+			prf_evt_idx = (int)prf_obj.samples[i].evt_idx;
+			if (prf_evt_idx == -1) {
+				printf("messed up prf event indx number of event[%d] name='%s' at %s %d\n",
+						i, prf_obj.samples[i].event.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			if (prf_evt_idx >= fe_idx_vec.size()) {
+				fe_idx_vec.resize(prf_evt_idx+1);
+			}
+			fe_idx_vec[prf_evt_idx].got_prf_idx = 1;
+			
+			fe_idx = prf_obj.samples[i].fe_idx;
+			if (fe_idx == -1) {
+				if (fe_idx_vec[prf_evt_idx].fe_idx != -1) {
+					fe_idx = fe_idx_vec[prf_evt_idx].fe_idx;
+					prf_obj.samples[i].fe_idx = fe_idx;
+				}
+				else
+				{
+					fl_evt = flnm + prf_obj.events[prf_evt_idx].event_name_w_area;
+					fe_idx = flnm_evt_hash[file_tag_idx][fl_evt] - 1;
+					if (fe_idx == -1) {
+						printf("messed up event[%d]= %s fe_idx= %d at %s %d\n",
+							i, prf_obj.samples[i].event.c_str(), fe_idx, __FILE__, __LINE__);
+						exit(1);
+					}
+					prf_obj.samples[i].fe_idx = fe_idx;
+					fe_idx_vec[prf_evt_idx].fe_idx = fe_idx;
+				}
+			}
+			if (prf_obj.samples[i].callstack.size() > 0) {
+				flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
+			}
+		}
+		did_prf_obj_idx[prf_obj_idx] = true;
+	}
+
 	//printf("ETW event= %s samples_sz= %d at %s %d\n", prf_obj.events[prf_idx].event_name.c_str(), samples_sz, __FILE__, __LINE__);
 	//fflush(NULL);
+	if (fe_idx_vec[prf_idx].got_prf_idx == -1) {
+		// so this event doesn't occur in this prf_obj
+		// As far as I know the reason is because like cycles might occur in multple multiplex groups
+		// but the evt_idx used for the event is always the prf_idx of the 1st instance of cycles.
+		// Or the event is in the event list but has no data.
+		printf("skipping prf_idx= %d at %s %d\n", prf_idx, __FILE__, __LINE__);
+	} else {
 	for (uint32_t i=0; i < samples_sz; i++) {
+#ifdef TMR_FDT
+		double tm_00 = dclock();
+#endif
 		uint32_t pid, tid, pid2, tid2;
 		double ts;
 		int cpt_idx, cpt_idx2, prf_evt_idx, fe_idx, cpu;
 		cpt_idx = cpt_idx2 = prf_evt_idx = fe_idx = cpu = -1;
 		if (prf_obj.file_type != FILE_TYP_ETW) {
-			if (prf_obj.samples[i].fe_idx == -1) {
-				prf_evt_idx = (int)prf_obj.samples[i].evt_idx;
-				fl_evt = flnm + prf_obj.events[prf_evt_idx].event_name_w_area;
-				uint32_t file_tag_idx = prf_obj.file_tag_idx;
-				fe_idx = flnm_evt_hash[file_tag_idx][fl_evt] - 1;
-				prf_obj.samples[i].fe_idx = fe_idx;
-				if (prf_obj.samples[i].callstack.size() > 0) {
-					flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
-				}
-			}
 			if (prf_obj.samples[i].evt_idx != prf_idx) {
+#ifdef TMR_FDT
+				double tm_00a = dclock();
+				tmr[3] += tm_00a - tm_00;
+#endif
+				skipped_evts++;
 				continue;
 			}
 		}
@@ -4052,20 +4131,9 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			pid  = prf_obj.samples[i].pid;
 			tid  = prf_obj.samples[i].tid;
 
-			prf_evt_idx = (int)prf_obj.samples[i].evt_idx;
-			if (prf_evt_idx == -1) {
-				printf("messed up prf event indx number of event[%d] name='%s' at %s %d\n",
-						i, prf_obj.samples[i].event.c_str(), __FILE__, __LINE__);
-				exit(1);
-			}
-			fl_evt = flnm + prf_obj.events[prf_evt_idx].event_name_w_area;
-			uint32_t file_tag_idx = prf_obj.file_tag_idx;
 			fe_idx = prf_obj.samples[i].fe_idx;
 			flnm_evt_vec[file_tag_idx][fe_idx].total++;
 			ts = 1.0e-9 * (double)prf_obj.samples[i].ts;
-			if (prf_obj.samples[i].callstack.size() > 0) {
-				flnm_evt_vec[file_tag_idx][fe_idx].has_callstacks = true;
-			}
 			cpu = (int)prf_obj.samples[i].cpu;
 		}
 		if (prf_obj.file_type == FILE_TYP_ETW) {
@@ -4136,7 +4204,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				tid2 = 1;
 			}
 			fl_evt = flnm + prf_obj.events[prf_idx].event_name_w_area;
-			uint32_t file_tag_idx = prf_obj.file_tag_idx;
 			if (file_tag_idx == UINT32_M1) {
 				printf("bad file_tag_idx= %d at %s %d\n", file_tag_idx, __FILE__, __LINE__);
 				exit(1);
@@ -4179,7 +4246,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 			fflush(NULL);
 			exit(1);
 		}
-		uint32_t file_tag_idx = prf_obj.file_tag_idx;
 		if ( prf_obj.file_type == FILE_TYP_ETW || prf_obj.file_type == FILE_TYP_PERF ||
 			prf_obj.file_type == FILE_TYP_TRC_CMD) {
 			if (comm.size() > 0 && pid != UINT32_M1 && tid != UINT32_M1) {
@@ -4238,6 +4304,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		bool use_u64 = false;
 		bool try_skipping_record = false;
 		bool tmp_verbose = false;
+#ifdef TMR_FDT
+		double tm_00a = dclock();
+		tmr[0] += tm_00a - tm_00;
+#endif
 		for (uint32_t j=0; j < fsz; j++) {
 			did_actions_already[j] = false;
 			uint64_t flg = event_table.flds[j].flags;
@@ -4290,7 +4360,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 #endif
 					std::string str = cmm + " " + std::to_string(prf_obj.comm[pid_i].pid) + "/" + std::to_string(prf_obj.comm[pid_i].tid);
 					uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
-					uint32_t file_tag_idx = prf_obj.file_tag_idx;
 					uint32_t tcpt_idx = (int)hash_comm_pid_tid(comm_pid_tid_hash[file_tag_idx], comm_pid_tid_vec[file_tag_idx],
 										cmm, prf_obj.comm[pid_i].pid, prf_obj.comm[pid_i].tid) - 1;
 					if (flg & (uint64_t)fte_enum::FLD_TYP_BY_VAR0) {
@@ -4774,6 +4843,10 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 				}
 			}
 		}
+#ifdef TMR_FDT
+		double tm_00b = dclock();
+		tmr[1] += tm_00b - tm_00a;
+#endif
 		if (try_skipping_record) {
 			try_skipping_record = false;
 			continue;
@@ -4834,7 +4907,6 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		if (doing_SCHED_SWITCH == 1) {
 			int ti = -1;
 			ti = cpt_idx;
-			uint32_t file_tag_idx = event_table.file_tag_idx;
 			if (ti != -1 && ti >= comm_pid_tid_vec[file_tag_idx].size()) {
 				printf("ckck ti: got ti= %d, comm_pid_tid_vec.sz= %d at %s %d\n", ti, (int)comm_pid_tid_vec[file_tag_idx].size(), __FILE__, __LINE__);
 			}
@@ -4861,15 +4933,23 @@ static int fill_data_table(uint32_t prf_idx, uint32_t evt_idx, uint32_t prf_obj_
 		if (cpu >= 0 && ts != ts_cpu[cpu]) {
 			ts_cpu[cpu] = ts;
 		}
+#ifdef TMR_FDT
+		double tm_00c = dclock();
+		tmr[2] += tm_00c - tm_00b;
+#endif
 	}
+	}
+	double tm_1 = dclock();
+	tm_cumulative += tm_1 - tm_0;
 	//run_heapchk("bot of fill_data_table:", __FILE__, __LINE__, 1);
-	if (verbose) {
-		printf("ts_cumu %f, ts_idle= %f\n", ts_cumu, ts_idle);
-		printf("event= %s, event_table[%d].data.vals.size()= %d\n",
-			event_table.event_name_w_area.c_str(),
-			evt_idx, (int)event_table.data.vals.size());
+	//if (verbose)
+	{
+		//printf("ts_cumu %f, ts_idle= %f\n", ts_cumu, ts_idle);
+		printf("fill_data_table: tmr[e]= %.3f tmr[0]= %.2f tmr[1]= %.2f tmr[2]= %.2f sum tmr= %.3f, tot= %.2f tm_cumu= %.2f event_table[%d].data.vals.size()= %d, added_evts= %d, skipped_evts= %d, prf_idx= %d, prf_obj_idx= %d, event= %s\n",
+				tmr[3], tmr[0], tmr[1], tmr[2], tmr[0]+tmr[1]+tmr[2]+tmr[3], tm_1-tm_0, tm_cumulative,
+			evt_idx, (int)event_table.data.vals.size(), added_evts, skipped_evts, prf_idx, prf_obj_idx,
+			event_table.event_name_w_area.c_str());
 	}
-	fflush(NULL);
 	return added_evts;
 }
 
@@ -5707,9 +5787,6 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 		if (iend > divs) {
 			iend = divs;
 		}
-		//if (tot_line[file_tag_idx].line[ibeg] <= 120.0) {
-			printf("phase[%d] beg single tm= %.3f usage[%d]= %.3f\n", i, (double)(ibeg)*ddiv, ibeg, tot_line[file_tag_idx].line[ibeg]);
-		//}
 		if (got_FIND_MULTI_PHASE) {
 			for (uint32_t j=ibeg; j < iend; j++) {
 				if ((tot_line[file_tag_idx].line[j]+1) >= ck_usage) {
@@ -6184,10 +6261,30 @@ int main(int argc, char **argv)
 			fprintf(stderr, "after prf_parse_text(i=%d) elap= %f flnm= %s at %s %d\n",
 					i, dclock()-tm_beg, file_list[i].file_txt.c_str(), __FILE__, __LINE__);
 		} else if (file_list[i].typ == FILE_TYP_LUA) {
+			std::string lua_file = file_list[i].lua_file;
+			std::string lua_rtn  = file_list[i].lua_rtn;
+			if (lua_file == "") {
+				lua_file = "test_01.lua";
+			}
+			if (lua_rtn == "") {
+				lua_rtn = "do_tst";
+			}
 			if (verbose)
-				fprintf(stderr, "begin lua_read__data(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
+				fprintf(stderr, "begin lua_read__data(i=%d) elap= %.3f lua_file= %s lua_rtn= %s at %s %d\n",
+						i, dclock()-tm_beg, lua_file.c_str(), lua_rtn.c_str(), __FILE__, __LINE__);
 			lua_read_data(file_list[i].file_bin, file_list[i].file_txt,
-					file_list[i].wait_txt, prf_obj[i], file_list[i].lua_file, file_list[i].lua_rtn, verbose); // need to pass lua script filename and lua routine name
+					file_list[i].wait_txt, prf_obj[i], lua_file, lua_rtn, verbose); // need to pass lua script filename and lua routine name
+			if (prf_obj[i].filename_bin == "" && file_list[i].file_bin != "") {
+				prf_obj[i].filename_bin = file_list[i].file_bin;
+			}
+			if (prf_obj[i].filename_text == "" && file_list[i].file_txt != "") {
+				prf_obj[i].filename_text = file_list[i].file_txt;
+			}
+			if (file_list[i].wait_txt != "") {
+				prf_obj[i].filename_text += (prf_obj[i].filename_text != "" ? " " : "") + file_list[i].wait_txt;
+			}
+			prf_obj[i].filename_text += (prf_obj[i].filename_text != "" ? " " : "") + lua_file;
+			prf_obj[i].filename_text += (prf_obj[i].filename_text != "" ? " " : "") + lua_rtn;
 			fprintf(stderr, "begin lua_read_data(i=%d) elap= %f at %s %d\n", i, dclock()-tm_beg, __FILE__, __LINE__);
 			if (file_list[i].options.find("USE_AS_PHASE") != std::string::npos) {
 				phase_parse_text(file_list[i].options, prf_obj[i], i, file_tag_idx);
@@ -6230,9 +6327,9 @@ int main(int argc, char **argv)
 	double tmc2 = 0.0;
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t k=0; k < file_list.size(); k++) {
-			if (verbose)
-				printf("bef fill_data_table: prf_obj[%d].events.size()= %d at %s %d\n",
-						k, (int)prf_obj[k].events.size(), __FILE__, __LINE__);
+			//if (verbose)
+				printf("bef fill_data_table: prf_obj[%d].events.size()= %d grp_list[%d]= %d at %s %d\n",
+						k, (int)prf_obj[k].events.size(), g, grp_list[g], __FILE__, __LINE__);
 			if (file_list[k].grp != grp_list[g]) {
 				continue;
 			}
@@ -6331,6 +6428,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+	fflush(NULL);
 	fprintf(stderr, "fill_data_table: after, loop part1= %.3f, tm_elap= %.3f at %s %d\n", tmc2, dclock()-tm_beg, __FILE__, __LINE__);
 	for (uint32_t g=0; g < grp_list.size(); g++) {
 		for (uint32_t k=0; k < file_list.size(); k++) {
@@ -6714,13 +6812,25 @@ int main(int argc, char **argv)
 
 	fprintf(stderr, "before ck_json: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
 	nlohmann::json jobj;
-	ck_json(bin_map, "check for valid json in str_pool", false, jobj, __FILE__, __LINE__, options.verbose);
+	bool ck = ck_json(bin_map, "check for valid json in str_pool", false, jobj, __FILE__, __LINE__, options.verbose);
+	if (!ck) {
+		fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
 	fprintf(stderr, "after  ck_json: bin_map: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
-	ck_json(chrts_cats, "check for valid json in chrts_cats", false, jobj, __FILE__, __LINE__, options.verbose);
-	fprintf(stderr, "begore ck_json: chrts_json: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
+	ck = ck_json(chrts_cats, "check for valid json in chrts_cats", false, jobj, __FILE__, __LINE__, options.verbose);
+	if (!ck) {
+		fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	fprintf(stderr, "before ck_json: chrts_json: tm_elap= %.3f at %s %d\n", dclock()-tm_beg, __FILE__, __LINE__);
 	for (uint32_t i=0; i < chrts_json.size(); i++) {
 		std::string hdr = "check for valid json in chrts_json[" + std::to_string(i) + "]";
-		ck_json(chrts_json[i], hdr.c_str(), false, jobj, __FILE__, __LINE__, options.verbose);
+		ck = ck_json(chrts_json[i], hdr.c_str(), false, jobj, __FILE__, __LINE__, options.verbose);
+		if (!ck) {
+			fprintf(stderr, "bye at %s %d\n", __FILE__, __LINE__);
+			exit(1);
+		}
 	}
 
 	if (options.web_file.size() > 0) {
