@@ -373,7 +373,10 @@ obj/prf_read_data.$(OBJ_EXT): src/prf_read_data.cpp  inc/web_api.h
 obj/printf.$(OBJ_EXT): src/printf.cpp  inc/printf.h
 obj/printf.$(OBJ_EXT): src/printf.cpp  inc/rd_json.h
 obj/pugixml.$(OBJ_EXT): src/pugixml.cpp  inc/pugixml.hpp
+obj/rapid_json.$(OBJ_EXT): src/rapid_json.cpp  inc/rapidjson/document.h
+obj/rapid_json.$(OBJ_EXT): src/rapid_json.cpp  inc/rapidjson/error/en.h
 obj/rd_json.$(OBJ_EXT): src/rd_json.cpp  inc/json.hpp
+obj/rd_json.$(OBJ_EXT): src/rd_json.cpp  inc/rapid_json.h
 obj/rd_json.$(OBJ_EXT): src/rd_json.cpp  inc/rd_json.h
 obj/rd_json.$(OBJ_EXT): src/rd_json.cpp  inc/rd_json2.h
 obj/rd_json.$(OBJ_EXT): src/rd_json.cpp  inc/utils.h
