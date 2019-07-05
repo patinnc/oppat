@@ -5026,6 +5026,7 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 			let cpt=-1, x0, x1, cpu, val;
 			let nm = "unknown1";
 			let tot_line_lkup_list = [];
+			let flnm_ev = "";
 			if (tot_line.evt_str.length > 0 && typeof tot_line.subcat_rng_idx[row] !== 'undefined') {
 				//console.log(sprintf("tot_line row= %s, val= %s", row, tot_line.subcat_rng_idx[row]));
 				x0  = tot_line.xarray[shape_idx];
@@ -5056,8 +5057,13 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				if (cpt >= 0 && typeof chart_data.proc_arr[cpt] !== 'undefined' && chart_data.proc_arr[cpt].tid > -1) {
 					nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
 				}
-				if (nm == "unknown1") {
-					let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
+				let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
+				if (fe_idx > -1) {
+					flnm_ev = "file_bin= " + chart_data.flnm_evt[fe_idx].filename_bin +
+						 ", file_txt= " + chart_data.flnm_evt[fe_idx].filename_text + 
+						 ", event= " + chart_data.flnm_evt[fe_idx].event;
+				}
+				if (nm == "unknown1" && fe_idx > -1) {
 					let fe_2 = event_lkup[fe_idx];
 					//console.log("got fe_idx= "+fe_2+" flnm_evt.sz= "+event_list.length);
 					nm += ", cpt= "+cpt+",shape_idx= "+shape_idx;
@@ -5070,7 +5076,11 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 				x1 = lk[7];
 				val = inserted_value;
 			}
-			let str = "at T= "+sprintf("%.6f", x0);
+			let str = "";
+			if (flnm_ev != "") {
+			   str += flnm_ev + "<br>";
+			}
+			str += "at T= "+sprintf("%.6f", x0);
 			let lines_done=0;
 			if (x0 != x1 || ch_type == CH_TYPE_STACKED) {
 				// so we're doing a rectangle
