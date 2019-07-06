@@ -5453,42 +5453,42 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
   return new Promise(resolve => {
   	console.log('Start standaloneJob: i= ' + i + ", j= "+j);
 	let tm_bef = performance.now();
-	let wrk_arr = ["decompress string pool", "parse string pool", "decompress chart data", "parse chart data", "gen charts"];
+	let tm_now = performance.now();
+	let wrk_arr = ["decompress string pool", "parse string pool", "decompress and parse chart data", "parse chart data", "gen charts"];
 	let wrk = wrk_arr[i];
 	mymodal_span_text.innerHTML = "start " + wrk;
 	if (i == 0) {
 		let st_pool = decompress_str('str_pool', sp_data2);
 		standaloneJob.data = st_pool;
+		tm_now = performance.now();
 	}
 	if (i == 1) {
 		parse_str_pool(standaloneJob.data);
+		tm_now = performance.now();
 	}
 	if (i == 2 && j > -1 && j < ch_data2.length) {
 		let ch_data2_len = ch_data2[j].length;
 		standaloneJob.ch_data2_len.push(ch_data2_len);
-		setTimeout(function() {
-			standaloneJob.chdata.push(decompress_str('chrt_data', ch_data2[j]));
-			ch_data2[j] = ""; // try to reduce memory usage
-		}, 0);
-		//standaloneJob.data = ch_data;
-	}
-	let ch_len = 0;
-	if (i == 3 && j > -1 && j < standaloneJob.chdata.length) {
-		if (j == 0) {
+		if (j == 0 && typeof gjson.chart_data === 'undefined') {
 			gjson.chart_data = [];
+		} else if (j == 0) {
+			gjson.chart_data.length = 0;
 		}
-		ch_len = standaloneJob.chdata[j].length;
-		console.log("try parse_chart_data j="+j+", sz= "+ch_len);
+		parse_chart_data(decompress_str('chrt_data', ch_data2[j]));
+		tm_now = performance.now();
+		ch_data2[j] = ""; // try to reduce memory usage
 		setTimeout(function() {
-		parse_chart_data(standaloneJob.chdata[j]);
-		standaloneJob.chdata[j] = ""; // try to reduce memory usage
+			console.log("standaloneJob: did i= "+i+", j= "+j);
 		}, 0);
+	}
+	if (i == 3 && j > -1 && j < standaloneJob.chdata.length) {
+		// i==3 is actually not used now.
 	}
 	if (i == 4) {
 		standaloneJob.chdata = [];
 		start_charts();
+		tm_now = performance.now();
 	}
-	let tm_now = performance.now();
 	//alert("chart "+ chrts_started);
 	let elap_tm_tot = tm_diff_str(0.001*(tm_now-g_tm_beg), 2, "secs");
 	let elap_tm     = tm_diff_str(0.001*(tm_now-tm_bef), 2, "secs");
@@ -5500,12 +5500,6 @@ function standaloneJob(i, j, sp_data2, ch_data2, tm_beg)
 			wrk_nxt = "<br>";
 			let sz_str = sprintf(" chdata["+j+"] is %.3f MB,", [1.0e-6 * (standaloneJob.ch_data2_len[j])]);
 			wrk_nxt += " (input is "+sz_str+" please be patient...a 10 MB file can take ~20 seconds)"
-			n_of_m = ", file "+j+ " of "+ch_data2.length;
-		}
-		if (i == 3) {
-			wrk_nxt = "<br>";
-			let sz_str = sprintf(" chdata["+j+"] is %.3f MB,", [1.0e-6 * ch_len]);
-			wrk_nxt += " input is "+sz_str;
 			n_of_m = ", file "+j+ " of "+ch_data2.length;
 		}
 	}
@@ -6754,6 +6748,10 @@ async function standalone(sp_data2, ch_data2)
 		if (i != 2 && i != 3) {
 			let result = await standaloneJob(i, -1, sp_data2, ch_data2, tm_beg);
 		} else {
+			if (i == 3) {
+				// combined the decompress and parse into step 2. Saves memory
+				continue;
+			}
 			for (let j=0; j < ch_data2.length; j++) {
 				let result = await standaloneJob(i, j, sp_data2, ch_data2, tm_beg);
 			}
