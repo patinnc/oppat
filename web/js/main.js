@@ -322,15 +322,26 @@ function got_all_OS_view_images(whch_txt, image_whch_txt_init)
 
 function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 {
-	//let j = gsync_zoom_last_zoom.chrt_idx;
-	//let need_tag = gjson.chart_data[j].file_tag
+	/*
+	 * The j == -1 and need_tag == null stuff was part of an effort to use set_zoom_all_charts() when
+	 * the window is resized (the resize-end event is triggered).
+	 * But the redraw logic assumes no change in window size.
+	 * So I don't try calling set_zoom_all_charts() for resize.
+	 */
 	let j_sv = j;
+	let need_tag_sv = need_tag;
+	if (j_sv < 0) {
+		need_tag_sv = null;
+	}
 	gLinkZoom_iter++;
 	if (j_sv >= 0) {
-		console.log(sprintf("lnk_zm[%d]: x0= %f x1= %f need_tag= %s", j_sv, gcanvas_args[j_sv][6], gcanvas_args[j_sv][7], need_tag));
+		console.log(sprintf("lnk_zm[%d]: x0= %f x1= %f need_tag= %s", j_sv, gcanvas_args[j_sv][6], gcanvas_args[j_sv][7], need_tag_sv));
 	}
-	let ft = gjson.chart_data[j_sv].file_tag;
-	let ct = gjson.chart_data[j_sv].chart_tag;
+	let ft=null, ct= null;
+	if (j_sv >= 0) {
+		ft = gjson.chart_data[j_sv].file_tag;
+		ct = gjson.chart_data[j_sv].chart_tag;
+	}
 	if (gsync_zoom_arr.length == 0) {
 		for (let i=0; i < gjson.chart_data.length; i++) {
 			gsync_zoom_arr.push({iter:-1, x0:-1.0, x1:0.0, file_tag:gjson.chart_data[i].file_tag});
@@ -342,8 +353,13 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 	}
 
 	let need_to_redraw = 0;
+	let force_resize = 0.0;
+	if (j_sv < 0) {
+		// so this will modify the interval a little bit and trigger a redraw
+		force_resize = 1.0e-6;
+	}
 	for (let i=0; i < gjson.chart_data.length; i++) {
-		if (gjson.chart_data[i].file_tag != need_tag) {
+		if (need_tag_sv != null && gjson.chart_data[i].file_tag != need_tag_sv) {
 			continue;
 		}
 		need_to_redraw++;
@@ -360,7 +376,7 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 			tabs_x1 = gsync_zoom_last_zoom.abs_x1;
 		}
 		gsync_zoom_arr[i].x0 = tabs_x0;
-		gsync_zoom_arr[i].x1 = tabs_x1;
+		gsync_zoom_arr[i].x1 = tabs_x1 - force_resize;
 		gsync_zoom_arr[i].iter = gLinkZoom_iter;
 		//console.log("Zooom ii= "+i);
 	}
@@ -376,7 +392,7 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 		// then  (j==1) do charts that don't need to generate images
 		// Not really sure if this will make a difference in how long it takes to redraw all
 		for (let i=0; i < gjson.chart_data.length; i++) {
-			if (gjson.chart_data[i].file_tag != need_tag) {
+			if (need_tag_sv != null && gjson.chart_data[i].file_tag != need_tag_sv) {
 				continue;
 			}
 			if (i == j_sv) {
@@ -384,7 +400,7 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 			}
 			if ((j == 0 && typeof gjson.chart_data[i].fl_image_ready !== 'undefined') ||
 				(j == 1 && typeof gjson.chart_data[i].fl_image_ready === 'undefined')) {
-				if (from_where == "LinkZoom") {
+				if (from_where == "LinkZoom" || from_where == "resized") {
 					let tm_n = performance.now();
 					let txt = sprintf("draw chrt %d of %d, elap_tm= %.2f secs",
 							++cntr, gjson.chart_data.length, 0.001 * (tm_n-tm_n00));
@@ -413,7 +429,7 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 				} else {
 					console.log("__mem: call g_cpu_diagram_draw_svg");
 					// this call is done later if now LinkZoom
-					if (from_where == "LinkZoom") {
+					if (from_where == "LinkZoom" || from_where == "resized") {
 						g_cpu_diagram_draw_svg([], -1, -1);
 					}
 				}
@@ -441,7 +457,7 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 					tm_n02-tm_n00, tm_n01-tm_n00, tm_n02-tm_n01, from_where, totl));
 
 	}
-	if (from_where == "LinkZoom") {
+	if (from_where == "LinkZoom" || from_where == "resized") {
 		let tm_n = performance.now();
 		let txt = sprintf("finished zoom all of %d charts. time to zoom all: %.2f secs. ", cntr, 0.001 * (tm_n-tm_n00));
 		update_status(txt);
@@ -532,7 +548,7 @@ function change_pixels_high(cb, menu_idx, nm_idx)
 		console.log("set gpixels_high_default= "+gpixels_high_default);
 		update_status("start redraw charts");
 		for (let i=0; i < gjson.chart_data.length; i++) {
-			can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][2], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
+			can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
 		}
 	}
 	return;
@@ -705,11 +721,15 @@ function get_chart_options(chart_options)
 	return ch_options;
 }
 
-function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1)
+function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1)
 {
-	if (typeof chart_data === 'undefined') {
+	if (chrt_idx < 0 || chrt_idx >= gjson.chart_data.length) {
 		return;
 	}
+	if (typeof gjson.chart_data === 'undefined') {
+		return;
+	}
+	let chart_data = gjson.chart_data[chrt_idx];
 	if ( typeof can_shape === 'undefined' ) {
 		let can_shape = {};
 	if ( typeof can_shape.sv_pt_prv === 'undefined' ) {
@@ -879,6 +899,14 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 	let follow_proc = null
 	let event_select = {};
 	let event_id_begin = 10000;
+	// if we don't remove tot_line data from chart_data then the subcat_rng[i] tot_line vars will be seen as not tot_lines
+	for (let i=chart_data.subcat_rng.length-1; i >= 0; i--) {
+		if (typeof chart_data.subcat_rng[i].is_tot_line === 'defined' && chart_data.subcat_rng[i].is_tot_line) {
+			chart_data.subcat_rng.pop();
+		} else {
+			break;
+		}
+	}
 	let tot_line = {};
 	tot_line.evt_str = [];
 	tot_line.lkup  = [];
@@ -4126,7 +4154,6 @@ function can_shape(chrt_idx, use_div, chart_data, tm_beg, hvr_clr, px_high_in, z
 									if (Math.abs(beg[0] - step[subcat_idx][0]) >= 0) {
 										ctx.lineTo(beg[0], yPxlzero);
 										lkup[subcat_idx].push([step[subcat_idx][0], yPxlzero, beg[0], yPxlzero, i, 0, step[subcat_idx][2], x0]);
-										//abcd
 										ctx.lineTo(beg[0], beg[1]);
 										//ctx.stroke();
 									} else {
@@ -5539,9 +5566,8 @@ function doJob(i, grf, chrts_started_max, tm_beg)
   return new Promise(resolve => {
   	//console.log('Start: ' + i);
 	//gcanvas_args[i] = [ i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
-	//can_shape(i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1);
 	let tm_bef = performance.now();
-	can_shape(i, gcanvas_args[i][1], gcanvas_args[i][2], gcanvas_args[i][3], gcanvas_args[i][4],
+	can_shape(i, gcanvas_args[i][1], gcanvas_args[i][3], gcanvas_args[i][4],
 		gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
 	let tm_now = performance.now();
 	//alert("chart "+ chrts_started);
@@ -5852,8 +5878,8 @@ async function start_charts() {
 				let pxls_high = gjson.pixels_hight_default;
 
 				//console.log("zoom_x0= " + zoom_x0 + ", zoom_x1= " + zoom_x1);
-				gcanvas_args[i] = [ i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
-				//can_shape(i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1);
+				//gcanvas_args[i] = [ i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
+				gcanvas_args[i] = [ i, chart_divs[i], null, tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
 				let result = await doJob(i, chrts_started, chrts_started_max, tm_beg);
 			}
 		}
@@ -6810,7 +6836,7 @@ window.addEventListener('resize-end', function() {
 		if (i==0) {
 			console.log("doing resize-end loop");
 		}
-		can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][2], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
+		can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
 	}
 });
 
@@ -9660,8 +9686,7 @@ function parse_svg()
 				g_cpu_diagram_flds.xend = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.xarray[whch_txt+1];
 			}
 			let ci     = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
-			let cd     = gcanvas_args[ci][2]; // chart_data
-			let t0     = cd.ts_initial.ts;
+			let t0     = gjson.chart_data[ci].ts_initial.ts;
 			g_cpu_diagram_flds.xbeg += t0;
 			g_cpu_diagram_flds.xend += t0;
 			break;
@@ -9796,10 +9821,9 @@ function parse_svg()
 						let fmt_str1 = fmt_str;
 						let nm_idx = g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str_base_val_arr[ii];
 						let ci     = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
-						let cd     = gcanvas_args[ci][2]; // chart_data
 						let nm = null;
-						if (typeof cd.subcat_rng[nm_idx] !== 'undefined') {
-							nm = cd.subcat_rng[nm_idx].cat_text;
+						if (typeof gjson.chart_data[ci].subcat_rng[nm_idx] !== 'undefined') {
+							nm = gjson.chart_data[ci].subcat_rng[nm_idx].cat_text;
 						}
 						if (fmt_str1.indexOf("__VARNM__") >= 0) {
 							fmt_str1 = fmt_str1.replace('__VARNM__', g_cpu_diagram_flds.cpu_diagram_fields[j].tot_line.evt_str[ii]);
@@ -10263,8 +10287,8 @@ function parse_svg()
 			lkup[ct] = i;
 			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
 			let ci = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
-			let cd = gcanvas_args[ci][2]; // chart_data
-			if (typeof cd.tot_line_opts_xform === 'undefined' || cd.tot_line_opts_xform != 'select_vars') {
+			if (typeof gjson.chart_data[ci].tot_line_opts_xform === 'undefined' ||
+					gjson.chart_data[ci].tot_line_opts_xform != 'select_vars') {
 				if (flds_max < mx) {
 					flds_max = mx;
 				}
@@ -10404,8 +10428,7 @@ function parse_svg()
 			lkup[ct] = i;
 			let mx = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr.length;
 			let ci = g_cpu_diagram_flds.cpu_diagram_fields[j].chrt_idx;
-			let cd = gcanvas_args[ci][2]; // chart_data
-			if (typeof cd.tot_line_opts_xform === 'undefined' || cd.tot_line_opts_xform != 'select_vars') {
+			if (typeof gjson.chart_data[ci].tot_line_opts_xform === 'undefined' || gjson.chart_data[ci].tot_line_opts_xform != 'select_vars') {
 				if (flds_max < mx) {
 					flds_max = mx;
 				}
