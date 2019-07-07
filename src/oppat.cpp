@@ -417,12 +417,27 @@ get_opt_main (int argc, char **argv)
 				break;
 			}
 			if (load_long_opt_val(long_options[option_index].name, "cpu_diagram", options.cpu_diagram, optarg) > 0) {
+				std::string svg_file = optarg;
+				size_t pos;
+				pos = svg_file.find_last_of(".");
+				if (pos == std::string::npos) {
+					printf("messed up cpu_diagram filename= %s. didn't find '.' in flnm. bye at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
+					exit(1);
+				}
+				std::string sfx = svg_file.substr(pos+1, svg_file.size());
+				printf("svg_file sfx= %s at %s %d\n", sfx.c_str(), __FILE__, __LINE__);
+				if (sfx != "svg") {
+					printf("svg_file sfx != 'svg', got %s, changing it to svg at %s %d\n", sfx.c_str(), __FILE__, __LINE__);
+					svg_file = svg_file.substr(0, pos) + ".svg";
+					options.cpu_diagram = svg_file;
+				}
 				int rc = ck_filename_exists(options.cpu_diagram.c_str(), __FILE__, __LINE__, options.verbose);
 				if (rc != 0) {
 					printf("didn't find --cpu_diagram %s file at %s %d\n",
 						options.cpu_diagram.c_str(), __FILE__, __LINE__);
 					exit(1);
 				}
+				printf("cmdline arg: --cpu_diagram %s at %s %d\n", options.cpu_diagram.c_str(), __FILE__, __LINE__);
 				break;
 			}
 			if (load_long_opt_val(long_options[option_index].name, "web_file", options.web_file, optarg) > 0) {
@@ -717,9 +732,9 @@ struct marker_str {
 	double ts_abs, dura;
 	std::string text, evt_name;
 	bool beg, end;
-	int prf_obj_idx, evt_idx_in_po, file_tag_idx, zoom_to, zoom_end;
+	int prf_obj_idx, evt_idx_in_po, file_tag_idx, zoom_to, zoom_end, prf_sample_idx;
 	marker_str(): ts_abs(0.0), dura(0.0), beg(false), end(false),
-		prf_obj_idx(-1), evt_idx_in_po(-1), file_tag_idx(-1), zoom_to(0), zoom_end(0) {}
+		prf_obj_idx(-1), evt_idx_in_po(-1), file_tag_idx(-1), zoom_to(0), zoom_end(0), prf_sample_idx(-1) {}
 };
 
 static std::vector <marker_str> marker_vec, phase_vec;
@@ -2434,7 +2449,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					exit(1);
 			    	//prf_obj.samples[prf_idx].cpt_idx = cpt_idx;
 				}
-			    	ls0p->cpt_idx = cpt_idx;
+			    ls0p->cpt_idx = cpt_idx;
 				ls0p->fe_idx  = prf_obj.samples[prf_idx].fe_idx;
 				ls0p->period  = (double)prf_obj.samples[prf_idx].period;
 				ls0p->cpu     = (int)prf_obj.samples[prf_idx].cpu;
@@ -3771,7 +3786,6 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 	}
 	tt3 = dclock();
 	std::string ct = event_table[evt_idx].charts[chrt].chart_tag;
-//abcd
 	//if (verbose)
 	if (ct == "PCT_BUSY_BY_CPU" || ct == "SYSCALL_OUTSTANDING_CHART") {
 		fprintf(stderr, "tt1= %.3f, tt2= %.3f, tt3= %.3f tot= %.3f tmr[5]= %.3f, tmr[6]= %.3f, tmr[7]= %.3f at %s %d\n",
@@ -5377,6 +5391,7 @@ static int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str
 				ms.prf_obj_idx = po_idx;
 				ms.file_tag_idx = file_tag_idx;
 				ms.evt_idx_in_po = Mark_idx;
+				ms.prf_sample_idx = i;
 				std::size_t pos = ms.text.find("begin phase");
 				if (pos != std::string::npos) {
 					//phase_vec.push_back(ms);
@@ -5444,6 +5459,7 @@ static int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str
 					ms.text   = prf_obj[po_idx].samples[i].extra_str;
 					ms.evt_name = evt_nm;
 					ms.prf_obj_idx = po_idx;
+					ms.prf_sample_idx = i;
 					ms.file_tag_idx = file_tag_idx;
 					ms.evt_idx_in_po = j;
 					std::size_t pos = ms.text.find("begin phase");
@@ -5469,7 +5485,6 @@ static int ck_for_markers(int file_tag_idx, int po_idx, std::vector <prf_obj_str
 	return (int)marker_vec.size();
 }
 
-#if 1
 static int phase_parse_text(std::string options, prf_obj_str &prf_obj, uint32_t po_idx, uint32_t file_tag_idx)
 {
 	std::string str;
@@ -5514,13 +5529,13 @@ static int phase_parse_text(std::string options, prf_obj_str &prf_obj, uint32_t 
 		}
 		ms.evt_name = "Marker";
 		ms.prf_obj_idx = po_idx;
+		ms.prf_sample_idx = i;
 		ms.file_tag_idx = file_tag_idx;
 		ms.evt_idx_in_po = 0;
 		phase_vec.push_back(ms);
 	}
 	return 0;
 }
-#endif
 
 struct tot_line_str {
 	double ddiv, ts0, full_usage, xmin, xmax;
@@ -5534,6 +5549,120 @@ struct tot_line_str {
 };
 
 static std::vector <tot_line_str> tot_line;
+
+static int ck_phase_update_event_table(std::vector <file_list_str> &file_list, uint32_t file_list_idx,
+		uint32_t evt_tbl_idx, uint32_t evt_idx,
+		uint32_t chrt, evt_str &event_table, int verbose)
+{
+	uint32_t dura_idx=UINT32_M1, ts_idx=UINT32_M1, xtra_idx=UINT32_M1, area_idx=UINT32_M1, mrkr_idx=UINT32_M1;
+	uint32_t fsz = (uint32_t)event_table.flds.size();
+	std::string got_more_fields;
+	for (uint32_t j=0; j < fsz; j++) {
+		uint64_t flg = event_table.flds[j].flags;
+		if (flg & (uint64_t)fte_enum::FLD_TYP_DURATION_BEF) {
+			dura_idx = j;
+		} else if (flg & (uint64_t)fte_enum::FLD_TYP_TIMESTAMP) {
+			ts_idx = j;
+		} else if (event_table.flds[j].lkup == "marker") {
+			mrkr_idx = j;
+		} else if (event_table.flds[j].lkup == "area") {
+			area_idx = j;
+		} else if (event_table.flds[j].lkup == "extra_str") {
+			xtra_idx = j;
+		} else {
+			got_more_fields = event_table.flds[j].lkup;
+		}
+	}
+	if (dura_idx == UINT32_M1) {
+		fprintf(stderr, "ck_phase_update_event_table: Didn't find a evt_flds with the lkup_typ flag= TYP_DURATION_BEF in %s. Bye at %s %d\n",
+				event_table.charts[chrt].chart_tag.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (ts_idx == UINT32_M1) {
+		fprintf(stderr, "ck_phase_update_event_table: Didn't find a evt_flds with the lkup_typ flag= TYP_DURATION_BEF in %s. Bye at %s %d\n",
+				event_table.charts[chrt].chart_tag.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (xtra_idx == UINT32_M1) {
+		fprintf(stderr, "ck_phase_update_event_table: Didn't find a evt_flds with the lkup= \"extra_str\" in %s. Bye at %s %d\n",
+				event_table.charts[chrt].chart_tag.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (mrkr_idx == UINT32_M1) {
+		fprintf(stderr, "ck_phase_update_event_table: Didn't find a evt_flds with the lkup= \"marker\" in %s. Bye at %s %d\n",
+				event_table.charts[chrt].chart_tag.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (area_idx == UINT32_M1) {
+		fprintf(stderr, "ck_phase_update_event_table: Didn't find a evt_flds with the lkup= \"area\" in %s. Bye at %s %d\n",
+				event_table.charts[chrt].chart_tag.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (got_more_fields.size() > 0) {
+		fprintf(stderr, "ck_phase_update_event_table: Got unexpected evt_flds with the lkup= \"%s\" in %s. Bye at %s %d\n",
+				event_table.charts[chrt].chart_tag.c_str(), got_more_fields.c_str(), __FILE__, __LINE__);
+		exit(1);
+	}
+	if (event_table.data.ts.size() != event_table.data.vals.size()) {
+		fprintf(stderr, "ck yer code dude! expected timestamp array.size()= %d == vals.size()= %d. bye at %s %d\n",
+			(uint32_t)event_table.data.ts.size(), (uint32_t)event_table.data.vals.size(), __FILE__, __LINE__);
+		exit(1);
+	}
+	for (uint32_t i = 0; i < event_table.data.vals.size(); i++) {
+		uint32_t area_val = event_table.data.vals[i][area_idx]-1;
+		uint32_t xtra_val = event_table.data.vals[i][xtra_idx]-1;
+		if (area_val >= event_table.vec_str.size()) {
+			fprintf(stderr, "area_val= %d out of range(%d). bye at %s %d\n",
+				area_val, (uint32_t)event_table.vec_str.size(), __FILE__, __LINE__);
+			exit(1);
+		}
+		if (xtra_val >= event_table.vec_str.size()) {
+			fprintf(stderr, "extra_val= %d out of range(%d). bye at %s %d\n",
+				xtra_val, (uint32_t)event_table.vec_str.size(), __FILE__, __LINE__);
+			exit(1);
+		}
+		printf("phase_chart[%d] ts= %.3f, dura= %.3f, mrkr= %.3f area= %s, xtra= %s at %s %d\n",
+				i, event_table.data.ts[i].ts, event_table.data.ts[i].duration,
+				event_table.data.vals[i][mrkr_idx],
+				event_table.vec_str[area_val].c_str(),
+				event_table.vec_str[xtra_val].c_str(),
+				__FILE__, __LINE__);
+	}
+	event_table.data.ts.resize(0);
+	event_table.data.vals.resize(0);
+	event_table.data.prf_sample_idx.resize(0);
+	for (uint32_t i = 0; i < phase_vec.size(); i++) {
+		std::vector <double> dv;
+		struct ts_str tss;
+		tss.ts       = phase_vec[i].ts_abs;
+		tss.duration = phase_vec[i].dura;
+		for (uint32_t j=0; j < fsz; j++) {
+			if (j == ts_idx) {
+				dv.push_back(tss.ts);
+			} else if (j == dura_idx) {
+				dv.push_back(tss.duration);
+			} else if (j == area_idx) {
+				std::string str = "phase";
+				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
+				dv.push_back(idx);
+			} else if (j == mrkr_idx) {
+				dv.push_back(i+1);
+			} else if (j == xtra_idx) {
+				std::string str = phase_vec[i].text;
+				uint32_t idx = hash_string(event_table.hsh_str, event_table.vec_str, str);
+				dv.push_back(idx);
+			} 
+		}
+		int psi = phase_vec[i].prf_sample_idx;
+		if (psi < 0) {
+			psi = 0;
+		}
+		event_table.data.prf_sample_idx.push_back(psi);
+		event_table.data.ts.push_back(tss);
+		event_table.data.vals.push_back(dv);
+	}
+	return 0;
+}
 
 static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_t file_list_idx,
 		uint32_t evt_tbl_idx, uint32_t evt_idx,
@@ -6515,6 +6644,10 @@ int main(int argc, char **argv)
 							printf("using event_table[%d][%d]= %s at %s %d\n",
 								grp_list[g], j, event_table[grp_list[g]][i].event_name.c_str(), __FILE__, __LINE__);
 						tt0 = dclock();
+						if (prf_obj[k].file_type == FILE_TYP_LUA &&
+							event_table[grp_list[g]][i].charts[j].chart_tag == "PHASE_CHART" && phase_vec.size() > 0) {
+							ck_phase_update_event_table(file_list, k, grp_list[g], i, j, event_table[grp_list[g]][i], verbose);
+						}
 						int rc = build_chart_lines(i, j, prf_obj[k], event_table[grp_list[g]], verbose);
 #if 1
 						if (event_table[grp_list[g]][i].charts[j].chart_tag == "PCT_BUSY_BY_SYSTEM") {
@@ -6759,26 +6892,6 @@ int main(int argc, char **argv)
 		flds_file = flds_file.substr(0, pos) + ".flds";
 		cpu_diag_flds_filenm = flds_file;
 		read_cpu_diag_flds_file(cpu_diag_flds_filenm);
-#if 0
-		printf("flds_file= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
-		file2.open (flds_file.c_str(), std::ios::in);
-		if (!file2.is_open()) {
-			printf("messed up fopen of flnm= %s at %s %d\n", flds_file.c_str(), __FILE__, __LINE__);
-			exit(1);
-		}
-		cpu_diag_flds = cpu_diag_flds_beg;
-		std::string cpu_diag_json;
-		while(!file2.eof()) {
-			std::getline (file2, line2);
-			cpu_diag_flds += line2 + "\n";
-			cpu_diag_json += line2;
-		}
-		file2.close();
-		ck_json(cpu_diag_json, "check for valid json in cpu_diagram .flds file: "+flds_file, __FILE__, __LINE__, options.verbose);
-		if (options.verbose > 0) {
-			printf("cpu_diag_flds= '%s' at %s %d\n", cpu_diag_flds.c_str(), __FILE__, __LINE__);
-		}
-#endif
 	}
 	fflush(NULL);
 	fprintf(stderr, "callstack_vec num_strings= %d, sum of strings len= %d tm_elap= %.3f\n",
