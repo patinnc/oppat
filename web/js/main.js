@@ -11,11 +11,15 @@ var webSocket;
 var messages = document.getElementById("messages");
 var chart_divs = [];
 var gcanvas_args = [];
+var g_resize_obj = {doing_resize_evt:false, doing_resize_rtn:false, delta:500, resize_beg_time:0};
 var g_chart_tag_tm_trace = "BW_BY_TYPE";
 var g_charts_done = {cntr:0, typ:""};
+var g_cpu_diagram_flds_json_str = null;
 var g_cpu_diagram_flds = null;
 var g_cpu_diagram_canvas = null;
 var g_cpu_diagram_canvas_ctx = null;
+var g_do_flamegraphs = true;
+var g_do_gc = false; // for gc(), chrome has to be started with --js-flags="--expose-gc"
 var g_cpu_diagram_draw_svg = null;
 var g_svg_scale_ratio = null;
 const CH_TYPE_LINE="line";
@@ -254,7 +258,7 @@ function update_status(txt)
 }
 
 function ck_cmd(str_in, str_in_len, ck_str) {
-	var ck_str_len  = ck_str.length;
+	let ck_str_len  = ck_str.length;
 	if (str_in_len >= ck_str_len && ck_str == str_in.substring(0, ck_str_len)) {
 		return ck_str_len;
 	}
@@ -461,6 +465,11 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 		let tm_n = performance.now();
 		let txt = sprintf("finished zoom all of %d charts. time to zoom all: %.2f secs. ", cntr, 0.001 * (tm_n-tm_n00));
 		update_status(txt);
+		if (g_do_gc) {
+			get_mem_usage("__mem: after set_zoom_all_charts: bef gc: memory usage: ");
+			window.gc();
+		}
+		get_mem_usage("__mem: after set_zoom_all_charts: aft gc: memory usage: ");
 		setTimeout(function () {
 			mymodal.style.display = "none";
 			document.title = doc_title_def;
@@ -546,10 +555,17 @@ function change_pixels_high(cb, menu_idx, nm_idx)
 	if (val >= 100 && val <= 1500) {
 		gpixels_high_default = val;
 		console.log("set gpixels_high_default= "+gpixels_high_default);
+		g_cpu_diagram_flds = null;
+		if (g_cpu_diagram_flds_json_str.length > 0) {
+			g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
+		}
+		get_mem_usage("__mem: bef change_pixels: ");
 		update_status("start redraw charts");
 		for (let i=0; i < gjson.chart_data.length; i++) {
 			can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
 		}
+		update_status("end redraw charts");
+		get_mem_usage("__mem: aft change_pixels: ");
 	}
 	return;
 }
@@ -721,6 +737,17 @@ function get_chart_options(chart_options)
 	return ch_options;
 }
 
+function remove_divs(hvr_clr)
+{
+	let nxt_div = document.getElementById(hvr_clr);
+	if (nxt_div !== null) {
+		while (nxt_div.firstChild) {
+   				nxt_div.removeChild(nxt_div.firstChild);
+		}
+		nxt_div.parentNode.removeChild(nxt_div);
+	}
+}
+
 function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1)
 {
 	if (chrt_idx < 0 || chrt_idx >= gjson.chart_data.length) {
@@ -742,6 +769,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		can_shape.invocation_num = 0;
 	}
 	can_shape.invocation_num++;
+	gjson.chart_data[chrt_idx].last_used_x_min_max = null;
 	let px_high = px_high_in;
 	if (typeof px_high === 'undefined' || px_high < 100) {
 		px_high = gpixels_high_default;
@@ -749,8 +777,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	} else {
 		//console.log("___set ch2 px_high= "+px_high);
 	}
-	var xPadding = 50;
-	var yPadding = 50;
+	let xPadding = 50;
+	let yPadding = 50;
 
 	let file_tag_idx = chart_data.file_tag_idx;
 	while(file_tag_idx >= g_fl_obj.length) {
@@ -767,11 +795,14 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	//console.log("px_wide = "+px_wide);
 	let ch_type = chart_data.chart_type;
 
+	remove_divs(use_div);
+	remove_divs(hvr_clr);
 	let chrt_div = document.getElementById(use_div);
 	if (chrt_div === null) {
 		addElement ('div', use_div, 'chart_anchor', 'before');
 		chrt_div = document.getElementById(use_div);
 	}
+
 	let minx, maxx, miny, maxy, sldr_cur;
 	let draw_mini_box = {};
 	let draw_mini_cursor_prev = null;
@@ -831,8 +862,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			let xd0 = 0.5 * (maxx - minx);
 			let xd1 = minx - clp_beg + xd0;
 			let xd2 = (xd1) / xd;
-			//let xtxt = "__draw_mini: mnx="+minx+",mxx= "+maxx+", chmn= "+chart_data.x_range.min+", chmx= "+chart_data.x_range.max+", xd2= "+xd2+", xd0= "+xd0+", num= "+xd1+", den= "+xd+", mxx-mnx= "+(maxx-minx)+"<br>(minx + (0.5 * (maxx-minx))) / (chart_data.x_range.max - chart_data.x_range.min)<br>("+minx+" + (0.5 * ("+maxx+ " - " +minx+"))) / ("+chart_data.x_range.max+ " - " + chart_data.x_range.min+")<br>("+minx+" + (0.5 * ("+(maxx-minx)+"))) / ("+(chart_data.x_range.max-chart_data.x_range.min)+")";
-			//set_chart_text(myhvr_clr_txt, myhvr_clr_txt_btn, xtxt);
 			//console.log("__draw_mini: mnx="+minx+",mxx= "+maxx+", chmn= "+chart_data.x_range.min+", chmx= "+chart_data.x_range.max+", xd2= "+xd2+", xd0= "+xd0+", num= "+xd1+", den= "+xd+", mxx-mnx= "+(maxx-minx));
 			if (isNaN(xd2)) {
 				console.log("cd.xr.mx= "+chart_data.x_range.max+", mn="+chart_data.x_range.min);
@@ -847,10 +876,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	}
 
 
-	//console.log("sldr_cur= "+sldr_cur);
-	let myhvr_clr = document.getElementById(hvr_clr);
 	let mycanvas_nm_title = "title_"+hvr_clr;
-	//myhvr_clr = document.getElementById(hvr_clr);
+	let myhvr_clr = document.getElementById(hvr_clr);
 	if (myhvr_clr === null) {
 		addElement ('div', hvr_clr, 'chart_anchor', 'before');
 		addElement ('div', hvr_clr+'_bottom', 'chart_anchor', 'before');
@@ -1012,6 +1039,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 
 	reset_minx_maxx(zoom_x0, zoom_x1, zoom_y0, zoom_y1);
 
+	gjson.chart_data[chrt_idx].zoom_func_obj = null;
 	let zoom_function = function(task)
 	{
 		if (!task.do_zoom && !gsync_zoom_linked) {
@@ -1038,9 +1066,11 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	gjson.chart_data[chrt_idx].zoom_func_obj = zoom_function_obj;
 
 	function my_wheel_start2(canvas) {
-		var firstTouch, lastTouch;
-		var firstTime;
-		var elem = canvas,
+		let firstTouch, lastTouch;
+		let firstTime;
+		let pt_tst = {x:0, y:0};
+		let pt0 = {x:0, y:0}, pt1 = {x:0, y:0};
+		let elem = canvas,
 		    info = myhvr_clr_txt,
 		    marker = true,
 		    delta,
@@ -1059,7 +1089,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		function wheel(e){
 		  e = e||window.event;
 		  let tch_tst = e;
-		  let pt_tst = get_xy(canvas, tch_tst);
+		  get_xy(pt_tst, canvas, tch_tst);
 		  //console.log("wheel: y= "+(pt_tst.y - maxy));
 		  if ((pt_tst.x - minx) < 0.0 || (pt_tst.y - maxy) > 0.0) {
 		     // if we aren't in the actual chart viewport then don't zoom
@@ -1091,7 +1121,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		function wheelAct(){
 		  counter2 = counter1;
 		  setTimeout(function(){
-			let pt0 = get_xy(canvas, firstTouch);
+			get_xy(pt0, canvas, firstTouch);
 			let use_x = false;
 			let x_addr = delta_y;
 		    if (Math.abs(delta_x) >= Math.abs(delta_y)) {
@@ -1100,18 +1130,18 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		    }
 		    if (delta_x != 0.0 || delta_y != 0.0) {
 			let mycli = { clientX: (firstTouch.clientX-x_addr), clienty: firstTouch.clientY};
-			let pt1 = get_xy(canvas, mycli);
+			get_xy(pt1, canvas, mycli);
 			let xdiff = pt1.x - pt0.x;
 		    if (use_x) {
 				// change " - delta_x " to " + delta_x" below to change dir for horizontal scroll in response to mouse wheel
 				let nx0 = minx - xdiff;
 				let nx1 = maxx - xdiff;
-				//console.log("new wheel pan x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x);
+				//console.log("new wheel pan x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x+", mycli=",mycli);
 				zoom_to_new_xrange(nx0, nx1, true);
 		    } else {
 				let nx0 = minx - 0.5 * xdiff;
 				let nx1 = maxx + 0.5 * xdiff;
-				//console.log("new wheel zoom x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x);
+				//console.log("new wheel zoom x: "+nx0+" - "+nx1+", xdiff= "+xdiff+", delta_x= "+delta_x+", pt0.x= "+pt0.x+", pt1.x= "+pt1.x+", mycli= ",mycli);
 				zoom_to_new_xrange(nx0, nx1, true);
 		    }
 		    }
@@ -1137,7 +1167,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			delta_y = 0;
 		}
 	}
-	function get_xy(canvas, tch) {
+	function get_xy(vals, canvas, tch) {
 		let rect = canvas.getBoundingClientRect(),
 			x = Math.trunc(tch.clientX - rect.left - xPadding),
 			y = Math.trunc(tch.clientY - rect.top);
@@ -1147,19 +1177,19 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		let ydiff1= +ny1 / (canvas_px_high(null) - yPadding);
 		let nx0 = +minx+( xdiff1 * (maxx - minx));
 		let ny0 = +miny+( ydiff1 * (maxy - miny));
-		return {x: nx0, y: ny0};
+		vals.x = nx0;
+		vals.y = ny0;
+		return;
 	}
-/*
-*/
+
 	function my_touch_start(canvas) {
 		// from http://bencentra.com/code/2014/12/05/html5-canvas-touch-events.html
 		// Prevent scrolling when touching the canvas
-/*
-*/
-		var mousePos = { x:0, y:0 };
-		var lastPos = mousePos;
-		var firstTouch, lastTouch;
-		var firstTime;
+		let mousePos = { x:0, y:0 };
+		let lastPos = mousePos;
+		let firstTouch, lastTouch;
+		let firstTime;
+		let pt0 = {x:0, y:0}, pt1 = {x:0, y:0};
 		// Set up touch events for mobile, etc
 		canvas.addEventListener("touchstart", function (e) {
 		  mousePos = getTouchPos(canvas, e);
@@ -1178,8 +1208,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		canvas.addEventListener("touchend", function (e) {
 		  //let mouseEvent = new MouseEvent("mouseup", {});
 		  //let touch = e.touches[0];
-			let pt0 = get_xy(canvas, firstTouch);
-			let pt1 = get_xy(canvas, lastTouch);
+			get_xy(pt0, canvas, firstTouch);
+			get_xy(pt1, canvas, lastTouch);
 			let nx0 = pt0.x;
 			let nx1 = pt1.x;
     			console.log("pan nx0= "+nx0+", nx1= "+nx1);
@@ -1194,8 +1224,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		  lastTouch = touch;
 		  let nowTime = performance.now();
 		  if ((nowTime - firstTime) > 0.02 && touch.clientX != firstTouch.clientX) {
-			let pt0 = get_xy(canvas, firstTouch);
-			let pt1 = get_xy(canvas, lastTouch);
+			get_xy(pt0, canvas, firstTouch);
+			get_xy(pt1, canvas, lastTouch);
 			let nx0 = pt0.x;
 			let nx1 = pt1.x;
 		        firstTouch = touch;
@@ -1278,10 +1308,12 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	let tm_here_02 = performance.now();
 	//console.log("proc_arr.len= "+ proc_arr.length);
 
-	function xlate(tctx, xin, yin, uminx, umaxx, uminy, umaxy) {
+	function xlate(vals, tctx, xin, yin, uminx, umaxx, uminy, umaxy) {
 		let xout = xPadding + Math.trunc((px_wide - xPadding) * (xin - uminx)/ (umaxx - uminx));
 		let yout = Math.trunc((canvas_px_high(null) - yPadding) * (1.0 - (yin - uminy)/ (umaxy - uminy)));
-		return [xout, yout];
+		vals[0] = xout;
+		vals[1] = yout;
+		return;
 	}
 
 
@@ -2005,9 +2037,11 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			let cat = chart_data.subcat_rng[i].cat;
 			subcat_cs_2_sidx_hash[cat] = {};
 		}
+		let beg = [0,0];
+		let end = [0,0];
 		for (let i=0; i < chart_data.subcat_rng.length; i++) {
-			let beg = xlate(ctx, chart_data.subcat_rng[i].x0, chart_data.subcat_rng[i].y0, minx, maxx, miny, maxy);
-			let end = xlate(ctx, chart_data.subcat_rng[i].x1, chart_data.subcat_rng[i].y1, minx, maxx, miny, maxy);
+			xlate(beg, ctx, chart_data.subcat_rng[i].x0, chart_data.subcat_rng[i].y0, minx, maxx, miny, maxy);
+			xlate(end, ctx, chart_data.subcat_rng[i].x1, chart_data.subcat_rng[i].y1, minx, maxx, miny, maxy);
 			subcats.push(chart_data.subcat_rng[i]);
 			let cat = chart_data.subcat_rng[i].cat;
 			let subcat = chart_data.subcat_rng[i].subcat;
@@ -2059,7 +2093,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 
 	let tm_here_04 = performance.now();
 	let lkup = [];
-	let lkup_pts_per_pxl = [];
 	let lkup_use_linearSearch = [];
 	let flm_obj = {};
 	let fl_end_sum = 0;
@@ -2293,13 +2326,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			return [xout, yout];
 		}
 		let mycanvas3_nm_all = 'canvas3'+cs_idx+'_'+txt_fld+"_all";
-		let myck = document.getElementById(mycanvas3_nm_all);
-		if (myck !== null) {
-			while (myck.firstChild) {
-    				myck.removeChild(myck.firstChild);
-			}
-			myck.parentNode.removeChild(myck);
-		}
+		remove_divs(mycanvas3_nm_all);
 		let mycanvas3_nm     = 'canvas3'+cs_idx+'_'+txt_fld;
 		let mycanvas3_nm_txt = 'canvas3'+cs_idx+'_'+txt_fld+"_txt";
 		let mycanvas3_nm_title = 'canvas3'+cs_idx+'_'+txt_fld+"_title";
@@ -3018,8 +3045,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		for (let i=0; i < chart_data.myshapes.length; i++) {
 			let x0 = chart_data.myshapes[i].pts[PTS_X0];
 			let x1 = chart_data.myshapes[i].pts[PTS_X1];
-			chart_data.myshapes[i].pts_sv[PTS_Y0] = chart_data.myshapes[i].pts[PTS_Y0];
-			chart_data.myshapes[i].pts_sv[PTS_Y1] = chart_data.myshapes[i].pts[PTS_Y1];
 			let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
 			let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 			let do_event = false;
@@ -3642,13 +3667,15 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				ctx.fillText(str, x, y);
 			}
 		}
-		let beg = xlate(ctx, minx, 0, minx, maxx, uminy, umaxy);
+		let beg = [0, 0];
+		let end = [0, 0];
+		xlate(beg, ctx, minx, 0, minx, maxx, uminy, umaxy);
 		ctx.textAlign = "left";
 		let tstr = "rel.T= "+minx;
 		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + font_sz);
 		tstr = "T= "+(minx + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
 		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + 2* font_sz);
-		beg = xlate(ctx, maxx, 0, minx, maxx, uminy, umaxy);
+		xlate(beg, ctx, maxx, 0, minx, maxx, uminy, umaxy);
 		ctx.textAlign = "right";
 		tstr = "rel.T= "+maxx;
 		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + font_sz);
@@ -3671,14 +3698,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		let line_done = [];
 		lkup = [];
 		//abcd
-		lkup_pts_per_pxl = [];
 		for (let i=0; i < chart_data.subcat_rng.length; i++) {
 			line_done.push({});
 			lkup.push([]);
-			lkup_pts_per_pxl.push([]);
-			for (let j=0; j <= px_wide; j++) {
-				lkup_pts_per_pxl[i].push(0.0);
-			}
 			step.push([-1, -1]);
 		}
 		let filtering = false;
@@ -3783,8 +3805,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				}
 			}
 			//console.log("subcat_idx= "+subcat_idx+", cat= "+cat+", subcat= "+subcat);
-			let beg = xlate(ctx, x0, y0, minx, maxx, uminy, umaxy);
-			let end = xlate(ctx, x1, y1, minx, maxx, uminy, umaxy);
+			xlate(beg, ctx, x0, y0, minx, maxx, uminy, umaxy);
+			xlate(end, ctx, x1, y1, minx, maxx, uminy, umaxy);
 			if (beg[0] < xPadding) {
 				beg[0] = xPadding;
 			}
@@ -3978,6 +4000,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 								nm = comm;
 							}
 						}
+						if (g_do_flamegraphs) {
 						if (!doing_idle && chart_data.chart_tag == "PCT_BUSY_BY_CPU") {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(event_list[fe_2].event, unit, cs_ret.arr, period, hvr_clr, cs_clr, null);
@@ -4014,6 +4037,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						if ((chart_data.chart_tag == "RUN_QUEUE" || chart_data.chart_tag == "RUN_QUEUE_BY_CPU")) {
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(context_switch_event+"_runqueue", unit, cs_ret.arr, period, hvr_clr, clr, null);
+						}
 						}
 						cs_sum += operiod;
 						build_fl_tm += performance.now() - tm_fl_here_0;
@@ -4208,11 +4232,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			if (!filtering || drew_this_shape)
 			{
 				lkup[subcat_idx].push([beg[0], beg[1], end[0], end[1], i]);
-				for (let j=beg[0]; j <= end[0]; j++) {
-					lkup_pts_per_pxl[subcat_idx][j] += 1;
-				}
-				if (false) {
-				}
 			}
 		}
 		let tm_here_04a1 = performance.now();
@@ -4264,8 +4283,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					let x1 = tot_line.xarray[i+1];
 					let y0 = tot_line.yarray[sci][i];
 					let y1 = tot_line.yarray[sci][i];
-					let beg = xlate(ctx, x0, y0, minx, maxx, uminy, umaxy);
-					let end = xlate(ctx, x1, y1, minx, maxx, uminy, umaxy);
+					xlate(beg, ctx, x0, y0, minx, maxx, uminy, umaxy);
+					xlate(end, ctx, x1, y1, minx, maxx, uminy, umaxy);
 					if (beg[1] > yPxlzero) {
 						beg[1] = yPxlzero;
 					}
@@ -4278,7 +4297,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					if ((i+1) < pts_max) {
 						x1 = tot_line.xarray[i+1];
 						y1 = tot_line.yarray[sci][i+1];
-						end = xlate(ctx, x1, y1, minx, maxx, uminy, umaxy);
+						xlate(end, ctx, x1, y1, minx, maxx, uminy, umaxy);
 						if (end[1] > yPxlzero) {
 							end[1] = yPxlzero;
 						}
@@ -4310,6 +4329,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		let tm_here_04b = performance.now();
 		//console.log("chart_redraw took "+flt_dec(tm_here_04b - tm_here_04a, 4)+" ms");
 		//console.log("cs_str_period= "+ (1.0e-9*cs_str_period));
+		if (g_do_flamegraphs) {
 		if ((ch_type == CH_TYPE_BLOCK && chart_data.chart_tag == "PCT_BUSY_BY_CPU") ||
 			chart_data.chart_tag == "WAIT_TIME_BY_proc" ||
 			chart_data.chart_tag == "RUN_QUEUE" ||
@@ -4345,6 +4365,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			if (build_fl_tm > 500) {
 				console.log("build_flame_rpt: bld_fl msecs="+build_fl_tm);
 			}
+		}
 		}
 		let tm_now = performance.now();
 		let tm_dff = tm_now - tm_here_04a;
@@ -5752,6 +5773,9 @@ async function start_charts() {
 	chart_divs.length = 0;
 	let ch_did_it = [];
 	get_mem_usage("__mem: at 0: ");
+	if (g_cpu_diagram_flds_json_str.length > 0) {
+		g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
+	}
 	for (let i=0; i < gjson.chart_data.length; i++) {
 		chart_did_image.push(null);
 		ch_did_it.push(false);
@@ -6637,8 +6661,8 @@ function openSocket(port_num) {
 		}
 		ckln = ck_cmd(event.data, sln, 'cpu_diagram_flds=');
 		if (ckln > 0) {
-			g_cpu_diagram_flds = JSON.parse(event.data.substring(ckln));
-			console.log("__got cpu_diagram_flds len= "+g_cpu_diagram_flds.cpu_diagram_fields.length);
+			g_cpu_diagram_flds_json_str = event.data.substring(ckln);
+			console.log("__got cpu_diagram_flds len= "+g_cpu_diagram_flds_json_str.length);
 		}
 		ckln = ck_cmd(event.data, sln, '{"str_pool":');
 		if (ckln > 0) {
@@ -6804,40 +6828,123 @@ window.onload = function() {
 
 }
 
+function ck_for_resize_end() {
+    if (performance.now() - g_resize_obj.resize_beg_time < g_resize_obj.delta) {
+		console.log("__ck_for_resize");
+        setTimeout(ck_for_resize_end, g_resize_obj.delta);
+    } else {
+        g_resize_obj.doing_resize_rtn = true;
+        g_resize_obj.doing_resize_evt = false;
+		my_resize_rtn();
+    }               
+}
+
 function setup_resize_handler() {
-	var resizeEnd;
 	window.addEventListener('resize', function() {
-		clearTimeout(resizeEnd);
-		resizeEnd = setTimeout(function() {
-			// option 1
-			let evt = new Event('resize-end');
-			window.dispatchEvent(evt);
-		}, 250);
+		if (g_resize_obj.doing_resize_rtn == false) {
+			g_resize_obj.resize_beg_time = performance.now();
+		}
+		if (g_resize_obj.doing_resize_evt === false && g_resize_obj.doing_resize_rtn == false) {
+			g_resize_obj.doing_resize_evt = true;
+			setTimeout(ck_for_resize_end, g_resize_obj.delta);
+		}
 	});
 }
 
 function get_win_wide_high() {
-	var w = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
-	var h = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+	let w = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+	let h = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 	return {width: w, height: h};
 }
 
-window.addEventListener('resize-end', function() {
-	console.log("I've been resized 250ms ago! — " + (+new Date));
-	let win_sz = get_win_wide_high();
-	let update = {
-		width: win_sz.width,  // or any new width
-		height: gpixels_high_default // " "
-	};
+function my_resize_rtn() {
 	if (typeof gjson === 'undefined' || typeof gjson.chart_data === 'undefined') {
 		return;
+	}
+	let txt = "doing resize: redraw all";
+	document.title = txt;
+	mymodal.style.display = "none";
+	mymodal_span_text.innerHTML = document.title;
+	update_status(txt);
+	mymodal.style.display = "block";
+	console.log(txt);
+	let tm_n00 = performance.now();
+	let cntr=0;
+	let tmout = 500;
+	if (g_do_gc) {
+		get_mem_usage("__mem: bef my_resize_rtn: bef gc ");
+		window.gc();
+	}
+	get_mem_usage("__mem: bef my_resize_rtn: aft gc ");
+	g_charts_done.cntr = 0;
+	chart_did_image = [];
+	g_cpu_diagram_flds = null;
+	if (g_cpu_diagram_flds_json_str.length > 0) {
+		g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
 	}
 	for (let i=0; i < gjson.chart_data.length; i++) {
 		if (i==0) {
 			console.log("doing resize-end loop");
 		}
-		can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
+		chart_did_image.push(null);
+		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+			let tm_n = performance.now();
+			console.log(sprintf("__resize: underway tm= %.3f", 0.001 * (tm_n - tm_n00)));
+			txt = sprintf("resized_ %d of %d charts, elap_tm= %.2f secs",
+						g_charts_done.cntr, gjson.chart_data.length, 0.001 * (tm_n-tm_n00));
+			document.title = txt;
+			update_status(txt);
+			mymodal_span_text.innerHTML = txt;
+			console.log(txt);
+			can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
+		}, tmout);
+		tmout= 100;
 	}
+
+	function myDelay () {           //  create a loop function
+		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
+			let tm_n = performance.now();
+			console.log(sprintf('wait_for_resize: chart %d of %d, tm= %.3f secs', 
+				g_charts_done.cntr, gjson.chart_data.length, 0.001 * (tm_n - tm_n00)));
+			if (g_charts_done.cntr < gjson.chart_data.length) {
+				let tm_n = performance.now();
+				console.log(sprintf("__resize: finished myDelay, tm= %.3f", 0.001 * (tm_n - tm_n00)));
+				txt = sprintf("resized %d of %d charts, elap_tm= %.2f secs",
+							g_charts_done.cntr, gjson.chart_data.length, 0.001 * (tm_n-tm_n00));
+				mymodal_span_text.innerHTML = txt;
+				document.title = txt;
+				update_status(txt);
+				console.log(txt);
+				myDelay();             //  ..  again which will trigger another 
+			} else {
+				let tm_n = performance.now();
+				console.log(sprintf("__resize: finished myDelay, tm= %.3f", 0.001 * (tm_n - tm_n00)));
+				txt = sprintf("resized %d of %d charts, elap_tm= %.2f secs",
+							g_charts_done.cntr, gjson.chart_data.length, 0.001 * (tm_n-tm_n00));
+				update_status(txt);
+				console.log(txt);
+				mymodal.style.display = "none";
+				document.title = doc_title_def;
+        		g_resize_obj.doing_resize_rtn = false;
+				if (g_do_gc) {
+					get_mem_usage("after resize: memory usage: bef gc ");
+					window.gc();
+				}
+				get_mem_usage("__mem: aft my_resize_rtn: aft gc ");
+			}
+		}, 500);
+	}
+	myDelay();
+}
+
+window.addEventListener('resize-end', function() {
+	console.log("I've been resized 250ms ago! " + (+new Date));
+	let win_sz = get_win_wide_high();
+	let update = {
+		width: win_sz.width,  // or any new width
+		height: gpixels_high_default // " "
+	};
+	my_resize_rtn();
 });
 
 function clearHoverInfo(ele_nm, this_button_id) {
@@ -6975,7 +7082,7 @@ function tm_diff_str(tm_in_secs, precisn, units) {
 function parse_svg()
 {
 	//var svgObject = document.getElementById('svg-object').contentDocument;
-	var svgObject = document.getElementById('cpu_diagram_svg');
+	let svgObject = document.getElementById('cpu_diagram_svg');
 	let shapes = [];
 	let svg_gs = svgObject.getElementsByTagName('svg');
 	if (typeof svg_gs === 'undefined' || svg_gs === null || svg_gs.length == 0) {
@@ -7200,26 +7307,30 @@ function parse_svg()
 	g_cpu_diagram_canvas = mycanvas;
 	g_cpu_diagram_canvas_ctx = ctx;
 	let xlate_rng = {state:0, xmin:null, ymin:null, xmax:null, ymax:null};
+	let p0 = [0, 0];
+	let p1 = [0, 0];
+	let p2 = [0, 0];
 
 	{
-	g_svg_scale_ratio.cpu_diag = {shift:0.0, scale:0.0};
-	let p0 = xlate(ctx, 0.0, 0.0, 0, svg_xmax, 0, svg_ymax, null, 1);
-	g_svg_scale_ratio.cpu_diag.shift = p0;
-	//console.log(sprintf("svg: shift 0.0,0.0-> x= %.2f, y= %.2f", p0[0], p0[1]));
-	let p1 = xlate(ctx, 1.0, 1.0, 0, svg_xmax, 0, svg_ymax, null, 1);
-	//console.log(sprintf("svg: scale 1.0,1.0-> x= %.2f, y= %.2f", p1[0]-p0[0], p1[1]-p0[1]));
-	g_svg_scale_ratio.cpu_diag.scale = [p1[0]-p0[0], p1[1]-p0[1]];
+		g_svg_scale_ratio.cpu_diag = {shift:0.0, scale:0.0};
+		xlate(p0, ctx, 0.0, 0.0, 0, svg_xmax, 0, svg_ymax, null, 1);
+		g_svg_scale_ratio.cpu_diag.shift = p0;
+		//console.log(sprintf("svg: shift 0.0,0.0-> x= %.2f, y= %.2f", p0[0], p0[1]));
+		xlate(p1, ctx, 1.0, 1.0, 0, svg_xmax, 0, svg_ymax, null, 1);
+		//console.log(sprintf("svg: scale 1.0,1.0-> x= %.2f, y= %.2f", p1[0]-p0[0], p1[1]-p0[1]));
+		g_svg_scale_ratio.cpu_diag.scale = [p1[0]-p0[0], p1[1]-p0[1]];
 	}
 	g_svg_scale_ratio.cpu_diag.xmax = svg_xmax;
 	g_svg_scale_ratio.cpu_diag.ymax = svg_ymax;
 	g_svg_scale_ratio.cpu_diag.xlate_base = xlate;
 	g_svg_scale_ratio.cpu_diag.ctx = ctx;
+
 	g_svg_scale_ratio.cpu_diag.xlate = function(x_in, y_in, do_shift) {
 		let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
 		let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 		let x2 = g_svg_scale_ratio.cpu_diag.xmax * x_in/fmxx;
 		let y2 = g_svg_scale_ratio.cpu_diag.ymax * y_in/fmxy;
-		let p2 = xlate(g_svg_scale_ratio.cpu_diag.ctx, x2, y2, 0, g_svg_scale_ratio.cpu_diag.xmax, 0, g_svg_scale_ratio.cpu_diag.ymax, null, 1);
+		xlate(p2, g_svg_scale_ratio.cpu_diag.ctx, x2, y2, 0, g_svg_scale_ratio.cpu_diag.xmax, 0, g_svg_scale_ratio.cpu_diag.ymax, null, 1);
 		p2[1] = p2[1] - (do_shift ? g_svg_scale_ratio.cpu_diag.shift[1] : 0.0);
 		return p2;
 	}
@@ -7311,7 +7422,7 @@ function parse_svg()
 	}
 
 
-	function xlate(tctx, xin, yin, uminx, umaxx, uminy, umaxy, shape, sector) {
+	function xlate(vals, tctx, xin, yin, uminx, umaxx, uminy, umaxy, shape, sector) {
 		//let xout = Math.trunc(px_wide * (xin - uminx)/ (umaxx - uminx));
 		//let yout = Math.trunc(px_high * (yin - uminy)/ (umaxy - uminy));
 		let xout = xin;
@@ -7361,8 +7472,10 @@ function parse_svg()
 		if (sector == 1) {
 			yout += y_shift;
 		}
+		vals[0] = xout;
+		vals[1] = yout;
 
-		return [xout, yout];
+		return;
 	}
 
 
@@ -7400,6 +7513,7 @@ function parse_svg()
 
 	function build_poly() {
 		let pt  = {x:0, y:0};
+		let p0 = [0, 0];
 		for (let i=0; i < shapes.length; i++) {
 			if (shapes[i].typ != 'path') {
 				continue;
@@ -7412,10 +7526,10 @@ function parse_svg()
 			for (let j=0; j < shapes[i].cmds.length; j++) {
 				pt.x = shapes[i].cmds[j].pt_a[0].x;
 				pt.y = shapes[i].cmds[j].pt_a[0].y;
-				let p0 = xlate(ctx, pt.x, pt.y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+				xlate(p0, ctx, pt.x, pt.y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 				shapes[i].poly.push({x:p0[0], y:p0[1]});
 				if (shapes[i].cmds[j].cmd == 'C' || shapes[i].cmds[j].cmd == 'c') {
-					p0 = xlate(ctx, shapes[i].cmds[j].pt_a[2].x, shapes[i].cmds[j].pt_a[2].y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+					xlate(p0, ctx, shapes[i].cmds[j].pt_a[2].x, shapes[i].cmds[j].pt_a[2].y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 					shapes[i].poly.push({x:p0[0], y:p0[1]});
 				}
 			}
@@ -7610,7 +7724,8 @@ function parse_svg()
 
 	function draw_lineTo(cmd_typ, ctx, x, y, shape) {
 		if (cmd_typ != 'cpy') {
-			let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shape, 1);
+			let p0 = [0,0];
+			xlate(p0, ctx, x, y, 0, svg_xmax, 0, svg_ymax, shape, 1);
 			if (cmd_typ == 'M' || cmd_typ == 'm') {
 				ctx.moveTo(p0[0], p0[1]);
 			} else {
@@ -7686,7 +7801,9 @@ function parse_svg()
 			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 			let x2 = svg_xmax * x1/fmxx;
 			let y2 = svg_ymax * y1/fmxy;
-			return xlate(ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
+			let p0 = [0, 0];
+			xlate(p0, ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
+			return p0;
 		}
 		let x1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
 		let y1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
@@ -7920,7 +8037,9 @@ function parse_svg()
 			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 			let x2 = svg_xmax * x1/fmxx;
 			let y2 = svg_ymax * y1/fmxy;
-			return xlate(ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
+			let p0 = [0, 0];
+			xlate(p0, ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
+			return p0;
 		}
 		let x1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
 		let y1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
@@ -8128,6 +8247,9 @@ function parse_svg()
 
 
 	let draw_svg = function(hilite_arr, whch_txt, subtst) {
+		let p0 = [0, 0];
+		let p1 = [0, 0];
+		let p2 = [0, 0];
 		build_poly();
 		ctx.clearRect(0, 0, mycanvas.width, mycanvas.height);
 		ctx.fillStyle = 'white';
@@ -8190,21 +8312,21 @@ function parse_svg()
 							x += pt.x;
 							y += pt.y;
 						}
-						let p0 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+						xlate(p0, ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 						x = shapes[i].cmds[j].pt[1].x;
 						y = shapes[i].cmds[j].pt[1].y;
 						if (typ == 'c') {
 							x += pt.x;
 							y += pt.y;
 						}
-						let p1 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+						xlate(p1, ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 						x = shapes[i].cmds[j].pt[2].x;
 						y = shapes[i].cmds[j].pt[2].y;
 						if (typ == 'c') {
 							x += pt.x;
 							y += pt.y;
 						}
-						let p2 = xlate(ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+						xlate(p2, ctx, x, y, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 						ctx.bezierCurveTo(p0[0], p0[1], p1[0], p1[1], p2[0], p2[1]);
 						//console.log(sprintf("%s %f %f (%f %f)", typ, x, y, p0[0], p0[1]));
 						pt.x = x;
@@ -8325,8 +8447,8 @@ function parse_svg()
 						strk_clr = st[j].substr(7);
 					}
 				}
-				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
-				let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+				xlate(p0, ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+				xlate(p1, ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 				ctx.beginPath();
 				ctx.fillStyle = 'blue';
 				let wd = p1[0] - p0[0];
@@ -8421,7 +8543,7 @@ function parse_svg()
 					console.log(sprintf("__stg2a xy= %.3f,%.3f, nfont_sz= %.3f, line_hi= %.3f", x0, y0, nfont_sz, line_hi));
 				}
 				//let y0 = shapes[i].y - nfont_sz;
-				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
+				xlate(p0, ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 				//let p1 = xlate(ctx, x1, y1, 0, svg_xmax, 0, svg_ymax, shapes[i], 1);
 				if (line_hi > 1.0) {
 					//p0[1] -= nfont_sz * (line_hi - 1.0);
@@ -8829,6 +8951,8 @@ function parse_svg()
 		if (typeof g_cpu_diagram_flds.text_defaults.font_size !== 'undefined') {
 			nfont_sz = g_cpu_diagram_flds.text_defaults.font_size;
 		}
+		let scl = [0, 0];
+		let p0=[0,0], p1=[0,0];
 		for (let i=0; i < g_cpu_diagram_flds.figures.length; i++) {
 			if (typeof g_cpu_diagram_flds.figures[i].figure === 'undefined' ||
 				typeof g_cpu_diagram_flds.figures[i].figure.cmds === 'undefined' ||
@@ -8856,7 +8980,7 @@ function parse_svg()
 				if (typeof g_cpu_diagram_flds.figures[i].ybrdr !== 'undefined') {
 					ybrdr = g_cpu_diagram_flds.figures[i].ybrdr;
 				}
-				let scl = xlate(ctx,    1.0,    1.0, 0, svg_xmax, 0, svg_ymax, null, sector);
+				xlate(scl, ctx,    1.0,    1.0, 0, svg_xmax, 0, svg_ymax, null, sector);
 				if (typeof g_cpu_diagram_flds.figures[i].figure.cmds[j].use !== 'undefined' &&
 					   g_cpu_diagram_flds.figures[i].figure.cmds[j].use == 'n') {
 					   continue;
@@ -8900,9 +9024,8 @@ function parse_svg()
 					if (ye_abs) {
 						hi = hi - y;
 					}
-					let p0, p1;
-					p0 = xlate(ctx,    x,    y, 0, svg_xmax, 0, svg_ymax, null, sector);
-					p1 = xlate(ctx, x+wd, y+hi, 0, svg_xmax, 0, svg_ymax, null, sector);
+					xlate(p0, ctx,    x,    y, 0, svg_xmax, 0, svg_ymax, null, sector);
+					xlate(p1, ctx, x+wd, y+hi, 0, svg_xmax, 0, svg_ymax, null, sector);
 					if (!wide_relative[0]) {
 						p0[0] /= scl[0];
 					}
@@ -9090,6 +9213,7 @@ function parse_svg()
 					}
 					function draw_fig_text(co, y_xtra, do_xlate)
 					{
+						let p0 = [0, 0];
 						let x   = co.x;
 						let y   = co.y;
 						let str = co.str;
@@ -9133,10 +9257,9 @@ function parse_svg()
 						ctx.textAlign = text_align2;
 						ctx.textBaseline = text_anchor2;
 						ctx.font = sprintf("%.3fpx sans-serif", nfont_sz2);
-						let p0;
 						y += y_xtra;
 						if (do_xlate) {
-							p0 = xlate(ctx,    x,    y, 0, svg_xmax, 0, svg_ymax, null, sector);
+							xlate(p0, ctx,    x,    y, 0, svg_xmax, 0, svg_ymax, null, sector);
 							if (!wide_relative[0]) {
 								p0[0] /= scl[0];
 							}
@@ -9722,6 +9845,7 @@ function parse_svg()
 			nfont_sz = g_cpu_diagram_flds.text_defaults.font_size;
 		}
     	ctx.save();
+		let p0 = [0,0];
 		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 			if ( typeof g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_arr === 'undefined') {
 				continue;
@@ -9861,7 +9985,7 @@ function parse_svg()
 				//nfont_sz *= g_svg_scale_ratio.svg_xratio;
 				let x0 = svg_xmax * ux/fmxx;
 				let y0 = svg_ymax * uy/fmxy;
-				let p0 = xlate(ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null, sector);
+				xlate(p0, ctx, x0, y0, 0, svg_xmax, 0, svg_ymax, null, sector);
 				let rot = 0;
 				let angle = 0.0;
 				ctx.beginPath();
