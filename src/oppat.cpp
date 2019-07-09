@@ -3316,7 +3316,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 static std::unordered_map<std::string, uint32_t> chart_categories_hash;
 static std::vector <std::string> chart_categories_vec;
 
-static std::string drop_trailing_zeroes(std::string &str)
+static std::string drop_trailing_zeroes(std::string str)
 {
 	size_t pos = str.find(".");
 	if (pos == std::string::npos) {
