@@ -354,6 +354,7 @@ obj/oppat.o: src/oppat.cpp  inc/tc_read_data.h
 obj/oppat.o: src/oppat.cpp  inc/utils.h
 obj/oppat.o: src/oppat.cpp  inc/utils2.h
 obj/oppat.o: src/oppat.cpp  inc/web_api.h
+obj/oppat.o: src/oppat.cpp  inc/xls.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/MemoryMapped.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/ck_nesting.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/dump.hpp
@@ -367,11 +368,15 @@ obj/prf_read_data.o: src/prf_read_data.cpp  inc/rd_json.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/rd_json2.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/tc_read_data.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/utils.h
+obj/prf_read_data.o: src/prf_read_data.cpp  inc/utils2.h
 obj/prf_read_data.o: src/prf_read_data.cpp  inc/web_api.h
 obj/printf.o: src/printf.cpp  inc/printf.h
 obj/printf.o: src/printf.cpp  inc/rd_json.h
 obj/pugixml.o: src/pugixml.cpp  inc/pugixml.hpp
+obj/rapid_json.o: src/rapid_json.cpp  inc/rapidjson/document.h
+obj/rapid_json.o: src/rapid_json.cpp  inc/rapidjson/error/en.h
 obj/rd_json.o: src/rd_json.cpp  inc/json.hpp
+obj/rd_json.o: src/rd_json.cpp  inc/rapid_json.h
 obj/rd_json.o: src/rd_json.cpp  inc/rd_json.h
 obj/rd_json.o: src/rd_json.cpp  inc/rd_json2.h
 obj/rd_json.o: src/rd_json.cpp  inc/utils.h
@@ -398,3 +403,7 @@ obj/win_msr.o: src/win_msr.c  inc/OlsApiInit.h
 obj/win_msr.o: src/win_msr.c  inc/OlsDef.h
 obj/win_msr.o: src/win_msr.c  inc/utils.h
 obj/win_msr.o: src/win_msr.c  inc/win_msr.h
+obj/xls.o: src/xls.cpp  inc/json.hpp
+obj/xls.o: src/xls.cpp  inc/utils.h
+obj/xls.o: src/xls.cpp  inc/utils2.h
+obj/xls.o: src/xls.cpp  inc/xls.h
