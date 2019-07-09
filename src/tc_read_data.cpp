@@ -691,7 +691,7 @@ struct tc_nms_str {
 
 static bool compareOcount(const tc_nms_str &a, const tc_nms_str &b)
 {
-	return a.ocount >= b.ocount;
+	return a.ocount > b.ocount;
 }
 
 int tc_read_data_bin(std::string flnm, int verbose, prf_obj_str &prf_obj, double tm_beg_in,
