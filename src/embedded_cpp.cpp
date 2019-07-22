@@ -141,7 +141,7 @@ class WebSocketHandler : public CivetWebSocketHandler {
 			q_from_clnt_to_srvr->push("Ready");
 			return 1;
 		}
-		if(ck_cmd(data, data_len, "image,") > 0) {
+		if(ck_cmd(data, data_len, "image,") > 0 || ck_cmd(data, data_len, "imagd,") > 0) {
 			printf("got image data_len= %d from client at %s %d\n", (int)(data_len), __FILE__, __LINE__);
 			std::string msg;
 			msg = data;
