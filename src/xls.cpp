@@ -155,7 +155,8 @@ int json_2_xls(std::string json_text, std::string filename, std::string from_whe
 
 			json kv_arr = t_str[i]["key_val_arr"];
 			json yvar_arr;
-			//printf("lp= %d, ph0= %s, ph1= %s, x0= %f, x1= %f at %s %d\n", lp, ph0.c_str(), ph1.c_str(), x0, x1, __FILE__, __LINE__);
+			printf("lp= %d, ph0= %s, ph1= %s, x0= %f, x1= %f kv_arr.sz= %d at %s %d\n",
+					lp, ph0.c_str(), ph1.c_str(), x0, x1, (int)kv_arr.size(), __FILE__, __LINE__);
 			std::string key, dsc;
 			for (uint32_t k=0; k < kv_arr.size(); k++) {
 				printf("ky= %s\n", key.c_str());
