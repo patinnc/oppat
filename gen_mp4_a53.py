@@ -333,6 +333,19 @@ fsz = int(yfctr*35)
 sz = fsz + int(yfctr*4)
 row[2] = sz
 font = ImageFont.truetype("/Program Files/Microsoft Office 15/root/vfs/Fonts/private/arialn.ttf", fsz)
+spin_pg_txt = [
+"Begin spin.x phase charts.",
+"Each chart is zoomed to (contains the only the data for) one phase.",
+"To go directly to a particular phase, go to the T=X seconds picture.",
+"For example, to go directly to the multi-core spin test (which is",
+"just a busy loop), go to T=14 seconds.",
+"",
+"T= 10 phase: Multi-core memory Read Bandwidth, GB/sec= 2.103833",
+"T= 11 phase: Multi-core memory Read/write Bandwidth, GB/sec= 1.843209",
+"T= 12 phase: Multi-core L2 Read Bandwidth, GB/sec= 19.755875",
+"T= 13 phase: Multi-core L2 Read/write Bandwidth, GB/sec= 19.172812",
+"T= 14 phase: Multi-core spin (busy up), Gops/sec= 1.133419",
+]
 pg_txt = [
 "Begin Geekbench phase charts.",
 "Each chart is zoomed to (contains the only the data for) one phase.",
@@ -371,6 +384,9 @@ pg_txt = [
 "T= 39 phase: sngle-core: Stream Add, score:870, metric:1.31 GB/sec",
 "T= 40 phase: sngle-core: Stream Triad, score:705, metric:998 MB/sec",
 ]
+if gb == 0:
+    pg_txt = spin_pg_txt
+
 for i in range(0, len(pg_txt)):
     draw.text((offx, gety(row)), pg_txt[i], (0,0,0), font=font)
 draw = ImageDraw.Draw(img)
@@ -440,6 +456,31 @@ if gb == 1:
     img_dta = imageio.imread("t_test.png")
     writer.append_data(img_dta)
     writer.close()
+    sys.exit(0)
+
+if gb == 0:
+    i = 0
+    for im in fileList:
+        #print("im[%d]= %s" % (i, im))
+        img_dta = imageio.imread(im)
+        #if 1==20 and i > 100:
+            #print(img_dta.shape)
+            #else:
+            #break
+        i += 1
+        writer.append_data(img_dta)
+    #img_dta = imageio.imread("t_test.png")
+    img_dta = imageio.imread(fileList[-1])
+    writer.append_data(img_dta)
+    # can't insert the dashboard png since it is a different size
+    #img_dta = imageio.imread("pat.png")
+    #writer.append_data(img_dta)
+    img_dta = imageio.imread("t_test.png")
+    writer.append_data(img_dta)
+    img_dta = imageio.imread("t_test.png")
+    writer.append_data(img_dta)
+    writer.close()
+    print("end code for spin ")
     sys.exit(0)
 
 
