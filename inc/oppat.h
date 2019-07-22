@@ -148,16 +148,20 @@ struct evts_derived_str {
 	std::vector <double> new_dvals;
 };
 
+enum {
+	GOT_FOLLOW_PROC = 0x01,
+};
+
 struct prf_samples_str {
 	std::string comm, event, tm_str, extra_str;
-	uint32_t evt_idx, pid, tid, cpu;
+	uint32_t evt_idx, pid, tid, cpu, flags;
 	int fe_idx, orig_order, line_num;
 	long mm_off;
 	uint64_t ts, period, tm_run;
 	std::vector <double> new_dvals;
 	std::vector <std::string> args, new_vals;
 	std::vector <prf_callstack_str> callstack;
-	prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), fe_idx(-1),
+	prf_samples_str(): evt_idx(-1), pid(-1), tid(-1), cpu(-1), flags(0), fe_idx(-1),
 		orig_order(-1), line_num(0), mm_off(-1), ts(0), period(0), tm_run(0) {}
 };
 
@@ -169,9 +173,9 @@ struct prf_event_desc_str {
 };
 
 struct etw_str {
-	uint32_t txt_idx, data_idx, cs_idx_beg, cs_idx_end;
+	uint32_t txt_idx, data_idx, cs_idx_beg, cs_idx_end, flags;
 	uint64_t ts;
-	etw_str(): txt_idx(-1), data_idx(-1), cs_idx_beg(-1), cs_idx_end(-1), ts(0) {}
+	etw_str(): txt_idx(-1), data_idx(-1), cs_idx_beg(-1), cs_idx_end(-1), flags(0), ts(0) {}
 };
 
 #include "MemoryMapped.h"
