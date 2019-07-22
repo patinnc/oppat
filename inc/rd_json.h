@@ -152,6 +152,7 @@ enum class copt_enum : const uint64_t {
 	SHOW_EVEN_IF_ALL_ZERO           = (1ULL << 5),
 	SUM_TO_INTERVAL           		= (1ULL << 6),
 	TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y  = (1ULL << 7),
+	TOT_LINE_LEGEND_WEIGHT_BY_EVENT_NAME  = (1ULL << 8),
 };
 
 enum class fte_enum : const uint64_t {
