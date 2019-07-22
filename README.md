@@ -31,6 +31,13 @@ Here is some example data for running an old version of Geekbench v2.4.2 (32bit 
 - an excel file of the data in the movie:  [excel file from geekbench the movie](xls/geekbench_on_ARM_A53_the_movie.xlsx)
 - the HTML of the data in the movie...See [Geekbench v2.4.2 on 4 core ARM Cortext A53 with OS_view, CPU diagram](sample_html_files/geekbench_on_ARM_A53_the_movie.html).
 
+Here is some example data for running my spin benchmark (memory/cache bandwidth tests, a 'spin' keep-cpu-busy test) on Raspberry Pi 3 B+ (Cortex A53) CPUs:
+-  a video of the changes to OS_view and ARM A53 cpu block diagram running spin: [![Spin on ARM A53 - the movie](images/spin_on_ARM_A53_the_movie.png)](https://youtu.be/GZi26LjVyrk)
+    - there are some introductory slides to try and explain the OS_view charts and the cpu_diagram layout, a slide showing at which time (in seconds) each sub-test is showing (so you can go to T= X secs to go directly to that sub-test) and then one slide for each of the 5 subtests
+- an excel file of the data in the movie:  [excel file from geekbench the movie](xls/spin_on_ARM_A53_the_movie.xlsx)
+- the HTML of the data in the movie...See [ARM Cortex A53 Raspberry PI 3 with CPU diagram 4-core chip running spin benchmark](sample_html_files/spin_on_ARM_A53_the_movie.html).
+- the dashboard PNG for all 5 phases sorted by increasing instructions/sec...See [ARM Cortex A53 Raspberry PI 3 with CPU diagram 4-core chip dashboard running spin benchmark](images/spin_on_ARM_A53_the_dashboard.html).
+
 Here is some example data for running Geekbench on Haswell CPUs:
 -  a video of the changes to OS_view and Haswell cpu block diagram running Geekbench: [![Geekbench - the movie v4](images/geekbench_the_movie.png)](https://youtu.be/oRADZrtDZ6s)
     - there are some introductory slides to try and explain the OS_view charts and the cpu_diagram layout, a slide showing at which time (in seconds) each sub-test is showing (so you can go to T= X secs to go directly to that sub-test) and then one slide for each of the 50 subtests
@@ -77,7 +84,7 @@ The Intel Haswell with CPU diagram data collections are for a 4-CPU Intel chip, 
     - [a screen shot of the haswell cpu diagram spin table](images/tbl_spin.png)
 
 
-Currently this is only available for haswell (I don't have other systems to test on) but it shouldn't be hard to add other block diagrams.
+Currently I only have cpu_diagram movies for Haswell and ARM A53 (since I don't have other systems to test on) but it shouldn't be hard to add other block diagrams. You still get all the charts but not the cpu_diagram.
 
 Below is one of the OPPAT charts. The 'cpu_busy' chart shows what is running on each CPU and the events that happen on each cpu. For example, the green circle shows a spin.x thread running on CPU 1. The red circle shows some of the events occurring on CPU1. This chart is modeled after trace-cmd's kernelshark chart. More info on the cpu_busy chart is in [chart-types section](#chart-types). The callout box shows the event data (including callstack (if any)) for the event under the cursor. Unfortunately windows screenshot doesn't capture the cursor.
 ![a screen shot of the cpu busy chart](images/cpu_busy.png)
