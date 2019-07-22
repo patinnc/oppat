@@ -1343,6 +1343,7 @@ static void bld_copt(void)
 	copt_strs.push_back({(uint64_t)copt_enum::SHOW_EVEN_IF_ALL_ZERO,			"SHOW_EVEN_IF_ALL_ZERO"});
 	copt_strs.push_back({(uint64_t)copt_enum::SUM_TO_INTERVAL,					"SUM_TO_INTERVAL"});
 	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y,	"TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y"});
+	copt_strs.push_back({(uint64_t)copt_enum::TOT_LINE_LEGEND_WEIGHT_BY_EVENT_NAME,	"TOT_LINE_LEGEND_WEIGHT_BY_EVENT_NAME"});
 }
 
 static void bld_fld_typ(void)
