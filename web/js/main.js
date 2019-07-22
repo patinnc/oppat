@@ -18,13 +18,43 @@ var g_cpu_diagram_flds_json_str = null;
 var g_cpu_diagram_flds = null;
 var g_cpu_diagram_canvas = null;
 var g_cpu_diagram_canvas_ctx = null;
+var g_cpu_diagram_canvas_dash = null;
+var g_cpu_diagram_canvas_ctx_dash = null;
 var g_do_flamegraphs = true;
 var g_do_gc = false; // for gc(), chrome has to be started with --js-flags="--expose-gc"
 var g_cpu_diagram_draw_svg = null;
 var g_svg_scale_ratio = null;
+
 const CH_TYPE_LINE="line";
 const CH_TYPE_BLOCK="block";
 const CH_TYPE_STACKED="stacked";
+// the SHAPE_* variable values must agree with the SPARE_* enum in main.cpp
+const SHAPE_LINE   = 1;
+const SHAPE_RECT   = 2;
+const SHAPE_FOLLOW = 4;
+// the IVAL_* variable indices must agree with the json 'ival' order in main.cpp build_shapes_json(build_shapes_json)
+const IVAL_SHAPE  = 0;
+const IVAL_CPT    = 1;
+const IVAL_FE     = 2;
+const IVAL_CAT    = 3;
+const IVAL_SUBCAT = 4;
+const IVAL_PERIOD = 5;
+const IVAL_CPU    = 6;
+const PTS_X0 = 0;
+const PTS_Y0 = 1;
+const PTS_X1 = 2;
+const PTS_Y1 = 3;
+const g_d3_clrs_c10 = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
+const g_d3_clrs_c20 = ["#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
+  "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5" ];
+const FLAMEGRAPH_BASE_CPT = 0; // comm, pid, tid
+const FLAMEGRAPH_BASE_CP  = 1; // comm, pid
+const FLAMEGRAPH_BASE_C   = 2; // comm
+var g_flamegraph_base = FLAMEGRAPH_BASE_CPT;
+const gcolor_def = "lavender"; // lavender e6e6fa for events above 'number of colors' rank
+const gcolor_lst = ["#b0556a", "#7adf39", "#8d40d6", "#ead12d", "#0160eb", "#aaed78", "#f945b7", "#04e6a0", "#cf193b", "#4df8ca", "#b21f72", "#41981b", "#b773eb", "#276718", "#f39afb", "#0ea26a", "#015fc6", "#ec7118", "#108cf5", "#feab4f", "#1eacf8", "#a13502", "#49f6fd", "#9e5d33", "#30d8ec", "#ab952f", "#8156a5", "#f5db82", "#1e67a9", "#f6b17c", "#47caf9", "#695909", "#7daaef", "#a4ce84", "#ef89bb", "#1c6c43", "#ecb5f2", "#7ddab8", "#0f88b4", "#07a1b2"];
+var number_of_colors = gcolor_lst.length;
+
 var g_got_cpu_diagram_svg = false;
 var gmsg_span = null;
 var gpixels_high_default = 250;
@@ -34,24 +64,6 @@ var gjson = {};
 var gjson_str_pool = null;
 var g_BigEval = new BigEval();
 var did_c10_colors = 0;
-var g_d3_clrs_c10 = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"];
-var g_d3_clrs_c20 = ["#1f77b4", "#aec7e8", "#ff7f0e", "#ffbb78", "#2ca02c", "#98df8a", "#d62728", "#ff9896", "#9467bd", "#c5b0d5",
-  "#8c564b", "#c49c94", "#e377c2", "#f7b6d2", "#7f7f7f", "#c7c7c7", "#bcbd22", "#dbdb8d", "#17becf", "#9edae5" ];
-// the SHAPE_* variable values must agree with the SPARE_* enum in main.cpp
-var SHAPE_LINE = 0;
-var SHAPE_RECT = 1;
-// the IVAL_* variable indices must agree with the json 'ival' order in main.cpp build_shapes_json(build_shapes_json)
-var IVAL_SHAPE  = 0;
-var IVAL_CPT    = 1;
-var IVAL_FE     = 2;
-var IVAL_CAT    = 3;
-var IVAL_SUBCAT = 4;
-var IVAL_PERIOD = 5;
-var IVAL_CPU    = 6;
-var PTS_X0 = 0;
-var PTS_Y0 = 1;
-var PTS_X1 = 2;
-var PTS_Y1 = 3;
 var g_tm_beg = 0.0;
 var g_fl_hsh= [];
 var g_fl_arr= [];
@@ -59,17 +71,10 @@ var g_fl_obj= [];
 var g_fl_obj_rt = [];
 var g_do_step = true; // connect line chart 'horizontal dashes' with vertical lines if < 3 pixels between end of 1st dash and start of 2nd dash
 var g_do_step_changed = false; // set if user overrides default
-var FLAMEGRAPH_BASE_CPT = 0; // comm, pid, tid
-var FLAMEGRAPH_BASE_CP  = 1; // comm, pid
-var FLAMEGRAPH_BASE_C   = 2; // comm
-var g_flamegraph_base = FLAMEGRAPH_BASE_CPT;
 var did_prt = 0;
 var g_svg_obj = {status:0, str:""};
 
 var chart_did_image = [];
-var gcolor_def = "lavender"; // lavender e6e6fa for events above 'number of colors' rank
-var gcolor_lst = ["#b0556a", "#7adf39", "#8d40d6", "#ead12d", "#0160eb", "#aaed78", "#f945b7", "#04e6a0", "#cf193b", "#4df8ca", "#b21f72", "#41981b", "#b773eb", "#276718", "#f39afb", "#0ea26a", "#015fc6", "#ec7118", "#108cf5", "#feab4f", "#1eacf8", "#a13502", "#49f6fd", "#9e5d33", "#30d8ec", "#ab952f", "#8156a5", "#f5db82", "#1e67a9", "#f6b17c", "#47caf9", "#695909", "#7daaef", "#a4ce84", "#ef89bb", "#1c6c43", "#ecb5f2", "#7ddab8", "#0f88b4", "#07a1b2"];
-var number_of_colors = gcolor_lst.length;
 
 var mymodal = null;
 var mymodal_span = null;
@@ -439,9 +444,7 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 				}
 			}, 500);
 		}
-		//if (!got_all_OS_view_images(1, image_whch_txt_init)) {
-			myDelay();
-		//}
+		myDelay();
 	}
 	let tm_n02 = performance.now();
 	if (ct == g_chart_tag_tm_trace) {
@@ -487,7 +490,6 @@ function LinkZoom( el, cb )
 		console.log(sprintf("lnk_zm: x0= %f x1= %f", gsync_zoom_last_zoom.x0, gsync_zoom_last_zoom.x1));
 
 		let j = gsync_zoom_last_zoom.chrt_idx;
-		//abcd
 		let txt = "doing zoom all";
 		document.title = txt;
 		mymodal.style.display = "none";
@@ -700,6 +702,7 @@ function get_chart_options(chart_options)
 		tot_line_add_values_in_interval:false,
 		tot_line_legend_weight_by_dura:false,
 		tot_line_legend_weight_by_x_by_y:false,
+		tot_line_legend_weight_by_event_name:false,
 		tot_line_bucket_by_end_of_sample:false,
 		sum_to_interval:false,
 		show_even_if_all_zero:false,
@@ -720,6 +723,10 @@ function get_chart_options(chart_options)
 		tst_opt = "TOT_LINE_LEGEND_WEIGHT_BY_X_BY_Y";
 		if (chart_options.indexOf(tst_opt) >= 0) {
 			ch_options.tot_line_legend_weight_by_x_by_y = true;
+		}
+		tst_opt = "TOT_LINE_LEGEND_WEIGHT_BY_EVENT_NAME";
+		if (chart_options.indexOf(tst_opt) >= 0) {
+			ch_options.tot_line_legend_weight_by_event_name = true;
 		}
 		tst_opt = "TOT_LINE_BUCKET_BY_END_OF_SAMPLE";
 		if (chart_options.indexOf(tst_opt) >= 0) {
@@ -992,6 +999,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		} else if (typeof chart_data.tot_line_opts_xform !== "undefined" &&
 			chart_data.tot_line_opts_xform == "select_vars") {
 			let u_hsh = {};
+			let u_hsh_lkup = {};
+			let u_arr_lkup = [];
 			let u_arr = [];
 			let num_events = chart_data.subcat_rng.length;
 			for (let j=0; j < num_events; j++) {
@@ -1004,12 +1013,27 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					console.log("__xform: ", chart_data.subcat_rng[j]);
 				}
 				u_hsh[j] = nm;
+				u_hsh_lkup[nm] = j;
+				u_arr_lkup.push(nm);
 				u_arr.push(j);
 			}
-			for (let i=0; i < u_arr.length; i++) {
-				let str = u_hsh[u_arr[i]];
-				tot_line.evt_str_base_val_arr.push(u_arr[i]);
-				tot_line.evt_str_base_val_hsh[u_arr[i]] = i;
+			u_arr_lkup.sort();
+			for (let j=0; j < u_arr.length; j++) {
+				let str, i;
+				if (true) {
+					i = j;
+					str = u_hsh[u_arr[i]];
+					tot_line.evt_str_base_val_arr.push(u_arr[i]);
+					tot_line.evt_str_base_val_hsh[u_arr[i]] = i;
+				} else {
+					// I don't have the u_arr_lkup stuff working yet.
+					// It is an attempt to ensure everthing is sorted by event name.
+					// The FREQ_BY_CPU dashboard bar chart legend for arm_multi10 isn't in alpha order.
+					str = u_arr_lkup[j];
+					i = u_hsh_lkup[str];
+					tot_line.evt_str_base_val_arr.push(i);
+					tot_line.evt_str_base_val_hsh[i] = i;
+				}
 				if (typeof chart_data.tot_line_opts_yvar_fmt !== 'undefined') {
 					str = sprintf(chart_data.tot_line_opts_yvar_fmt, str);
 				}
@@ -1450,6 +1474,25 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		let str= tot_line.evt_str;
 		event_list.push({event:str, idx:-1, total:0.0001, fe_idx:-1});
 		*/
+		function sortEventName(a, b) {
+			if ((a.is_tot_line === true && b.is_tot_line === true) ||
+				(a.is_tot_line !== true && b.is_tot_line !== true)) {
+				if (a.event < b.event) {
+					return -1;
+				}
+				if (a.event > b.event) {
+					return 1;
+				}
+				return 0;
+			}
+			if (a.is_tot_line === true && b.is_tot_line !== true) {
+				return -1;
+			}
+			//if (a.is_tot_line !== true && b.is_tot_line === true) {
+				return 1;
+			//}
+			//return b.total - a.total;
+		}
 		function sortCat(a, b) {
 			return b.total - a.total;
 		}
@@ -1485,6 +1528,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		} else if (ch_options.tot_line_legend_weight_by_dura) {
 			console.log("sort legend by dura for chart= "+chart_data.chart_tag);
 			event_list.sort(sortDura);
+		} else if (ch_options.tot_line_legend_weight_by_event_name) {
+			console.log("sort legend by name for chart= "+chart_data.chart_tag);
+			event_list.sort(sortEventName);
 		} else {
 			event_list.sort(sortCat);
 		}
@@ -3267,18 +3313,15 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 							tstr = gjson_str_pool.str_pool[0].strs[txtidx];
 						}
 						if (typeof follow_arr !== 'undefined') {
+							let got_follow = chart_data.myshapes[i].ival[IVAL_SHAPE] & SHAPE_FOLLOW;
 							if (follow_arr.length > 0) {
+								let tm_dff = tx1 - tx0;
 								if (pid == 0 && tid == 0) {
-									follow_arr[icpu].idle += tx1 - tx0;
-								} else if (tstr !== null && follow_proc !== null) {
-									if (tstr.indexOf(follow_proc) >= 0) {
-										follow_arr[icpu].follow += tx1 - tx0;
-									} else {
-										follow_arr[icpu].other += tx1 - tx0;
-									}
-
+									follow_arr[icpu].idle += tm_dff;
+								} else if (got_follow == SHAPE_FOLLOW) {
+									follow_arr[icpu].follow += tm_dff;
 								} else {
-									follow_arr[icpu].other += tx1 - tx0;
+									follow_arr[icpu].other += tm_dff;
 								}
 							}
 						}
@@ -3288,9 +3331,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					let yval, num, den;
 					if (ch_type == CH_TYPE_LINE) {
 						yval = y1;
-						//if (tot_line.evt_str[sci]  == "av.nanosleep") {
-							//console.log(sprintf("nano: y0: %.3f, y1: %.3f", y0, y1));
-						//}
 						if (map_num_den > 0) {
 							num = chart_data.myshapes[i].num;
 							den = chart_data.myshapes[i].den;
@@ -3697,7 +3737,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		ctx.stroke();
 		let line_done = [];
 		lkup = [];
-		//abcd
 		for (let i=0; i < chart_data.subcat_rng.length; i++) {
 			line_done.push({});
 			lkup.push([]);
@@ -3835,7 +3874,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				*/
 			}
 			let drew_this_shape = false;
-			if (ch_type == CH_TYPE_BLOCK && chart_data.myshapes[i].ival[IVAL_SHAPE] == SHAPE_RECT) {
+			let shape_typ = (chart_data.myshapes[i].ival[IVAL_SHAPE] & (SHAPE_RECT|SHAPE_LINE));
+			if (ch_type == CH_TYPE_BLOCK && shape_typ == SHAPE_RECT) {
 				let wd = end[0] - beg[0];
 				let hi = end[1] - beg[1];
 				if (wd < 0) {
@@ -4002,6 +4042,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						}
 						if (g_do_flamegraphs) {
 						if (!doing_idle && chart_data.chart_tag == "PCT_BUSY_BY_CPU") {
+							//abcd
 							let cs_ret = get_cs_str(i, nm);
 							build_flame(event_list[fe_2].event, unit, cs_ret.arr, period, hvr_clr, cs_clr, null);
 							if (has_cpi && (
@@ -4434,12 +4475,15 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					if (doing_flame) {
 						gjson.chart_data[j].fl_image_shape = {canvas3:use_canvas, wide:use_canvas.width, high:use_canvas.height-0.0, ele_title_nm:ele_title_nm};
 						gjson.chart_data[j].fl_image_hover = hover_func;
+						gjson.chart_data[j].fl_image_ready = true;
+						/*
 						gjson.chart_data[j].fl_image_ready = false;
 						gjson.chart_data[j].fl_image = new Image();
 						gjson.chart_data[j].fl_image.src = use_canvas.toDataURL("image/png");
 						gjson.chart_data[j].fl_image.onload = function(){
 							gjson.chart_data[j].fl_image_ready = true;
 						}
+						*/
 					} else {
 						if (typeof gjson.chart_data[j].image_data === 'undefined') {
 							gjson.chart_data[j].image_data = {};
@@ -4449,13 +4493,16 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						}
 						gjson.chart_data[j].image_data.shape = {canvas3:use_canvas, wide:use_canvas.width, high:use_canvas.height-0.0, ele_title_nm:ele_title_nm};
 						gjson.chart_data[j].image_data.hover = hover_func;
+						gjson.chart_data[j].image_ready = true;
+						/*
 						gjson.chart_data[j].image_ready = false;
 						gjson.chart_data[j].image = new Image();
-						//console.log("going to save image_nm for chart["+j+"]= "+chart_data.chart_tag);
 						gjson.chart_data[j].image.src = use_canvas.toDataURL("image/png");
 						gjson.chart_data[j].image.onload = function(){
 							gjson.chart_data[j].image_ready = true;
 						}
+						*/
+						//console.log("going to save image_nm for chart["+j+"]= "+chart_data.chart_tag);
 					}
 					if (use_j != -1) {
 						g_cpu_diagram_flds.cpu_diagram_fields[use_j].gjson_chart_data_img_idx = j;
@@ -5624,6 +5671,49 @@ function draw_text_w_bk(ctx, str, font, font_hi, x, y, sector)
     ctx.restore();
 }
 
+function get_shape(shape, x0, x1, y0, y1) {
+	if (shape.x0 == -1 || shape.x0 > x0) {
+		shape.x0 = x0;
+	}
+	if (shape.x1 == -1 || shape.x1 < x1) {
+		shape.x1 = x1;
+	}
+	if (shape.y0 == -1 || shape.y0 > y0) {
+		shape.y0 = y0;
+	}
+	if (shape.y1 == -1 || shape.y1 < y1) {
+		shape.y1 = y1;
+	}
+}
+
+function draw_text_w_bk_extra(ctx, str, font, font_hi, x, y, sector, Align, Baseline, shape)
+{
+    ctx.save();
+    ctx.font = font;
+    ctx.textBaseline = Baseline;
+	ctx.textAlign = Align;
+    ctx.fillStyle = 'white';
+	let sector_add = 0;
+	if (sector == 1 && typeof g_cpu_diagram_flds.sectors !== 'undefined' &&
+		g_cpu_diagram_flds.sectors.length > 1 &&
+		typeof g_cpu_diagram_flds.sectors[1].y_offset !== 'undefined') {
+		sector_add = g_cpu_diagram_flds.sectors[1].y_offset;
+		//console.log(sprintf("draw_text_w_bk: sector= %d, add= %f", sector, sector_add));
+	}
+    var width = ctx.measureText(str).width;
+	let box_beg = y+sector_add;
+	if (Baseline == 'middle') {
+		box_beg -= font_hi/2;
+	} else if (Baseline == 'bottom') {
+		box_beg -= font_hi;
+	}
+    ctx.fillRect(x, box_beg, width, font_hi);
+	get_shape(shape, x, x+width, box_beg, box_beg+font_hi);
+    ctx.fillStyle = 'black';
+    ctx.fillText(str, x, y+sector_add);
+    ctx.restore();
+}
+
 function draw_svg_header(lp, xbeg, xend, gen_jtxt, svg_scale_ratio, verbose)
 {
 	let strm = get_phase_indx(xbeg + 0.5*(xend-xbeg), verbose);
@@ -5687,12 +5777,14 @@ function draw_svg_header(lp, xbeg, xend, gen_jtxt, svg_scale_ratio, verbose)
 			let ymx = g_cpu_diagram_canvas.height;
 			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 			//console.log(sprintf("draw_svg_header: sector= %d, x= %.3f, y= %.3f", 1, x, y));
+			/*
 			draw_text_w_bk(g_cpu_diagram_canvas_ctx, "phase beg: "+strb, font, font_sz, x, y, 1);
 			draw_text_w_bk(g_cpu_diagram_canvas_ctx, "phase end: "+stre, font, font_sz, x, y+font_sz, 1);
 			let str_beg = sprintf("phase beg tm_abs: %.3f", xbeg);
 			let str_end = sprintf("phase end tm_abs: %.3f", xend);
 			draw_text_w_bk(g_cpu_diagram_canvas_ctx, str_beg, font, font_sz, x, y+2*font_sz, 1);
 			draw_text_w_bk(g_cpu_diagram_canvas_ctx, str_end, font, font_sz, x, y+3*font_sz, 1);
+			*/
 			break;
 		}
 	}
@@ -5773,7 +5865,7 @@ async function start_charts() {
 	chart_divs.length = 0;
 	let ch_did_it = [];
 	get_mem_usage("__mem: at 0: ");
-	if (g_cpu_diagram_flds_json_str.length > 0) {
+	if (g_cpu_diagram_flds_json_str !== null && g_cpu_diagram_flds_json_str.length > 0) {
 		g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
 	}
 	for (let i=0; i < gjson.chart_data.length; i++) {
@@ -6104,6 +6196,10 @@ async function start_charts() {
 		phobj.lp_max = divisions;
 	}
 	if (g_cpu_diagram_canvas !== null) {
+		if (g_cpu_diagram_canvas.json_text !== null) {
+			g_cpu_diagram_canvas.json_text += "]}";
+			webSocket.send("json_table="+g_cpu_diagram_canvas.json_text);
+		}
 		g_cpu_diagram_canvas.json_text = null;
 	}
 
@@ -6200,6 +6296,7 @@ async function start_charts() {
 		if (rc != -1) {
 			console.log(sprintf("send_blob by_phase= %d: lp= %d, from= %s str= %s", po.by_phase, po.lp, from, str));
 			myblob(g_cpu_diagram_canvas, "image,"+str+",imagedata:");
+			myblob(g_cpu_diagram_canvas_dash, "imagd,"+str+",imagedata:");
 		} else {
 			console.log(sprintf("skipping invalid phase %d", po.lp));
 		}
@@ -6879,7 +6976,7 @@ function my_resize_rtn() {
 	g_charts_done.cntr = 0;
 	chart_did_image = [];
 	g_cpu_diagram_flds = null;
-	if (g_cpu_diagram_flds_json_str.length > 0) {
+	if (g_cpu_diagram_flds_json_str !== null && g_cpu_diagram_flds_json_str.length > 0) {
 		g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
 	}
 	for (let i=0; i < gjson.chart_data.length; i++) {
@@ -7095,6 +7192,7 @@ function parse_svg()
 	let svg_ymax = +svg_gs[0].getAttributeNS(null, 'height');
 	let svg_name = svg_gs[0].getAttributeNS(null, 'sodipodi:docname');
 	let svg_ver = svg_gs[0].getAttributeNS(null, 'version');
+	let svg_hdr_obj = {};
 	console.log("svg_name= "+svg_name+', ver= '+svg_ver);
 
 	let y_shift = 0;
@@ -7297,8 +7395,27 @@ function parse_svg()
 	//console.log(sprintf("svg: wi= %s, de.cw= %s, cw= %s",
 	//	window.innerWidth, document.documentElement.clientWidth, document.body.clientWidth));
 	let myhvr_clr = document.getElementById(hvr_clr);
-	let str = '<div id="tbl_'+hvr_clr+'"></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high+y_shift)+'" style="border:1px solid #000000;"><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div>';
+	let str_dash_nm = 'canvas_dash_'+hvr_clr;
+	let str_dash = '<canvas id="'+str_dash_nm+'" width="'+(px_wide)+'" height="'+(px_high+y_shift)+'" style="border:1px solid #000000;"></canvas>';
+	//str_dash = '';
+	let str = '<div id="tbl_'+hvr_clr+'"></div>'+str_dash+'<div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide)+'" height="'+(px_high+y_shift)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div>';
 	myhvr_clr.innerHTML = str;
+	let canvas_dash_obj = {width: px_wide, height: px_high+y_shift, charts:[]};
+	let canvas_dash;
+	if (str_dash == '') {
+		canvas_dash = document.createElement("canvas_dash_"+hvr_clr);
+	} else {
+		canvas_dash = document.getElementById("canvas_dash_"+hvr_clr);
+	}
+	//canvas_dash.width = px_wide;
+	//canvas_dash.height = px_high+y_shift;
+	let ctx_dash = canvas_dash.getContext("2d");
+	g_cpu_diagram_canvas_dash = canvas_dash;
+	g_cpu_diagram_canvas_ctx_dash = ctx_dash;
+	ctx_dash.clearRect(0, 0, canvas_dash.width, canvas_dash.height);
+	ctx_dash.fillStyle = 'white';
+	ctx_dash.fillRect(0, 0, canvas_dash.width, canvas_dash.height);
+	console.log("__dash: ", canvas_dash);
 	let mycanvas  = document.getElementById('canvas_'+hvr_clr);
 	let mytooltip = document.getElementById("tooltip_"+hvr_clr);
 	let mytable   = document.getElementById("tbl_"+hvr_clr);
@@ -7794,24 +7911,74 @@ function parse_svg()
 		}
 	}
 
-	function drawBarChart(ctx, data, colors, grf_def_idx, do_legend) {
+	function dash_offset(grf_def_idx, order) {
+		let y_bot = -1, y_top = -1;
+		let y_cur = 50;
+		for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def !== 'undefined') {
+				let dash   = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.dash;
+				let torder = -1;
+				let high_scale = 1.0;
+				if (typeof dash !== 'undefined' && dash !== null && typeof dash.order !== 'undefined' && dash.order !== null) {
+					torder = dash.order;
+				}
+				if (typeof dash !== 'undefined' && dash !== null && typeof dash.high_scale !== 'undefined' && dash.high_scale !== null) {
+					high_scale = dash.high_scale;
+				}
+				if (torder > -1 && torder < order) {
+					y_cur += g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.high * high_scale;
+					let hdr_ftr = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.hdr_ftr_high;
+					if (typeof hdr_ftr !== 'undefined' && hdr_ftr !== null) {
+						y_cur += hdr_ftr * high_scale;
+					}
+				}
+			}
+		}
+		return y_cur;
+	}
+
+	function drawBarChart(ctx, data, colors, grf_def_idx, do_legend, order) {
+		ctx.save();
+		let json_txt = "";
 		let px_x, px_y_hdr;
-		function xlate_bar(x1, y1) {
+		let use_order = true;
+		let segment = 1;
+		let Align    = 'left';
+		let Baseline = 'middle';
+		let shape = {x0:-1, x1:-1, y0:-1, y1:-1};
+		function xlate_bar(x1, y1, isegment) {
 			let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
 			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 			let x2 = svg_xmax * x1/fmxx;
 			let y2 = svg_ymax * y1/fmxy;
 			let p0 = [0, 0];
-			xlate(p0, ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
+			xlate(p0, ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, isegment);
 			return p0;
 		}
 		let x1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
 		let y1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
-		[px_x, px_y_hdr] = xlate_bar(x1, y1);
+		let ox1 = x1;
+		let oy1 = y1;
+		if (use_order && order > -1) {
+			ox1 = 20;
+			oy1 = dash_offset(grf_def_idx, order);
+			x1 = ox1;
+			y1 = oy1;
+			segment = 0;
+		}
+		[px_x, px_y_hdr] = xlate_bar(x1, y1, segment);
 		let tpx = 13;
 		let tstr = sprintf("%dpx sans-serif", tpx);
+		ctx.font = tstr;
+		ctx.fillStyle = 'black';
+		ctx.textAlign = Align;
+		ctx.textBaseline = Baseline;
+		//console.log(sprintf("__bar: font= %s, ali= %s, base= %s", ctx.font, ctx.textAlign, ctx.textBaseline));
+		let px_y     = px_y_hdr;
 		let hdr_ftr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.hdr_ftr_high;
-		let px_y     = px_y_hdr + hdr_ftr;
+		if (typeof hdr_ftr !== 'undefined' && hdr_ftr !== null) {
+				px_y     += hdr_ftr;
+		}
 		let px_wide  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.wide;
 		let px_high  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.high;
 		let typ      = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.typ;
@@ -7832,15 +7999,20 @@ function parse_svg()
 			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x !== 'undefined') {
 				bal_x = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x;
 				bal_y = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.y;
-				[bal_x, bal_y] = xlate_bar(bal_x, bal_y);
+				/*
+				*/
+				if (use_order && order > -1) {
+					let ty1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
+					bal_x = ox1;
+					bal_y = oy1 - ty1 + bal_y;
+				}
+				[bal_x, bal_y] = xlate_bar(bal_x, bal_y, segment);
 			}
 			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.max_value !== 'undefined') {
 				bal_max_value = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.max_value;
 			}
 		}
-		let x = (px_wide / 2),
-			y = (px_high / 2);
-		x = y = 0.0;
+		let x = 0.0, y = 0.0;
 
 		let bar_wd = 20.0;
 
@@ -7865,7 +8037,6 @@ function parse_svg()
 		}
 
 		let total, total_abs;
-		let twoPI = 1.0;
   
 		function calcHeight(data, index, total) {
 			return 100.0 * data[index].value / total;
@@ -7875,6 +8046,14 @@ function parse_svg()
 
 		let bal_hdr_str = balance_hdr;
 
+		// clear rectangle for bars
+		ctx.fillStyle = 'white';
+		ctx.fillRect(px_x, px_y, data.length * bar_wd , px_high);
+		ctx.stroke();
+
+		get_shape(shape, px_x, (px_x + data.length*bar_wd), px_y, px_y+px_high);
+
+		let tval_arr = [];
 		// bar chart
 		for (let ch=0; ch < data.length; ch++) {
 			let data_nw = data[ch];
@@ -7888,12 +8067,14 @@ function parse_svg()
 			let arr = [];
 
 			if (ch == 0 || data_nw.length > 1) {
+				// draw graph name/title
 				ctx.font = tstr;
 				ctx.fillStyle = 'black';
 				let evt_str = grf_name;
-				ctx.fillText(evt_str, px_x + x2, px_y_hdr);
+				//ctx.fillText(evt_str, px_x + x2, px_y_hdr);
+				draw_text_w_bk_extra(ctx, evt_str, tstr, tpx, px_x+x2, px_y_hdr, 0, Align, Baseline, shape);
 				//evt_str = data_nw[0].evt_str;
-				//ctx.fillText(evt_str, px_x + x2, px_y+px_high+hdr_ftr);
+				//ctx.fillText(evt_str, px_x + x2, px_y+px_high-hdr_ftr);
 			}
 
 			let heights = [];
@@ -7937,6 +8118,7 @@ function parse_svg()
 				if (bal_slice != -1) {
 					leg_num -= 1;
 				}
+				// draw i'th rectangle
 				ctx.beginPath();
 				if (data_nw.length > 1) {
 					ctx.fillStyle = colors[leg_num];
@@ -7948,59 +8130,130 @@ function parse_svg()
 				ctx.stroke();
 				let tnum = sprintf("%d", ch);
 				let twidth = ctx.measureText(tnum).width;
-				let angleHalf = heights[i].beg + 0.5 * bar_hi;
-				if (do_legend && false && (ch+1) == data.length) {
-					ctx.save();
-					let atxt = "";
-					atxt = sprintf(", ab= %.3f, ae= %.3f ah= %.3f diff= %.1f",
-							heights[i].beg, heights[i].end, angleHalf, bar_hi);
-					ctx.rect(px_x + px_wide + 10 + x2, px_y + leg_num * (tpx+5), 12, 12);
-					ctx.fill();
-					ctx.font = tstr;
+				//if (do_legend && true && (ch+1) == data.length)
+				if (do_legend && true) {
+					if (false) {
+						ctx.save();
+						ctx.rect(px_x + px_wide + 10 + x2, px_y + leg_num * (tpx+5), 12, 12);
+						ctx.fill();
+						ctx.font = tstr;
+					}
 					let dval = "";
 					if (!do_bal) {
 						dval = sprintf(": %.3f, ", data_nw[i].value);
 					}
 					let tvals = "";
-					if (data.length == 1) {
+					if (data.length >= 1) {
 						let tspc = "";
 						if (data_nw[i].label.length > 0 && 
 								(data_nw[i].label.substr(-1) != " " && data_nw[i].label.substr(-1) != ":")) {
 							tspc = " ";
 						}
-						tvals = tspc + dval + sprintf("%.2f%%", 100.0*bar_hi/twoPI);
+						let tv = sprintf("%.2f%%", (heights[i].end - heights[i].beg));
+						tvals = tspc + dval + tv;
+						tval_arr.push(dval + tv);
+						//console.log(sprintf("__bar: tvals= %s", tvals));
 					}
-					let lstr = tnum + " " + data_nw[i].label + tvals;
-					let leg_x = px_x + px_wide + 25 + x2;
-					let leg_y = px_y +  leg_num * (tpx+5) + 10;
-					let do_bkgrnd = false;
-					if (do_bkgrnd) {
-						ctx.fillStyle = 'white';
-						let width = ctx.measureText(lstr).width;
-						ctx.fillRect(leg_x, leg_y - tpx + 5, width, tpx);
+					if (false) {
+						let lstr = tnum + " " + data_nw[i].label + tvals;
+						let leg_x = px_x + px_wide + 25 + x2;
+						let leg_y = px_y +  leg_num * (tpx+5) + 10;
+						let do_bkgrnd = false;
+						if (do_bkgrnd) {
+							ctx.fillStyle = 'white';
+							let width = ctx.measureText(lstr).width;
+							ctx.fillRect(leg_x, leg_y - tpx + 5, width, tpx);
+						}
+						ctx.fillStyle = 'black';
+						//ctx.fillText(lstr, leg_x, leg_y);
+						draw_text_w_bk_extra(ctx, lstr, tstr, tpx, leg_x, leg_y, 0, Align, Baseline, shape);
+						ctx.restore();
 					}
-					ctx.fillStyle = 'black';
-					ctx.fillText(lstr, leg_x, leg_y);
-					ctx.restore();
 				}
 			}
 			bar.arr = arr;
 			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].bars.push(bar);
 		}
-		ctx.save();
+		let ttl = "";
+		let ct = "";
+		if (order == -1) {
+			let val_num = "[";
+			let pct_num = "[";
+			let val_lbl = "[";
+			let pct_lbl = "[";
+			let cma="";
+			ttl = "";
+			ct = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].chart_tag;
+			for (let ii=0; ii < g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].bars.length; ii++) {
+				let br = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].bars[ii];
+				//console.log(sprintf("__bar[%d]: ", ii), br);
+				if (ii == 0) {
+					ttl = br.arr[0].lbl;
+				}
+				val_num += sprintf("%s%.6f", cma, br.arr[0].value);
+				pct_num += sprintf("%s%.6f", cma, br.arr[0].pct);
+				val_lbl += sprintf('%s"%s"', cma, br.arr[0].evt_str);
+				pct_lbl += sprintf('%s"%s"', cma, br.arr[0].evt_str);
+				cma = ",";
+			}
+			val_num += "]";
+			pct_num += "]";
+			val_lbl += "]";
+			pct_lbl += "]";
+			if (order == -1) {
+			json_txt += '{"key":"'+ttl+'values", "vals":'+val_num+', "yvar":'+val_lbl+', "desc":"average value of the variables over the interval for chart '+ct+'" }';
+			json_txt += ',{"key":"'+ttl+'percents", "vals":'+pct_num+', "yvar":'+pct_lbl+', "desc":"percent of max value of the variables over the interval for chart '+ct+'" }';
+			}
+		}
+		// draw outer rectangle
+		//console.log(sprintf("__bar: ordr= %d, px_y= %.2f, px_y_hdr= %.2f, px_hi= %.2f, data.len= %d",
+		//		order, px_y, px_y_hdr, px_high, data.length));
 		ctx.fillStyle = 'black';
 		ctx.rect(px_x, px_y, data.length * bar_wd , px_high);
 		ctx.stroke();
 		let lbl_len_max = 0.0;
-		for (let i=0.0; i <= bal_max_value; i += 0.50) {
+		// bar yaxis scale
+		let incr = 0.50;
+		let divisns = bal_max_value/incr;
+		let t_hi = tpx * divisns;
+		if (t_hi > px_high) {
+			while(t_hi > px_high) {
+				incr *= 2.0;
+				if (incr == 8.0) {
+					incr = 5.0;
+				}
+				divisns = bal_max_value/incr;
+				t_hi = tpx * divisns;
+			}
+			//console.log(sprintf("1 t_hi= %.2f, px_high= %.2f, divi= %.2f, incr= %.3f", t_hi, px_high, divisns, incr));
+		}
+		for (let i=0.0; i <= bal_max_value; i += incr) {
+			//draw yaxis text value
 			let lstr = sprintf("%.2f", i);
 			let width = ctx.measureText(lstr).width;
 			if (lbl_len_max < width) {
 				lbl_len_max = width;
 			}
-			ctx.fillText(lstr, px_x + data.length * bar_wd + 5, px_y + px_high - px_high * (i/bal_max_value));
+			//ctx.fillText(lstr, px_x + data.length * bar_wd + 5, px_y + px_high - px_high * (i/bal_max_value));
+			draw_text_w_bk_extra(ctx, lstr, tstr, tpx, px_x + data.length * bar_wd + 5, px_y + px_high - px_high * (i/bal_max_value), 0, Align, Baseline, shape);
 		}
-		for (let i=0.0; i <= bal_max_value; i += 0.25) {
+		// yaxis horizontal tick marks
+		incr = 0.25;
+		divisns = bal_max_value/incr;
+		t_hi = 0.5 * tpx * divisns;
+		//console.log(sprintf("0 t_hi= %.2f, px_high= %.2f, divi= %.2f, incr= %.3f", t_hi, px_high, divisns, incr));
+		if (t_hi > px_high) {
+			while(t_hi > px_high) {
+				incr *= 2.0;
+				if (incr == 8.0) {
+					incr = 5.0;
+				}
+				divisns = bal_max_value/incr;
+				t_hi = 0.5 * tpx * divisns;
+			}
+			//console.log(sprintf("1 t_hi= %.2f, px_high= %.2f, divi= %.2f, incr= %.3f", t_hi, px_high, divisns, incr));
+		}
+		for (let i=0.0; i <= bal_max_value; i += incr) {
 			let ln_x = px_x + data.length * bar_wd;
 			let ln_y = px_y + px_high - px_high * (i/bal_max_value);
 			ctx.moveTo(ln_x, ln_y);
@@ -8008,46 +8261,99 @@ function parse_svg()
 			ctx.stroke();
 		}
 		if (do_legend) {
-			ctx.save();
+			//console.log(sprintf("__bar: tv.len= %d", tval_arr.length));
 			for (let i=0; i < data.length; i++) {
 				let lstr = data[i][0].evt_str;
+				if (i < tval_arr.length) {
+					lstr += "; " + tval_arr[i];
+				}
 				let ln_x = px_x + data.length * bar_wd + 2*5 + lbl_len_max;
 				let ln_y = px_y + i * (tpx+5);
+				// draw legend coor box
+				if (i == 0 && data.length > 1) {
+					ctx.fillStyle = 'white';
+					ctx.fillRect(ln_x, ln_y, 12+15, (tpx+5)*data.length);
+					let lmx = -1;
+					for (let j=0; j < data.length; j++) {
+						let mstr = data[j][0].evt_str;
+						if (j < tval_arr.length) {
+							mstr += "; " + tval_arr[j];
+						}
+						let twidth = ctx.measureText(mstr).width;
+						if (lmx < twidth) {
+							lmx = twidth;
+						}
+					}
+					ctx.fillRect(ln_x+15, ln_y, lmx, (tpx+5)*data.length);
+				}
 				ctx.fillStyle = colors[i];
 				ctx.fillRect(ln_x, ln_y, 12, 12);
 				//ctx.fill();
 				ctx.stroke();
+				get_shape(shape, ln_x, (ln_x + 12), ln_y, ln_y+12);
 				ctx.textBaseline = 'top';
+				// draw legend text
 				ctx.fillStyle = 'black';
-				ctx.fillText(lstr, ln_x + 15, ln_y);
+				//ctx.fillText(lstr, ln_x + 15, ln_y);
+				draw_text_w_bk_extra(ctx, lstr, tstr, tpx, ln_x+15, ln_y, 0, Align, 'top', shape);
 			}
-			ctx.restore();
 		}
 
 		if (bal_hdr_str !== null && bal_x != -1 && bal_y != -1) {
+			// draw header from balance
 			ctx.fillStyle = 'black';
-			ctx.fillText(bal_hdr_str, bal_x, bal_y);
+			//ctx.fillText(bal_hdr_str, bal_x, bal_y);
+			draw_text_w_bk_extra(ctx, bal_hdr_str, tstr, tpx, bal_x, bal_y, 0, Align, Baseline, shape);
 		}
+		ctx.restore();
+		if (order > -1) {
+			let ct = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].chart_tag;
+			let grf_name = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.nm;
+			let shp_num = sprintf("[%.3f, %.3f, %.3f, %.3f]", shape.x0, shape.x1, shape.y0, shape.y1);
+			let shp_lbl = '["x0", "x1", "y0", "y1"]';
+			json_txt += '{"key":"'+grf_name+' shape", "vals":'+shp_num+', "yvar":'+shp_lbl+', "desc":"(x0,y0) to (x1,y1) shape of this chart in pixels on dash chart '+ct+'" }';
+		}
+		return json_txt;
 	}
 
-	function drawPieChart(ctx, data, colors, grf_def_idx, do_legend) {
+	function drawPieChart(ctx, data, colors, grf_def_idx, do_legend, order) {
+		let json_txt = "";
 		let px_x, px_y_hdr;
-		function xlate_pie(x1, y1) {
+		let use_order = true;
+		ctx.save();
+		let shape = {x0:-1, x1:-1, y0:-1, y1:-1};
+		let segment = 1;
+		function xlate_pie(x1, y1, isegment) {
 			let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
 			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
 			let x2 = svg_xmax * x1/fmxx;
 			let y2 = svg_ymax * y1/fmxy;
 			let p0 = [0, 0];
-			xlate(p0, ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, 1);
+			xlate(p0, ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, isegment);
 			return p0;
 		}
 		let x1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.x;
 		let y1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
-		[px_x, px_y_hdr] = xlate_pie(x1, y1);
+		let ox1 = x1;
+		let oy1 = y1;
+		if (use_order && order > -1) {
+			ox1 = 20;
+			oy1 = dash_offset(grf_def_idx, order);
+			x1 = ox1;
+			y1 = oy1;
+			segment = 0;
+		}
+		[px_x, px_y_hdr] = xlate_pie(x1, y1, segment);
 		let tpx = 13;
 		let tstr = sprintf("%dpx sans-serif", tpx);
+		ctx.font = tstr;
+		ctx.textAlign = 'left';
+		ctx.textBaseline = 'middle';
 		let hdr_ftr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.hdr_ftr_high;
-		let px_y     = px_y_hdr + hdr_ftr;
+		let px_y     = px_y_hdr;
+		if (typeof hdr_ftr !== 'undefined' && hdr_ftr !== null) {
+			px_y     += hdr_ftr;
+		}
 		let px_wide  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.wide;
 		let px_high  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.high;
 		let typ      = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.typ;
@@ -8067,7 +8373,12 @@ function parse_svg()
 			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x !== 'undefined') {
 				bal_x = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.x;
 				bal_y = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.y;
-				[bal_x, bal_y] = xlate_pie(bal_x, bal_y);
+				if (use_order && order > -1) {
+					bal_x = ox1;
+					let ty1 = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].fld.y;
+					bal_y = oy1 - ty1 + bal_y;
+				}
+				[bal_x, bal_y] = xlate_pie(bal_x, bal_y, segment);
 			}
 		}
 		let x = (px_wide / 2),
@@ -8113,20 +8424,33 @@ function parse_svg()
 				let dff = total_abs - total;
 				let dff_str = sprintf(' %.1f%%;', dff);
 				bal_hdr_str += dff_str;
-				data_nw.push({label:balance_hdr, value: dff});
+				if (order == -1) {
+					data_nw.push({label:balance_hdr, value: dff, typ_diff:true});
+				}
 				do_bal = true;
 				total = total_abs;
+			}
+			if (balance_hdr !== null && total == total_abs && order > -1) {
+				for (let ck=data_nw.length-1; ck >= 0; ck--) {
+					if (data_nw[ck].typ_diff) {
+						let dff_str = sprintf(' %.1f%%;', data_nw[ck].value);
+						bal_hdr_str += dff_str;
+						break;
+					}
+				}
 			}
 			let x2 = ch * px_wide; 
 			let pie = {x:(px_x + x + x2), y:(px_y + y), wide:px_wide, high:px_high, arr:[]};
 			let arr = [];
 			let rot = 0.5 * Math.PI;
 
+			// draw grf_def.nm (pie name) at top of each pie
 			ctx.font = tstr;
 			ctx.fillStyle = 'black';
 			let evt_str = grf_name;
 			ctx.fillText(evt_str, px_x + x2, px_y_hdr);
 			evt_str = data_nw[0].evt_str;
+			// draw the 'by_var' value (like av.core0) at the bottom of each pie
 			ctx.fillText(evt_str, px_x + x2, px_y+px_high+hdr_ftr);
 
 			let angles = [];
@@ -8172,21 +8496,28 @@ function parse_svg()
 				if (bal_slice != -1) {
 					leg_num -= 1;
 				}
+				// draw each slice of each pie
 				ctx.beginPath();
 				ctx.fillStyle = colors[leg_num];
 				ctx.moveTo(px_x + x + x2, px_y + y);
 				ctx.arc(px_x + x + x2, px_y+y, x, angles[i].beg-rot, angles[i].end-rot);
 				ctx.fill();
 				ctx.stroke();
+
 				let tnum = sprintf("%d", slc_num);
 				let twidth = ctx.measureText(tnum).width;
 				let angleHalf = angles[i].beg + 0.5 * diff;
 				if (do_legend && (ch+1) == data.length) {
+					//if do legend and on last pie
 					ctx.save();
 					let atxt = "";
 					atxt = sprintf(", ab= %.3f, ae= %.3f ah= %.3f diff= %.1f, rot= %.1f",
 							angles[i].beg, angles[i].end, angleHalf, diff, rot);
-					ctx.rect(px_x + px_wide + 10 + x2, px_y + leg_num * (tpx+5), 12, 12);
+					// draw a rectangle with the color of each slice
+					let x0 = px_x + px_wide + 10 + x2;
+					let y0 = px_y + leg_num * (tpx+5);
+					ctx.rect(x0, y0, 12, 12);
+					get_shape(shape, x0, x0+12, y0, y0+12);
 					ctx.fill();
 					ctx.font = tstr;
 					let dval = "";
@@ -8195,6 +8526,7 @@ function parse_svg()
 					}
 					let tvals = "";
 					if (data.length == 1) {
+						// if only 1 pie chart then add value of each slice to legend
 						let tspc = "";
 						if (data_nw[i].label.length > 0 && 
 								(data_nw[i].label.substr(-1) != " " && data_nw[i].label.substr(-1) != ":")) {
@@ -8206,18 +8538,22 @@ function parse_svg()
 					let lstr = tnum + " " + data_nw[i].label + tvals;
 					let leg_x = px_x + px_wide + 25 + x2;
 					let leg_y = px_y +  leg_num * (tpx+5) + 10;
-					let do_bkgrnd = false;
+					let do_bkgrnd = true;
 					if (do_bkgrnd) {
+						// if do_bkgrnd then white out the what we might be drawing the text over
 						ctx.fillStyle = 'white';
 						let width = ctx.measureText(lstr).width;
 						ctx.fillRect(leg_x, leg_y - tpx + 5, width, tpx);
+						get_shape(shape, leg_x, leg_x+width, leg_y-tpx+5, leg_y+5);
 					}
+					// draw the legend text for this slice
 					ctx.fillStyle = 'black';
 					ctx.fillText(lstr, leg_x, leg_y);
 					ctx.restore();
 				}
 				if (arcLen >= (2.0 * twidth)) {
 					//ctx.save();
+					// if the slice is big enough, write the slice number in the slice (I'm pretty color blind and the # helps)
 					let xt = 0.7 * x * Math.cos(angleHalf-rot);
 					let yt = 0.7 * x * Math.sin(angleHalf-rot);
 					let fl = ctx.fillStyle;
@@ -8238,12 +8574,24 @@ function parse_svg()
 			pie.arr = arr;
 			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].pies.push(pie);
 		}
+		get_shape(shape, px_x, (px_x + px_wide), px_y, px_y+px_high);
 
 		if (bal_hdr_str !== null && bal_x != -1 && bal_y != -1) {
+			//draw balance header
 			ctx.fillStyle = 'black';
+			let width = ctx.measureText(bal_hdr_str).width;
 			ctx.fillText(bal_hdr_str, bal_x, bal_y);
+			get_shape(shape, bal_x, bal_x+width, bal_y, bal_y+tpx);
 		}
-	};
+		ctx.restore();
+		if (order > -1) {
+			let shp_num = sprintf("[%.3f, %.3f, %.3f, %.3f]", shape.x0, shape.x1, shape.y0, shape.y1);
+			let shp_lbl = '["x0", "x1", "y0", "y1"]';
+			let ct = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].chart_tag;
+			json_txt += '{"key":"'+grf_name+' shape", "vals":'+shp_num+', "yvar":'+shp_lbl+', "desc":"(x0,y0) to (x1,y1) shape of this chart in pixels on dash chart chart '+ct+'" }';
+		}
+		return json_txt;
+	}
 
 
 	let draw_svg = function(hilite_arr, whch_txt, subtst) {
@@ -8251,6 +8599,9 @@ function parse_svg()
 		let p1 = [0, 0];
 		let p2 = [0, 0];
 		build_poly();
+		ctx_dash.clearRect(0, 0, canvas_dash.width, canvas_dash.height);
+		ctx_dash.fillStyle = 'white';
+		ctx_dash.fillRect(0, 0, canvas_dash.width, canvas_dash.height);
 		ctx.clearRect(0, 0, mycanvas.width, mycanvas.height);
 		ctx.fillStyle = 'white';
 		ctx.fillRect(0, 0, mycanvas.width, mycanvas.height);
@@ -8757,10 +9108,16 @@ function parse_svg()
 		// end of drawing
 		let txt_tbl = draw_svg_txt_flds(whch_txt, subtst);
 		if (txt_tbl.length > 0) {
+			let txt_tbl2 = "";
 			// when we are generating phase pngs, the first time through has txt_tbl.len == 0
 			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def !== 'undefined') {
 					let typ    = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.typ;
+					let dash   = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.dash;
+					let order = -1;
+					if (typeof dash !== 'undefined' && dash !== null && typeof dash.order !== 'undefined' && dash.order !== null) {
+						order = dash.order;
+					}
 					let do_leg = false;
 					if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.legend !== 'undefined' &&
 						g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.legend !== null) {
@@ -8769,14 +9126,40 @@ function parse_svg()
 					if (typ == "vbar") {
 						let bar_data = build_pie_data(j, whch_txt, txt_tbl);
 						//console.log("bar_data", bar_data);
-						drawBarChart(ctx, bar_data, g_d3_clrs_c20, j, do_leg);
+						let tt2 = drawBarChart(ctx, bar_data, g_d3_clrs_c20, j, do_leg, -1);
+						txt_tbl2 += (tt2 != "" && txt_tbl2 != "" ? "," : "") + tt2;
+						if (order != -1) {
+							let tt3 = drawBarChart(ctx_dash, bar_data, g_d3_clrs_c20, j, do_leg, order);
+							txt_tbl2 += (tt3 != "" && txt_tbl2 != "" ? "," : "") + tt3;
+						}
+					}
+					if (typ == "text") {
+						let tt2 = draw_grf_def_text(ctx, j, -1);
+						txt_tbl2 += (tt2 != "" && txt_tbl2 != "" ? "," : "") + tt2;
+						if (order != -1) {
+							draw_grf_def_text(ctx_dash, j, order);
+						}
+						console.log("__txt ");
 					}
 					if (typ == "pie") {
 						let pie_data = build_pie_data(j, whch_txt, txt_tbl);
-						drawPieChart(ctx, pie_data, g_d3_clrs_c20, j, do_leg);
+						let tt2 = drawPieChart(ctx, pie_data, g_d3_clrs_c20, j, do_leg, -1);
+						txt_tbl2 += (tt2 != "" && txt_tbl2 != "" ? "," : "") + tt2;
+						if (order != -1) {
+							let tt3 = drawPieChart(ctx_dash, pie_data, g_d3_clrs_c20, j, do_leg, order);
+							txt_tbl2 += (tt3 != "" && txt_tbl2 != "" ? "," : "") + tt3;
+						}
 					}
 				}
 			}
+			//console.log("__bar json_txt= "+txt_tbl2);
+			if (g_cpu_diagram_canvas.json_text != "" && txt_tbl2 != "") {
+				g_cpu_diagram_canvas.json_text += ","+txt_tbl2;
+			}
+			//console.log("__bar full_json_text = ", g_cpu_diagram_canvas.json_text);
+		}
+		if (g_cpu_diagram_canvas.json_text !== null && g_cpu_diagram_canvas.json_text != "") {
+			g_cpu_diagram_canvas.json_text += ']} ';
 		}
 		if (typeof g_cpu_diagram_flds.figures !== 'undefined' &&
 			g_cpu_diagram_flds.figures.length > 0) {
@@ -8831,7 +9214,10 @@ function parse_svg()
 				if (doing_flame) {
 					//console.log(sprintf("%s fl_img_rdy= %s", chart_tag, gjson.chart_data[j].fl_image_ready));
 					if (gjson.chart_data[j].fl_image_ready === true) {
+						ctx.drawImage(gjson.chart_data[j].fl_image_shape.canvas3, xb, yb, xe-xb, ye-yb);
+						/*
 						ctx.drawImage(gjson.chart_data[j].fl_image, xb, yb, xe-xb, ye-yb);
+						*/
 						if (whch_txt >= 0) {
 							gjson.chart_data[j].image_whch_txt = whch_txt;
 						} else if (subtst >= 0) {
@@ -8846,7 +9232,10 @@ function parse_svg()
 					//console.log(sprintf("%s img_rdy= %s", chart_tag, gjson.chart_data[j].image_ready));
 					//console.log(sprintf("__get_image_nm3= %s, chrt= %s xb= %.3f img_rdy= %s j= %d", image_nm, use_chart_tag, xb, gjson.chart_data[j].image_ready, j));
 					if (gjson.chart_data[j].image_ready === true) {
+						ctx.drawImage(gjson.chart_data[j].image_data.shape.canvas3, xb, yb, xe-xb, ye-yb);
+						/*
 						ctx.drawImage(gjson.chart_data[j].image, xb, yb, xe-xb, ye-yb);
+						*/
 						if (whch_txt >= 0) {
 							gjson.chart_data[j].image_whch_txt = whch_txt;
 						} else if (subtst >= 0) {
@@ -9290,6 +9679,69 @@ function parse_svg()
 		ctx.restore();
 	}
 
+	function draw_grf_def_text(ctx, grf_def_idx, order) {
+		let json_txt = "";
+		ctx.save();
+		let j = grf_def_idx;
+		let px_x, px_y;
+		let use_order = true;
+		let segment = 1;
+		function xlate_bar(x1, y1, isegment) {
+			let fmxx = g_cpu_diagram_flds.cpu_diagram_hdr.max_x;
+			let fmxy = g_cpu_diagram_flds.cpu_diagram_hdr.max_y;
+			let x2 = svg_xmax * x1/fmxx;
+			let y2 = svg_ymax * y1/fmxy;
+			let p0 = [0, 0];
+			xlate(p0, ctx, x2, y2, 0, svg_xmax, 0, svg_ymax, null, isegment);
+			return p0;
+		}
+		let tpx = 13;
+		let tstr = sprintf("%dpx sans-serif", tpx);
+		ctx.font = tstr;
+		ctx.fillStyle = 'black';
+		ctx.textAlign = 'left';
+		ctx.textBaseline = 'middle';
+		ctx.fillStyle = 'black';
+
+		let grf = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def;
+		if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def !== 'undefined' &&
+			typeof g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.nm !== 'undefined' &&
+			typeof g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x !== 'undefined' &&
+			typeof g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y !== 'undefined') {
+			let x1 = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.x;
+			let y1 = g_cpu_diagram_flds.cpu_diagram_fields[j].fld.y;
+			let ox1 = x1;
+			let oy1 = y1;
+			if (use_order && order > -1) {
+				ox1 = 20;
+				oy1 = dash_offset(j, order);
+				x1 = ox1;
+				y1 = oy1;
+				segment = 0;
+			}
+			[px_x, px_y] = xlate_bar(x1, y1, segment);
+			let nm = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.nm;
+			if (nm == "__PHASE__") {
+				let str;
+				str = "Phase beg: " +svg_hdr_obj.ph0;
+				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				str = "Phase end: " +svg_hdr_obj.ph1;
+				px_y += tpx;
+				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				str = "Phase beg tm_abs: " +sprintf("%.3f", svg_hdr_obj.tm0);
+				px_y += tpx;
+				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				str = "Phase end tm_abs: " +sprintf("%.3f", svg_hdr_obj.tm1);
+				px_y += tpx;
+				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				//console.log(sprintf("__text phs ordr= %d x= %.3f, y= %.3f seg= %d beg= %s end= %s",
+				//			order, px_x, px_y, segment, svg_hdr_obj.ph0, svg_hdr_obj.ph1));
+			}
+		}
+		ctx.restore();
+		return json_txt;
+	}
+
 	function build_pie_data(grf_def_idx, whch_txt, txt_tbl) {
 		let pdata = [];
 		let grf_name  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.nm;
@@ -9309,6 +9761,10 @@ function parse_svg()
 				pfx = g_cpu_diagram_flds.cpu_diagram_fields[j].pfx;
 			}
 			let fmt_str = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt;
+			let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].chart_tag === 'undefined') {
+				g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].chart_tag = ct;
+			}
 			if (typeof typ_data !== 'undefined') {
 				//console.log("got pie data typ= "+typ_data);
 				let fllw_arr = g_cpu_diagram_flds.cpu_diagram_fields[j].follow_arr;
@@ -9320,7 +9776,6 @@ function parse_svg()
 					if (pdata.length <= ii) {
 						pdata.push([]);
 					}
-					let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
 					pdata[ii].push({label: "%idle", value: fllw_arr[ii].idle, evt_str:"core "+ii, chart_tag:ct, "slc_lbl":"%idle"});
 					if (fllw_arr[ii].follow_proc === null) {
 						pdata[ii].push({label: "%busy", value: fllw_arr[ii].other, evt_str:"core "+ii, chart_tag:ct, "slc_lbl":"%busy"});
@@ -9819,9 +10274,10 @@ function parse_svg()
 			g_cpu_diagram_canvas.json_text = '{"txt":[';
 		}
 		console.log(sprintf("__svg_txt wcht_txt= %d, subtst= %d", whch_txt, subtst));
-		if (whch_txt == 0 || subtst == 0) {
-			g_cpu_diagram_canvas.json_text += "{";
+		if (whch_txt == 0 || subtst == 0 || (whch_txt == -1 && subtst == -1)) {
+			g_cpu_diagram_canvas.json_text = '{"txt":[{';
 		} else {
+			console.log(sprintf("__beg whch_txt= %d, subtst= %d", whch_txt, subtst));
 			g_cpu_diagram_canvas.json_text += ", {";
 		}
 		let whch_txt_idx = whch_txt;
@@ -9829,7 +10285,7 @@ function parse_svg()
 			whch_txt_idx = subtst;
 		}
 		g_cpu_diagram_canvas.json_text += '"lp":'+whch_txt_idx;
-		let hdr_obj = draw_svg_header(whch_txt_idx, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, true, g_svg_scale_ratio, false);
+		svg_hdr_obj = draw_svg_header(whch_txt_idx, g_cpu_diagram_flds.xbeg, g_cpu_diagram_flds.xend, true, g_svg_scale_ratio, false);
 		g_cpu_diagram_canvas.json_text += ', "key_val_arr":[';
 		let text_align = 'left';
 		let text_anchor = 'bottom';
@@ -10098,8 +10554,7 @@ function parse_svg()
 			tbl_str += "</tr>";
 		}
 		tbl_str += "</table>";
-		let tbl_str2 = parse_resource_stalls(txt_tbl, hdr_obj);
-		g_cpu_diagram_canvas.json_text += ']} ';
+		let tbl_str2 = parse_resource_stalls(txt_tbl, svg_hdr_obj);
 		//mytable.innerHTML = tbl_str2 + tbl_str;
 		mytable.innerHTML = tbl_str2;
 		return txt_tbl;
@@ -10515,6 +10970,7 @@ function parse_svg()
 		let ex_tbl = [
 			["IPC_CHART", "instructions/cycle"],
 			["CPI_CHART", "cycles/instructions"],
+			["INSTR_Per_SEC_BY_CPU", "GIPS GigaInstructions/sec"],
 			["LD_DEP_STALLS_CHART", "Load_dependent_stalls: pct cycles stalled in the Wr stage because of a load miss."],
 			["STALL_SB_FULL_PER_CYCLE_CHART", "Store_buffer_full_stalls: pct of cycles that pipeline is stalled due to store buffer full."],
 			["ST_DEP_STALL_PER_CYCLE_CHART", "Store_stalls: pct of cycles pipeline stalled in the Wr stage because of a store."],
