@@ -36,7 +36,7 @@ Here is some example data for running my spin benchmark (memory/cache bandwidth 
     - there are some introductory slides to try and explain the OS_view charts and the cpu_diagram layout, a slide showing at which time (in seconds) each sub-test is showing (so you can go to T= X secs to go directly to that sub-test) and then one slide for each of the 5 subtests
 - an excel file of the data in the movie:  [excel file from geekbench the movie](xls/spin_on_ARM_A53_the_movie.xlsx)
 - the HTML of the data in the movie...See [ARM Cortex A53 Raspberry PI 3 with CPU diagram 4-core chip running spin benchmark](sample_html_files/spin_on_ARM_A53_the_movie.html).
-- the dashboard PNG for all 5 phases sorted by increasing instructions/sec...See [ARM Cortex A53 Raspberry PI 3 with CPU diagram 4-core chip dashboard running spin benchmark](images/spin_on_ARM_A53_the_dashboard.html).
+- the dashboard PNG for all 5 phases sorted by increasing instructions/sec...See [ARM Cortex A53 Raspberry PI 3 with CPU diagram 4-core chip dashboard running spin benchmark](images/spin_on_ARM_A53_the_dashboard.png).
 
 Here is some example data for running Geekbench on Haswell CPUs:
 -  a video of the changes to OS_view and Haswell cpu block diagram running Geekbench: [![Geekbench - the movie v4](images/geekbench_the_movie.png)](https://youtu.be/oRADZrtDZ6s)
