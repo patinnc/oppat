@@ -78,6 +78,7 @@
 ,"text_defaults":{"font_size":12, "textAlign":"left", "textBaseline":"bottom", "same_x":-1, "row_m1":-1, "row_p1":-2}
 ,"cpu_diagram_fields":[
   {"fld":{"x":10,  "y":298}, "chart":"__TEXT_BLOCK__"}
+, {"fld":{"x":10,  "y":298},  "grf_def":{"typ":"text", "nm":"__PHASE__", "wide":75, "high":75, "dash":{"order":0, "high_scale":1.6}}}
 , {"fld":{"x":10,  "y":10, "use_box_nm":"syscall_outstanding"}, "save_image_nm":"syscall_out_img", "chart":"SYSCALL_OUTSTANDING_CHART", "print":"n", "pfx":"outstanding: "}
 , {"fld":{"x":10,  "y":10, "use_box_nm":"syscall_active"}, "save_image_nm":"syscall_active_img", "chart":"SYSCALL_ACTIVE_CHART",   "print":"n", "pfx":"active: "}
 , {"fld":{"x":10,  "y":10}, "save_image_nm":"syscall_sockets_active_img", "chart":"SYSCALL_SOCKETS_ACTIVE_CHART",   "print":"n", "pfx":"active: "}
@@ -92,10 +93,12 @@
 , {"fld":{"x":10,  "y":10}, "save_image_nm":"iostat_img", "chart":"IOSTAT_CHART", "print":"n", "pfx":"outstanding: "}
 , {"fld":{"x":10,  "y":10, "use_box_nm":"IO_MBps"}, "save_image_nm":"VFS_image", "chart":"SYSCALL_READ_WRITE_MBPS_CHART",   "print":"n", "pfx":"active: "}
 , {"fld":{"x":10,  "y":10, "use_box_nm":"Scheduler"}, "save_image_nm":"cpu_busy_image", "chart":"PCT_BUSY_BY_CPU",   "print":"n", "pfx":"active: "}
-, {"fld":{"x":10,  "y":60},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: "}
+, {"fld":{"x":10,  "y":60},  "chart":"PCT_BUSY_BY_SYSTEM", "pfx":"%cpu_busy: ", "follow_proc":1, "grf":{"typ_data":"internal", "nm":"cpu_util"}}
+, {"fld":{"x":680, "y":300},  "grf_def":{"typ":"pie", "nm":"cpu_util", "hdr_ftr_high":15, "wide":65, "high":65, "legend":true, "dash":{"order":4, "high_scale":1.7}}}
 , {"fld":{"x":10,  "y":72},  "chart":"DISK_BW_BLOCK_RQ", "pfx":"disk BW MB/s: "}
 , {"fld":{"x":10,  "y":84},  "chart":"TEMPERATURE_BY_ZONE", "pfx":"Temp (C): "}
-, {"fld":{"x":10,  "y":128}, "chart":"FREQ_BY_CPU", "pfx":"CPU Freq Ghz: "}
+, {"fld":{"x":10,  "y":128}, "chart":"FREQ_BY_CPU", "pfx":"CPU Freq Ghz: ", "grf":{"nm":"Freq: 2.9 GHz max"}}
+, {"fld":{"x":750,   "y":5},  "grf_def":{"typ":"vbar", "nm":"Freq: 2.9 GHz max", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":3.0}, "dash":{"order":1, "high_scale":1.6}}}
 , {"fld":{"x":10,  "y":140}, "chart":"RAPL_POWER_BY_AREA", "pfx":"power (W): "}
 , {"fld":{"x":10,  "y":152}, "chart":"BW_BY_TYPE", "pfx":"Mem BW (MB/s): "}
 , {"fld":{"x":10,  "y":922}, "chart":"UOPS_port_0_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.3, "yellow":0.05}, "pfx":"uops/cycle: "}
@@ -115,8 +118,10 @@
 , {"fld":{"x":591, "y":944}, "chart":"GUOPS_port_4_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}}
 , {"fld":{"x":677, "y":944}, "chart":"GUOPS_port_7_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}}
 , {"fld":{"x":420, "y":569}, "chart":"IDQ_ALL_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green":0.5, "yellow":0.1}, "tfld":{"x":-1, "y":-1, "text":"IDQ_uops/cycle:"}}
-, {"fld":{"x":260, "y":667}, "chart":"RAT_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "tfld":{"x":-1, "y":-1, "text":"RAT_uops/cycle:"}}
-, {"fld":{"x":100, "y":668}, "chart":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"RAT uop_retire %stalled:"}}
+, {"fld":{"x":260, "y":667}, "chart":"RAT_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "tfld":{"x":-1, "y":-1, "text":"RAT_uops/cycle:"}, "grf":{"nm":"UOPS: 4 Uops/cyc max"}}
+, {"fld":{"x":800,  "y":500},  "grf_def":{"typ":"vbar", "nm":"UOPS: 4 Uops/cyc max", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":4.0}, "dash":{"order":2, "high_scale":1.6}}}
+, {"fld":{"x":100, "y":668}, "chart":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"RAT uop_retire %stalled:"}, "grf":{"nm":"RAT %stalled"}}
+, {"fld":{"x":800,  "y":600},  "grf_def":{"typ":"vbar", "nm":"RAT %stalled", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":100.0}, "dash":{"order":100, "high_scale":1.6}}}
 , {"fld":{"x":100, "y":709}, "chart":"UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART",  "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"RAT uop_issued %stalled:"}}
 , {"fld":{"x":450, "y":839}, "chart":"RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"RS %stalled cycles:"}}
 , {"fld":{"x":660,"y":1220}, "chart":"RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"%SBstalled cycles:"}}
