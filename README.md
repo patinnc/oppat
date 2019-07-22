@@ -30,6 +30,7 @@ Here is some example data for running an old version of Geekbench v2.4.2 (32bit 
     - there are some introductory slides to try and explain the OS_view and cpu_diagram layout and then 1 slide showing the results per each of the 30 subtests
 - an excel file of the data in the movie:  [excel file from geekbench the movie](xls/geekbench_on_ARM_A53_the_movie.xlsx)
 - the HTML of the data in the movie...See [Geekbench v2.4.2 on 4 core ARM Cortext A53 with OS_view, CPU diagram](sample_html_files/geekbench_on_ARM_A53_the_movie.html).
+- the dashboard PNG for all 30 phases sorted by increasing instructions/sec...See [ARM Cortex A53 Raspberry PI 3 with CPU diagram 4-core chip dashboard running Geekbench](images/geekbench_on_ARM_the_dashboard.png).
 
 Here is some example data for running my spin benchmark (memory/cache bandwidth tests, a 'spin' keep-cpu-busy test) on Raspberry Pi 3 B+ (Cortex A53) CPUs:
 -  a video of the changes to OS_view and ARM A53 cpu block diagram running spin: [![Spin on ARM A53 - the movie](images/spin_on_ARM_A53_the_movie_sml.png)](https://youtu.be/GZi26LjVyrk)
