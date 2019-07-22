@@ -70,6 +70,7 @@ drivers/
 
 # temp files
 pat00*.png
+pat_dash*.png
 ?_test.png
 pat_test.png
 zoom_win.bat
