@@ -193,6 +193,7 @@
 		{"category":"CPU", "title":"freq from cycles (GHz) by cpu",  "var_name": "GHz", "by_var": "cpu",
 			"chart_tag":"FREQ_BY_CPU", "chart_type":"line", "use_chart":"y", "options":"DROP_1ST",
 			"tot_line":"__total__",
+			"options":"TOT_LINE_LEGEND_WEIGHT_BY_EVENT_NAME",
 			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__: %.2f", "yvar_fmt":"av.%s",
 			"desc":"Based on freq (GHz) per cpu from cycles event"}
 		}
@@ -588,7 +589,11 @@
 		],
 	"charts": [
 		{"category":"CPU", "title":"billion instructions/sec by cpu",  "var_name": "GIPS",
-			"by_var": "cpu", "chart_tag":"INSTR_Per_SEC_BY_CPU", "chart_type":"line", "use_chart":"y", "tot_line":"__total__",
+			"by_var": "cpu", "chart_tag":"INSTR_Per_SEC_BY_CPU", "chart_type":"line", "use_chart":"y",
+			"tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"__BASEVARNM__:%.2f",  "yvar_fmt":"av.%s",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on billions of instructions/sec"},
 			"options":"DROP_1ST"}
 		]
 	}
