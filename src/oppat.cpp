@@ -750,16 +750,19 @@ struct lines_str {
 	double x[2], y[2], period, numerator, denom;
 	std::string text;
 	int cpt_idx, fe_idx, pid, prf_idx, typ, cat, subcat, cpu, use_num_denom;
+	uint32_t flags;
 	std::vector <int> callstack_str_idxs;
 	lines_str(): period(0.0), numerator(0.0), denom(0.0), cpt_idx(-1), fe_idx(-1), pid(-1), prf_idx(-1),
-		typ(-1), cat(-1), subcat(-1), cpu(-1), use_num_denom(-1) {}
+		typ(-1), cat(-1), subcat(-1), cpu(-1), use_num_denom(-1), flags(0) {}
 };
 
 // order of SHAPE_* enum values must agree with SHAPE_* variables in main.js
+// The FOLLOW_PROC 
 enum {
-	SHAPE_LINE,
-	SHAPE_RECT,
-	SHAPE_MAX,
+	SHAPE_LINE   = 0x01,
+	SHAPE_RECT   = 0x02,
+	SHAPE_FOLLOW = 0x04,
+	SHAPE_MAX    = 0x07,
 };
 
 struct min_max_str {
@@ -1617,9 +1620,14 @@ static std::string build_flnm_evt_string(uint32_t file_grp, int evt_idx, std::ve
 
 static uint64_t callstack_sz = 0;
 
-void prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
-		std::vector <int> &callstacks, int line, std::vector <std::string> &prefx)
+static bool prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
+		std::vector <int> &callstacks, int line, std::vector <std::string> &prefx,
+		const std::string &follow_proc)
 {
+	bool rc = false, do_fllw = false;
+	if (follow_proc.size() > 0) {
+		do_fllw = true;
+	}
 	std::string mod_new, cs_new, cs_prv;
 	for (uint32_t k=0; k < prf_obj.samples[prf_idx].callstack.size(); k++) {
 		if (prf_obj.samples[prf_idx].callstack[k].mod == "[unknown]" &&
@@ -1627,6 +1635,11 @@ void prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 			continue;
 		}
 		mod_new = prf_obj.samples[prf_idx].callstack[k].mod;
+		if (rc == false && do_fllw) {
+			if (mod_new.find(follow_proc) != std::string::npos) {
+				rc = true;
+			}
+		}
 		if (mod_new == "[kernel.kallsyms]") {
 			mod_new = "[krnl]";
 		}
@@ -1643,15 +1656,20 @@ void prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 		callstacks.push_back(cs_idx);
 	}
 	callstack_sz += callstacks.size();
+	return rc;
 }
 
-static void etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
+static bool etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 				int stk_mod_rtn_idx, std::vector <int> &callstacks, int line,
-				std::vector <std::string> &prefx)
+				std::vector <std::string> &prefx, const std::string &follow_proc)
 {
+	bool rc = false, do_fllw= false;
+	if (follow_proc.size() > 0) {
+		do_fllw = true;
+	}
 	uint32_t cs_beg = prf_obj.etw_evts_set[set_idx][i].cs_idx_beg;
 	if (cs_beg == UINT32_M1) {
-		return;
+		return rc;
 	}
 	uint32_t cs_end = prf_obj.etw_evts_set[set_idx][i].cs_idx_end;
 	std::string cs_prv;
@@ -1660,6 +1678,11 @@ static void etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 		std::string cs_new, mod, rtn;
 		size_t pos = str.find("!");
 		mod = str.substr(0, pos);
+		if (rc == false && do_fllw) {
+			if (mod.find(follow_proc) != std::string::npos) {
+				rc = true;
+			}
+		}
 		rtn = str.substr(pos+1, str.length());
 		if (mod.substr(0, 1) == "\"") {
 			mod = mod.substr(1, mod.length());
@@ -1689,6 +1712,7 @@ static void etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 		callstacks.push_back(cs_idx);
 	}
 	callstack_sz += callstacks.size();
+	return rc;
 }
 
 enum {
@@ -1719,19 +1743,28 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			fprintf(stdout, "skip idle= true, var_idx= %d at %s %d\n", var_idx, __FILE__, __LINE__);
 		skip_idle = true;
 	}
+	if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
+		doing_pct_busy_by_cpu = 1;
+	}
+	int doing_PCT_BUSY_BY_SYSTEM = 0;
+	if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_SYSTEM") {
+		doing_PCT_BUSY_BY_SYSTEM = 1;
+	}
+	uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
+	std::string follow_proc;
+	if (doing_pct_busy_by_cpu && options.follow_proc.size() > file_tag_idx) {
+		follow_proc = options.follow_proc[file_tag_idx];
+	}
 	uint32_t tot_samples= 0;
 	for (uint32_t i=0; i < prf_obj.events.size(); i++) {
-		if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
-		printf("event[%d]: %s, count= %d at %s %d\n",
-			i, prf_obj.events[i].event_name_w_area.c_str(), prf_obj.events[i].evt_count, __FILE__, __LINE__);
+		if (doing_pct_busy_by_cpu) {
+			printf("event[%d]: %s, count= %d at %s %d\n",
+				i, prf_obj.events[i].event_name_w_area.c_str(), prf_obj.events[i].evt_count, __FILE__, __LINE__);
 		}
 		tot_samples += prf_obj.events[i].evt_count;
 	}
 	if (verbose)
 		printf("tot_evts= %d, tot_samples= %d at %s %d\n", (int32_t)prf_obj.events.size(), tot_samples, __FILE__, __LINE__);
-	if (event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
-		doing_pct_busy_by_cpu = 1;
-	}
 	if (event_table[evt_idx].charts[chrt].chart_type == "line") {
 		chart_type = CHART_TYPE_LINE;
 	}
@@ -2436,6 +2469,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			}
 			bool use_this_line = true;
 			//ls0p->cpt_idx = event_table[evt_idx].data.comm_pid_tid_idx[i];
+			bool got_follow_proc = false;
 			uint32_t cpt_idx = UINT32_M1;
 			if (prf_obj.file_type != FILE_TYP_ETW) {
 			    //cpt_idx = prf_obj.samples[prf_idx].cpt_idx;
@@ -2451,6 +2485,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 			    ls0p->cpt_idx = cpt_idx;
 				ls0p->fe_idx  = prf_obj.samples[prf_idx].fe_idx;
+				if (doing_PCT_BUSY_BY_SYSTEM && prf_obj.samples[prf_idx].flags & GOT_FOLLOW_PROC) {
+					got_follow_proc = true;
+					//printf("fllw2 at %s %d\n", __FILE__, __LINE__);
+					ls0p->flags  |= GOT_FOLLOW_PROC;
+				}
 				ls0p->period  = (double)prf_obj.samples[prf_idx].period;
 				ls0p->cpu     = (int)prf_obj.samples[prf_idx].cpu;
 				ls0p->pid     = (int)prf_obj.samples[prf_idx].tid;
@@ -2527,7 +2566,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							ls0p->x[0] = ux0;
 							ls0p->x[1] = ux1;
 							y_val[by_var_idx_val] = ux1-ux0;
-							prf_mk_callstacks(prf_obj, prf_idx2, callstacks, __LINE__, prefx);
+							std::string fllw;
+							prf_mk_callstacks(prf_obj, prf_idx2, callstacks, __LINE__, prefx, fllw);
 							ls0p->callstack_str_idxs = callstacks;
 #if 0
 							// printfs useful for debugging RUN_QUEUE chart
@@ -2574,6 +2614,11 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				//int prv = prv_nxt[i].prv;
 				//int prv = i;
 				int prv = event_table[evt_idx].data.prf_sample_idx[i];
+				if (doing_PCT_BUSY_BY_SYSTEM && prf_obj.etw_evts_set[prf_evt_idx][prv].flags & GOT_FOLLOW_PROC) {
+					got_follow_proc = true;
+					//printf("fllw3 at %s %d\n", __FILE__, __LINE__);
+					ls0p->flags  |= GOT_FOLLOW_PROC;
+				}
 				if (stk_idx != UINT32_M1 && prf_obj.etw_evts_set[prf_evt_idx][prv].cs_idx_beg != UINT32_M1 &&
 					event_table[evt_idx].charts[chrt].chart_tag == "WAIT_TIME_BY_proc") {
 					// for CSwitch, the callstack below the event is callstack of the incoming thread before starting the new thread
@@ -2592,7 +2637,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							prefx.push_back(str);
 						}
 					}
-					etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx);
+					std::string fllw;
+					etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw);
 					ls0p->callstack_str_idxs = callstacks;
 					//last_by_var_callstacks[by_var_idx_val] = callstacks;
 				}
@@ -2633,7 +2679,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					if (got_ready && stk_idx != UINT32_M1 &&
 						prf_obj.etw_evts_set[prf_evt_idx][prv].cs_idx_beg != UINT32_M1) {
 						std::vector <int> callstacks;
-						etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx);
+						std::string fllw;
+						etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw);
 						ls0p->callstack_str_idxs = callstacks;
 						//last_by_var_callstacks[by_var_idx_val] = callstacks;
 					}
@@ -2922,6 +2969,16 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls1.period = dura;
 			if (prf_obj.file_type != FILE_TYP_ETW) {
 				std::string ostr;
+				std::string fsp;
+				bool got_follow = false;
+				if (follow_proc.size() > 0) {
+					if (prf_obj.samples[prf_idx].comm.find(follow_proc) != std::string::npos) {
+						prf_obj.samples[prf_idx].flags |= GOT_FOLLOW_PROC;
+						//printf("got fllw0 at %s %d\n", __FILE__, __LINE__);
+					} else {
+						fsp = follow_proc;
+					}
+				}
 				prf_sample_to_string(prf_idx, ostr, prf_obj);
 				//ls1.text = ostr;
 				ls1.text = "_P_"; // placeholder will be replaced by main.js with trace record
@@ -2936,17 +2993,40 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				if (prf_obj.samples[prf_idx].callstack.size() > 0) {
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
-						prf_mk_callstacks(prf_obj, prf_idx, callstacks, __LINE__, prefx);
-						ls1.callstack_str_idxs = callstacks;
+					got_follow = prf_mk_callstacks(prf_obj, prf_idx, callstacks, __LINE__, prefx, fsp);
+					ls1.callstack_str_idxs = callstacks;
+					if (got_follow) {
+						prf_obj.samples[prf_idx].flags |= GOT_FOLLOW_PROC;
+						//printf("got fllw1 at %s %d\n", __FILE__, __LINE__);
+					}
 				}
 			} else if (stk_idx != UINT32_M1 && prf_obj.file_type == FILE_TYP_ETW) {
+				//abcd
+				std::string fsp;
+			   	uint32_t cpt_idx = ls1.cpt_idx;
 				uint32_t prf_evt_idx = event_table[evt_idx].event_idx_in_file;
+				if (follow_proc.size() > 0 && cpt_idx != UINT32_M1) {
+			    	uint32_t file_tag_idx = event_table[evt_idx].file_tag_idx;
+					std::string comm = comm_pid_tid_vec[file_tag_idx][cpt_idx].comm;
+					if (comm.find(follow_proc) != std::string::npos) {
+						prf_obj.etw_evts_set[prf_evt_idx][i].flags |= GOT_FOLLOW_PROC;
+						//printf("got fllw0 at %s %d\n", __FILE__, __LINE__);
+					} else {
+						fsp = follow_proc;
+					}
+				}
 				int jj = prv_nxt[i].prv;
 				if(jj > -1 && prf_obj.etw_evts_set[prf_evt_idx][jj].cs_idx_beg != UINT32_M1) {
+					bool got_follow = false;
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
-					etw_mk_callstacks(prf_evt_idx, prf_obj, jj, stk_mod_rtn_idx, callstacks, __LINE__, prefx);
+					got_follow = etw_mk_callstacks(prf_evt_idx, prf_obj, jj, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fsp);
 					ls1.callstack_str_idxs = callstacks;
+					if (got_follow) {
+						// I'm not sure this will ever happen but...
+						prf_obj.etw_evts_set[prf_evt_idx][i].flags |= GOT_FOLLOW_PROC;
+						//printf("got fllw1 at %s %d\n", __FILE__, __LINE__);
+					}
 				}
 				ls1.text = "line " + std::to_string(prf_obj.etw_evts_set[prf_evt_idx][i].txt_idx);
 				if (add_2_extra.size() > 0) {
@@ -3143,7 +3223,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			if (prf_obj.samples[i].callstack.size() > 0) {
 				std::vector <int> callstacks;
 				std::vector <std::string> prefx;
-				prf_mk_callstacks(prf_obj, i, callstacks, __LINE__, prefx);
+				std::string fllw;
+				prf_mk_callstacks(prf_obj, i, callstacks, __LINE__, prefx, fllw);
 				ls0.callstack_str_idxs = callstacks;
 			}
 			//printf("evt_nm= %s cpu= %f at %s %d\n", event_table[evt_idx].event_name_w_area.c_str(), cpu, __FILE__, __LINE__);
@@ -3298,7 +3379,8 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				if (stk_idx != UINT32_M1 && prf_obj.etw_evts_set[set_idx][i].cs_idx_beg != UINT32_M1) {
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
-					etw_mk_callstacks(set_idx, prf_obj, i, stk_mod_rtn_idx, callstacks, __LINE__, prefx);
+					std::string fllw;
+					etw_mk_callstacks(set_idx, prf_obj, i, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw);
 					ls0.callstack_str_idxs = callstacks;
 				}
 				int by_var_idx_val2 = (int)get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, cpu, __LINE__);
@@ -3569,8 +3651,13 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		}
 		x1_prv = ch_lines.line[i].x[1];
 		// IVAL array
+		int shape_follow = 0;
+		if (ch_lines.line[i].flags & GOT_FOLLOW_PROC) {
+			//printf("got fllw6 chart tag %s at %s %d\n", event_table[evt_idx].charts[chrt].chart_tag.c_str(), __FILE__, __LINE__);
+			shape_follow = SHAPE_FOLLOW;
+		}
 		ch_lines_line_str += std::string("{\"ival\":[") +
-				typ_vec[ch_lines.line[i].typ] +
+				typ_vec[shape_follow|ch_lines.line[i].typ] +
 				"," +
 				std::to_string(ch_lines.line[i].cpt_idx) +
 				"," +
@@ -6987,8 +7074,13 @@ int main(int argc, char **argv)
 					double tm_aft = dclock();
 					fprintf(stderr, "q_from_srvr_to_clnt.push(chrts_json) size= %d txt_sz= %d push_tm= %f at %s %d\n",
 						(int)chrts_json.size(), (int)callstack_sz, tm_aft-tm_bef, __FILE__, __LINE__);
-				} else if (msg_len > 6 &&  msg.substr(0, 6) == "image,") {
+				} else if ((msg_len > 6 &&  msg.substr(0, 6) == "image,") ||
+							(msg_len > 6 &&  msg.substr(0, 6) == "imagd,")) {
 					fprintf(stderr, "got image msg %s %d", __FILE__, __LINE__);
+					bool image_dash = false;
+					if (msg.substr(0, 6) == "imagd,") {
+						image_dash = true;
+					}
 					std::string img_str = msg.substr(6, msg.size());
 					size_t pos = img_str.find("lp=");
 					pos = img_str.find("imagedata:");
@@ -7006,6 +7098,9 @@ int main(int argc, char **argv)
 						std::string flnm_pfx = "image_";
 						if (options.ph_image.size() > 0 && options.ph_image[0].size() > 0) {
 							flnm_pfx = options.ph_image[0];
+						}
+						if (image_dash) {
+							flnm_pfx += "_dash";
 						}
 						std::string flnm = flnm_pfx + std::string(str) + ".png";
 						std::string lkfor = ";base64,";
