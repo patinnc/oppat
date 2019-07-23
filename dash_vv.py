@@ -17,10 +17,16 @@ x0 = -1
 x1 = -1
 y0 = -1
 y1 = -1
-lkfor = 'GIPS GigaInstructions/sec: values'
+cpu_typ = 0 # 0=intel, 1=arm
+if cpu_typ == 0:
+    lkfor = 'RAT_uops/sec values'
+else:
+    lkfor = 'GIPS GigaInstructions/sec: values'
 val_arr = []
+lp_arr = []
 for i in range(0, len(tarr)):
     print("i= %d, phs_beg= %s" % (i, tarr[i]['phase0']))
+    lp_arr.append(tarr[i]['lp'])
     kv_arr = tarr[i]['key_val_arr']
     for j in range(0, len(kv_arr)):
         ky = kv_arr[j]['key']
@@ -73,7 +79,7 @@ app = vv.use()
 
 img_lst = []
 for i in range(0, use_len):
-    img_nm = "pat_dash%.5d.png" % i
+    img_nm = "pat_dash%.5d.png" % lp_arr[i]
     print("nm= %s" % img_nm)
     img_lst.append(vv.imread(img_nm))
 
@@ -102,7 +108,7 @@ for i in range(0, use_len):
     im[:y1i+y0i,i*x1i:(i+1)*x1i] = img_lst[j][:y1i+y0i,:x1i]
     #x, y = (0, 288-fsz)
     #text = "Display "+bmarkf+" sub-benchmark for interval, BW"
-    txt = ("GIPS: %.3f bill instr/sec" % uval[i][0])
+    #txt = ("GIPS: %.3f bill instr/sec" % uval[i][0])
     #w, h = font.getsize(text)
     #drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
     #drawd.text((x+rct_brdr, y), text, fill='white', font=font)
@@ -136,13 +142,20 @@ for i in range(0, use_len):
     j = uval[i][1]
     #im[:y1i+y0i,i*x1i:(i+1)*x1i] = img_lst[j][:y1i+y0i,:x1i]
     #text = "Display "+bmarkf+" sub-benchmark for interval, BW"
-    txt = ("GIPS: %.3f bill instr/sec" % uval[i][0])
+    if cpu_typ == 0:
+        txt = ("GUOPS: %.3f bill uops/sec" % uval[i][0])
+    else:
+        txt = ("GIPS: %.3f bill instr/sec" % uval[i][0])
+
     draw.text((i*x1i, fsz), txt, (0,0,0), font=font)
     #w, h = font.getsize(text)
     #drawd.rectangle((x, y, x + w + 2*rct_brdr, y + h), fill='black')
     #drawd.text((x+rct_brdr, y), text, fill='white', font=font)
     #vv.Text(a1, txt, i*x1i, 20, 0, 'mono', 10)
-txt = "OPPAT dashboard charts for each phase. Phases sorted by lowest to highest GIPS (billion instructions/sec)"
+if cpu_typ == 0:
+    txt = "OPPAT dashboard charts for each phase. Phases sorted by lowest to highest GUOPS (billion uops/sec)"
+else:
+    txt = "OPPAT dashboard charts for each phase. Phases sorted by lowest to highest GIPS (billion instructions/sec)"
 draw.text((0, 0), txt, (0,0,0), font=font)
 imageio.imwrite('pat.png', im4)
 
