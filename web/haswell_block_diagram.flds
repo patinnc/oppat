@@ -120,8 +120,10 @@
 , {"fld":{"x":420, "y":569}, "chart":"IDQ_ALL_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green":0.5, "yellow":0.1}, "tfld":{"x":-1, "y":-1, "text":"IDQ_uops/cycle:"}}
 , {"fld":{"x":260, "y":667}, "chart":"RAT_UOPS_PER_CYCLE_CHART", "rng":{"cmp":"ge", "green": 0.5, "yellow":0.1}, "tfld":{"x":-1, "y":-1, "text":"RAT_uops/cycle:"}, "grf":{"nm":"UOPS: 4 Uops/cyc max"}}
 , {"fld":{"x":800,  "y":500},  "grf_def":{"typ":"vbar", "nm":"UOPS: 4 Uops/cyc max", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":4.0}, "dash":{"order":2, "high_scale":1.6}}}
+, {"fld":{"x":800, "y":700}, "chart":"RAT_UOPS_PER_SEC_CHART", "rng":{"cmp":"ge", "green": 5.0, "yellow":1.0}, "tfld":{"x":-1, "y":-1, "text":"RAT_uops/sec:"}, "grf":{"nm":"GUOPS: 11.6 Guops/sec max"}}
+, {"fld":{"x":800,  "y":700},  "grf_def":{"typ":"vbar", "nm":"GUOPS: 11.6 Guops/sec max", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":11.6}, "dash":{"order":3, "high_scale":1.6}}}
 , {"fld":{"x":100, "y":668}, "chart":"UOPS_RETIRED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"RAT uop_retire %stalled:"}, "grf":{"nm":"RAT %stalled"}}
-, {"fld":{"x":800,  "y":600},  "grf_def":{"typ":"vbar", "nm":"RAT %stalled", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":100.0}, "dash":{"order":100, "high_scale":1.6}}}
+, {"fld":{"x":800,  "y":600},  "grf_def":{"typ":"vbar", "nm":"RAT %stalled", "hdr_ftr_high":15, "wide":75, "high":75, "legend":true, "balance":{"max_value":100.0}, "dash":{"order":5, "high_scale":1.6}}}
 , {"fld":{"x":100, "y":709}, "chart":"UOPS_ISSUED.CORE_STALL_CYCLES_PER_TOT_CYCLES_CHART",  "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"RAT uop_issued %stalled:"}}
 , {"fld":{"x":450, "y":839}, "chart":"RESOURCE_STALLS.RS_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"RS %stalled cycles:"}}
 , {"fld":{"x":660,"y":1220}, "chart":"RESOURCE_STALLS.SB_PER_TOT_CYCLES_CHART", "rng":{"green": 10, "yellow":40}, "tfld":{"x":-1, "y":-1, "text":"%SBstalled cycles:"}}
