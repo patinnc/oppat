@@ -1171,6 +1171,33 @@
   },
   {"event":
 	{
+	"evt_name": "rat_uops_per_sec", "evt_type": "ftrace", "comment":"uops_issued.any per sec",
+	"evt_derived":{
+		"evts_tags":[ {"evt":"cpu-clock", "tag":"den"}, {"evt":"uops_issued.any", "tag":"num"}],
+		"evt_trigger":"__EMIT__",
+		"new_cols":["val", "__EMIT__", "duration", "numerator", "denominator", "area"],
+		"lua_file":"gen_div_pair.lua",
+		"lua_rtn":"gen_div_pair"
+	},
+	"evt_flds": [
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"drop_if_gt", "val":888}]},
+		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
+		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"denominator",  "lkup": "denominator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
+		{"name":"area",  "lkup": "area",     "lkup_typ": "TYP_STR|TYP_NEW_VAL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"RAT uops_issued.any/sec",  "var_name": "val", "by_var": "area", "tot_line":"__total__",
+			"tot_line_options":{"xform":"map_cpu_2_core", "yval_fmt":"%.2f", "yvar_fmt":"core%d",
+			"scope":["per_thread","per_core"],
+			"desc":"Based on total uops/sec: uops_issued.any/cycle. Maximum on haswell is 4 uops/cycle and 2.9 GHz max (for my haswell)."},
+			"chart_tag":"RAT_UOPS_PER_SEC_CHART", "chart_type":"line", "use_chart":"y", "y_label":"RAT_uops/sec"}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "cycles_per_uop_retired", "evt_type": "ftrace", "comment":"cycles per uops_retired.any",
 	"evt_derived":{
 		"evts_tags":[ {"evt":"CYCLES_EVENT", "tag":"num"}, {"evt":"uops_retired.all", "tag":"den"}],
@@ -1315,7 +1342,7 @@
 		"lua_rtn":"gen_div_pair"
 	},
 	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
 		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
@@ -1423,7 +1450,7 @@
 		"lua_rtn":"gen_div_pair"
 	},
 	"evt_flds": [
-		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":888}]},
+		{"name":"val",   "lkup": "val",      "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}, {"oper":"drop_if_gt", "val":500}]},
 		{"name":"emit",  "lkup": "__EMIT__", "lkup_typ": "TYP_DBL|TYP_NEW_VAL"},
 		{"name":"dura",  "lkup": "duration", "lkup_typ": "TYP_DBL|TYP_DURATION_BEF|TYP_NEW_VAL"},
 		{"name":"numerator",  "lkup": "numerator", "lkup_typ": "TYP_DBL|TYP_NEW_VAL", "actions":[{"oper":"mult", "val":100.0}]},
