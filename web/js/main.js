@@ -289,7 +289,7 @@ var gsync_zoom_last_zoom = {chrt_idx:-1, x0:0.0, x1:0.0, abs_x0:0.0, abs_x1:0.0}
 var gsync_text = "Zoom/Pan: Zoom all to last";
 var gLinkZoom_iter = 0;
 
-function got_all_OS_view_images(whch_txt, image_whch_txt_init)
+function got_all_OS_view_images(whch_txt)
 {
 	// return true if got all the images or don't have any images
 	// else return false
@@ -301,24 +301,16 @@ function got_all_OS_view_images(whch_txt, image_whch_txt_init)
 	for (let j=0; j < gjson.chart_data.length; j++) {
 		if (typeof gjson.chart_data[j].fl_image_ready !== 'undefined') {
 			need_imgs++;
-			if (whch_txt < 0) {
+			if (typeof gjson.chart_data[j].fl_image_drawn !== 'undefined' &&
+				gjson.chart_data[j].fl_image_drawn === true) {
 				ready_imgs++;
-			} else {
-				if (typeof gjson.chart_data[j].image_whch_txt !== 'undefined' &&
-						gjson.chart_data[j].image_whch_txt != image_whch_txt_init) {
-					ready_imgs++;
-				}
 			}
 		}
 		if (typeof gjson.chart_data[j].image_ready !== 'undefined') {
 			need_imgs++;
-			if (whch_txt < 0) {
+			if (typeof gjson.chart_data[j].image_drawn !== 'undefined' &&
+				gjson.chart_data[j].image_drawn === true) {
 				ready_imgs++;
-			} else {
-				if (typeof gjson.chart_data[j].image_whch_txt !== 'undefined' &&
-						gjson.chart_data[j].image_whch_txt != image_whch_txt_init) {
-					ready_imgs++;
-				}
 			}
 		}
 	}
@@ -427,13 +419,13 @@ function set_zoom_all_charts(j, need_tag, po_lp, from_where)
 	}
 	let tm_n01 = performance.now();
 	if (g_cpu_diagram_draw_svg !== null) {
-		let jj= 0, jj_max = 50, image_whch_txt_init=-200;
+		let jj= 0, jj_max = 50;
 		console.log("call g_cpu_diagram_draw_svg beg");
 		function myDelay () {           //  create a loop function
 			setTimeout(function () {    //  call a 3s setTimeout when the loop is called
 				console.log(sprintf('wait_for_imgs jj= %d', jj));
 				jj++;                     //  increment the counter
-				if (!got_all_OS_view_images(1, image_whch_txt_init)) {
+				if (!got_all_OS_view_images(1)) {
 					myDelay();             //  ..  again which will trigger another 
 				} else {
 					console.log("__mem: call g_cpu_diagram_draw_svg");
@@ -3398,6 +3390,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 									use_cpu0_x = true;
 								}
 							}
+							let added_xarray2 = false
 							if (!use_cpu0_x || cpu == 0) {
 								tot_line.xarray2[sci][j] += x_den;
 							}
@@ -6203,8 +6196,6 @@ async function start_charts() {
 		g_cpu_diagram_canvas.json_text = null;
 	}
 
-	let image_whch_txt_init = -200;
-
 	function reset_OS_view_image_ready()
 	{
 		if (g_cpu_diagram_flds === null) {
@@ -6213,11 +6204,11 @@ async function start_charts() {
 		for (let j=0; j < gjson.chart_data.length; j++) {
 			if (typeof gjson.chart_data[j].fl_image_ready !== 'undefined') {
 				gjson.chart_data[j].fl_image_ready = false;
-				gjson.chart_data[j].image_whch_txt = image_whch_txt_init;
+				gjson.chart_data[j].fl_image_drawn = false;
 			}
 			if (typeof gjson.chart_data[j].image_ready !== 'undefined') {
 				gjson.chart_data[j].image_ready = false;
-				gjson.chart_data[j].image_whch_txt = image_whch_txt_init;
+				gjson.chart_data[j].image_drawn = false;
 			}
 		}
 	}
@@ -6227,16 +6218,12 @@ async function start_charts() {
 			return;
 		}
 		for (let j=0; j < gjson.chart_data.length; j++) {
-			let wt = gjson.chart_data[j].image_whch_txt;
-			if (typeof wt === 'undefined') {
-				wt = -100;
-			}
 			if (typeof gjson.chart_data[j].fl_image_ready !== 'undefined') {
-				console.log("fl_rdy= "+gjson.chart_data[j].fl_image_ready+", wt= "+wt);
-				console.log(sprintf("ch[%d] fl_rdy= %s, wh_txt= %s", j, gjson.chart_data[j].fl_image_ready, wt));
+				console.log("fl_rdy= "+gjson.chart_data[j].fl_image_ready);
+				console.log(sprintf("ch[%d] fl_rdy= %s", j, gjson.chart_data[j].fl_image_ready));
 			}
 			if (typeof gjson.chart_data[j].image_ready !== 'undefined') {
-				console.log(sprintf("ch[%d] rdy= %s, wh_txt= %d", j, gjson.chart_data[j].image_ready, wt));
+				console.log(sprintf("ch[%d] rdy= %s", j, gjson.chart_data[j].image_ready));
 			}
 		}
 	}
@@ -6340,7 +6327,7 @@ async function start_charts() {
 				 (lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw))) {
 				myDelay(lkfor_max, po);             //  ..  again which will trigger another 
 			} else if (jj < jjmax && (lkfor_max.typ == "wait_for_zoom_to_phase" && 
-				 (lkfor_max.cntr >= gsync_zoom_redrawn_charts.need_to_redraw && !got_all_OS_view_images(po.lp, image_whch_txt_init)))) {
+				 (lkfor_max.cntr >= gsync_zoom_redrawn_charts.need_to_redraw && !got_all_OS_view_images(po.lp)))) {
 					 console.log("by_phase: mxc do draw_svg lp= "+po.lp);
 				if (po.lp != last_draw_svg) {
 					g_cpu_diagram_draw_svg([], -1, po.lp);
@@ -6349,7 +6336,7 @@ async function start_charts() {
 				myDelay(lkfor_max, po);             //  ..  again which will trigger another 
 			} else {
 				if ((lkfor_max.typ == "wait_for_zoom_to_phase" &&
-						(lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw || !got_all_OS_view_images(po.lp, image_whch_txt_init))
+						(lkfor_max.cntr < gsync_zoom_redrawn_charts.need_to_redraw || !got_all_OS_view_images(po.lp))
 					)) {
 					gsync_zoom_linked = false;
 				}
@@ -8200,9 +8187,13 @@ function parse_svg()
 			pct_num += "]";
 			val_lbl += "]";
 			pct_lbl += "]";
+			let spc = " ";
+			if (ttl.slice(-1) === " ") {
+				spc = "";
+			}
 			if (order == -1) {
-			json_txt += '{"key":"'+ttl+'values", "vals":'+val_num+', "yvar":'+val_lbl+', "desc":"average value of the variables over the interval for chart '+ct+'" }';
-			json_txt += ',{"key":"'+ttl+'percents", "vals":'+pct_num+', "yvar":'+pct_lbl+', "desc":"percent of max value of the variables over the interval for chart '+ct+'" }';
+			json_txt += '{"key":"'+ttl+spc+'values", "vals":'+val_num+', "yvar":'+val_lbl+', "desc":"average value of the variables over the interval for chart '+ct+'" }';
+			json_txt += ',{"key":"'+ttl+spc+'percents", "vals":'+pct_num+', "yvar":'+pct_lbl+', "desc":"percent of max value of the variables over the interval for chart '+ct+'" }';
 			}
 		}
 		// draw outer rectangle
@@ -9215,16 +9206,7 @@ function parse_svg()
 					//console.log(sprintf("%s fl_img_rdy= %s", chart_tag, gjson.chart_data[j].fl_image_ready));
 					if (gjson.chart_data[j].fl_image_ready === true) {
 						ctx.drawImage(gjson.chart_data[j].fl_image_shape.canvas3, xb, yb, xe-xb, ye-yb);
-						/*
-						ctx.drawImage(gjson.chart_data[j].fl_image, xb, yb, xe-xb, ye-yb);
-						*/
-						if (whch_txt >= 0) {
-							gjson.chart_data[j].image_whch_txt = whch_txt;
-						} else if (subtst >= 0) {
-							gjson.chart_data[j].image_whch_txt = subtst;
-						} else {
-							gjson.chart_data[j].image_whch_txt = subtst;
-						}
+						gjson.chart_data[j].fl_image_drawn = true;
 						//console.log(sprintf("by_phase: set cd[%d].fl whch_txt= %d", j, whch_txt));
 						img_idx = j;
 					}
@@ -9233,16 +9215,7 @@ function parse_svg()
 					//console.log(sprintf("__get_image_nm3= %s, chrt= %s xb= %.3f img_rdy= %s j= %d", image_nm, use_chart_tag, xb, gjson.chart_data[j].image_ready, j));
 					if (gjson.chart_data[j].image_ready === true) {
 						ctx.drawImage(gjson.chart_data[j].image_data.shape.canvas3, xb, yb, xe-xb, ye-yb);
-						/*
-						ctx.drawImage(gjson.chart_data[j].image, xb, yb, xe-xb, ye-yb);
-						*/
-						if (whch_txt >= 0) {
-							gjson.chart_data[j].image_whch_txt = whch_txt;
-						} else if (subtst >= 0) {
-							gjson.chart_data[j].image_whch_txt = subtst;
-						} else {
-							gjson.chart_data[j].image_whch_txt = subtst;
-						}
+						gjson.chart_data[j].image_drawn = true;
 						//console.log(sprintf("by_phase: set cd[%d].whch_txt= %d", j, whch_txt));
 						img_idx = j;
 					}
