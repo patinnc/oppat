@@ -29,6 +29,9 @@ const CH_TYPE_LINE="line";
 const CH_TYPE_BLOCK="block";
 const CH_TYPE_STACKED="stacked";
 // the SHAPE_* variable values must agree with the SPARE_* enum in main.cpp
+const CAN_OS_CPU = 0;
+const CAN_DASH   = 1;
+
 const SHAPE_LINE   = 1;
 const SHAPE_RECT   = 2;
 const SHAPE_FOLLOW = 4;
@@ -1422,9 +1425,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				chart_data.subcat_rng.push({x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:use_fe_idx, event:tot_line.evt_str[myi],
 					tot_dura:use_dura, total:use_total, is_tot_line:true, is_tot_line_num:myi,
 					cat:use_mx_cat, subcat:0, cat_text:tot_line.evt_str[myi]});
-				if (chart_data.chart_tag == "CYCLES_PER_UOP_port_0_CHART") {
-				console.log(sprintf("==tot_line: fe_idx= %d, mx_cat= %d, bef_len= %d", use_fe_idx, use_mx_cat, bef_len));
-				}
 				//tot_line.subcat_rng_idx = chart_data.subcat_rng.length-1;
 				tot_line.subcat_rng_idx[chart_data.subcat_rng.length-1] = arr_len;
 				tot_line.subcat_rng_arr.push(chart_data.subcat_rng.length-1);
@@ -5662,6 +5662,7 @@ function draw_text_w_bk(ctx, str, font, font_hi, x, y, sector)
     ctx.fillStyle = 'black';
     ctx.fillText(str, x, y+sector_add);
     ctx.restore();
+	return {xb:x, xe:x+width, yb:y+sector_add, ye:y+sector_add+font_hi, txt:str, sector:sector, ctx:ctx};
 }
 
 function get_shape(shape, x0, x1, y0, y1) {
@@ -5705,6 +5706,7 @@ function draw_text_w_bk_extra(ctx, str, font, font_hi, x, y, sector, Align, Base
     ctx.fillStyle = 'black';
     ctx.fillText(str, x, y+sector_add);
     ctx.restore();
+	return {xb:x, xe:x+width, yb:box_beg, ye:box_beg+font_hi, txt:str, sector:sector, ctx:ctx};
 }
 
 function draw_svg_header(lp, xbeg, xend, gen_jtxt, svg_scale_ratio, verbose)
@@ -7857,7 +7859,7 @@ function parse_svg()
 	}
 
 	function add_path_connections(i, typ, poly, x, y) {
-		let arr3 = find_overlap(x, y);
+		let arr3 = find_overlap(x, y, CAN_OS_CPU);
 		let arr2 = [];
 		for (let j=0; j < arr3.length; j++) {
 			arr2.push(arr3[j].j);
@@ -8029,7 +8031,10 @@ function parse_svg()
 			return 100.0 * data[index].value / total;
 		}
 
-		g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].bars = [];
+		if (order == -1) {
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].bars = [];
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes = [];
+		}
 
 		let bal_hdr_str = balance_hdr;
 
@@ -8039,6 +8044,7 @@ function parse_svg()
 		ctx.stroke();
 
 		get_shape(shape, px_x, (px_x + data.length*bar_wd), px_y, px_y+px_high);
+		let bx = null;
 
 		let tval_arr = [];
 		// bar chart
@@ -8059,7 +8065,8 @@ function parse_svg()
 				ctx.fillStyle = 'black';
 				let evt_str = grf_name;
 				//ctx.fillText(evt_str, px_x + x2, px_y_hdr);
-				draw_text_w_bk_extra(ctx, evt_str, tstr, tpx, px_x+x2, px_y_hdr, 0, Align, Baseline, shape);
+				bx = draw_text_w_bk_extra(ctx, evt_str, tstr, tpx, px_x+x2, px_y_hdr, 0, Align, Baseline, shape);
+				g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes.push(bx);
 				//evt_str = data_nw[0].evt_str;
 				//ctx.fillText(evt_str, px_x + x2, px_y+px_high-hdr_ftr);
 			}
@@ -8080,7 +8087,7 @@ function parse_svg()
 			let bar_y0 = px_y;
 			let bar_x1 = px_wide;
 			let bar_y1 = px_high;
-			let bar = {x:bar_x0, y:bar_y0, wide:px_wide, high:px_high, arr:[]};
+			let bar = {x:bar_x0, y:bar_y0, wide:px_wide, high:px_high, arr:[], order:order};
 			let bal_slice = -1;
 			// bar chart
 			for(let i=0; i < data_nw.length; i++) {
@@ -8286,7 +8293,8 @@ function parse_svg()
 				// draw legend text
 				ctx.fillStyle = 'black';
 				//ctx.fillText(lstr, ln_x + 15, ln_y);
-				draw_text_w_bk_extra(ctx, lstr, tstr, tpx, ln_x+15, ln_y, 0, Align, 'top', shape);
+				bx = draw_text_w_bk_extra(ctx, lstr, tstr, tpx, ln_x+15, ln_y, 0, Align, 'top', shape);
+				g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes.push(bx);
 			}
 		}
 
@@ -8294,7 +8302,8 @@ function parse_svg()
 			// draw header from balance
 			ctx.fillStyle = 'black';
 			//ctx.fillText(bal_hdr_str, bal_x, bal_y);
-			draw_text_w_bk_extra(ctx, bal_hdr_str, tstr, tpx, bal_x, bal_y, 0, Align, Baseline, shape);
+			bx = draw_text_w_bk_extra(ctx, bal_hdr_str, tstr, tpx, bal_x, bal_y, 0, Align, Baseline, shape);
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes.push(bx);
 		}
 		ctx.restore();
 		if (order > -1) {
@@ -8312,6 +8321,8 @@ function parse_svg()
 		let px_x, px_y_hdr;
 		let use_order = true;
 		ctx.save();
+		let Align    = 'left';
+		let Baseline = 'middle';
 		let shape = {x0:-1, x1:-1, y0:-1, y1:-1};
 		let segment = 1;
 		function xlate_pie(x1, y1, isegment) {
@@ -8338,8 +8349,8 @@ function parse_svg()
 		let tpx = 13;
 		let tstr = sprintf("%dpx sans-serif", tpx);
 		ctx.font = tstr;
-		ctx.textAlign = 'left';
-		ctx.textBaseline = 'middle';
+		ctx.textAlign = Align;
+		ctx.textBaseline = Baseline;
 		let hdr_ftr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.hdr_ftr_high;
 		let px_y     = px_y_hdr;
 		if (typeof hdr_ftr !== 'undefined' && hdr_ftr !== null) {
@@ -8354,6 +8365,7 @@ function parse_svg()
 		let balance_chrt = null;
 		let bal_x   = -1;
 		let bal_y   = -1;
+		let bx = null;
 		if (typeof balance !== 'undefined' && balance !== null) {
 			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.hdr !== 'undefined') {
 				balance_hdr  = g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].grf_def.balance.hdr;
@@ -8402,7 +8414,10 @@ function parse_svg()
 			return data[index].value / total * twoPI;
 		}
 
-		g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].pies = [];
+		if (order == -1) {
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].pies = [];
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes = [];
+		}
 
 		let bal_hdr_str = balance_hdr;
 
@@ -8431,7 +8446,7 @@ function parse_svg()
 				}
 			}
 			let x2 = ch * px_wide; 
-			let pie = {x:(px_x + x + x2), y:(px_y + y), wide:px_wide, high:px_high, arr:[]};
+			let pie = {x:(px_x + x + x2), y:(px_y + y), wide:px_wide, high:px_high, arr:[], order:order};
 			let arr = [];
 			let rot = 0.5 * Math.PI;
 
@@ -8439,10 +8454,14 @@ function parse_svg()
 			ctx.font = tstr;
 			ctx.fillStyle = 'black';
 			let evt_str = grf_name;
-			ctx.fillText(evt_str, px_x + x2, px_y_hdr);
+			//bx = ctx.fillText(evt_str, px_x + x2, px_y_hdr);
+			bx = draw_text_w_bk_extra(ctx, evt_str, tstr, tpx, px_x+x2, px_y_hdr, 0, Align, Baseline, shape);
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes.push(bx);
 			evt_str = data_nw[0].evt_str;
 			// draw the 'by_var' value (like av.core0) at the bottom of each pie
-			ctx.fillText(evt_str, px_x + x2, px_y+px_high+hdr_ftr);
+			//ctx.fillText(evt_str, px_x + x2, px_y+px_high+hdr_ftr);
+			bx = draw_text_w_bk_extra(ctx, evt_str, tstr, tpx, px_x+x2, px_y+px_high+hdr_ftr, 0, Align, Baseline, shape);
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes.push(bx);
 
 			let angles = [];
 			let curAngle=0.0, prvAngle = 0.0;
@@ -8539,7 +8558,9 @@ function parse_svg()
 					}
 					// draw the legend text for this slice
 					ctx.fillStyle = 'black';
-					ctx.fillText(lstr, leg_x, leg_y);
+					//ctx.fillText(lstr, leg_x, leg_y);
+					bx = draw_text_w_bk_extra(ctx, lstr, tstr, tpx, leg_x, leg_y, 0, Align, Baseline, shape);
+					g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes.push(bx);
 					ctx.restore();
 				}
 				if (arcLen >= (2.0 * twidth)) {
@@ -8571,7 +8592,9 @@ function parse_svg()
 			//draw balance header
 			ctx.fillStyle = 'black';
 			let width = ctx.measureText(bal_hdr_str).width;
-			ctx.fillText(bal_hdr_str, bal_x, bal_y);
+			//ctx.fillText(bal_hdr_str, bal_x, bal_y);
+			bx = draw_text_w_bk_extra(ctx, bal_hdr_str, tstr, tpx, bal_x, bal_y, 0, Align, Baseline, shape);
+			g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].tboxes.push(bx);
 			get_shape(shape, bal_x, bal_x+width, bal_y, bal_y+tpx);
 		}
 		ctx.restore();
@@ -9130,7 +9153,7 @@ function parse_svg()
 						if (order != -1) {
 							draw_grf_def_text(ctx_dash, j, order);
 						}
-						console.log("__txt ");
+						//console.log("__txt ");
 					}
 					if (typ == "pie") {
 						let pie_data = build_pie_data(j, whch_txt, txt_tbl);
@@ -9154,7 +9177,7 @@ function parse_svg()
 		}
 		if (typeof g_cpu_diagram_flds.figures !== 'undefined' &&
 			g_cpu_diagram_flds.figures.length > 0) {
-				console.log(sprintf("by_phase: process_figures, whch_txt= %d", whch_txt));
+				//console.log(sprintf("by_phase: process_figures, whch_txt= %d", whch_txt));
 				process_figures(ctx, whch_txt, subtst);
 		}
 		if (xlate_rng.state == 0) {
@@ -9694,19 +9717,27 @@ function parse_svg()
 			}
 			[px_x, px_y] = xlate_bar(x1, y1, segment);
 			let nm = g_cpu_diagram_flds.cpu_diagram_fields[j].grf_def.nm;
+			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes === 'undefined') {
+				g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes = [];
+			}
 			if (nm == "__PHASE__") {
 				let str;
+				let tbx;
 				str = "Phase beg: " +svg_hdr_obj.ph0;
-				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				tbx = draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes.push(tbx);
 				str = "Phase end: " +svg_hdr_obj.ph1;
 				px_y += tpx;
-				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				tbx = draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes.push(tbx);
 				str = "Phase beg tm_abs: " +sprintf("%.3f", svg_hdr_obj.tm0);
 				px_y += tpx;
-				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				tbx = draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes.push(tbx);
 				str = "Phase end tm_abs: " +sprintf("%.3f", svg_hdr_obj.tm1);
 				px_y += tpx;
-				draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				tbx = draw_text_w_bk(ctx, str, tstr, tpx, px_x, px_y, 0);
+				g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes.push(tbx);
 				//console.log(sprintf("__text phs ordr= %d x= %.3f, y= %.3f seg= %d beg= %s end= %s",
 				//			order, px_x, px_y, segment, svg_hdr_obj.ph0, svg_hdr_obj.ph1));
 			}
@@ -9735,8 +9766,10 @@ function parse_svg()
 			}
 			let fmt_str = g_cpu_diagram_flds.cpu_diagram_fields[j].data_val_fmt;
 			let ct = g_cpu_diagram_flds.cpu_diagram_fields[j].chart_tag;
+			let dsc = g_cpu_diagram_flds.cpu_diagram_fields[j].desc;
 			if (typeof g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].chart_tag === 'undefined') {
 				g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].chart_tag = ct;
+				g_cpu_diagram_flds.cpu_diagram_fields[grf_def_idx].desc = dsc;
 			}
 			if (typeof typ_data !== 'undefined') {
 				//console.log("got pie data typ= "+typ_data);
@@ -9813,7 +9846,7 @@ function parse_svg()
 			let x = shapes[i].box.xb + xmid;
 			let y = shapes[i].box.yb + ymid;
 			shapes[i].rect_arr = [];
-			let arr3 = find_overlap(x, y);
+			let arr3 = find_overlap(x, y, CAN_OS_CPU);
 			let arr = [];
 			for (let j=0; j < arr3.length; j++) {
 				arr.push(arr3[j].j);
@@ -9849,7 +9882,7 @@ function parse_svg()
 		return;
 	}
 
-	function find_overlap(x, y) {
+	function find_overlap(x, y, canvas_id) {
 		let arr = [];
 		let got_tbox = false;
 		let x_0=-1, y_0=-1;
@@ -9905,6 +9938,24 @@ function parse_svg()
 				}
 			}
 			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
+				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes === 'undefined') {
+					continue;
+				}
+				for (let jj=0; jj < g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes.length; jj++) {
+					let tbox = g_cpu_diagram_flds.cpu_diagram_fields[j].tboxes[jj];
+					if (((tbox.xb <= x && x <= tbox.xe) ||
+						 (tbox.xe <= x && x <= tbox.xb)) &&
+						((tbox.yb <= y && y <= tbox.ye) ||
+						 (tbox.ye <= y && y <= tbox.yb))) {
+						//console.log("tbox.txt1= "+ tbox.txt);
+						x_0 = x;
+						y_0 = y;
+						got_tbox = true;
+						arr.push({j:(-j-1), m:jj, typ:'tboxes', canvas_id:canvas_id}); 
+					}
+				}
+			}
+			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[j].tbox === 'undefined') {
 					continue;
 				}
@@ -9917,7 +9968,7 @@ function parse_svg()
 					x_0 = x;
 					y_0 = y;
 					got_tbox = true;
-					arr.push({j:(-j-1), m:null}); 
+					arr.push({j:(-j-1), m:null, canvas_id:canvas_id, typ:'tbox'}); 
 				}
 			}
 			for (let j=0; j < g_cpu_diagram_flds.cpu_diagram_fields.length; j++) {
@@ -9925,6 +9976,10 @@ function parse_svg()
 					let bars = g_cpu_diagram_flds.cpu_diagram_fields[j].bars;
 					//console.log("bars: ", bars);
 					for (let m=0; m < bars.length; m++) {
+						if ((canvas_id == CAN_OS_CPU && bars[m].order != -1) ||
+							(canvas_id == CAN_DASH && bars[m].order == -1)) {
+							continue;
+						}
 						let xb = bars[m].arr[0].bar_shape.x0;
 						let xe = bars[m].arr[0].bar_shape.x0+bars[m].arr[0].bar_shape.wide;
 						let yb = bars[m].arr[0].bar_shape.y0;
@@ -9935,7 +9990,7 @@ function parse_svg()
 							x_0 = x;
 							y_0 = y;
 							//got_bars = true;
-							arr.push({j:(-j-1), m:m}); 
+							arr.push({j:(-j-1), m:m, canvas_id:canvas_id, typ:'bar'}); 
 							break;
 						}
 					}
@@ -9947,6 +10002,9 @@ function parse_svg()
 				//console.log(sprintf("pies.len= %d", pies.length));
 				for (let m=0; m < pies.length; m++) {
 					//console.log("pies["+m+"]:", pies[m]);
+					if (canvas_id == CAN_OS_CPU && pies[m].order != -1) {
+						continue;
+					}
 					let xb = pies[m].x - pies[m].wide/2;
 					let xe = pies[m].x + pies[m].wide/2;
 					let yb = pies[m].y - pies[m].high/2;
@@ -10003,7 +10061,7 @@ function parse_svg()
 
 								console.log(sprintf("match pies[%d]", m));
 								got_tbox = true;
-								arr.push({j:(-j-1), m:m, slc:got_slc}); 
+								arr.push({j:(-j-1), m:m, slc:got_slc, canvas_id:canvas_id, typ:'pie'}); 
 							}
 					}
 				}
@@ -10246,7 +10304,7 @@ function parse_svg()
 		if (typeof g_cpu_diagram_canvas.json_text === 'undefined' || g_cpu_diagram_canvas.json_text === null) {
 			g_cpu_diagram_canvas.json_text = '{"txt":[';
 		}
-		console.log(sprintf("__svg_txt wcht_txt= %d, subtst= %d", whch_txt, subtst));
+		//console.log(sprintf("__svg_txt wcht_txt= %d, subtst= %d", whch_txt, subtst));
 		if (whch_txt == 0 || subtst == 0 || (whch_txt == -1 && subtst == -1)) {
 			g_cpu_diagram_canvas.json_text = '{"txt":[{';
 		} else {
@@ -10571,7 +10629,7 @@ function parse_svg()
 		let proc_arr = [];
 		let minx = ch_d.last_used_x_min_max.minx;
 		let maxx = ch_d.last_used_x_min_max.maxx;
-		console.log(sprintf("run_OS: minx= %.3f, maxx= %.3f, shps.len= %d", minx, maxx, ch_d.myshapes.length));
+		//console.log(sprintf("run_OS: minx= %.3f, maxx= %.3f, shps.len= %d", minx, maxx, ch_d.myshapes.length));
 		let cntr = 0;
 		//let need_tag = gjson.chart_data[j].file_tag
 		for (let i=0; i < ch_d.myshapes.length; i++) {
@@ -10621,7 +10679,7 @@ function parse_svg()
 			let idx = proc_hsh[nm];
 			proc_arr[idx].tot += operiod;
 		}
-		console.log(sprintf("run_OS: proc_arr.len= %d, cntr= %d", proc_arr.length, cntr));
+		//console.log(sprintf("run_OS: proc_arr.len= %d, cntr= %d", proc_arr.length, cntr));
 		return proc_arr;
 	}
 
@@ -10656,7 +10714,7 @@ function parse_svg()
 				continue;
 			}
 			if (typeof cdf.data_val_arr === 'undefined') {
-				console.log(sprintf("__OS_view: %s dva.len= %s", ct, 'undef'));
+				//console.log(sprintf("__OS_view: %s dva.len= %s", ct, 'undef'));
 				continue;
 			}
 			//console.log(sprintf("__OS_view: %s dva.len= %s", ct, cdf.data_val_arr.length));
@@ -11105,19 +11163,29 @@ function parse_svg()
 		return t;
 	}
 
-	function os_cpu_can_overlap(x, y, doing_click)
+	function os_cpu_can_overlap(x, y, doing_click, canvas_id)
 	{
 		let current_tooltip_text = "aa";
-		let arr3 = find_overlap(x, y);
+		let arr3 = find_overlap(x, y, canvas_id);
+		let can_ele = null;
+		if (canvas_id == CAN_OS_CPU) {
+			can_ele = mycanvas;
+		} else if (canvas_id == CAN_DASH) {
+			can_ele = canvas_dash;
+		} else {
+			console.log("got invalid canvas_id= ", canvas_id);
+			return;
+		}
 		if (arr3.length == 0) {
 			//clearToolTipText(mytooltip);
 			current_tooltip_text = "";
 			tt_prv_x = -2;
 			tt_prv_y = -2;
-			mycanvas.title = "";
+			can_ele.title = "";
 			//current_tooltip_shape = -1;
 			return;
 		}
+		//console.log(sprintf("can_id= %d", canvas_id));
 		let arr = [];
 		for (let j=0; j < arr3.length; j++) {
 			arr.push(arr3[j].j);
@@ -11131,13 +11199,36 @@ function parse_svg()
 			}
 		}
 		if (!got_neg) {
-			mycanvas.title = "";
+			can_ele.title = "";
 		}
 		for (let j=0; j < arr.length; j++) {
 			let i = arr[j];
 			if (i < 0) {
 				let ui= -i-1;
-				if (typeof arr3[j].fig !== 'undefined' && typeof arr3[j].img_idx !== 'undefined') {
+				let mtch_can_id = arr3[j].canvas_id;
+				let mtch_typ    = arr3[j].typ;
+				if (typeof mtch_can_id === 'undefined') {
+					mtch_can_id = null;
+				}
+				if (typeof mtch_typ === 'undefined') {
+					mtch_typ = null;
+				}
+				let ct = g_cpu_diagram_flds.cpu_diagram_fields[ui].chart_tag;
+				if (typeof ct === 'undefined' || ct === null) {
+					ct = "";
+				}
+				if (ct != "") {
+					ct = "\nBased on chart_tag: "+ct;
+				}
+				let desc = g_cpu_diagram_flds.cpu_diagram_fields[ui].desc;
+				if (typeof desc === 'undefined' || desc === null) {
+					desc = "";
+				}
+				if (desc != "") {
+					// desc has chart_tag in it
+					ct = "\nChart desc: "+desc;
+				}
+				if (canvas_id == CAN_OS_CPU && typeof arr3[j].fig !== 'undefined' && typeof arr3[j].img_idx !== 'undefined') {
 					//console.log(sprintf("got ui= %d, fig[%d]", ui, arr3[j].fig));
 					let tbox, img_shape, doing_flame=false;
 					if (typeof g_cpu_diagram_flds.figures[arr3[j].fig].figure.cmds[arr3[j].cmds].tbox_fl !== 'undefined') {
@@ -11166,7 +11257,7 @@ function parse_svg()
 							img_shape.high, img_shape.wide, tbox.ye-tbox.yb, tbox.xe-tbox.xb));
 					*/
 					/*
-					mycanvas.title = sprintf("flame graph x= %.2f, y= %.2f\n"+
+					can_ele.title = sprintf("flame graph x= %.2f, y= %.2f\n"+
 							"shape_orig: hi= %.2f, wd= %.2f, scaled_img: hi= %.2f, wd: %.2f",
 							x-tbox.xb, y-tbox.yb, img_shape.high, img_shape.wide, tbox.ye-tbox.yb, tbox.xe-tbox.xb);
 							*/
@@ -11197,16 +11288,17 @@ function parse_svg()
 					if (typeof tstr !== 'undefined' && typeof tstr.str2 !== 'undefined') {
 						let ttl_str = ele_ttl + tstr.str2;
 						ttl_str = ttl_str.replace(/<br>/g, "\n");
-						mycanvas.title = ttl_str;
+						can_ele.title = ttl_str;
 					} else {
-						mycanvas.title = "";
+						can_ele.title = "";
 					}
 					continue;
 				}
 				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def !== 'undefined') {
 					let uj = ui;
 					let um = arr3[j].m;
-					if (g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def.typ == 'pie') {
+					if (g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def.typ == 'pie' && mtch_typ === 'pie') {
+						//console.log("grf_def pie= "+um);
 						let slc = arr3[j].slc;
 						if (slc == -1) {
 							console.log(sprintf("messed up angle lookup for slice: grf= %s, ui= %d, um= %d, slc= %d", 
@@ -11224,35 +11316,63 @@ function parse_svg()
 							val_txt = sprintf("%.3f", pies[um].arr[slc].value);
 						}
 						pct = sprintf("%.3f%%", 100.0 * pies[um].arr[slc].pct);
-						let ts= sprintf("%s: %s, %s", pies[um].arr[slc].lbl, val_txt, pct);
-						console.log(ts);
-						mycanvas.title = ts;
+						let ts= sprintf("%s: %s, %s%s", pies[um].arr[slc].lbl, val_txt, pct, ct);
+						//console.log(ts);
+						can_ele.title = ts;
 					}
-					if (g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def.typ == 'vbar') {
-						let um = arr3[j].m;
+					if (g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def.typ == 'vbar' && mtch_typ === 'bar') {
+						//console.log(sprintf("grf_def vbar[%d], um= %d", ui, um));
 						let bars = g_cpu_diagram_flds.cpu_diagram_fields[ui].bars;
 						//console.log("bars[m].txt1= "+ bars[um].arr[0].evt_str);
-						//mycanvas.title = "bar55";
-						mycanvas.title = g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def.nm + " " +
+						//can_ele.title = "bar55";
+						can_ele.title = g_cpu_diagram_flds.cpu_diagram_fields[ui].grf_def.nm + " " +
 							bars[um].arr[0].evt_str + ": " + sprintf("%.3f", bars[um].arr[0].value) + 
-							sprintf(", pct_max= %.3f%%", bars[um].arr[0].pct);
+							sprintf(", pct_max= %.3f%%", bars[um].arr[0].pct)+ct;
 					}
-				} else {
+					if (typeof g_cpu_diagram_flds.cpu_diagram_fields[ui].tboxes !== 'undefined' && mtch_typ === 'tboxes') {
+					//console.log("tboxes= "+um);
+					if (um < g_cpu_diagram_flds.cpu_diagram_fields[ui].tboxes.length) {
+						let tbx = g_cpu_diagram_flds.cpu_diagram_fields[ui].tboxes[um];
+						//console.log("tbx.txt= "+tbx.txt);
+						can_ele.title = tbx.txt+ct;
+					}
+					}
+				}
+				if (typeof g_cpu_diagram_flds.cpu_diagram_fields[ui].tboxes !== 'undefined' && mtch_typ === 'tboxes') {
+					let um = arr3[j].m;
+					//console.log("tboxes= "+um);
+					if (um < g_cpu_diagram_flds.cpu_diagram_fields[ui].tboxes.length) {
+						let tbx = g_cpu_diagram_flds.cpu_diagram_fields[ui].tboxes[um];
+						//console.log("tbx.txt= "+tbx.txt);
+						can_ele.title = tbx.txt+ct;
+					}
+				} else if (can_ele.title == "") {
+					if (false && canvas_id != CAN_OS_CPU) {
+						continue;
+					}
+					let tb = '\n';
+					if (typeof g_cpu_diagram_flds.cpu_diagram_fields[ui].tbox !== 'undefined' &&
+						typeof g_cpu_diagram_flds.cpu_diagram_fields[ui].tbox.txt !== 'undefined') {
+							tb = g_cpu_diagram_flds.cpu_diagram_fields[ui].tbox.txt+'\n';
+					}
 					let ts= g_cpu_diagram_flds.cpu_diagram_fields[ui].y_label+ ": " +
-						g_cpu_diagram_flds.cpu_diagram_fields[ui].tbox.txt+',\n'+
-						g_cpu_diagram_flds.cpu_diagram_fields[ui].desc;
+						tb + g_cpu_diagram_flds.cpu_diagram_fields[ui].desc;
 					console.log(ts);
+					console.log(g_cpu_diagram_flds.cpu_diagram_fields[ui]);
 					if (tt_prv_x != x || tt_prv_y != y) {
 						tt_prv_x = x;
 						tt_prv_y = y;
 						//let pgx = e.pageX, pgy = e.pagey;
 					//console.log(sprintf("tooltip txt= %s, x= %.3f, y= %.3f, ttl= %s, ttr=%s ttt= %s ttb= %s",ts, x, y,
 					//mytooltip.style.left, mytooltip.style.right, mytooltip.style.top, mytooltip.style.bottom));
-						mycanvas.title = ts;
+						can_ele.title = ts;
 						//console.log(mytooltip);
 					}
 				}
 				continue;
+			}
+			if (canvas_id != CAN_OS_CPU) {
+				return;
 			}
 			let str = "";
 			if (shapes[i].typ == 'path') {
@@ -11358,7 +11478,7 @@ function parse_svg()
 			y2 = y - y_shift;
 		}
 		console.log(sprintf("x= %.3f, y= %.3f, sctr= %d, y2= %.3f", x, y, sctr, y2));
-		os_cpu_can_overlap(x, y, true);
+		os_cpu_can_overlap(x, y, true, CAN_OS_CPU);
 	}
 
 	mycanvas.onmousemove = function(e) {
@@ -11371,7 +11491,21 @@ function parse_svg()
 		}
 		hvr_prv_x = x;
 		hvr_prv_y = y;
-		os_cpu_can_overlap(x, y, false);
+		os_cpu_can_overlap(x, y, false, CAN_OS_CPU);
+	};
+
+	canvas_dash.onmousemove = function(e) {
+		// important: correct mouse position:
+		let rect = this.getBoundingClientRect(),
+			x = e.clientX - rect.left,
+			y = e.clientY - rect.top;
+		if (x == hvr_prv_x && y == hvr_prv_y) {
+			return;
+		}
+		hvr_prv_x = x;
+		hvr_prv_y = y;
+		//console.log(sprintf("can_dash x= %d, y= %d", x, y));
+		os_cpu_can_overlap(x, y, false, CAN_DASH);
 	};
 
 	function isPointInPoly(poly, pt){
