@@ -5788,22 +5788,33 @@ function draw_svg_header(lp, xbeg, xend, gen_jtxt, svg_scale_ratio, verbose)
 
 function get_cpu_busy_divisions()
 {
-	let cd = null;
+	// We're not dividing up the interval and doing the follow_proc cpu usage in main.js anymore.
+	// if we are doing 'by_phase' then we know the exact start and end of a phase and we
+	// don't need high resolution divisions
+	// This is still higher than default 100. But using the commented out code below can use 30,000
+	// divisions for a 300 sec job (like geekbench) and blow up the memory usage. Using the commented
+	// code on geekbench on haswell resulted in chrome using 2.7 GBs and sometimes getting a chrome
+	// out-of-memory condition. The 500 value uses a little more memory (like 980 MB totHeap with 100
+	// and 1013 MB with 500).
+	return 500; // this is still higher than default 
+	/*
+	let use_i = -1;
 	for (let i=0; i < gjson.chart_data.length; i++) {
 		if (gjson.chart_data[i].chart_tag == "PCT_BUSY_BY_SYSTEM") {
-			cd = gjson.chart_data[i];
+			use_i = i;
 			break;
 		}
 	}
-	if (cd !== null) {
-		let xdff = cd.x_range.max - cd.x_range.min;
-		let j = xdff / 0.01;
+	if (use_i != -1) {
+		let xdff = gjson.chart_data[use_i].x_range.max - gjson.chart_data[use_i].x_range.min;
+		let j = xdff / 0.1;
 		j = Math.ceil(j) + 1;
 		console.log(sprintf("cpu_busy rng: dff= %.3f, %.3f - %.3f, div= %d", 
-			xdff, cd.x_range.min, cd.x_range.max, j));
+			xdff, gjson.chart_data[use_i].x_range.min, gjson.chart_data[use_i].x_range.max, j));
 		return j;
 	}
 	return -1;
+	*/
 }
 
 function draw_svg_footer(xmx, ymx, copyright)
@@ -5861,6 +5872,7 @@ async function start_charts() {
 	let ch_did_it = [];
 	get_mem_usage("__mem: at 0: ");
 	if (g_cpu_diagram_flds_json_str !== null && g_cpu_diagram_flds_json_str.length > 0) {
+		g_cpu_diagram_flds = null;
 		g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
 	}
 	for (let i=0; i < gjson.chart_data.length; i++) {
@@ -6522,7 +6534,6 @@ async function start_charts() {
 					last_draw_svg = po.lp;
 				}
 				send_blob_backend(po, xbeg, "ck_phase0");
-				reset_OS_view_image_ready();
 				myDelay_timeout = 1000;
 				jj = 0;
 				jjmax = jjmax_reset_value;
@@ -6531,6 +6542,7 @@ async function start_charts() {
 					po.lp = po.lp + 1;
 					ck_skip_phases_with_string(po);
 					if (po.lp < po.lp_max) {
+						reset_OS_view_image_ready();
 						set_zoom_xbeg_xend(po);
 						set_zoom_all_charts(-1, gjson.phase[0].file_tag, po.lp, "ck_phase 0");
 						console.log(sprintf("---- by_phase: lp= %d, wait...", po.lp));
