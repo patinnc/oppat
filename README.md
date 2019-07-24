@@ -44,6 +44,7 @@ Here is some example data for running Geekbench on Haswell CPUs:
     - there are some introductory slides to try and explain the OS_view charts and the cpu_diagram layout, a slide showing at which time (in seconds) each sub-test is showing (so you can go to T= X secs to go directly to that sub-test) and then one slide for each of the 50 subtests
 - an excel file of the data in the movie:  [excel file from geekbench the movie](xls/geekbench_the_movie.xlsx)
 - the HTML of the data in the movie...See [Intel Haswell with CPU diagram 4-CPU chip running Geekbench](sample_html_files/geekbench_the_movie.html).
+- the dashboard PNG for all 50 phases sorted by increasing UOPS retired/sec...See [Intel Haswell dashboard with CPU diagram 4-core chip dashboard running Geekbench](images/geekbench_the_dashboard.png).
 
 Here is some data for running my 'spin' benchmark with 4 sub-tests on Haswell CPUs:
 - The 1st subtest is a read memory bandwidth test. The L2/L3/memory block is highly used and stalled during the test. The RAT uops/cycle is low as the RAT is mostly stalled.
