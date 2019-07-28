@@ -202,6 +202,25 @@
   },
   {"event":
 	{
+	"evt_name": "cpu-clock", "evt_type": "ftrace", "comment":"sw cpu clock events",
+	"evt_flds": [
+		{"name":"cpu",   "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
+		{"name":"secs",   "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-9}]},
+		{"name":"dura",  "lkup": "", "lkup_typ": "TYP_TM_CHG_BY_CPU|TYP_TM_RUN|TYP_DURATION_BEF|TYP_DBL"}
+		],
+	"charts": [
+		{"category":"CPU", "title":"cpu-clock time by cpu",  "var_name": "secs", "by_var": "cpu",
+			"chart_tag":"FREQ_BY_CPU", "chart_type":"line", "use_chart":"y", "options":"DROP_1ST",
+			"tot_line":"__total__",
+			"options":"TOT_LINE_LEGEND_WEIGHT_BY_EVENT_NAME",
+			"tot_line_options":{"xform":"select_vars", "yval_fmt":"__BASEVARNM__: %.2f", "yvar_fmt":"av.%s",
+			"desc":"Based on cpu-clock event per cpu"}
+		}
+		]
+	}
+  },
+  {"event":
+	{
 	"evt_name": "r19", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r19 bus-access events",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
@@ -502,7 +521,6 @@
 	{
 	"evt_name": "r17", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r17 L2 dcache misses events",
 	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
-	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
@@ -523,7 +541,6 @@
 	{
 	"evt_name": "r1d", "evt_type": "ftrace", "arch":"ARM", "comment":"hw r1d events",
 	"comment":"# r19=bus access, r16=L2 dcache access, r17=L2 dcache refill, r1d=bus cycles, rc0=external memory access, re7=stall cycle due to load miss",
-	"comment":"$PRF_CMD record -a -k monotonic -F 997 -e \"{cpu-clock,cycles,instructions,r16,r17,re7,rc0,r1d}:S\" -o $ODIR/prf_trace2.data  &",
 	"evt_flds": [
 		{"name":"cpu",  "lkup": "", "lkup_typ": "TYP_SYS_CPU|TYP_INT"},
 		{"name":"freq", "lkup": "", "lkup_typ": "TYP_PERIOD|TYP_DIV_BY_INTERVAL|TYP_DBL", "actions":[{"oper":"mult", "val":1.0e-6}, {"oper":"drop_if_gt", "val":2000.0}]},
