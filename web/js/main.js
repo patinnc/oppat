@@ -939,7 +939,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	let tot_line = {};
 	tot_line.evt_str = [];
 	tot_line.lkup  = [];
-	tot_line.lkup_ckr= [];
 	tot_line.xarray  = [];
 	tot_line.yarray  = [];
 	tot_line.xarray2 = [];
@@ -979,7 +978,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				}
 				tot_line.evt_str.push(str);
 				tot_line.lkup.push([]);
-				tot_line.lkup_ckr.push([]);
 				tot_line.yarray.push([]);
 				tot_line.yarray2.push([]);
 				tot_line.xarray2.push([]);
@@ -1034,7 +1032,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				}
 				tot_line.evt_str.push(str);
 				tot_line.lkup.push([]);
-				tot_line.lkup_ckr.push([]);
 				tot_line.yarray.push([]);
 				tot_line.yarray2.push([]);
 				tot_line.xarray2.push([]);
@@ -1044,7 +1041,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		} else {
 			tot_line.evt_str.push(chart_data.tot_line);
 			tot_line.lkup.push([]);
-			tot_line.lkup_ckr.push([]);
 			tot_line.yarray.push([]);
 			tot_line.yarray2.push([]);
 			tot_line.xarray2.push([]);
@@ -3128,12 +3124,14 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		}
 		desc += "See chart: " + chart_data.title;
 		desc += "\n" + "chart_tag: " + chart_data.chart_tag;
+		let cpu_max = -1;
 		if (typeof chart_data.tot_line_opts_xform !== 'undefined' &&
 			(chart_data.tot_line_opts_xform == 'map_cpu_2_core' ||
 			chart_data.tot_line_opts_xform == 'map_cpu_2_socket')) {
 			// I probably should have a way to indicate if really want to divide by 2 for HT
 			// The 'div by 2' is for the case where we are computing cycles/uop with HT enabled
 			// then summing core thread 0 and 1.
+			cpu_max = chart_data.map_cpu_2_core.length;
 			for(let cpu=0; cpu < chart_data.map_cpu_2_core.length; cpu++) {
 				if (chart_data.map_cpu_2_core[cpu].core != cpu) {
 					HT_enabled = true;
@@ -3141,7 +3139,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				}
 			}
 		}
-		let HT_factor_num = 1.0, HT_factor_den = 1.0;
+		let HT_factor_num = false, HT_factor_den = false;
 		let scope = {"num":null, "den":null};
 		if (typeof chart_data.tot_line_opts_scope !== 'undefined') {
 			scope_arr = chart_data.tot_line_opts_scope;
@@ -3155,15 +3153,15 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			}
 			if (HT_enabled) {
 				if (scope_arr.length >= 1 && scope_arr[0] == 'per_core') {
-					HT_factor_num = 0.5;
+					HT_factor_num = true;
 				}
 				if (scope_arr.length >= 2 && scope_arr[1] == 'per_core') {
-					HT_factor_den = 0.5;
+					HT_factor_den = true;
 				}
-				//console.log(sprintf("n= %.1f, d= %.1f mnd= %d ttl= %s", HT_factor_num, HT_factor_den, map_num_den, chart_data.title));
+				//console.log(sprintf("n= %s, d= %s mnd= %d ttl= %s", HT_factor_num, HT_factor_den, map_num_den, chart_data.title));
 			} else {
-				HT_factor_num = 1.0;
-				HT_factor_den = 1.0;
+				HT_factor_num = false;
+				HT_factor_den = false;
 			}
 		}
 		let num=0.0, den=0.0;
@@ -3176,7 +3174,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				if (typeof chart_data.tot_line_opts_xform !== 'undefined') {
 					if (chart_data.tot_line_opts_xform == 'map_cpu_2_core' ||
 						chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
-						if (chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
+						if (HT_enabled && chart_data.tot_line_opts_xform == 'map_cpu_2_core') {
 							do_map_cpu_2_core = true;
 						}
 						else if (chart_data.tot_line_opts_xform == 'map_cpu_2_socket') {
@@ -3193,11 +3191,22 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			let tot_dura = [];
 			let tot_pts = 0;
 			let tm_loop = 0.0;
+			let ht_num = [];
+			let ht_den = [];
+			if (HT_factor_num || HT_factor_den) {
+				for (let cpu= 0; cpu < cpu_max; cpu++) {
+					ht_num.push([]);
+					ht_den.push([]);
+					ht_num[cpu].length = tot_line.divisions+1;
+					ht_den[cpu].length = tot_line.divisions+1;
+					ht_num[cpu].fill(0.0);
+					ht_den[cpu].fill(0.0);
+				}
+			}
 			tot_dura.length = tot_line.evt_str.length;
 			for (let sci= 0; sci < tot_line.evt_str.length; sci++) {
 				if (tot_line.lkup[sci].length != tot_line.divisions+1) {
 					tot_line.lkup[sci].length = tot_line.divisions+1;
-					//tot_line.lkup_ckr[sci].length = tot_line.divisions+1;
 					tot_line.xarray2[sci].length = tot_line.divisions+1;
 					tot_line.yarray2[sci].length = tot_line.divisions+1;
 					tot_line.yarray[sci].length = tot_line.divisions+1;
@@ -3208,7 +3217,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				tot_line.totals[sci] = {tot:0.0, tot_x_by_y:0.0};
 				for (let j=0; j < tot_line.yarray[sci].length; j++) {
 					tot_line.lkup[sci][j] = [];
-					//tot_line.lkup_ckr[sci][j] = {};
 				}
 				tot_dura[sci] = {dura:0.0, smpl:0};
 			}
@@ -3233,22 +3241,22 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			//for (let sci= 0; sci < tot_line.evt_str.length; sci++)
 			{
 				let sci;
+				let frst_tm = false;
+				if (typeof event_list === 'undefined' || event_list.length == 0) {
+					frst_tm = true;
+				}
 				for (let i=0; i < chart_data.myshapes.length; i++) {
 					sci = tot_line.smpl_2_sci[i];
 					let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 					let do_event = false;
-					let frst_tm = false;
-					if (typeof event_list === 'undefined' || event_list.length == 0) {
-						frst_tm = true;
-					}
 					if (!frst_tm) {
-					if (fe_idx == -1 || (typeof event_select[fe_idx] !== 'undefined' &&
-						(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
-						do_event = true;
-					}
-					if (!do_event) {
-						continue;
-					}
+						if (fe_idx == -1 || (typeof event_select[fe_idx] !== 'undefined' &&
+							(event_select[fe_idx][1] == 'highlight' || event_select[fe_idx][1] == 'show'))) {
+							do_event = true;
+						}
+						if (!do_event) {
+							continue;
+						}
 					}
 					let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
 					if (do_sel_vars) {
@@ -3368,11 +3376,15 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						if (map_num_den > 0) {
 							let y_num, x_den;
 							if (!ch_options.tot_line_add_values_in_interval) {
-								y_num = HT_factor_num * num * (xcur1 - xcur0) * tot_line.divisions;
-								x_den = HT_factor_den * den * (xcur1 - xcur0) * tot_line.divisions;
+								y_num = num * (xcur1 - xcur0) * tot_line.divisions;
+								x_den = den * (xcur1 - xcur0) * tot_line.divisions;
 							} else {
-								y_num = HT_factor_num * num;
-								x_den = HT_factor_den * den;
+								y_num = num;
+								x_den = den;
+							}
+							if (HT_factor_num || HT_factor_den) {
+								ht_num[cpu][j] += y_num;
+								ht_den[cpu][j] += x_den;
 							}
 							let use_sci_x = sci;
 							let use_sci_y = sci;
@@ -3411,11 +3423,72 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						}
 					}
 				}
+				if (HT_factor_num || HT_factor_den) {
+					if (tot_line.evt_str.length > cpu_max) {
+						console.log(sprintf("got problem.  evt_str.len= %d, cpu_max= %d", tot_line.evt_str.length, cpu_max));
+						fail;
+					}
+					let cpu_2_core_map = [];
+					let core_2_cpu_map = [];
+					cpu_2_core_map.length = cpu_max;
+					for (let cpu= 0; cpu < cpu_max; cpu++) {
+						let core = chart_data.map_cpu_2_core[cpu].core;
+						if (core >= core_2_cpu_map.length) {
+							core_2_cpu_map.length = core+1;
+							for (let jj=0; jj < core_2_cpu_map.length; jj++) {
+								if (typeof core_2_cpu_map[jj] === 'undefined') {
+									core_2_cpu_map[jj] = [];
+								}
+							}
+						}
+						core_2_cpu_map[core].push(cpu);
+						cpu_2_core_map[cpu] = core;
+					}
+					for (let j= 0; j < tot_line.divisions+1; j++) {
+						for (let core= 0; core < core_2_cpu_map.length; core++) {
+							let cpu0 = core_2_cpu_map[core][0];
+							let cpu1 = core_2_cpu_map[core][1];
+							let num_cpu0_fctr = 1.0;
+							let num_cpu1_fctr = 1.0;
+							let den_cpu0_fctr = 1.0;
+							let den_cpu1_fctr = 1.0;
+							if (HT_factor_num) {
+								let tot = ht_num[cpu0][j] + ht_num[cpu1][j];
+								if (tot > 0.0) {
+								num_cpu0_fctr = ht_num[cpu0][j]/tot;
+								num_cpu1_fctr = ht_num[cpu1][j]/tot;
+								}
+							}
+							if (HT_factor_den) {
+								let tot = ht_den[cpu0][j] + ht_den[cpu1][j];
+								if (tot > 0.0) {
+									den_cpu0_fctr = ht_den[cpu0][j]/tot;
+									den_cpu1_fctr = ht_den[cpu1][j]/tot;
+								}
+							}
+							let xv = den_cpu0_fctr * ht_den[cpu0][j] + den_cpu1_fctr * ht_den[cpu1][j];
+							let yv = num_cpu0_fctr * ht_num[cpu0][j] + num_cpu1_fctr * ht_num[cpu1][j];
+							tot_line.xarray2[core][j] = xv;
+							tot_line.yarray2[core][j] = yv;
+							if (ch_options.sum_to_interval) {
+								tot_line.yarray[core][j] = yv;
+							} else if (tot_line.xarray2[core][j] > 0.0 && xv > 0.0) {
+								tot_line.yarray[core][j] = yv/xv;
+							} else {
+								tot_line.yarray[core][j] = 0.0;
+							}
+						}
+					}
+				}
 			}
 			let tm_top_02 = performance.now();
 			if (chart_data.chart_tag == g_chart_tag_tm_trace) {
 				console.log(sprintf("__mem get_tot_val tm0= %.2f, scim= %d, div= %d, tm_loop= %.2f",
 					tm_top_02-tm_top_00, tot_line.yarray.length, tot_line.divisions, tm_loop));
+			}
+			let frst_tm = false;
+			if (typeof event_list === 'undefined' || event_list.length == 0) {
+				frst_tm = true;
 			}
 			for (let sci= 0; sci < tot_line.evt_str.length; sci++) {
 				let tot_avg = 0, tot_avg2= 0;
@@ -3424,10 +3497,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				let do_event = false;
 				let el_idx = tot_line.event_list_idx[sci];
 				let fe_idx = -1;
-				let frst_tm = false;
-				if (typeof event_list === 'undefined' || event_list.length == 0) {
-					frst_tm = true;
-				}
 
 				if (!frst_tm) {
 					if (el_idx < 0 || typeof event_list[el_idx] === 'undefined') {
@@ -3704,13 +3773,13 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		let end = [0, 0];
 		xlate(beg, ctx, minx, 0, minx, maxx, uminy, umaxy);
 		ctx.textAlign = "left";
-		let tstr = "rel.T= "+minx;
+		let tstr = "rel.T= "+sprintf("%.9f", minx);
 		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + font_sz);
 		tstr = "T= "+(minx + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
 		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + 2* font_sz);
 		xlate(beg, ctx, maxx, 0, minx, maxx, uminy, umaxy);
 		ctx.textAlign = "right";
-		tstr = "rel.T= "+maxx;
+		tstr = "rel.T= "+sprintf("%.9f", maxx);
 		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + font_sz);
 		tstr = "T= "+(maxx + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x);
 		ctx.fillText(tstr, beg[0], canvas_px_high(null) - yPadding + 2* font_sz);
@@ -4805,7 +4874,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					} else {
 					let intrvl_x0 = chart_data.myshapes[shape_idx].pts[PTS_X0]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
 					let intrvl_x1 = chart_data.myshapes[shape_idx].pts[PTS_X1]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
-					str4 = "<br>abs.T= "+intrvl_x0+ " - " + intrvl_x1;
+					str4 = "<br>abs.T= "+sprintf("%.9f", intrvl_x0)+ " - " + sprintf("%.9f", intrvl_x1);
 					}
 				}
 				let rel_nx0 = nx0 + chart_data.ts_initial.tm_beg_offset_due_to_clip;
@@ -4815,7 +4884,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				if (str5 != "") {
 					str5 = "<br>Phase= "+str5;
 				}
-				set_chart_text(myhvr_clr_txt, myhvr_clr_txt_btn, "x= " + x + ", rel.T= "+rel_nx0+", T= "+(nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x)+str4+str5+str2+str3);
+				set_chart_text(myhvr_clr_txt, myhvr_clr_txt_btn, "x= " + x + ", rel.T= "+sprintf("%.9f", rel_nx0)+", T= "+sprintf("%.9f", (nx0 + chart_data.ts_initial.ts - chart_data.ts_initial.ts0x))+str4+str5+str2+str3);
 				nx0_prev = nx0;
 			} else {
 				let idx = chrt_idx;
