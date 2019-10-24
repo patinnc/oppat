@@ -782,7 +782,7 @@ int main(int argc, char **argv)
 			args[i].work = work;
 			args[i].wrk_typ = wrk_typ;
 		}
-		if (spin_tm > 0.0) {
+		if (doing_disk && spin_tm > 0.0) {
 			if (phase.size() > 0) {
 				trace_marker_write("begin phase ST "+phase);
 			}
@@ -828,6 +828,8 @@ int main(int argc, char **argv)
 				trace_marker_write(str);
 				printf("%s\n", str.c_str());
 			}
+			//abcd
+			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[i].wrk_typ].c_str(), (int)args.size(), tot, args[i].units.c_str());
 		}
 
 		t_end = dclock();
