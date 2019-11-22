@@ -10,7 +10,11 @@
 #define pid_t int
 #else
 #include <wordexp.h>
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
+#include <sched.h>
 #endif
+
+
 
 #include <iostream>
 #include <iomanip>
@@ -43,6 +47,10 @@
 #include "trace_marker.h"
 #include "utils.h"
 
+pthread_barrier_t mybarrier;
+volatile int mem_bw_threads_up=0;
+
+
 enum { // below enum has to be in same order as wrk_typs
 	WRK_SPIN,
 	WRK_MEM_BW,
@@ -73,6 +81,37 @@ static std::vector <std::string> wrk_typs = {
 	"disk_rdwr_dir"
 };
 
+
+int my_usleep(int usecs)
+{
+	struct timespec req;
+	int milln=1000000;
+	
+	req.tv_sec = 0;
+	if (usecs >= milln) {
+		req.tv_sec = usecs/milln;
+		usecs -= (int)(req.tv_sec * milln);
+	}
+	req.tv_nsec = usecs;
+	req.tv_nsec *= 1000;
+	return nanosleep(&req, NULL);
+}
+
+
+void pin(int cpu)
+{
+	int i = cpu;
+
+   // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
+   // only CPU i as set.
+   cpu_set_t cpuset;
+   CPU_ZERO(&cpuset);
+   CPU_SET(i, &cpuset);
+   int rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+   if (rc != 0) {
+     std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
+   }
+}
 
 pid_t mygettid(void)
 {
@@ -449,12 +488,14 @@ float mem_bw(unsigned int i)
 	double tm_end, tm_beg, bytes=0.0;
 	int strd = (int)args[i].loops;
 	int arr_sz = (int)args[i].adder;
+	//fprintf(stderr, "got to %d\n", __LINE__);
 	if (args[i].adder_str.size() > 0 && (strstr(args[i].adder_str.c_str(), "k") || strstr(args[i].adder_str.c_str(), "K"))) {
 		arr_sz *= 1024;
 	}
 	if (args[i].adder_str.size() > 0 && (strstr(args[i].adder_str.c_str(), "m") || strstr(args[i].adder_str.c_str(), "M"))) {
 		arr_sz *= 1024*1024;
 	}
+	pin(i);
 	if (i==0) {
 		printf("strd= %d, arr_sz= %d, %d KB, %.4f MB\n",
 			strd, arr_sz, arr_sz/1024, (double)(arr_sz)/(1024.0*1024.0));
@@ -467,8 +508,17 @@ float mem_bw(unsigned int i)
 		src = (char *)malloc(arr_sz);
 		array_write(src, arr_sz, strd);
 	}
+	mem_bw_threads_up++;
+	pthread_barrier_wait(&mybarrier);
 	tm_end = tm_beg = dclock();
+	int iters=0;
+	loops=1;
+	double tm_prev;
 	while((tm_end - tm_beg) < tm_to_run) {
+#if 1
+		for (int ii=0; ii < loops; ii++) 
+		{
+#endif
 		if (args[i].wrk_typ == WRK_MEM_BW) {
 			rezult += array_read(dst, arr_sz, strd);
 			bytes += arr_sz;
@@ -489,7 +539,20 @@ float mem_bw(unsigned int i)
 			rezult += array_2read_2write(dst, src, arr_sz, strd);
 			bytes += 4*arr_sz;
 		}
+#if 1
+		}
+#endif
 		tm_end = dclock();
+#if 1
+		// try to reduce the time spend in dclock()
+		if (++iters > 2) {
+			if ((tm_end - tm_prev) < 0.01) {
+				loops += 10;
+			}
+			iters = 3;
+		}
+		tm_prev = tm_end;
+#endif
 	}
 	double dura2, dura;
 	dura2 = dura = tm_end - tm_beg;
@@ -500,7 +563,7 @@ float mem_bw(unsigned int i)
 	args[i].tm_end = tm_end;
 	args[i].units = "GB/sec";
 	args[i].perf = 1.0e-9 * (double)(bytes)/(dura2);
-	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
+	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
 		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
 	args[i].rezult = rezult;
 	return rezult;
@@ -517,6 +580,8 @@ float simd_dot0(unsigned int i)
 	double tm_end, tm_beg;
 	loops = args[i].loops;
 	uint64_t adder = args[i].adder;
+	mem_bw_threads_up++;
+	pthread_barrier_wait(&mybarrier);
 	tm_end = tm_beg = dclock();
 	while((tm_end - tm_beg) < tm_to_run) {
 #if 1
@@ -538,7 +603,7 @@ float simd_dot0(unsigned int i)
 	args[i].tm_end = tm_end;
 	args[i].units = "Gops/sec";
 	args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
-	printf("cpu[%d]: tid= %d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
+	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
 		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
 	args[i].rezult = rezult;
 	return rezult;
@@ -658,17 +723,20 @@ int read_options_file(std::string argv0, std::string opts, std::vector <std::vec
 }
 
 
+std::vector <std::vector <std::string>> argvs;
+std::vector <phase_str> phase_vec;
+
 int main(int argc, char **argv)
 {
 
-	std::vector <std::vector <std::string>> argvs;
 	std::string loops_str, adder_str;
 	double t_first = dclock();
 	unsigned num_cpus = std::thread::hardware_concurrency();
 	double spin_tm = 2.0, spin_tm_multi=0.0;
 	bool doing_disk = false;
 	std::mutex iomutex;
-	printf("t_first= %.9f\n", t_first);
+	//num_cpus = 1;
+	printf("t_first= %.9f, build_date= %s, time= %s\n", t_first, __DATE__, __TIME__);
 #ifdef __linux__
 	printf("t_raw= %.9f\n", dclock_vari(CLOCK_MONOTONIC_RAW));
 	printf("t_coarse= %.9f\n", dclock_vari(CLOCK_MONOTONIC_COARSE));
@@ -684,11 +752,11 @@ int main(int argc, char **argv)
 	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
+	pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
 
 	uint32_t wrk_typ = WRK_SPIN;
 	std::string work = "spin";
 	std::string phase_file;
-	std::vector <phase_str> phase_vec;
 
 	if (argc >= 2 && std::string(argv[1]) == "-f") {
 		read_options_file(argv[0], argv[2], argvs);
@@ -706,6 +774,7 @@ int main(int argc, char **argv)
 		}
 		argvs.push_back(av);
 	}
+	args.resize(num_cpus);
 	for (uint32_t j=0; j < argvs.size(); j++) {
 		uint32_t i=1;
 		std::string phase;
@@ -770,7 +839,6 @@ int main(int argc, char **argv)
 		}
 
 		std::vector<std::thread> threads(num_cpus);
-		args.resize(num_cpus);
 		for (uint32_t i=0; i < num_cpus; i++) {
 			args[i].phase   = phase;
 			args[i].spin_tm = spin_tm;
@@ -802,14 +870,19 @@ int main(int argc, char **argv)
 		printf("work= %s\n", work.c_str());
 
 		if (!doing_disk && spin_tm_multi > 0.0) {
-			if (phase.size() > 0) {
-				trace_marker_write("begin phase MT "+phase);
-			}
+			useconds_t sleep_tm = 1000; // 1 ms
 			for (unsigned i = 0; i < num_cpus; ++i) {
 				threads[i] = std::thread([&iomutex, i] {
 					dispatch_work(i);
 				});
+				while(mem_bw_threads_up <= i) {
+					my_usleep(sleep_tm);
+				}
 			}
+			if (phase.size() > 0) {
+				trace_marker_write("begin phase MT "+phase);
+			}
+			pthread_barrier_wait(&mybarrier);
 
 			for (auto& t : threads) {
 				t.join();
