@@ -86,7 +86,9 @@ int my_number_of_cpus = 0;
 
 #include <stdio.h>
 #include <stdarg.h>
+#ifndef __APPLE__
 #include <malloc.h>
+#endif
 #include <sys/timeb.h>
 #include <time.h>
 #include <stdlib.h>

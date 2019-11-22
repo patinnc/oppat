@@ -7,7 +7,7 @@
 #ifdef _WIN32
 #define DIR_SEP "\\"
 #endif
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #define DIR_SEP "/"
 #endif
 

@@ -30,6 +30,10 @@
 #include <errno.h>
 #include <unistd.h>
 #endif
+#ifdef __APPLE__
+#define O_LARGEFILE 0
+#define mmap64 mmap
+#endif
 
 
 /// do nothing, must use open()
