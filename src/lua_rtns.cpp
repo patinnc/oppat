@@ -3,6 +3,7 @@
  * License http://opensource.org/licenses/mit-license.php MIT License
  */
 
+#include <array>
 #include <sol.hpp>
 #include <string>
 #include <iostream>

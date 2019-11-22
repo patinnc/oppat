@@ -6,7 +6,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #endif
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 #include <sys/time.h>
 #include <limits.h>
 #define _strdup strdup
@@ -23,7 +23,11 @@
 #include <iostream>
 #include <chrono>
 #include <vector>
+#ifdef __APPLE__
+#include <stdlib.h>
+#else
 #include <malloc.h>
+#endif
 
 #include <stdint.h>
 #define UTILS_CPP
@@ -292,7 +296,7 @@ int ck_filename_exists(const char *filename, const char *file, int line, int ver
 	char flnm[MAX_PATH];
 	size_t len;
 	int rc;
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	struct stat stat_buffer;
 #else
 	struct _stat64 stat_buffer;
@@ -306,7 +310,7 @@ int ck_filename_exists(const char *filename, const char *file, int line, int ver
 	memset(flnm, 0, len);
 	_snprintf(flnm, len, "%s", filename);
 	//printf("filenm= %s at %s %d\n", flnm, __FILE__, __LINE__);
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	rc = stat( flnm, &stat_buffer );
 #else
 	rc = _stat64( flnm, &stat_buffer );
@@ -327,7 +331,7 @@ uint64_t get_file_size(const char *filename, const char *file, int line, int ver
 	char flnm[MAX_PATH];
 	size_t len;
 	int rc;
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	struct stat stat_buffer;
 #else
 	struct _stat64 stat_buffer;
@@ -341,7 +345,7 @@ uint64_t get_file_size(const char *filename, const char *file, int line, int ver
 	memset(flnm, 0, len);
 	_snprintf(flnm, len, "%s", filename);
 	//printf("filenm= %s at %s %d\n", flnm, __FILE__, __LINE__);
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	rc = stat( flnm, &stat_buffer );
 #else
 	rc = _stat64( flnm, &stat_buffer );

@@ -895,7 +895,7 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 						diff_ts_with_ts_of_prev_by_var_using_fld = jief["diff_ts_with_ts_of_prev_by_var_using_fld"];
 						got_diff_ts_stuff = true;
 					}
-					lag_prev_by_var_using_fld;
+					lag_prev_by_var_using_fld = "";
 					lag_by_var=0;
 					if (jief.find("lag_prev_by_var_using_fld") != jief.end()) {
 						lag_prev_by_var_using_fld = jief["lag_prev_by_var_using_fld"]["name"];

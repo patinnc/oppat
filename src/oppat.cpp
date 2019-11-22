@@ -5088,7 +5088,7 @@ static int start_web_server_threads(Queue<std::string>& q_from_srvr_to_clnt,
 
 	printf("waiting for thrd_status= %d at %s %d\n", thrd_status, __FILE__, __LINE__);
 	while(thrd_status < THRD_RUNNING) {
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 		usleep(100000);
 #else
 		Sleep(100);
@@ -7164,7 +7164,7 @@ int main(int argc, char **argv)
 				}
 
 			}
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 			usleep(10*1000);
 #else
 			Sleep(10);

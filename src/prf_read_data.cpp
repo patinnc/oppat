@@ -25,6 +25,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <vector>
 #include <cstddef>
 #include <inttypes.h>
 #include <algorithm>
@@ -737,7 +738,7 @@ static int prf_decode_perf_record(const long pos_rec, uint64_t typ, char *rec, i
 			int exp_identifier = (prf_obj.def_sample_flags & PERF_SAMPLE_IDENTIFIER ? 1 : 0);
 			if (!exp_id && !exp_identifier && prf_obj.events.size() != 1) {
 				printf("ummm... got no IDs in the prf event list but event list size is(%" PRIu64 ") != 1. ck yer logic dude. Bye at %s %d\n",
-					prf_obj.events.size(), __FILE__, __LINE__);
+					(uint64_t)(prf_obj.events.size()), __FILE__, __LINE__);
 				exit(1);
 			}
 			if (prf_obj.events.size() == 1) {
