@@ -35,6 +35,7 @@ ifeq ($(OS),Windows_NT)
 else
   #Linux stuff
   $(info linux)
+  UNAME := $(shell uname)
   # The C program compiler.
   CC     = gcc
   # The C++ program compiler.
@@ -58,7 +59,11 @@ else
   MK_DEPENDS_FILE = depends_lnx.mk
   OFILE = -o
   OEXE = -o
+  ifeq ($(UNAME), Darwin)
+  PLAT_LDFLAGS = 
+  else
   PLAT_LDFLAGS = -static
+  endif
   #SUBDIRS := zlib-1.2.11
 
 endif
