@@ -1,5 +1,4 @@
 
-
 cl /EHsc /Ox /Zi -Iinc src/utils.cpp  spin_wait/clocks.cpp /Fe:bin/clocks.exe
 if %ERRORLEVEL% GTR 0 goto err
 del clocks.obj utils.obj
