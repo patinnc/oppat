@@ -49,7 +49,11 @@
 #include "utils.h"
 #include "utils2.h"
 
+#ifdef __linux__
 pthread_barrier_t mybarrier;
+#else
+SYNCHRONIZATION_BARRIER mybarrier;
+#endif
 volatile int mem_bw_threads_up=0;
 
 std::vector <std::vector <int>> nodes_cpulist;
@@ -89,19 +93,20 @@ static std::vector <std::string> wrk_typs = {
 };
 
 
-int my_usleep(int usecs)
+int my_msleep(int msecs)
 {
+#ifdef __linux__
 	struct timespec req;
-	int milln=1000000;
+	uint64_t ms=msecs;
+
+	ts.tv_sec = ms / 1000;
+    ts.tv_nsec = (ms % 1000) * 1000000;
 	
-	req.tv_sec = 0;
-	if (usecs >= milln) {
-		req.tv_sec = usecs/milln;
-		usecs -= (int)(req.tv_sec * milln);
-	}
-	req.tv_nsec = usecs;
-	req.tv_nsec *= 1000;
 	return nanosleep(&req, NULL);
+#else
+	Sleep(msecs);
+	return 0;
+#endif
 }
 
 
@@ -506,7 +511,7 @@ float mem_bw(unsigned int i)
 		arr_sz *= 1024*1024;
 	}
 	pin(i);
-	my_usleep(0); // necessary? in olden times it was.
+	my_msleep(0); // necessary? in olden times it was.
 	if (i==0) {
 		printf("strd= %d, arr_sz= %d, %d KB, %.4f MB\n",
 			strd, arr_sz, arr_sz/1024, (double)(arr_sz)/(1024.0*1024.0));
@@ -530,7 +535,7 @@ float mem_bw(unsigned int i)
 		}
 		if (cpu_to_switch_to != -1) {
 			pin(cpu_to_switch_to);
-			my_usleep(0);
+			my_msleep(0);
 		} else {
 			do_loop = false;
 		}
@@ -543,7 +548,11 @@ float mem_bw(unsigned int i)
 	}
 
 	mem_bw_threads_up++;
+#ifdef __linux__
 	pthread_barrier_wait(&mybarrier);
+#else
+	EnterSynchronizationBarrier(&mybarrier, 0);
+#endif
 	tm_end = tm_beg = dclock();
 	int iters=0;
 	loops=1;
@@ -626,7 +635,11 @@ float simd_dot0(unsigned int i)
 	loops = args[i].loops;
 	uint64_t adder = args[i].adder;
 	mem_bw_threads_up++;
+#ifdef __linux__
 	pthread_barrier_wait(&mybarrier);
+#else
+	EnterSynchronizationBarrier(&mybarrier, 0);
+#endif
 	tm_end = tm_beg = dclock();
 	while((tm_end - tm_beg) < tm_to_run) {
 #if 1
@@ -811,7 +824,11 @@ int main(int argc, char **argv)
 	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
+#ifdef __linux__
 	pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
+#else
+	InitializeSynchronizationBarrier(&mybarrier, num_cpus+1, -1);
+#endif
 
 	uint32_t wrk_typ = WRK_SPIN;
 	std::string work = "spin";
@@ -973,19 +990,23 @@ int main(int argc, char **argv)
 		printf("work= %s\n", work.c_str());
 
 		if (!doing_disk && spin_tm_multi > 0.0) {
-			useconds_t sleep_tm = 1000; // 1 ms
+			int sleep_ms = 1; // 1 ms
 			for (unsigned i = 0; i < num_cpus; ++i) {
 				threads[i] = std::thread([&iomutex, i] {
 					dispatch_work(i);
 				});
 				while(mem_bw_threads_up <= i) {
-					my_usleep(sleep_tm);
+					my_msleep(sleep_ms);
 				}
 			}
 			if (phase.size() > 0) {
 				trace_marker_write("begin phase MT "+phase);
 			}
+#ifdef __linux__
 			pthread_barrier_wait(&mybarrier);
+#else
+			EnterSynchronizationBarrier(&mybarrier, 0);
+#endif
 
 			for (auto& t : threads) {
 				t.join();
@@ -1005,7 +1026,7 @@ int main(int argc, char **argv)
 				printf("%s\n", str.c_str());
 			}
 			//abcd
-			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[i].wrk_typ].c_str(), (int)args.size(), tot, args[i].units.c_str());
+			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[i].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
 		}
 
 		t_end = dclock();
