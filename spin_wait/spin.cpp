@@ -35,6 +35,7 @@
 #include <thread>
 #include <mutex>
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <sys/types.h>
 //#define _GNU_SOURCE         /* See feature_test_macros(7) */
@@ -46,10 +47,14 @@
 
 #include "trace_marker.h"
 #include "utils.h"
+#include "utils2.h"
 
 pthread_barrier_t mybarrier;
 volatile int mem_bw_threads_up=0;
 
+std::vector <std::vector <int>> nodes_cpulist;
+std::vector <int> nodes_index_into_cpulist;
+std::vector <int> cpu_belongs_to_which_node;
 
 enum { // below enum has to be in same order as wrk_typs
 	WRK_SPIN,
@@ -57,6 +62,7 @@ enum { // below enum has to be in same order as wrk_typs
 	WRK_MEM_BW_RDWR,
 	WRK_MEM_BW_2RD,
 	WRK_MEM_BW_2RDWR,
+	WRK_MEM_BW_REMOTE,
 	WRK_MEM_BW_2RD2WR,
 	WRK_DISK_RD,
 	WRK_DISK_WR,
@@ -72,6 +78,7 @@ static std::vector <std::string> wrk_typs = {
 	"mem_bw_rdwr",
 	"mem_bw_2rd",
 	"mem_bw_2rdwr",
+	"mem_bw_remote",
 	"mem_bw_2rd2wr",
 	"disk_rd",
 	"disk_wr",
@@ -100,6 +107,7 @@ int my_usleep(int usecs)
 
 void pin(int cpu)
 {
+#if defined(__linux__)
 	int i = cpu;
 
    // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
@@ -111,6 +119,7 @@ void pin(int cpu)
    if (rc != 0) {
      std::cerr << "Error calling pthread_setaffinity_np: " << rc << "\n";
    }
+#endif
 }
 
 pid_t mygettid(void)
@@ -151,8 +160,9 @@ struct args_str {
 	unsigned long rezult, loops, adder;
 	double tm_beg, tm_end, perf, dura;
 	int id, wrk_typ;
+	char *dst;
 	std::string loops_str, adder_str, units;
-	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0),
+	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0), dst(0),
 		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1) {}
 };
 
@@ -496,6 +506,7 @@ float mem_bw(unsigned int i)
 		arr_sz *= 1024*1024;
 	}
 	pin(i);
+	my_usleep(0); // necessary? in olden times it was.
 	if (i==0) {
 		printf("strd= %d, arr_sz= %d, %d KB, %.4f MB\n",
 			strd, arr_sz, arr_sz/1024, (double)(arr_sz)/(1024.0*1024.0));
@@ -508,12 +519,42 @@ float mem_bw(unsigned int i)
 		src = (char *)malloc(arr_sz);
 		array_write(src, arr_sz, strd);
 	}
+	bool do_loop = true;
+	if (args[i].wrk_typ == WRK_MEM_BW_REMOTE) {
+		int nd = cpu_belongs_to_which_node[cpu];
+		int cpu_order_for_nd = nodes_index_into_cpulist[cpu];
+		int other_nd = (nd == 0 ? 1 : 0);
+		int cpu_to_switch_to = -1;
+		if (cpu_order_for_nd < nodes_cpulist[other_nd].size()) {
+			cpu_to_switch_to = nodes_cpulist[other_nd][cpu_order_for_nd];
+		}
+		if (cpu_to_switch_to != -1) {
+			pin(cpu_to_switch_to);
+			my_usleep(0);
+		} else {
+			do_loop = false;
+		}
+#if 1
+		if (nd == 0) {
+			do_loop = false;
+		}
+#endif
+	        printf("try mem_bw_remote cpu= %d, nd= %d, oth_nd= %d, cpu_2_sw= %d at %s %d\n", cpu, nd, other_nd, cpu_to_switch_to, __FILE__, __LINE__);
+	}
+
 	mem_bw_threads_up++;
 	pthread_barrier_wait(&mybarrier);
 	tm_end = tm_beg = dclock();
 	int iters=0;
 	loops=1;
 	double tm_prev;
+	if (!do_loop) {
+		args[i].dura = 0;
+		args[i].tm_end = tm_end;
+		args[i].units = "GB/sec";
+		args[i].perf = 0.0;
+		return 0.0;
+	}
 	while((tm_end - tm_beg) < tm_to_run) {
 #if 1
 		for (int ii=0; ii < loops; ii++) 
@@ -534,6 +575,10 @@ float mem_bw(unsigned int i)
 		else if (args[i].wrk_typ == WRK_MEM_BW_2RDWR) {
 			rezult += array_2read_write(dst, src, arr_sz, strd);
 			bytes += 3*arr_sz;
+		}
+		else if (args[i].wrk_typ == WRK_MEM_BW_REMOTE) {
+			rezult += array_read(dst, arr_sz, strd);
+			bytes += arr_sz;
 		}
 		else if (args[i].wrk_typ == WRK_MEM_BW_2RD2WR) {
 			rezult += array_2read_2write(dst, src, arr_sz, strd);
@@ -623,6 +668,7 @@ float dispatch_work(int  i)
 		case WRK_MEM_BW_RDWR:
 		case WRK_MEM_BW_2RDWR:
 		case WRK_MEM_BW_2RD2WR:
+		case WRK_MEM_BW_REMOTE:
 		case WRK_MEM_BW_2RD:
 			res = mem_bw(i);
 			break;
@@ -722,6 +768,19 @@ int read_options_file(std::string argv0, std::string opts, std::vector <std::vec
 	return 0;
 }
 
+int read_file_into_string(std::string filename, std::string &buf)
+{
+	std::ifstream t(filename);
+	std::stringstream buffer;
+	buffer << t.rdbuf();
+	buf = buffer.str();
+	if (buf.size() > 0) {
+		if (buf[buf.size()-1] == '\n') {
+			buf.resize(buf.size()-1);
+		}
+	}
+	return 0;
+}
 
 std::vector <std::vector <std::string>> argvs;
 std::vector <phase_str> phase_vec;
@@ -748,7 +807,7 @@ int main(int argc, char **argv)
 	time_t c_start, c_end;
 	unsigned long adder=1, loops = 0xffffff;
 	printf("usage: %s tm_secs[,tm_secs_multi] [work_type [ arg3 [ arg4 ]]]\n", argv[0]);
-	printf("\twork_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
+	printf("\twork_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
 	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
@@ -813,8 +872,52 @@ int main(int argc, char **argv)
 				doing_disk = true;
 				loops = 100;
 			}
+			if (wrk_typ == WRK_MEM_BW_REMOTE) {
+				int nd_max = -1;
+				std::vector <std::string> cpu_str_vec;
+				for (int nd=0; nd < 2; nd++) {
+					std::string nd_file= "/sys/devices/system/node/node"+std::to_string(nd)+"/cpulist";
+					int rc = ck_filename_exists(nd_file.c_str(), __FILE__, __LINE__, 0);
+					if (rc != 0) {
+						printf("you requested mem_bw_remote but I don't see any node file named '%s'. Bye at %s %d\n",
+							nd_file.c_str(), __FILE__, __LINE__);
+						exit(0);
+					}
+					std::string cpu_str;
+					rc = read_file_into_string(nd_file, cpu_str);
+					cpu_str_vec.push_back(cpu_str);
+				}
+				// simple list assumed: 1, 2, 3 or 1-2, 4-6, 7 so comma separate groups of 1 or a range of cpus
+				printf("Only using 2 nodes for mem_bw_remote at %s %d\n", __FILE__, __LINE__);
+				nodes_cpulist.resize(2);
+				cpu_belongs_to_which_node.resize(num_cpus, -1);
+				nodes_index_into_cpulist.resize(num_cpus, -1);
+				for (int nd=0; nd < 2; nd++) {
+					printf("cpu_str= %s\n", cpu_str_vec[nd].c_str());
+					std::vector <std::string> grps;
+					tkn_split(cpu_str_vec[nd], ",", grps);
+					for (int grp=0; grp < grps.size(); grp++) {
+						std::vector <std::string> beg_end;
+						tkn_split(grps[grp], "-", beg_end);
+						printf("nd %d, grp[%d]= '%s', beg_end_sz= %d\n", nd, grp, grps[grp].c_str(), (int)beg_end.size());
+						if (beg_end.size() == 0) {
+							beg_end.push_back(grps[grp]);
+							beg_end.push_back(grps[grp]);
+						}
+						int cpu_beg = atoi(beg_end[0].c_str());
+						int cpu_end = atoi(beg_end[1].c_str());
+						for (int cbe=cpu_beg; cbe <= cpu_end; cbe++) {
+							printf("nd %d, grp[%d]= '%s' cpu[%d]= %d\n", nd, grp, grps[grp].c_str(), (int)nodes_cpulist[nd].size(), cbe);
+							cpu_belongs_to_which_node[cbe] = nd;
+							nodes_index_into_cpulist[cbe] = (int)nodes_cpulist[nd].size();
+							nodes_cpulist[nd].push_back(cbe);
+						}
+					}
+				}
+			}
 			if (wrk_typ == WRK_MEM_BW || wrk_typ == WRK_MEM_BW_RDWR ||
 				wrk_typ == WRK_MEM_BW_2RDWR || wrk_typ == WRK_MEM_BW_2RD ||
+				wrk_typ == WRK_MEM_BW_REMOTE || 
 				wrk_typ == WRK_MEM_BW_2RD2WR) {
 				loops = 64;
 				adder = 80*1024*1024;
