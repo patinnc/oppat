@@ -4,7 +4,7 @@ cl /EHsc /Ox /Zi -Iinc src/utils.cpp  spin_wait/clocks.cpp /Fe:bin/clocks.exe
 if %ERRORLEVEL% GTR 0 goto err
 del clocks.obj utils.obj
 
-cl /EHsc /Ox /Zi -Iinc spin_wait/spin.cpp src/utils.cpp spin_wait/trace_marker.cpp /Fe:bin/spin.exe
+cl /EHsc /Ox /Zi -Iinc spin_wait/spin.cpp src/utils2.cpp src/utils.cpp spin_wait/trace_marker.cpp /Fe:bin/spin.exe
 if %ERRORLEVEL% GTR 0 goto err
 del spin.obj utils.obj
 
