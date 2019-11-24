@@ -45,11 +45,20 @@
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #endif
 
+#ifdef __APPLE__
+#include <unistd.h>
+#include <mach/thread_act.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <time.h>
+#include "pthread_barrier_apple.h"
+#endif
+
 #include "trace_marker.h"
 #include "utils.h"
 #include "utils2.h"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 pthread_barrier_t mybarrier;
 #else
 SYNCHRONIZATION_BARRIER mybarrier;
@@ -92,27 +101,85 @@ static std::vector <std::string> wrk_typs = {
 	"disk_rdwr_dir"
 };
 
+void do_trace_marker_write(std::string str)
+{
+#ifndef __APPLE__
+	trace_marker_write("begin phase MT "+phase);
+#endif
+}
 
 int my_msleep(int msecs)
 {
-#ifdef __linux__
-	struct timespec req;
+#if defined(__linux__) || defined(__APPLE__)
+	struct timespec ts;
 	uint64_t ms=msecs;
 
 	ts.tv_sec = ms / 1000;
-    ts.tv_nsec = (ms % 1000) * 1000000;
+	ts.tv_nsec = (ms % 1000) * 1000000;
 	
-	return nanosleep(&req, NULL);
+	return nanosleep(&ts, NULL);
 #else
 	Sleep(msecs);
 	return 0;
 #endif
 }
 
+#if defined(__APPLE__)
+// from https://yyshen.github.io/2015/01/18/binding_threads_to_cores_osx.html
+// don't know license
+// alternative method https://gist.github.com/Coneko/4234842
+#define SYSCTL_CORE_COUNT   "machdep.cpu.core_count"
+
+typedef struct cpu_set {
+  uint32_t    count;
+} cpu_set_t;
+
+static inline void
+CPU_ZERO(cpu_set_t *cs) { cs->count = 0; }
+
+static inline void
+CPU_SET(int num, cpu_set_t *cs) { cs->count |= (1 << num); }
+
+static inline int
+CPU_ISSET(int num, cpu_set_t *cs) { return (cs->count & (1 << num)); }
+
+int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
+{
+  int32_t core_count = 0;
+  size_t  len = sizeof(core_count);
+  int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
+  if (ret) {
+    printf("error while get core count %d\n", ret);
+    return -1;
+  }
+  cpu_set->count = 0;
+  for (int i = 0; i < core_count; i++) {
+    cpu_set->count |= (1 << i);
+  }
+
+  return 0;
+}
+int pthread_setaffinity_np(pthread_t thread, size_t cpu_size,
+                           cpu_set_t *cpu_set)
+{
+  mach_port_t mach_thread;
+  int core = 0;
+
+  for (core = 0; core < 8 * cpu_size; core++) {
+    if (CPU_ISSET(core, cpu_set)) break;
+  }
+  printf("binding to core %d\n", core);
+  thread_affinity_policy_data_t policy = { core };
+  mach_thread = pthread_mach_thread_np(thread);
+  thread_policy_set(mach_thread, THREAD_AFFINITY_POLICY,
+                    (thread_policy_t)&policy, 1);
+  return 0;
+}
+#endif
 
 void pin(int cpu)
 {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__)
 	int i = cpu;
 
    // Create a cpu_set_t object representing a set of CPUs. Clear it and mark
@@ -131,7 +198,11 @@ pid_t mygettid(void)
 {
 	pid_t tid = -1;
 	//pid_t tid = (pid_t) syscall (SYS_gettid);
-#ifdef __linux__
+#if defined(__APPLE__)
+	mach_port_t mid = pthread_mach_thread_np(pthread_self());
+	tid = (int)mid;
+#endif
+#if defined(__linux__)
 	tid = (pid_t) syscall (__NR_gettid);
 #endif
 #ifdef _WIN32
@@ -150,7 +221,7 @@ double dclock(void)
 }
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 double dclock_vari(clockid_t clkid)
 {
 	struct timespec tp;
@@ -248,7 +319,7 @@ int array_read(char *buf, int ar_sz, int strd)
 static size_t sys_getpagesize(void)
 {
 	size_t pg_sz = 4096; // sane? default
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	pg_sz = sys_getpagesize();
 #else
 	SYSTEM_INFO siSysInfo;
@@ -272,14 +343,14 @@ static int alloc_pg_bufs(int num_bytes, char **buf_ptr, int pg_chunks)
 		use_bytes = (num_pgs+1) * (pg_chunks*pg_sz);
 	}
 	int rc=0;
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	rc = posix_memalign((void **)buf_ptr, pg_sz, use_bytes);
 #else
 	*buf_ptr = (char *)_aligned_malloc(use_bytes, pg_sz);
 #endif
 	if (rc != 0 || *buf_ptr == NULL) {
 		printf("failed to malloc %" PRId64 " bytes on alignment= %d at %s %d\n",
-			use_bytes, (int)pg_sz, __FILE__, __LINE__);
+			(int64_t)use_bytes, (int)pg_sz, __FILE__, __LINE__);
 		exit(1);
 	}
 	return pg_sz;
@@ -548,7 +619,7 @@ float mem_bw(unsigned int i)
 	}
 
 	mem_bw_threads_up++;
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	pthread_barrier_wait(&mybarrier);
 #else
 	EnterSynchronizationBarrier(&mybarrier, 0);
@@ -635,7 +706,7 @@ float simd_dot0(unsigned int i)
 	loops = args[i].loops;
 	uint64_t adder = args[i].adder;
 	mem_bw_threads_up++;
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	pthread_barrier_wait(&mybarrier);
 #else
 	EnterSynchronizationBarrier(&mybarrier, 0);
@@ -672,7 +743,7 @@ float dispatch_work(int  i)
 	float res=0.0;
 	int wrk = args[i].wrk_typ;
 
-	trace_marker_write("Begin "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
+	do_trace_marker_write("Begin "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
 	switch(wrk) {
 		case WRK_SPIN:
 			res = simd_dot0(i);
@@ -696,7 +767,7 @@ float dispatch_work(int  i)
 		default:
 			break;
 	}
-	trace_marker_write("End "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
+	do_trace_marker_write("End "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
 	return res;
 }
 
@@ -809,10 +880,16 @@ int main(int argc, char **argv)
 	std::mutex iomutex;
 	//num_cpus = 1;
 	printf("t_first= %.9f, build_date= %s, time= %s\n", t_first, __DATE__, __TIME__);
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	printf("t_raw= %.9f\n", dclock_vari(CLOCK_MONOTONIC_RAW));
+#if !defined(__APPLE__)
 	printf("t_coarse= %.9f\n", dclock_vari(CLOCK_MONOTONIC_COARSE));
+#endif
+#if defined(__APPLE__)
+	printf("t_boot= %.9f\n", dclock_vari(_CLOCK_UPTIME_RAW));
+#else
 	printf("t_boot= %.9f\n", dclock_vari(CLOCK_BOOTTIME));
+#endif
 	double proc_cputime = dclock_vari(CLOCK_PROCESS_CPUTIME_ID);
 #endif
 	std::cout << "Start Test 1 CPU" << std::endl; // prints !!!Hello World!!!
@@ -824,7 +901,7 @@ int main(int argc, char **argv)
 	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
 #else
 	InitializeSynchronizationBarrier(&mybarrier, num_cpus+1, -1);
@@ -972,14 +1049,14 @@ int main(int argc, char **argv)
 		}
 		if (doing_disk && spin_tm > 0.0) {
 			if (phase.size() > 0) {
-				trace_marker_write("begin phase ST "+phase);
+				do_trace_marker_write("begin phase ST "+phase);
 			}
 			t_start = dclock();
 			dispatch_work(0);
 			t_end = dclock();
 			if (phase.size() > 0) {
 				std::string str = "end phase ST "+phase+", dura= "+std::to_string(args[0].dura)+", "+args[0].units+"= "+std::to_string(args[0].perf);
-				trace_marker_write(str);
+				do_trace_marker_write(str);
 				printf("%s\n", str.c_str());
 			}
 		}
@@ -1000,9 +1077,9 @@ int main(int argc, char **argv)
 				}
 			}
 			if (phase.size() > 0) {
-				trace_marker_write("begin phase MT "+phase);
+				do_trace_marker_write("begin phase MT "+phase);
 			}
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 			pthread_barrier_wait(&mybarrier);
 #else
 			EnterSynchronizationBarrier(&mybarrier, 0);
@@ -1022,7 +1099,7 @@ int main(int argc, char **argv)
 				ps.tm_end = args[0].tm_end;
 				phase_vec.push_back(ps);
 				std::string str = "end phase MT "+phase+", dura= "+std::to_string(args[0].dura)+", "+args[0].units+"= "+std::to_string(tot);
-				trace_marker_write(str);
+				do_trace_marker_write(str);
 				printf("%s\n", str.c_str());
 			}
 			//abcd
@@ -1034,7 +1111,7 @@ int main(int argc, char **argv)
 			std::cout << "\nExecution time on " << num_cpus << " CPUs: " << t_end - t_start << " secs" << std::endl;
 		}
 	}
-#ifdef __linux__
+#if defined(__linux__) || defined(__APPLE__)
 	proc_cputime = dclock_vari(CLOCK_PROCESS_CPUTIME_ID) - proc_cputime;
 	printf("process cpu_time= %.6f secs at %s %d\n", proc_cputime, __FILE__, __LINE__);
 #endif
