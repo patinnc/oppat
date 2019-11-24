@@ -1103,7 +1103,7 @@ int main(int argc, char **argv)
 				printf("%s\n", str.c_str());
 			}
 			//abcd
-			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[i].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
+			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
 		}
 
 		t_end = dclock();
