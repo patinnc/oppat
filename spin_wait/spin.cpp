@@ -615,7 +615,7 @@ float mem_bw(unsigned int i)
 			do_loop = false;
 		}
 #endif
-	        printf("try mem_bw_remote cpu= %d, nd= %d, oth_nd= %d, cpu_2_sw= %d at %s %d\n", cpu, nd, other_nd, cpu_to_switch_to, __FILE__, __LINE__);
+	        //printf("try mem_bw_remote cpu= %d, nd= %d, oth_nd= %d, cpu_2_sw= %d at %s %d\n", cpu, nd, other_nd, cpu_to_switch_to, __FILE__, __LINE__);
 	}
 
 	mem_bw_threads_up++;
