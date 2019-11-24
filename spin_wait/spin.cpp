@@ -987,13 +987,13 @@ int main(int argc, char **argv)
 				cpu_belongs_to_which_node.resize(num_cpus, -1);
 				nodes_index_into_cpulist.resize(num_cpus, -1);
 				for (int nd=0; nd < 2; nd++) {
-					printf("cpu_str= %s\n", cpu_str_vec[nd].c_str());
+					//printf("cpu_str= %s\n", cpu_str_vec[nd].c_str());
 					std::vector <std::string> grps;
 					tkn_split(cpu_str_vec[nd], ",", grps);
 					for (int grp=0; grp < grps.size(); grp++) {
 						std::vector <std::string> beg_end;
 						tkn_split(grps[grp], "-", beg_end);
-						printf("nd %d, grp[%d]= '%s', beg_end_sz= %d\n", nd, grp, grps[grp].c_str(), (int)beg_end.size());
+						//printf("nd %d, grp[%d]= '%s', beg_end_sz= %d\n", nd, grp, grps[grp].c_str(), (int)beg_end.size());
 						if (beg_end.size() == 0) {
 							beg_end.push_back(grps[grp]);
 							beg_end.push_back(grps[grp]);
@@ -1001,7 +1001,7 @@ int main(int argc, char **argv)
 						int cpu_beg = atoi(beg_end[0].c_str());
 						int cpu_end = atoi(beg_end[1].c_str());
 						for (int cbe=cpu_beg; cbe <= cpu_end; cbe++) {
-							printf("nd %d, grp[%d]= '%s' cpu[%d]= %d\n", nd, grp, grps[grp].c_str(), (int)nodes_cpulist[nd].size(), cbe);
+							//printf("nd %d, grp[%d]= '%s' cpu[%d]= %d\n", nd, grp, grps[grp].c_str(), (int)nodes_cpulist[nd].size(), cbe);
 							cpu_belongs_to_which_node[cbe] = nd;
 							nodes_index_into_cpulist[cbe] = (int)nodes_cpulist[nd].size();
 							nodes_cpulist[nd].push_back(cbe);
