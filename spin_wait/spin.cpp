@@ -104,7 +104,7 @@ static std::vector <std::string> wrk_typs = {
 void do_trace_marker_write(std::string str)
 {
 #ifndef __APPLE__
-	trace_marker_write("begin phase MT "+phase);
+	trace_marker_write(str);
 #endif
 }
 
