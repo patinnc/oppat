@@ -698,11 +698,12 @@ float simd_dot0(unsigned int i)
 {
 	double tm_to_run = args[i].spin_tm;
 	int cpu =  args[i].id;
+	int iiloops = 0, iters = 0;
 	//unsigned int i;
 	uint64_t ops = 0;
 	uint64_t j, loops;
 	uint64_t rezult = 0;
-	double tm_end, tm_beg;
+	double tm_end, tm_beg, tm_prev;
 	loops = args[i].loops;
 	uint64_t adder = args[i].adder;
 	mem_bw_threads_up++;
@@ -714,6 +715,10 @@ float simd_dot0(unsigned int i)
 	tm_end = tm_beg = dclock();
 	while((tm_end - tm_beg) < tm_to_run) {
 #if 1
+		for (int ii=0; ii < iiloops; ii++) 
+		{
+#endif
+#if 1
 		rezult = do_scale(loops, rezult, adder, ops);
 #else
 		for (j = 0; j < loops; j++) {
@@ -721,7 +726,20 @@ float simd_dot0(unsigned int i)
 		}
 		ops += loops;
 #endif
+#if 1
+		}
+#endif
 		tm_end = dclock();
+#if 1
+		// try to reduce the time spend in dclock()
+		if (++iters > 2) {
+			if ((tm_end - tm_prev) < 0.01) {
+				iiloops += 10;
+			}
+			iters = 3;
+		}
+		tm_prev = tm_end;
+#endif
 	}
 	double dura2, dura;
 	dura2 = dura = tm_end - tm_beg;
