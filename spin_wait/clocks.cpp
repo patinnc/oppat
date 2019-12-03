@@ -51,12 +51,14 @@ double dclock_vari(clockid_t clkid)
 	return (double)(tp.tv_sec) + 1.0e-9 * (double)(tp.tv_nsec);
 }
 
+#if 0
 double dclock(void)
 {
 	struct timespec tp;
 	clock_gettime(CLOCK_MONOTONIC, &tp);
 	return (double)(tp.tv_sec) + 1.0e-9 * (double)(tp.tv_nsec);
 }
+#endif
 
 double mygettimeofday(void)
 {

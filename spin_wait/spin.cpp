@@ -137,6 +137,20 @@ int my_msleep(int msecs)
 #endif
 }
 
+double get_cputime(void)
+{
+#if defined(__linux__) || defined(__APPLE__)
+	double x;
+	struct timespec tp;
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp);
+	x = (double)tp.tv_sec + 1.0e-9 * (double)tp.tv_nsec;
+	return x;
+#else
+	// not really cpu time... need to fix this
+	return dclock();
+#endif
+}
+
 #if defined(__APPLE__)
 // from https://yyshen.github.io/2015/01/18/binding_threads_to_cores_osx.html
 // don't know license
@@ -171,20 +185,6 @@ int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
   }
 
   return 0;
-}
-
-double get_cputime(void)
-{
-#if defined(__linux__) || defined(__APPLE__)
-	double x;
-	struct timespec tp;
-	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp);
-	x = (double)tp.tv_sec + 1.0e-9 * (double)tp.tv_nsec;
-	return x;
-#else
-	// not really cpu time... need to fix this
-	return dclock();
-#endif
 }
 
 int pthread_setaffinity_np(pthread_t thread, size_t cpu_size,
