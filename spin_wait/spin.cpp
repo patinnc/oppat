@@ -721,8 +721,8 @@ float mem_bw(unsigned int i)
 	return rezult;
 }
 
-//#define D1 " rorl $1, %%eax;"
-#define D1 " andl $1, %%eax;"
+#define D1 " rorl $2, %%eax;"
+//#define D1 " andl $1, %%eax;"
 //#define D1 " rcll $1, %%eax;"
 #define D10 D1 D1 D1 D1 D1  D1 D1 D1 D1 D1
 #define D100 D10 D10 D10 D10 D10  D10 D10 D10 D10 D10
@@ -744,7 +744,7 @@ float simd_dot0(unsigned int i)
 	uint64_t j, loops;
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, tm_prev;
-	double xbeg, xend, xcumu = 0.0,  xinst=0.0, xfreq;
+	double xbeg, xend, xcumu = 0.0,  xinst=0.0, xfreq, xelap=0.0;
 	loops = args[i].loops;
 	uint64_t adder = args[i].adder;
 	mem_bw_threads_up++;
@@ -754,10 +754,11 @@ float simd_dot0(unsigned int i)
 	tm_end = tm_beg = dclock();
 
 	if (args[i].wrk_typ == WRK_FREQ_SML) {
-		int b = 2, imx = 100000, ii;
+		int b = 2, imx = 100000, ii, did_iters=0;
 		ops = 0;
-		while((tm_end - tm_beg) < tm_to_run) {
 		xbeg = get_cputime();
+		while((tm_end - tm_beg) < tm_to_run) {
+		did_iters++;
 		for (ii=0; ii < imx; ii++) {
 			asm ( "movl %1, %%eax;"
 				".align 4;"
@@ -769,19 +770,21 @@ float simd_dot0(unsigned int i)
 			);
 			a |= b;
 		}
-		xend = get_cputime();
 		tm_end = dclock();
+		}
+		xend = get_cputime();
 		xcumu += xend-xbeg;
 		xinst += (double)1000 * (double)imx;
-		}
+		xinst *= (double)did_iters;
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
 	}
 	if (args[i].wrk_typ == WRK_FREQ) {
-		int imx = 100, ii, b;
+		int imx = 100, ii, b, did_iters=0;
 		ops = 0;
-		while((tm_end - tm_beg) < tm_to_run) {
 		xbeg = get_cputime();
+		while((tm_end - tm_beg) < tm_to_run) {
+		did_iters++;
 		for (ii=0; ii < imx; ii++) {
 			asm ("movl %1, %%eax;"
 				".align 4;"
@@ -793,16 +796,18 @@ float simd_dot0(unsigned int i)
 			);
 			a |= b;
 		}
-		xend = get_cputime();
 		tm_end = dclock();
-		xcumu += xend-xbeg;
-		xinst += (double)1000000 * (double)imx;
 		}
+		xend = get_cputime();
+		xinst += (double)1000000 * (double)imx;
+		xinst *= (double)did_iters;
+		xcumu += xend-xbeg;
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
 	}
 
 	if (args[i].wrk_typ == WRK_SPIN) {
+		xbeg = get_cputime();
 		while((tm_end - tm_beg) < tm_to_run) {
 #if 1
 		for (int ii=0; ii < iiloops; ii++) 
@@ -831,6 +836,8 @@ float simd_dot0(unsigned int i)
 		tm_prev = tm_end;
 #endif
 		}
+		xend = get_cputime();
+		xcumu += xend-xbeg;
 	}
 	double dura2, dura;
 	dura2 = dura = tm_end - tm_beg;
@@ -851,8 +858,8 @@ float simd_dot0(unsigned int i)
 		//rezult = (float)a;
 		//printf("in simd[%d].perf= %f\n", i, args[i].perf);
 	}
-	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
-		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
+	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, cpu_tm= %f, Gops= %f, %s= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, xcumu, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
 	return rezult;
 }
 
