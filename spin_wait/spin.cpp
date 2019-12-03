@@ -12,6 +12,7 @@
 #include <wordexp.h>
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <sched.h>
+#include <time.h>
 #endif
 
 
@@ -71,6 +72,7 @@ std::vector <int> cpu_belongs_to_which_node;
 
 enum { // below enum has to be in same order as wrk_typs
 	WRK_SPIN,
+	WRK_FREQ,
 	WRK_MEM_BW,
 	WRK_MEM_BW_RDWR,
 	WRK_MEM_BW_2RD,
@@ -87,6 +89,7 @@ enum { // below enum has to be in same order as wrk_typs
 
 static std::vector <std::string> wrk_typs = {
 	"spin",
+	"freq",
 	"mem_bw",
 	"mem_bw_rdwr",
 	"mem_bw_2rd",
@@ -105,6 +108,16 @@ void do_trace_marker_write(std::string str)
 {
 #ifndef __APPLE__
 	trace_marker_write(str);
+#endif
+}
+
+
+void do_barrier_wait(void)
+{
+#if defined(__linux__) || defined(__APPLE__)
+	pthread_barrier_wait(&mybarrier);
+#else
+	EnterSynchronizationBarrier(&mybarrier, 0);
 #endif
 }
 
@@ -159,6 +172,21 @@ int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
 
   return 0;
 }
+
+double get_cputime(void)
+{
+#if defined(__linux__) || defined(__APPLE__)
+	double x;
+	struct timespec tp;
+	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &tp);
+	x = (double)tp.tv_sec + 1.0e-9 * (double)tp.tv_nsec;
+	return x;
+#else
+	// not really cpu time... need to fix this
+	return dclock();
+#endif
+}
+
 int pthread_setaffinity_np(pthread_t thread, size_t cpu_size,
                            cpu_set_t *cpu_set)
 {
@@ -619,11 +647,8 @@ float mem_bw(unsigned int i)
 	}
 
 	mem_bw_threads_up++;
-#if defined(__linux__) || defined(__APPLE__)
-	pthread_barrier_wait(&mybarrier);
-#else
-	EnterSynchronizationBarrier(&mybarrier, 0);
-#endif
+	do_barrier_wait();
+
 	tm_end = tm_beg = dclock();
 	int iters=0;
 	loops=1;
@@ -694,9 +719,22 @@ float mem_bw(unsigned int i)
 	return rezult;
 }
 
+#define D1 " rorl $1, %%eax;"
+//#define D1 " andl $1, %%eax;"
+//#define D1 " rcll $1, %%eax;"
+#define D10 D1 D1 D1 D1 D1  D1 D1 D1 D1 D1
+#define D100 D10 D10 D10 D10 D10  D10 D10 D10 D10 D10
+#define D1000 D100 D100 D100 D100 D100  D100 D100 D100 D100 D100
+#define D10000 D1000 D1000 D1000 D1000 D1000  D1000 D1000 D1000 D1000 D1000
+#define D100000 D10000 D10000 D10000 D10000 D10000  D10000 D10000 D10000 D10000 D10000
+#define D40000 D10000 D10000 D10000 D10000
+#define D1000000 D100000 D100000 D100000 D100000 D100000  D100000 D100000 D100000 D100000 D100000
+
+
 float simd_dot0(unsigned int i)
 {
 	double tm_to_run = args[i].spin_tm;
+	int a = 43;
 	int cpu =  args[i].id;
 	int iiloops = 0, iters = 0;
 	//unsigned int i;
@@ -704,16 +742,40 @@ float simd_dot0(unsigned int i)
 	uint64_t j, loops;
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, tm_prev;
+	double xbeg, xend, xcumu = 0.0,  xinst=0.0, xfreq;
 	loops = args[i].loops;
 	uint64_t adder = args[i].adder;
 	mem_bw_threads_up++;
-#if defined(__linux__) || defined(__APPLE__)
-	pthread_barrier_wait(&mybarrier);
-#else
-	EnterSynchronizationBarrier(&mybarrier, 0);
-#endif
+
+	do_barrier_wait();
+
 	tm_end = tm_beg = dclock();
-	while((tm_end - tm_beg) < tm_to_run) {
+
+	if (args[i].wrk_typ == WRK_FREQ) {
+		int imx = 100, ii;
+		ops = 0;
+		while((tm_end - tm_beg) < tm_to_run) {
+		xbeg = get_cputime();
+		for (ii=0; ii < imx; ii++) {
+			asm ("movl %1, %%eax;"
+				D1000000
+				" movl %%eax, %0;"
+				:"=r"(a) /* output */
+				:"r"(a)  /* input */
+				:"%eax"  /* clobbered reg */
+			);
+		}
+		xend = get_cputime();
+		tm_end = dclock();
+		xcumu += xend-xbeg;
+		xinst += (double)1000000 * (double)imx;
+		}
+		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
+		ops = (uint64_t)(xinst);
+	}
+
+	if (args[i].wrk_typ == WRK_SPIN) {
+		while((tm_end - tm_beg) < tm_to_run) {
 #if 1
 		for (int ii=0; ii < iiloops; ii++) 
 		{
@@ -740,6 +802,7 @@ float simd_dot0(unsigned int i)
 		}
 		tm_prev = tm_end;
 #endif
+		}
 	}
 	double dura2, dura;
 	dura2 = dura = tm_end - tm_beg;
@@ -749,10 +812,19 @@ float simd_dot0(unsigned int i)
 	args[i].dura = dura;
 	args[i].tm_end = tm_end;
 	args[i].units = "Gops/sec";
-	args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
+	if (args[i].wrk_typ == WRK_SPIN) {
+		args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
+		args[i].rezult = rezult;
+	}
+	if (args[i].wrk_typ == WRK_FREQ) {
+		args[i].perf = 1.0e-9 * xinst/xcumu;
+		args[i].rezult = (double)a;
+		args[i].dura = xcumu;
+		rezult = args[i].rezult;
+		//printf("in simd[%d].perf= %f\n", i, args[i].perf);
+	}
 	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, Gops= %f, %s= %f\n",
 		cpu, mygettid(), tm_beg, tm_end, dura, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
-	args[i].rezult = rezult;
 	return rezult;
 }
 
@@ -764,6 +836,7 @@ float dispatch_work(int  i)
 	do_trace_marker_write("Begin "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
 	switch(wrk) {
 		case WRK_SPIN:
+		case WRK_FREQ:
 			res = simd_dot0(i);
 			break;
 		case WRK_MEM_BW:
@@ -919,6 +992,7 @@ int main(int argc, char **argv)
 	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
+
 #if defined(__linux__) || defined(__APPLE__)
 	pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
 #else
@@ -1097,11 +1171,7 @@ int main(int argc, char **argv)
 			if (phase.size() > 0) {
 				do_trace_marker_write("begin phase MT "+phase);
 			}
-#if defined(__linux__) || defined(__APPLE__)
-			pthread_barrier_wait(&mybarrier);
-#else
-			EnterSynchronizationBarrier(&mybarrier, 0);
-#endif
+			do_barrier_wait();
 
 			for (auto& t : threads) {
 				t.join();
