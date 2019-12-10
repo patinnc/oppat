@@ -634,7 +634,7 @@ float mem_bw(unsigned int i)
 		if (cpu_order_for_nd < nodes_cpulist[other_nd].size()) {
 			cpu_to_switch_to = nodes_cpulist[other_nd][cpu_order_for_nd];
 		}
-		if (cpu_to_switch_to != -1 && nd == 0) {
+		if (cpu_to_switch_to != -1 && nd == 1) {
 			printf("thread[%.3d] malloc'd memory on cpu= %d node= %d and going to read the memory on cpu= %d node= %d\n", 
 				i, i, nd, cpu_to_switch_to, other_nd);
 			pin(cpu_to_switch_to);
