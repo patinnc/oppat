@@ -72,6 +72,7 @@ std::vector <int> cpu_belongs_to_which_node;
 
 enum { // below enum has to be in same order as wrk_typs
 	WRK_SPIN,
+	WRK_FREQ2,
 	WRK_FREQ,
 	WRK_FREQ_SML,
 	WRK_MEM_BW,
@@ -90,6 +91,7 @@ enum { // below enum has to be in same order as wrk_typs
 
 static std::vector <std::string> wrk_typs = {
 	"spin",
+	"freq2",
 	"freq",
 	"freq_sml",
 	"mem_bw",
@@ -734,6 +736,16 @@ float mem_bw(unsigned int i)
 #define D40000 D10000 D10000 D10000 D10000
 #define D1000000 D100000 D100000 D100000 D100000 D100000  D100000 D100000 D100000 D100000 D100000
 
+#define C1 " rorl $2, %%ecx; rorl $2, %%eax;"
+//#define C1 " andl $1, %%eax;"
+//#define C1 " rcll $1, %%eax;"
+#define C10 C1 C1 C1 C1 C1  C1 C1 C1 C1 C1
+#define C100 C10 C10 C10 C10 C10  C10 C10 C10 C10 C10
+#define C1000 C100 C100 C100 C100 C100  C100 C100 C100 C100 C100
+#define C10000 C1000 C1000 C1000 C1000 C1000  C1000 C1000 C1000 C1000 C1000
+#define C100000 C10000 C10000 C10000 C10000 C10000  C10000 C10000 C10000 C10000 C10000
+#define C40000 C10000 C10000 C10000 C10000
+#define C1000000 C100000 C100000 C100000 C100000 C100000  C100000 C100000 C100000 C100000 C100000
 
 float simd_dot0(unsigned int i)
 {
@@ -807,6 +819,33 @@ float simd_dot0(unsigned int i)
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
 	}
+	if (args[i].wrk_typ == WRK_FREQ2) {
+		int imx = 100, ii, b, did_iters=0;
+		ops = 0;
+		xbeg = get_cputime();
+		while((tm_end - tm_beg) < tm_to_run) {
+		did_iters++;
+		for (ii=0; ii < imx; ii++) {
+			asm ("movl %1, %%eax;"
+			     "movl %1, %%ecx;"
+				".align 4;"
+				C1000000
+				" movl %%ecx, %0;"
+				:"=r"(b) /* output */
+				:"r"(a)  /* input */
+				:"%ecx","%eax"  /* clobbered reg */
+			);
+			a |= b;
+		}
+		tm_end = dclock();
+		}
+		xend = get_cputime();
+		xinst += (double)1000000 * (double)imx;
+		xinst *= (double)did_iters;
+		xcumu += xend-xbeg;
+		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
+		ops = (uint64_t)(xinst);
+	}
 
 	if (args[i].wrk_typ == WRK_SPIN) {
 		xbeg = get_cputime();
@@ -853,7 +892,7 @@ float simd_dot0(unsigned int i)
 		args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
 		args[i].rezult = rezult;
 	}
-	if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ_SML) {
+	if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ2 || args[i].wrk_typ == WRK_FREQ_SML) {
 		args[i].perf = 1.0e-9 * xinst/xcumu;
 		args[i].rezult = (double)a;
 		args[i].dura = xcumu;
@@ -874,6 +913,7 @@ float dispatch_work(int  i)
 	switch(wrk) {
 		case WRK_SPIN:
 		case WRK_FREQ:
+		case WRK_FREQ2:
 		case WRK_FREQ_SML:
 			res = simd_dot0(i);
 			break;
