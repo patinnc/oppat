@@ -26,6 +26,7 @@
 #include <string>
 #include <cstddef>
 #include <inttypes.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -45,6 +46,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #endif
+#include <x86intrin.h>
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -55,9 +57,14 @@
 #include "pthread_barrier_apple.h"
 #endif
 
+#include "mygetopt.h"
 #include "trace_marker.h"
 #include "utils.h"
 #include "utils2.h"
+
+#define MSR_TSC        0x0010
+#define MSR_IA32_MPERF 0x00e7
+#define MSR_IA32_APERF 0x00e8
 
 #if defined(__linux__) || defined(__APPLE__)
 pthread_barrier_t mybarrier;
@@ -69,6 +76,7 @@ volatile int mem_bw_threads_up=0;
 std::vector <std::vector <int>> nodes_cpulist;
 std::vector <int> nodes_index_into_cpulist;
 std::vector <int> cpu_belongs_to_which_node;
+double frq=0.0, ifrq=1.0;
 
 enum { // below enum has to be in same order as wrk_typs
 	WRK_SPIN,
@@ -107,6 +115,32 @@ static std::vector <std::string> wrk_typs = {
 	"disk_wr_dir",
 	"disk_rdwr_dir"
 };
+
+static unsigned int my_getcpu(void)
+{
+	unsigned int cpu;
+	__rdtscp(&cpu);
+	return cpu;
+}
+
+static uint64_t get_tsc_and_cpu(unsigned int *cpu)
+{
+	uint64_t tsc = __rdtscp(cpu);
+	return tsc;
+}
+
+
+
+
+static double mclk(uint64_t t0)
+{
+	uint64_t t1;
+	double x;
+        t1 = __rdtsc();
+	x = (double)(t1 - t0);
+	return x*ifrq;
+	
+}
 
 void do_trace_marker_write(std::string str)
 {
@@ -265,13 +299,14 @@ double dclock_vari(clockid_t clkid)
 struct args_str {
 	std::string work, filename, phase;
 	double spin_tm;
-	unsigned long rezult, loops, adder;
-	double tm_beg, tm_end, perf, dura;
+	unsigned long rezult, loops;
+	uint64_t size, bump, tsc_initial;
+	double tm_beg, tm_end, perf, dura, cpu_time;
 	int id, wrk_typ;
 	char *dst;
-	std::string loops_str, adder_str, units;
-	args_str(): spin_tm(0.0), rezult(0), loops(0), adder(0), dst(0),
-		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1) {}
+	std::string bump_str, loops_str, size_str, units;
+	args_str(): spin_tm(0.0), rezult(0), loops(0), dst(0), size(0), bump(0), tsc_initial(0),
+		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1), cpu_time(0) {}
 };
 
 struct phase_str {
@@ -280,7 +315,7 @@ struct phase_str {
 	phase_str(): tm_end(0.0), perf(0.0), dura(0.0) {}
 };
 
-uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t adder, uint64_t &ops)
+uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t &ops)
 {
 	uint64_t rezult = rez;
 	for (uint64_t j = 0; j < loops; j++) {
@@ -553,7 +588,6 @@ float disk_all(unsigned int i)
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, bytes=0.0;
 	int arr_sz = 1024*1024;
-	uint64_t adder = args[i].adder;
 	args[i].filename = "disk_tst_" + std::to_string(i);
 	tm_end = tm_beg = dclock();
 	while((tm_end - tm_beg) < tm_to_run) {
@@ -604,13 +638,13 @@ float mem_bw(unsigned int i)
 	uint64_t j, loops;
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, bytes=0.0;
-	int strd = (int)args[i].loops;
-	int arr_sz = (int)args[i].adder;
+	int strd = (int)args[i].bump;
+	int arr_sz = (int)args[i].size;
 	//fprintf(stderr, "got to %d\n", __LINE__);
-	if (args[i].adder_str.size() > 0 && (strstr(args[i].adder_str.c_str(), "k") || strstr(args[i].adder_str.c_str(), "K"))) {
+	if (args[i].size_str.size() > 0 && (strstr(args[i].size_str.c_str(), "k") || strstr(args[i].size_str.c_str(), "K"))) {
 		arr_sz *= 1024;
 	}
-	if (args[i].adder_str.size() > 0 && (strstr(args[i].adder_str.c_str(), "m") || strstr(args[i].adder_str.c_str(), "M"))) {
+	if (args[i].size_str.size() > 0 && (strstr(args[i].size_str.c_str(), "m") || strstr(args[i].size_str.c_str(), "M"))) {
 		arr_sz *= 1024*1024;
 	}
 	pin(i);
@@ -760,10 +794,14 @@ float simd_dot0(unsigned int i)
 	double tm_end, tm_beg, tm_prev;
 	double xbeg, xend, xcumu = 0.0,  xinst=0.0, xfreq, xelap=0.0;
 	loops = args[i].loops;
-	uint64_t adder = args[i].adder;
 	mem_bw_threads_up++;
+	double tm_tsc0, tm_tsc1;
+	uint64_t tsc0, tsc1;
+	uint32_t cpu0, cpu1, cpu_initial;
 
 	do_barrier_wait();
+	uint64_t tsc_initial = get_tsc_and_cpu(&cpu_initial);
+	args[i].tsc_initial = tsc_initial;
 
 	tm_end = tm_beg = dclock();
 
@@ -771,6 +809,7 @@ float simd_dot0(unsigned int i)
 		int b = 2, imx = 100000, ii, did_iters=0;
 		ops = 0;
 		xbeg = get_cputime();
+#if 0
 		while((tm_end - tm_beg) < tm_to_run) {
 		did_iters++;
 		for (ii=0; ii < imx; ii++) {
@@ -786,6 +825,25 @@ float simd_dot0(unsigned int i)
 		}
 		tm_end = dclock();
 		}
+#else
+		tm_end = tm_beg = mclk(tsc_initial);
+		while((tm_end - tm_beg) < tm_to_run) {
+		did_iters++;
+		for (ii=0; ii < imx; ii++) {
+			asm ( "movl %1, %%eax;"
+				".align 4;"
+				D1000
+				" movl %%eax, %0;"
+				:"=r"(b) /* output */
+				:"r"(a)  /* input */
+				:"%eax"  /* clobbered reg */
+			);
+			a |= b;
+		}
+		//tm_end = dclock();
+		tm_end = mclk(tsc_initial);
+		}
+#endif
 		xend = get_cputime();
 		xcumu += xend-xbeg;
 		xinst += (double)1000 * (double)imx;
@@ -855,12 +913,7 @@ float simd_dot0(unsigned int i)
 		{
 #endif
 #if 1
-		rezult = do_scale(loops, rezult, adder, ops);
-#else
-		for (j = 0; j < loops; j++) {
-			rezult += j;
-		}
-		ops += loops;
+		rezult = do_scale(loops, rezult, ops);
 #endif
 #if 1
 		}
@@ -886,6 +939,7 @@ float simd_dot0(unsigned int i)
 		dura2 = 1.0;
 	}
 	args[i].dura = dura;
+	args[i].tm_beg = tm_beg;
 	args[i].tm_end = tm_end;
 	args[i].units = "Gops/sec";
 	if (args[i].wrk_typ == WRK_SPIN) {
@@ -895,6 +949,7 @@ float simd_dot0(unsigned int i)
 	if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ2 || args[i].wrk_typ == WRK_FREQ_SML) {
 		args[i].perf = 1.0e-9 * xinst/xcumu;
 		args[i].rezult = (double)a;
+		args[i].cpu_time = xcumu;
 		args[i].dura = xcumu;
 		//rezult = (float)a;
 		//printf("in simd[%d].perf= %f\n", i, args[i].perf);
@@ -982,6 +1037,266 @@ std::vector <std::string> split_cmd_line(const char *argv0, const char *cmdline,
 	return std_argv;
 }
 
+//abcd
+struct options_str {
+	int verbose, help, wrk_typ;
+	std::string work, phase, bump_str, size_str, loops_str;
+	uint64_t bump, size, loops;
+	double spin_tm, spin_tm_multi;
+	options_str(): verbose(0), help(0), wrk_typ(-1), bump(0), size(0),
+		loops(0), spin_tm(2.0), spin_tm_multi(0) {}
+
+} options;
+
+void opt_set_spin_tm(const char *optarg)
+{
+	const char *cpc = strchr(optarg, ',');
+	options.spin_tm = atof(optarg);
+	fprintf(stderr, "hi\n");
+	if (cpc) {
+		options.spin_tm_multi = atof(cpc+1);
+	} else {
+		options.spin_tm_multi = options.spin_tm;
+	}
+	printf("spin_tm single_thread= %f, multi_thread= %f at %s %d\n",
+		options.spin_tm, options.spin_tm_multi, __FILE__, __LINE__);
+}
+
+void opt_set_size(const char *optarg)
+{
+	options.size = atoi(optarg);
+	options.size_str = optarg;
+	printf("array size is %s\n", optarg);
+}
+
+void opt_set_loops(const char *optarg)
+{
+	options.loops = atoi(optarg);
+	options.loops_str = optarg;
+	printf("loops size is %s\n", optarg);
+}
+
+void opt_set_bump(const char *optarg)
+{
+	options.bump = atoi(optarg);
+	options.bump_str = optarg;
+	printf("bump (stride) size is %s\n", optarg);
+}
+
+void opt_set_phase(const char *optarg)
+{
+	options.phase = optarg;
+	printf("phase string is %s\n", optarg);
+}
+
+void opt_set_wrk_typ(const char *optarg)
+{
+	options.work = optarg;
+	options.wrk_typ = UINT32_M1;
+	for (uint32_t j=0; j < wrk_typs.size(); j++) {
+		if (options.work == wrk_typs[j]) {
+			options.wrk_typ = j;
+			printf("got work= '%s' at %s %d\n", options.work.c_str(), __FILE__, __LINE__);
+			break;
+		}
+	}
+	if (options.wrk_typ == UINT32_M1) {
+		printf("Error in arg 2. Must be 1 of:\n");
+		for (uint32_t j=0; j < wrk_typs.size(); j++) {
+			printf("\t%s\n", wrk_typs[j].c_str());
+		}
+		printf("Bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+}
+
+static int
+get_opt_main (int argc, std::vector <std::string> argvs)
+{
+	int c;
+
+	int verbose_flag=0, help_flag=0, show_json=0;
+	const char **argv;
+
+	argv = (const char **)malloc((1+argvs.size())*sizeof(const char *));
+
+	for (size_t i=0; i < argvs.size(); i++) {
+		argv[i] = (const char *)argvs[i].c_str();
+	}
+	argv[argvs.size()] = 0;
+	
+
+	struct option long_options[] =
+	{
+		/* These options set a flag. */
+		{"verbose",     no_argument,       0, 'v', "set verbose mode"
+			"   Specify '-v' multiple times to increase the verbosity level.\n"
+		},
+		{"help",        no_argument,       &help_flag, 'h', "display help and exit"},
+		/* These options dont set a flag.
+			We distinguish them by their indices. */
+		{"time",      required_argument,   0, 't', "time to run (in seconds)\n"
+		   "   -t tm_secs[,tm_secs_multi] \n"
+		   "   required arg\n"
+		},
+		{"work",      required_argument,   0, 'w', "type of work to do\n"
+		   "   work_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
+		   "   required arg"
+		},
+		{"bump",      required_argument,   0, 'b', "bytes to bump through array (in bytes)\n"
+		   "   '-b 64' when looping over array, use 64 byte stride\n"
+		   "   For mem_bw tests, the default stride size is 64 bytes."
+		},
+		{"size",      required_argument,   0, 's', "array size (bytes)\n"
+		   "   you can add 'k' (KB), 'm' (MB) \n"
+		   "   '-s 100m' (100 MB) \n"
+		   "   For mem_bw tests, the default array size is 80m."
+		},
+		{"phase",      required_argument,   0, 'p', "phase string\n"
+		   "   phase string which will be put into ETW/ftrace event string\n"
+		   "   optional arg\n"
+		},
+		{"loops",      required_argument,   0, 'l', "bytes to bump through array (in bytes)\n"
+		   "   '-l 100' for disk tests. Used in work=spin to set number of loops over array\n"
+		   "   for disk tests, default is 100. spin loops = 10000."
+		},
+		{0, 0, 0, 0}
+	};
+
+	while (1)
+	{
+		/* getopt_long stores the option index here. */
+		int option_index = 0;
+
+		//c = mygetopt_long(argc, argv, "b:c:d:e:hm:pr:su:v", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvb:l:p:s:t:w:", long_options, &option_index);
+
+		/* Detect the end of the options. */
+		if (c == -1)
+			break;
+
+		switch (c)
+		{
+		case 0:
+//abcd
+			fprintf(stderr, "opt[%d]= %s\n", option_index, long_options[option_index].name);
+			if (strcmp(long_options[option_index].name, "time") == 0) {
+				opt_set_spin_tm(optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "work") == 0) {
+				opt_set_wrk_typ(optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "bump") == 0) {
+				opt_set_bump(optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "size") == 0) {
+				opt_set_size(optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "loops") == 0) {
+				opt_set_loops(optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "phase") == 0) {
+				opt_set_phase(optarg);
+				break;
+			}
+
+		case 'h':
+			printf ("option -h set\n");
+			help_flag++;
+			break;
+		case 'b':
+			opt_set_bump(optarg);
+			break;
+		case 'l':
+			opt_set_loops(optarg);
+			break;
+		case 's':
+			opt_set_size(optarg);
+			break;
+		case 'p':
+			opt_set_phase(optarg);
+			break;
+		case 't':
+			printf ("option -t with value `%s'\n", optarg);
+			opt_set_spin_tm(optarg);
+			break;
+		case 'w':
+			printf ("option -w with value `%s'\n", optarg);
+			opt_set_wrk_typ(optarg);
+			break;
+		case 'v':
+			options.verbose++;
+			printf ("option -v set to %d\n", options.verbose);
+			break;
+
+		case '?':
+			/* getopt_long already printed an error message. */
+			break;
+
+		default:
+			abort ();
+		}
+	}
+	printf("help_flag = %d at %s %d\n", help_flag, __FILE__, __LINE__);
+
+	/* Print any remaining command line arguments (not options). */
+	if (myoptind < argc) {
+		printf ("non-option ARGV-elements: ");
+		while (myoptind < argc)
+			printf ("%s ", argv[myoptind++]);
+		putchar ('\n');
+		printf("got invalid command line options above ------------ going to print options and exit\n");
+		fprintf(stderr, "got invalid command line options above ------------ going to print options and exit\n");
+		help_flag = 1;
+	}
+
+	if (help_flag) {
+		uint32_t i = 0;
+		printf("options:\n");
+		std::vector <std::string> args= {"no_args", "requires_arg", "optional_arg"};
+		while (true) {
+			if (!long_options[i].name) {
+				break;
+			}
+			if (long_options[i].has_arg < no_argument ||
+				long_options[i].has_arg > optional_argument) {
+				printf("invalid 'has_arg' value(%d) in long_options list. Bye at %s %d\n",
+					long_options[i].has_arg, __FILE__, __LINE__);
+				exit(1);
+			}
+			std::string str = "";
+			if (long_options[i].val > 0) {
+				char cstr[10];
+				snprintf(cstr, sizeof(cstr), "%c", long_options[i].val);
+				str = "-" + std::string(cstr) + ",";
+			}
+			printf("--%s\t%s requires_arg? %s\n\t%s\n",
+					long_options[i].name, str.c_str(),
+					args[long_options[i].has_arg-1].c_str(),
+					long_options[i].help);
+			i++;
+		}
+		printf("Bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+
+	free(argv);
+
+	if (options.wrk_typ == WRK_SPIN && options.loops == 0) {
+		options.loops = 10000;
+		printf("setting default loops= %d\n", (int)options.loops);
+	}
+
+
+	return 0;
+}
+
+
 int read_options_file(std::string argv0, std::string opts, std::vector <std::vector <std::string>> &argvs)
 {
 	std::ifstream file2;
@@ -1040,11 +1355,10 @@ std::vector <phase_str> phase_vec;
 
 int main(int argc, char **argv)
 {
-
-	std::string loops_str, adder_str;
-	double t_first = dclock();
+	uint32_t cpu, cpu0;
+	uint64_t t0, t1;
+	double t_first = dclock(), tm_beg, tm_end;
 	unsigned num_cpus = std::thread::hardware_concurrency();
-	double spin_tm = 2.0, spin_tm_multi=0.0;
 	bool doing_disk = false;
 	std::mutex iomutex;
 	//num_cpus = 1;
@@ -1064,12 +1378,23 @@ int main(int argc, char **argv)
 	std::cout << "Start Test 1 CPU" << std::endl; // prints !!!Hello World!!!
 	double t_start, t_end;
 	time_t c_start, c_end;
-	unsigned long adder=1, loops = 0xffffff;
-	printf("usage: %s tm_secs[,tm_secs_multi] [work_type [ arg3 [ arg4 ]]]\n", argv[0]);
+	printf("usage: %s -t tm_secs[,tm_secs_multi] -w work_type [ arg3 [ arg4 ]]]\n", argv[0]);
 	printf("\twork_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
-	printf("if mem_bw: arg3 is stride in bytes. arg4 is array size in bytes\n");
+	printf("if mem_bw: -b stride in bytes. -s arg4 array_size in bytes\n");
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
+
+	cpu = my_getcpu();
+	cpu0 = cpu;
+        tm_beg = tm_end = dclock();
+        t0 = __rdtsc();
+        while(tm_end - tm_beg < 0.1) {
+        	t1 = get_tsc_and_cpu(&cpu0);
+		tm_end = dclock();
+	}
+	frq = (double)(t1-t0)/(tm_end - tm_beg);
+	ifrq = 1.0/frq;
+	printf("tsc_freq= %.3f GHz, cpu_beg= %d, cpu_end= %d\n", frq*1.0e-9, cpu, cpu0);
 
 #if defined(__linux__) || defined(__APPLE__)
 	pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
@@ -1101,6 +1426,21 @@ int main(int argc, char **argv)
 	for (uint32_t j=0; j < argvs.size(); j++) {
 		uint32_t i=1;
 		std::string phase;
+		options.bump = 0;
+		options.size = 0;
+		get_opt_main((int)argvs[j].size(), argvs[j]);
+		if (options.wrk_typ == WRK_MEM_BW || options.wrk_typ == WRK_MEM_BW_RDWR ||
+			options.wrk_typ == WRK_MEM_BW_2RDWR || options.wrk_typ == WRK_MEM_BW_2RD ||
+			options.wrk_typ == WRK_MEM_BW_REMOTE || 
+			options.wrk_typ == WRK_MEM_BW_2RD2WR) {
+			if (options.bump == 0) {
+				options.bump = 64;
+			}
+			if (options.size == 0) {
+				options.size = 80*1024*1024;
+			}
+		}
+#if 0
 		if (argvs[j].size() > i) {
 			char *cpc;
 			cpc = strchr((char *)argvs[j][i].c_str(), ',');
@@ -1113,8 +1453,10 @@ int main(int argc, char **argv)
 			printf("spin_tm single_thread= %f, multi_thread= %f at %s %d\n",
 					spin_tm, spin_tm_multi, __FILE__, __LINE__);
 		}
-		i++; //2
+#endif
 		if (argvs[j].size() > i) {
+//abcd
+#if 0
 			work = argvs[j][i];
 			wrk_typ = UINT32_M1;
 			for (uint32_t j=0; j < wrk_typs.size(); j++) {
@@ -1132,11 +1474,13 @@ int main(int argc, char **argv)
 				printf("Bye at %s %d\n", __FILE__, __LINE__);
 				exit(1);
 			}
-			if (wrk_typ >= WRK_DISK_RD && wrk_typ <= WRK_DISK_RDWR_DIR) {
+#endif
+			if (options.wrk_typ >= WRK_DISK_RD && options.wrk_typ <= WRK_DISK_RDWR_DIR) {
 				doing_disk = true;
-				loops = 100;
+				options.loops = 100;
+				printf("Setting disk loops to default -l %d\n", (int)options.loops);
 			}
-			if (wrk_typ == WRK_MEM_BW_REMOTE) {
+			if (options.wrk_typ == WRK_MEM_BW_REMOTE) {
 				int nd_max = -1;
 				std::vector <std::string> cpu_str_vec;
 				for (int nd=0; nd < 2; nd++) {
@@ -1179,45 +1523,23 @@ int main(int argc, char **argv)
 					}
 				}
 			}
-			if (wrk_typ == WRK_MEM_BW || wrk_typ == WRK_MEM_BW_RDWR ||
-				wrk_typ == WRK_MEM_BW_2RDWR || wrk_typ == WRK_MEM_BW_2RD ||
-				wrk_typ == WRK_MEM_BW_REMOTE || 
-				wrk_typ == WRK_MEM_BW_2RD2WR) {
-				loops = 64;
-				adder = 80*1024*1024;
-			}
-		}
-		i++; //3
-		if (argvs[j].size() > i) {
-			loops = atoi(argvs[j][i].c_str());
-			loops_str = argvs[j][i];
-			printf("arg3 is %s\n", loops_str.c_str());
-		}
-		i++; //4
-		if (argvs[j].size() > i) {
-			adder = atoi(argvs[j][i].c_str());
-			adder_str = argvs[j][i];
-			printf("arg4 is %s\n", adder_str.c_str());
-		}
-		i++; //5
-		if (argvs[j].size() > i) {
-			phase = argvs[j][i];
-			printf("arg5 phase '%s'\n", phase.c_str());
 		}
 
 		std::vector<std::thread> threads(num_cpus);
 		for (uint32_t i=0; i < num_cpus; i++) {
-			args[i].phase   = phase;
-			args[i].spin_tm = spin_tm;
+			args[i].phase     = options.phase;
+			args[i].spin_tm   = options.spin_tm;
 			args[i].id = i;
-			args[i].loops = loops;
-			args[i].adder = adder;
-			args[i].loops_str = loops_str;
-			args[i].adder_str = adder_str;
-			args[i].work = work;
-			args[i].wrk_typ = wrk_typ;
+			args[i].loops     = options.loops;
+			args[i].loops_str = options.loops_str;
+			args[i].size      = options.size;
+			args[i].size_str  = options.size_str;
+			args[i].bump      = options.bump;
+			args[i].bump_str  = options.bump_str;
+			args[i].work      = options.work;
+			args[i].wrk_typ   = options.wrk_typ;
 		}
-		if (doing_disk && spin_tm > 0.0) {
+		if (doing_disk && options.spin_tm > 0.0) {
 			if (phase.size() > 0) {
 				do_trace_marker_write("begin phase ST "+phase);
 			}
@@ -1231,12 +1553,13 @@ int main(int argc, char **argv)
 			}
 		}
 		for (unsigned i=0; i < num_cpus; i++) {
-			args[i].spin_tm = spin_tm_multi;
+			args[i].spin_tm = options.spin_tm_multi;
 		}
 		t_start = dclock();
 		printf("work= %s\n", work.c_str());
 
-		if (!doing_disk && spin_tm_multi > 0.0) {
+		if (!doing_disk && options.spin_tm_multi > 0.0) {
+			uint64_t t0=0, t1;
 			int sleep_ms = 1; // 1 ms
 			for (unsigned i = 0; i < num_cpus; ++i) {
 				threads[i] = std::thread([&iomutex, i] {
@@ -1257,6 +1580,13 @@ int main(int argc, char **argv)
 			double tot = 0.0;
 			for (unsigned i = 0; i < num_cpus; ++i) {
 				tot += args[i].perf;
+				if (options.verbose > 0) {
+					t0 = args[0].tsc_initial;
+					t1 = args[i].tsc_initial;
+					if (t1 > t0) { t1 -= t0; } else { t1 = t0 - t1; }
+					double tdf = ifrq * (double)t1;
+					printf("tsc0= %" PRIu64", abs(dff from cpu0) %g secs, %%thread_time/elap= %.3f%%\n", args[i].tsc_initial, tdf, 100.0*args[i].cpu_time/(args[i].tm_end-args[i].tm_beg));
+				}
 			}
 			if (phase.size() > 0) {
 				phase_str ps;
@@ -1268,12 +1598,11 @@ int main(int argc, char **argv)
 				do_trace_marker_write(str);
 				printf("%s\n", str.c_str());
 			}
-			//abcd
 			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
 		}
 
 		t_end = dclock();
-		if (loops < 100 && !doing_disk && spin_tm_multi > 0.0) {
+		if (options.loops > 0 && options.loops < 100 && !doing_disk && options.spin_tm_multi > 0.0) {
 			std::cout << "\nExecution time on " << num_cpus << " CPUs: " << t_end - t_start << " secs" << std::endl;
 		}
 	}
