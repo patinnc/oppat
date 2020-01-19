@@ -46,7 +46,13 @@
 #include <unistd.h>
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
 #endif
+#ifdef _WIN32
+#include <intrin.h>
+#pragma intrinsic(__rdtsc)
+#pragma intrinsic(__rdtscp)
+#else
 #include <x86intrin.h>
+#endif
 
 #ifdef __APPLE__
 #include <unistd.h>
@@ -759,6 +765,7 @@ float mem_bw(unsigned int i)
 	return rezult;
 }
 
+#ifndef _WIN32
 #define D1 " rorl $2, %%eax;"
 //#define D1 " andl $1, %%eax;"
 //#define D1 " rcll $1, %%eax;"
@@ -780,7 +787,21 @@ float mem_bw(unsigned int i)
 #define C100000 C10000 C10000 C10000 C10000 C10000  C10000 C10000 C10000 C10000 C10000
 #define C40000 C10000 C10000 C10000 C10000
 #define C1000000 C100000 C100000 C100000 C100000 C100000  C100000 C100000 C100000 C100000 C100000
+#endif
 
+#ifdef _WIN32
+#if defined __cplusplus
+extern "C" { /* Begin "C" */
+/* Intrinsics use C name-mangling.  */
+#endif /* __cplusplus */
+#endif
+extern unsigned int win_rorl(unsigned int b);
+#ifdef _WIN32
+#if defined __cplusplus
+}
+/* Intrinsics use C name-mangling.  */
+#endif /* __cplusplus */
+#endif
 float simd_dot0(unsigned int i)
 {
 	double tm_to_run = args[i].spin_tm;
@@ -792,6 +813,7 @@ float simd_dot0(unsigned int i)
 	uint64_t j, loops;
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, tm_prev;
+	double tm_endt, tm_begt, tm_prevt;
 	double xbeg, xend, xcumu = 0.0,  xinst=0.0, xfreq, xelap=0.0;
 	loops = args[i].loops;
 	mem_bw_threads_up++;
@@ -807,6 +829,9 @@ float simd_dot0(unsigned int i)
 
 	if (args[i].wrk_typ == WRK_FREQ_SML) {
 		int b = 2, imx = 100000, ii, did_iters=0;
+		if (loops != 0) {
+			imx = loops;
+		}
 		ops = 0;
 		xbeg = get_cputime();
 #if 0
@@ -826,38 +851,55 @@ float simd_dot0(unsigned int i)
 		tm_end = dclock();
 		}
 #else
-		tm_end = tm_beg = mclk(tsc_initial);
-		while((tm_end - tm_beg) < tm_to_run) {
+		tm_endt = tm_begt = mclk(tsc_initial);
+		while((tm_endt - tm_begt) < tm_to_run) {
 		did_iters++;
 		for (ii=0; ii < imx; ii++) {
+#ifdef _WIN32
+			b = win_rorl(b); // 10000 inst
+#else
 			asm ( "movl %1, %%eax;"
 				".align 4;"
-				D1000
+				D10000
 				" movl %%eax, %0;"
 				:"=r"(b) /* output */
 				:"r"(a)  /* input */
 				:"%eax"  /* clobbered reg */
 			);
+#endif
 			a |= b;
 		}
-		//tm_end = dclock();
-		tm_end = mclk(tsc_initial);
+		tm_endt = mclk(tsc_initial);
 		}
 #endif
 		xend = get_cputime();
 		xcumu += xend-xbeg;
-		xinst += (double)1000 * (double)imx;
+		xinst += (double)10000 * (double)imx;
 		xinst *= (double)did_iters;
+		tm_end = dclock();
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
 	}
-	if (args[i].wrk_typ == WRK_FREQ) {
+	if (args[i].wrk_typ == WRK_FREQ
+#ifdef _WIN32
+		|| args[i].wrk_typ == WRK_FREQ2
+#endif
+		) {
 		int imx = 100, ii, b, did_iters=0;
+		if (loops != 0) {
+			imx = loops;
+		}
 		ops = 0;
 		xbeg = get_cputime();
 		while((tm_end - tm_beg) < tm_to_run) {
 		did_iters++;
 		for (ii=0; ii < imx; ii++) {
+#ifdef _WIN32
+			for (int jj=0; jj < 100; jj++) {
+				a = win_rorl(a); // 10,000 rorl * 1000 loops = 1M rorl 
+			}
+			b = a;
+#else
 			asm ("movl %1, %%eax;"
 				".align 4;"
 				D1000000
@@ -866,6 +908,7 @@ float simd_dot0(unsigned int i)
 				:"r"(a)  /* input */
 				:"%eax"  /* clobbered reg */
 			);
+#endif
 			a |= b;
 		}
 		tm_end = dclock();
@@ -877,6 +920,8 @@ float simd_dot0(unsigned int i)
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
 	}
+#ifndef _WIN32
+	// experimental... just working on this on linux so far
 	if (args[i].wrk_typ == WRK_FREQ2) {
 		int imx = 100, ii, b, did_iters=0;
 		ops = 0;
@@ -904,6 +949,7 @@ float simd_dot0(unsigned int i)
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
 	}
+#endif
 
 	if (args[i].wrk_typ == WRK_SPIN) {
 		xbeg = get_cputime();
@@ -1039,11 +1085,11 @@ std::vector <std::string> split_cmd_line(const char *argv0, const char *cmdline,
 
 //abcd
 struct options_str {
-	int verbose, help, wrk_typ;
+	int verbose, help, wrk_typ, cpus;
 	std::string work, phase, bump_str, size_str, loops_str;
 	uint64_t bump, size, loops;
 	double spin_tm, spin_tm_multi;
-	options_str(): verbose(0), help(0), wrk_typ(-1), bump(0), size(0),
+	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), bump(0), size(0),
 		loops(0), spin_tm(2.0), spin_tm_multi(0) {}
 
 } options;
@@ -1052,7 +1098,6 @@ void opt_set_spin_tm(const char *optarg)
 {
 	const char *cpc = strchr(optarg, ',');
 	options.spin_tm = atof(optarg);
-	fprintf(stderr, "hi\n");
 	if (cpc) {
 		options.spin_tm_multi = atof(cpc+1);
 	} else {
@@ -1060,6 +1105,12 @@ void opt_set_spin_tm(const char *optarg)
 	}
 	printf("spin_tm single_thread= %f, multi_thread= %f at %s %d\n",
 		options.spin_tm, options.spin_tm_multi, __FILE__, __LINE__);
+}
+
+void opt_set_cpus(const char *optarg)
+{
+	options.cpus = atoi(optarg);
+	printf("cpus= %s\n", optarg);
 }
 
 void opt_set_size(const char *optarg)
@@ -1143,6 +1194,11 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		   "   work_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
 		   "   required arg"
 		},
+		{"cpus",      required_argument,   0, 'c', "number of cpus to use\n"
+		   "   '-c 1' will use just 1 cpu.\n"
+		   "   For mem_bw/freq tests.\n"
+		   "   The default is all cpus (1 thread per cpu).\n"
+		},
 		{"bump",      required_argument,   0, 'b', "bytes to bump through array (in bytes)\n"
 		   "   '-b 64' when looping over array, use 64 byte stride\n"
 		   "   For mem_bw tests, the default stride size is 64 bytes."
@@ -1168,8 +1224,7 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		//c = mygetopt_long(argc, argv, "b:c:d:e:hm:pr:su:v", long_options, &option_index);
-		c = mygetopt_long(argc, argv, "hvb:l:p:s:t:w:", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvb:c:l:p:s:t:w:", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -1192,6 +1247,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 				opt_set_bump(optarg);
 				break;
 			}
+			if (strcmp(long_options[option_index].name, "cpus") == 0) {
+				opt_set_cpus(optarg);
+				break;
+			}
 			if (strcmp(long_options[option_index].name, "size") == 0) {
 				opt_set_size(optarg);
 				break;
@@ -1211,6 +1270,9 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			break;
 		case 'b':
 			opt_set_bump(optarg);
+			break;
+		case 'c':
+			opt_set_cpus(optarg);
 			break;
 		case 'l':
 			opt_set_loops(optarg);
@@ -1361,7 +1423,6 @@ int main(int argc, char **argv)
 	unsigned num_cpus = std::thread::hardware_concurrency();
 	bool doing_disk = false;
 	std::mutex iomutex;
-	//num_cpus = 1;
 	printf("t_first= %.9f, build_date= %s, time= %s\n", t_first, __DATE__, __TIME__);
 #if defined(__linux__) || defined(__APPLE__)
 	printf("t_raw= %.9f\n", dclock_vari(CLOCK_MONOTONIC_RAW));
@@ -1384,6 +1445,7 @@ int main(int argc, char **argv)
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
 
+
 	cpu = my_getcpu();
 	cpu0 = cpu;
         tm_beg = tm_end = dclock();
@@ -1396,11 +1458,6 @@ int main(int argc, char **argv)
 	ifrq = 1.0/frq;
 	printf("tsc_freq= %.3f GHz, cpu_beg= %d, cpu_end= %d\n", frq*1.0e-9, cpu, cpu0);
 
-#if defined(__linux__) || defined(__APPLE__)
-	pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
-#else
-	InitializeSynchronizationBarrier(&mybarrier, num_cpus+1, -1);
-#endif
 
 	uint32_t wrk_typ = WRK_SPIN;
 	std::string work = "spin";
@@ -1422,7 +1479,6 @@ int main(int argc, char **argv)
 		}
 		argvs.push_back(av);
 	}
-	args.resize(num_cpus);
 	for (uint32_t j=0; j < argvs.size(); j++) {
 		uint32_t i=1;
 		std::string phase;
@@ -1440,41 +1496,8 @@ int main(int argc, char **argv)
 				options.size = 80*1024*1024;
 			}
 		}
-#if 0
-		if (argvs[j].size() > i) {
-			char *cpc;
-			cpc = strchr((char *)argvs[j][i].c_str(), ',');
-			spin_tm = atof(argvs[j][i].c_str());
-			if (cpc) {
-				spin_tm_multi = atof(cpc+1);
-			} else {
-				spin_tm_multi = spin_tm;
-			}
-			printf("spin_tm single_thread= %f, multi_thread= %f at %s %d\n",
-					spin_tm, spin_tm_multi, __FILE__, __LINE__);
-		}
-#endif
 		if (argvs[j].size() > i) {
 //abcd
-#if 0
-			work = argvs[j][i];
-			wrk_typ = UINT32_M1;
-			for (uint32_t j=0; j < wrk_typs.size(); j++) {
-				if (work == wrk_typs[j]) {
-					wrk_typ = j;
-					printf("got work= '%s' at %s %d\n", work.c_str(), __FILE__, __LINE__);
-					break;
-				}
-			}
-			if (wrk_typ == UINT32_M1) {
-				printf("Error in arg 2. Must be 1 of:\n");
-				for (uint32_t j=0; j < wrk_typs.size(); j++) {
-					printf("\t%s\n", wrk_typs[j].c_str());
-				}
-				printf("Bye at %s %d\n", __FILE__, __LINE__);
-				exit(1);
-			}
-#endif
 			if (options.wrk_typ >= WRK_DISK_RD && options.wrk_typ <= WRK_DISK_RDWR_DIR) {
 				doing_disk = true;
 				options.loops = 100;
@@ -1525,6 +1548,15 @@ int main(int argc, char **argv)
 			}
 		}
 
+		if (options.cpus > 0 && options.cpus < num_cpus) {
+			num_cpus = options.cpus;
+		}
+#if defined(__linux__) || defined(__APPLE__)
+	pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
+#else
+	InitializeSynchronizationBarrier(&mybarrier, num_cpus+1, -1);
+#endif
+		args.resize(num_cpus);
 		std::vector<std::thread> threads(num_cpus);
 		for (uint32_t i=0; i < num_cpus; i++) {
 			args[i].phase     = options.phase;
