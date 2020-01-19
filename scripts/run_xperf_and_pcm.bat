@@ -39,7 +39,7 @@ for /f "delims=" %%x in (%WAIT_FILE%) do set pid=%%x
 xperf -on SYSCALL+MEMINFO+PROC_THREAD+LOADER+CSWITCH+DISPATCHER+HARD_FAULTS+FILE_IO+FILE_IO_INIT+DISK_IO+NetworkTrace -stackWalk cswitch
 
 
-@rem %BIN_DIR%\spin.exe 4 mem_bw > %ODIR%\spin.txt
+@rem %BIN_DIR%\spin.exe -t 4 -w mem_bw > %ODIR%\spin.txt
 %BIN_DIR%\spin.exe -f input_files\haswell_spin_input.txt -p %ODIR%\phase.tsv > %ODIR%\spin.txt
 @rem xperf -stop usersession -stop -d %ODIR%\etw_trace.etl
 %BIN_DIR%\win_send_signal.exe %pid%

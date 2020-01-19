@@ -80,12 +80,12 @@ echo started $TRC_CMD
 
 #$PRF_CMD record -a -g -e sched:sched_switch -e "{cycles,instructions}"  -o prf.data sleep 0.5
 #$PRF_CMD record -a -g -F 992 -e "{cpu-clock,cycles,instructions}"  -o prf_$BASE.data sleep 0.5
-#$PRF_CMD record -a -g  -e "{cpu-clock/freq=992/,cycles,instructions}"  -o prf_$BASE.data ./spin.x 4
-#$PRF_CMD record -a -g  -e "{ref-cycles,cycles,instructions}"  -o prf_$BASE.data ./spin.x
-#$PRF_CMD record -a -g  -e ref-cycles,cycles,instructions  -o prf_$BASE.data ./spin.x
-#$PRF_CMD record -a -g -e sched:sched_switch -e "{cpu-clock/freq=992/,ref-cycles,cycles,instructions}:G"  -o prf_$BASE.data ./spin.x
-#$PRF_CMD record -a -g -F 997 -e "{ref-cycles,cycles,instructions}"  -o prf_$BASE.data ./spin.x
-#$PRF_CMD record -a -g -e sched:sched_switch -e "{ref-cycles/freq=103/,cycles,instructions}"  -o prf_$BASE.data ./spin.x
+#$PRF_CMD record -a -g  -e "{cpu-clock/freq=992/,cycles,instructions}"  -o prf_$BASE.data ./spin.x -t 4 -w spin
+#$PRF_CMD record -a -g  -e "{ref-cycles,cycles,instructions}"  -o prf_$BASE.data ./spin.x  -t 4 -w spin
+#$PRF_CMD record -a -g  -e ref-cycles,cycles,instructions  -o prf_$BASE.data ./spin.x  -t 4 -w spin
+#$PRF_CMD record -a -g -e sched:sched_switch -e "{cpu-clock/freq=992/,ref-cycles,cycles,instructions}:G"  -o prf_$BASE.data ./spin.x  -t 4 -w spin
+#$PRF_CMD record -a -g -F 997 -e "{ref-cycles,cycles,instructions}"  -o prf_$BASE.data ./spin.x  -t 4 -w spin
+#$PRF_CMD record -a -g -e sched:sched_switch -e "{ref-cycles/freq=103/,cycles,instructions}"  -o prf_$BASE.data ./spin.x  -t 4 -w spin
 # ../perf.sh stat -a -e power/energy-pkg/,power/energy-cores/,cycles -v -I 1000 sleep 1000
 #  sudo ../perf.sh stat -a -e power/energy-pkg/,power/energy-cores/,power/energy-gpu/,power/energy-ram/  -I 1000 -x '\t'  sleep 1000
 WAIT_FILE=wait.pid.txt
@@ -98,8 +98,8 @@ do
 done
 
 #
-#$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x
-$PRF_CMD record -a -k CLOCK_MONOTONIC  -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 $BASE > $ODIR/spin.txt
+#$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x  -t 4 -w spin
+$PRF_CMD record -a -k CLOCK_MONOTONIC  -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x -t 4 -w $BASE > $ODIR/spin.txt
 
 kill -2 `cat $WAIT_FILE`
 kill -2 $PID_TRC_CMD 

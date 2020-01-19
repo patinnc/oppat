@@ -42,7 +42,7 @@ start %BIN_DIR%\win_gui_delay.exe
 timeout /T 12 > nul
 taskkill /im win_gui_delay.exe
 timeout /T 2 > nul
-@rem %BIN_DIR%\spin.exe 4 > %ODIR%\spin.txt
+@rem %BIN_DIR%\spin.exe -t 4 -w spin > %ODIR%\spin.txt
 xperf -stop usersession -stop -d %ODIR%\etw_trace.etl
 %BIN_DIR%\win_send_signal.exe %pid%
 @rem taskkill /im pcm.exe

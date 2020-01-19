@@ -238,26 +238,26 @@ echo $PRF_CMD record -a -k CLOCK_MONOTONIC --running-time -F 499 -e "$evt_lstp0"
 PRF_CMD_PID2=$!
 echo did prf2
 #
-#$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x
-#$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
-SPIN_ARGS="4 mem_bw 8 8k"
-SPIN_ARGS="4 mem_bw 32 300k"
-SPIN_ARGS="4 mem_bw_rdwr 64 80m"
-SPIN_ARGS="4 mem_bw_2rd 64 40k"  # gets 44 & 38 bytes/cycle to L2, 120 GB/s 4 cpus
-SPIN_ARGS="4 mem_bw_2rd 64 80m"
-SPIN_ARGS="4 mem_bw_2rd2wr 64 100k" # get 36 & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
-SPIN_ARGS="4 mem_bw 64 80m" #
-SPIN_ARGS="4 spin"
-SPIN_ARGS="4 mem_bw 64 15k"  # gets 44 & 38 bytes/cycle to L2, 34*4 GB/s @ 4 cpus.
-SPIN_ARGS="4 mem_bw_2rdwr 64 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
-SPIN_ARGS="4 mem_bw_2rd2wr 64 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
-SPIN_ARGS="4 mem_bw 64 100k"
-SPIN_ARGS="4 mem_bw"
-SPIN_ARGS="4 mem_bw_2rd 64 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
+#$PRF_CMD record -a  -e power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o prf_$BASE.data $BIN_DIR/spin.x  -t 4 -w spin
+#$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock,power:cpu_frequency/call-graph=no/ -g -e sched:sched_switch -e "{ref-cycles/freq=997/,cycles,instructions}"  -o $ODIR/prf_trace.data $BIN_DIR/spin.x -t 4 -w mem_bw > $ODIR/spin.txt
+SPIN_ARGS="-t 4 -w mem_bw -b 8 -s 8k"
+SPIN_ARGS="-t 4 -w mem_bw -b 32 -s 300k"
+SPIN_ARGS="-t 4 -w mem_bw_rdwr -b 64 -s 80m"
+SPIN_ARGS="-t 4 -w mem_bw_2rd -b 64 -s 40k"  # gets 44 & 38 bytes/cycle to L2, 120 GB/s 4 cpus
+SPIN_ARGS="-t 4 -w mem_bw_2rd -b 64 -s 80m"
+SPIN_ARGS="-t 4 -w mem_bw_2rd2wr -b 64 -s 100k" # get 36 & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
+SPIN_ARGS="-t 4 -w mem_bw -b 64 -s 80m" #
+SPIN_ARGS="-t 4 -w spin"
+SPIN_ARGS="-t 4 -w mem_bw -b 64 -s 15k"  # gets 44 & 38 bytes/cycle to L2, 34*4 GB/s @ 4 cpus.
+SPIN_ARGS="-t 4 -w mem_bw_2rdwr -b 64 -s 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
+SPIN_ARGS="-t 4 -w mem_bw_2rd2wr -b 64 -s 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
+SPIN_ARGS="-t 4 -w mem_bw -b 64 -s 100k"
+SPIN_ARGS="-t 4 -w mem_bw"
+SPIN_ARGS="-t 4 -w mem_bw_2rd -b 64 -s 80m" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
 SPIN_ARGS="-f input_files/haswell_spin_input.txt -p $ODIR/phase.tsv" # get xx & 37 bytes/cycle, 50 & 80 GB/s @ 4 cpus
 sleep 1 # it takes about a 1 second (it seems) for the previous perf cmd (with all the events) to get up and running
 $BIN_DIR/clocks.x > $ODIR/clocks1.txt
-#$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x 4 mem_bw > $ODIR/spin.txt
+#$PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x -t 4 -w mem_bw > $ODIR/spin.txt
 $PRF_CMD record -a -k CLOCK_MONOTONIC -e cpu-clock -g -e sched:sched_switch -o $ODIR/prf_trace.data $BIN_DIR/spin.x $SPIN_ARGS > $ODIR/spin.txt
 
 $BIN_DIR/clocks.x > $ODIR/clocks2.txt
