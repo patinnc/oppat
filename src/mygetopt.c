@@ -47,7 +47,7 @@ static char* optcursor = NULL;
 [2] http://www.kernel.org/doc/man-pages/online/pages/man3/getopt.3.html
 [3] http://www.freebsd.org/cgi/man.cgi?query=getopt&sektion=3&manpath=FreeBSD+9.0-RELEASE
 */
-int mygetopt(int argc, char* const argv[], const char* optstring) {
+int mygetopt(int argc, const char* const argv[], const char* optstring) {
   int optchar = -1;
   const char* optdecl = NULL;
 
@@ -82,7 +82,7 @@ int mygetopt(int argc, char* const argv[], const char* optstring) {
   }
 
   if (optcursor == NULL || *optcursor == '\0')
-    optcursor = argv[myoptind] + 1;
+    optcursor = (char *)argv[myoptind] + 1;
 
   optchar = *optcursor;
 
@@ -117,7 +117,7 @@ int mygetopt(int argc, char* const argv[], const char* optstring) {
              incremented by 1.
           */
           if (++myoptind < argc) {
-            optarg = argv[myoptind];
+            optarg = (char *)argv[myoptind];
           } else {
             /* If it detects a missing option-argument, it shall return the
                colon character ( ':' ) if the first character of optstring
@@ -153,7 +153,7 @@ no_more_optchars:
 
 [1] http://www.kernel.org/doc/man-pages/online/pages/man3/getopt.3.html
 */
-int mygetopt_long(int argc, char* const argv[], const char* optstring,
+int mygetopt_long(int argc, const char* const argv[], const char* optstring,
   const struct option* longopts, int* longindex) {
   const struct option* o = longopts;
   const struct option* match = NULL;
@@ -205,7 +205,7 @@ int mygetopt_long(int argc, char* const argv[], const char* optstring,
         /* Only scan the next argv for required arguments. Behavior is not
            specified, but has been observed with Ubuntu and Mac OSX. */
         if (optarg == NULL && ++myoptind < argc) {
-          optarg = argv[myoptind];
+          optarg = (char *)argv[myoptind];
         }
 
         if (optarg == NULL)
