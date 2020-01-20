@@ -1772,6 +1772,15 @@ int main(int argc, char **argv)
 			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
 			if (rt_vec.size() > 0) {
 				std::sort(rt_vec.begin(), rt_vec.end(), compare_by_elap_time);
+				double cpu_tm=0.0, elap_tm=0.0;
+				for (int ss=0; ss <= (int)rt_vec.size(); ss++) {
+					cpu_tm += rt_vec[ss].cpu_time;
+					elap_tm += rt_vec[ss].elap_time;
+				}
+				cpu_tm /= (double)(rt_vec.size());
+				elap_tm /= (double)(rt_vec.size());
+				printf("avg cpu_time for responses= %.3f ms, avg elap_time= %.3f ms, max_elap_tm= %.3f ms\n",
+					1000.0*cpu_tm, 1000.0*elap_tm, 1000.0*rt_vec[rt_vec.size()-1].elap_time);
 				for (int s=0; s < (int)options.sla.size(); s++) {
 					int lvl = options.sla[s].level;
 					double dlvl = 0.01*(double)lvl;
