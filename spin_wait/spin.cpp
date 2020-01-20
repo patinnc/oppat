@@ -72,6 +72,9 @@
 #define MSR_IA32_MPERF 0x00e7
 #define MSR_IA32_APERF 0x00e8
 
+#define CLOCK_USE_TSC 1
+#define CLOCK_USE_SYS 2
+
 #if defined(__linux__) || defined(__APPLE__)
 pthread_barrier_t mybarrier;
 #else
@@ -308,11 +311,11 @@ struct args_str {
 	unsigned long rezult, loops;
 	uint64_t size, bump, tsc_initial;
 	double tm_beg, tm_end, perf, dura, cpu_time;
-	int id, wrk_typ;
+	int id, wrk_typ, clock;
 	char *dst;
 	std::string bump_str, loops_str, size_str, units;
 	args_str(): spin_tm(0.0), rezult(0), loops(0), dst(0), size(0), bump(0), tsc_initial(0),
-		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1), cpu_time(0) {}
+		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1), clock(CLOCK_USE_SYS), cpu_time(0) {}
 };
 
 struct phase_str {
@@ -806,7 +809,7 @@ float simd_dot0(unsigned int i)
 {
 	double tm_to_run = args[i].spin_tm;
 	int a = 43;
-	int cpu =  args[i].id;
+	int cpu =  args[i].id, clock = args[i].clock;
 	int iiloops = 0, iters = 0;
 	//unsigned int i;
 	uint64_t ops = 0;
@@ -851,7 +854,11 @@ float simd_dot0(unsigned int i)
 		tm_end = dclock();
 		}
 #else
-		tm_endt = tm_begt = mclk(tsc_initial);
+		if (clock == CLOCK_USE_SYS) {
+			tm_endt = tm_begt = dclock();
+		} else {
+			tm_endt = tm_begt = mclk(tsc_initial);
+		}
 		while((tm_endt - tm_begt) < tm_to_run) {
 		did_iters++;
 		for (ii=0; ii < imx; ii++) {
@@ -869,7 +876,11 @@ float simd_dot0(unsigned int i)
 #endif
 			a |= b;
 		}
-		tm_endt = mclk(tsc_initial);
+		if (clock == CLOCK_USE_SYS) {
+			tm_endt = dclock();
+		} else {
+			tm_endt = mclk(tsc_initial);
+		}
 		}
 #endif
 		xend = get_cputime();
@@ -1085,11 +1096,11 @@ std::vector <std::string> split_cmd_line(const char *argv0, const char *cmdline,
 
 //abcd
 struct options_str {
-	int verbose, help, wrk_typ, cpus;
+	int verbose, help, wrk_typ, cpus, clock;
 	std::string work, phase, bump_str, size_str, loops_str;
 	uint64_t bump, size, loops;
 	double spin_tm, spin_tm_multi;
-	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), bump(0), size(0),
+	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), bump(0), size(0),
 		loops(0), spin_tm(2.0), spin_tm_multi(0) {}
 
 } options;
@@ -1105,6 +1116,22 @@ void opt_set_spin_tm(const char *optarg)
 	}
 	printf("spin_tm single_thread= %f, multi_thread= %f at %s %d\n",
 		options.spin_tm, options.spin_tm_multi, __FILE__, __LINE__);
+}
+
+void opt_set_clock(const char *optarg)
+{
+	int use = -1;
+        if (*optarg == 't' || *optarg == 'T') {
+		use = CLOCK_USE_TSC;
+	} else if (*optarg == 's' || *optarg == 'S') {
+		use = CLOCK_USE_SYS;
+	}
+	if (use == -1) {
+		printf("error: got '-c %s' but arg to -c must be 't' (for use TSC) or 's' (for use system clock)\n", optarg);
+		exit(1);
+	}
+	options.clock = use;
+	printf("got -c %s\n", optarg);
 }
 
 void opt_set_cpus(const char *optarg)
@@ -1194,11 +1221,6 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		   "   work_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
 		   "   required arg"
 		},
-		{"cpus",      required_argument,   0, 'c', "number of cpus to use\n"
-		   "   '-c 1' will use just 1 cpu.\n"
-		   "   For mem_bw/freq tests.\n"
-		   "   The default is all cpus (1 thread per cpu).\n"
-		},
 		{"bump",      required_argument,   0, 'b', "bytes to bump through array (in bytes)\n"
 		   "   '-b 64' when looping over array, use 64 byte stride\n"
 		   "   For mem_bw tests, the default stride size is 64 bytes."
@@ -1216,6 +1238,16 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		   "   '-l 100' for disk tests. Used in work=spin to set number of loops over array\n"
 		   "   for disk tests, default is 100. spin loops = 10000."
 		},
+		{"num_cpus",      required_argument,   0, 'n', "number of cpus to use\n"
+		   "   '-n 1' will use just 1 cpu.\n"
+		   "   For mem_bw/freq tests.\n"
+		   "   The default is all cpus (1 thread per cpu).\n"
+		},
+		{"clock",      required_argument,   0, 'c', "select clock to use for freq_sml\n"
+		   "   '-c s' use system clock: clock_gettime() on linux and gettimeofday() clone for windows\n"
+		   "   '-c t' use tsc clock: has less overhead (no syscall) but if migrate between cpus then problems\n"
+		   "   default is '-c s'"
+		},
 		{0, 0, 0, 0}
 	};
 
@@ -1224,7 +1256,7 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = mygetopt_long(argc, argv, "hvb:c:l:p:s:t:w:", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvb:c:l:n:p:s:t:w:", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -1243,11 +1275,15 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 				opt_set_wrk_typ(optarg);
 				break;
 			}
+			if (strcmp(long_options[option_index].name, "clock") == 0) {
+				opt_set_clock(optarg);
+				break;
+			}
 			if (strcmp(long_options[option_index].name, "bump") == 0) {
 				opt_set_bump(optarg);
 				break;
 			}
-			if (strcmp(long_options[option_index].name, "cpus") == 0) {
+			if (strcmp(long_options[option_index].name, "num_cpus") == 0) {
 				opt_set_cpus(optarg);
 				break;
 			}
@@ -1272,10 +1308,13 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			opt_set_bump(optarg);
 			break;
 		case 'c':
-			opt_set_cpus(optarg);
+			opt_set_clock(optarg);
 			break;
 		case 'l':
 			opt_set_loops(optarg);
+			break;
+		case 'n':
+			opt_set_cpus(optarg);
 			break;
 		case 's':
 			opt_set_size(optarg);
@@ -1567,6 +1606,7 @@ int main(int argc, char **argv)
 			args[i].size      = options.size;
 			args[i].size_str  = options.size_str;
 			args[i].bump      = options.bump;
+			args[i].clock     = options.clock;
 			args[i].bump_str  = options.bump_str;
 			args[i].work      = options.work;
 			args[i].wrk_typ   = options.wrk_typ;
