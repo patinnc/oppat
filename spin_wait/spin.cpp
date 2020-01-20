@@ -39,6 +39,7 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+#include <algorithm> 
 #include <sys/types.h>
 //#define _GNU_SOURCE         /* See feature_test_macros(7) */
 
@@ -305,17 +306,23 @@ double dclock_vari(clockid_t clkid)
 }
 #endif
 
+struct rt_str {
+	double cpu_time, elap_time;
+};
+
 struct args_str {
 	std::string work, filename, phase;
 	double spin_tm;
 	unsigned long rezult, loops;
 	uint64_t size, bump, tsc_initial;
 	double tm_beg, tm_end, perf, dura, cpu_time;
-	int id, wrk_typ, clock;
+	int id, wrk_typ, clock, got_SLA;
+	std::vector <rt_str> rt_vec;
 	char *dst;
 	std::string bump_str, loops_str, size_str, units;
 	args_str(): spin_tm(0.0), rezult(0), loops(0), dst(0), size(0), bump(0), tsc_initial(0),
-		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1), clock(CLOCK_USE_SYS), cpu_time(0) {}
+		tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1), clock(CLOCK_USE_SYS),
+		got_SLA(false), cpu_time(0) {}
 };
 
 struct phase_str {
@@ -817,7 +824,7 @@ float simd_dot0(unsigned int i)
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, tm_prev;
 	double tm_endt, tm_begt, tm_prevt;
-	double xbeg, xend, xcumu = 0.0,  xinst=0.0, xfreq, xelap=0.0;
+	double xbeg, xend, xprev, xcumu = 0.0,  xinst=0.0, xfreq, xelap=0.0;
 	loops = args[i].loops;
 	mem_bw_threads_up++;
 	double tm_tsc0, tm_tsc1;
@@ -838,6 +845,7 @@ float simd_dot0(unsigned int i)
 		}
 		ops = 0;
 		xbeg = get_cputime();
+		xprev = xbeg;
 #if 0
 		while((tm_end - tm_beg) < tm_to_run) {
 		did_iters++;
@@ -860,37 +868,47 @@ float simd_dot0(unsigned int i)
 		} else {
 			tm_endt = tm_begt = mclk(tsc_initial);
 		}
+		tm_prevt = tm_begt;
 		while((tm_endt - tm_begt) < tm_to_run) {
-		did_iters++;
-		for (ii=0; ii < imx; ii++) {
+			did_iters++;
+			for (ii=0; ii < imx; ii++) {
 #ifdef _WIN32
-			b = win_rorl(b); // 10000 inst
+				b = win_rorl(b); // 10000 inst
 #else
-			asm ( "movl %1, %%eax;"
-				".align 4;"
-				D10000
-				" movl %%eax, %0;"
-				:"=r"(b) /* output */
-				:"r"(a)  /* input */
-				:"%eax"  /* clobbered reg */
-			);
+				asm ( "movl %1, %%eax;"
+					".align 4;"
+					D10000
+					" movl %%eax, %0;"
+					:"=r"(b) /* output */
+					:"r"(a)  /* input */
+					:"%eax"  /* clobbered reg */
+				);
 #endif
-			a |= b;
-		}
-		if (clock == CLOCK_USE_SYS) {
-			tm_endt = dclock();
-		} else {
-			tm_endt = mclk(tsc_initial);
-		}
+				a |= b;
+			}
+			if (clock == CLOCK_USE_SYS) {
+				tm_endt = dclock();
+			} else {
+				tm_endt = mclk(tsc_initial);
+			}
+			if (args[i].got_SLA) {
+				struct rt_str rt;
+				rt.elap_time = tm_endt - tm_prevt;
+				xend = get_cputime();
+				rt.cpu_time = xend - xprev;
+				args[i].rt_vec.push_back(rt);
+				tm_prevt = tm_endt;
+				xprev = xend;
+			}
 		}
 #endif
 		xend = get_cputime();
 		xcumu += xend-xbeg;
 		xinst += (double)10000 * (double)imx;
 		xinst *= did_iters;
-		tm_end = dclock();
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
+		tm_end = dclock();
 	}
 	if (args[i].wrk_typ == WRK_FREQ
 #ifdef _WIN32
@@ -1016,8 +1034,8 @@ float simd_dot0(unsigned int i)
 	if (did_iters == 0.0) {
 		did_iters=1.0;
 	}
-	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, CPUms/iter= %f ms, iter/CPUsec= %f, cpu_tm= %f, Gops= %f, %s= %f\n",
-		cpu, mygettid(), tm_beg, tm_end, dura, 1000.0*xcumu/did_iters, did_iters/xcumu, xcumu, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
+	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, CPUms/iter= %f ms, iter/CPUsec= %f, rt_vec.sz= %d, cpu_tm= %f, Gops= %f, %s= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1000.0*xcumu/did_iters, did_iters/xcumu, (int)args[i].rt_vec.size(), xcumu, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
 	return rezult;
 }
 
@@ -1100,11 +1118,17 @@ std::vector <std::string> split_cmd_line(const char *argv0, const char *cmdline,
 }
 
 //abcd
+struct sla_str {
+	int level, warn, critical;
+	sla_str(): level(-1), warn(-1), critical(-1) {}
+};
+
 struct options_str {
 	int verbose, help, wrk_typ, cpus, clock;
 	std::string work, phase, bump_str, size_str, loops_str;
 	uint64_t bump, size, loops;
 	double spin_tm, spin_tm_multi;
+	std::vector <sla_str> sla;
 	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), bump(0), size(0),
 		loops(0), spin_tm(2.0), spin_tm_multi(0) {}
 
@@ -1150,6 +1174,48 @@ void opt_set_size(const char *optarg)
 	options.size = atoi(optarg);
 	options.size_str = optarg;
 	printf("array size is %s\n", optarg);
+}
+
+void opt_set_SLA(const char *optarg)
+{
+	char *cp, *cp0;
+	int len = (int)strlen(optarg);
+	int i=0, lvl=0;
+	cp = (char *)optarg;
+	if (*cp != 'p') {
+		printf("expected to find 'p' at position %d, (like p90:), got '%c' in -S '%s'\n", i, *cp, optarg);
+		printf("bye at %s %d\n", __FILE__, __LINE__);
+		exit(1);
+	}
+	i++;
+	cp++;
+	lvl = atoi(cp);
+	struct sla_str ss;
+	ss.level = lvl;
+	cp0 = strchr(cp, ':');
+	if (!cp0) {
+		printf("got SLA p%d\n", lvl);
+		options.sla.push_back(ss);
+		return;
+	}
+	i = (int)(cp0 - optarg) + 1;
+	if (i >= len) {
+		// just report this service level, no warn or critical levels
+		printf("got SLA p%d\n", lvl);
+		options.sla.push_back(ss);
+		return;
+	}
+	cp = (char *)(optarg+i);
+	ss.warn = atoi(cp);
+	printf("got SLA p%d:%d\n", lvl, ss.warn);
+	cp0 = (char *)strchr(optarg, ',');
+	if (cp0) {
+		cp0++;
+		ss.critical = atoi(cp0);
+		printf("got SLA p%d:%d,%d\n", lvl, ss.warn, ss.critical);
+	}
+	options.sla.push_back(ss);
+	printf("did SLA[%d] -S %s\n", (int)(options.sla.size()-1), optarg);
 }
 
 void opt_set_loops(const char *optarg)
@@ -1248,6 +1314,14 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		   "   For mem_bw/freq tests.\n"
 		   "   The default is all cpus (1 thread per cpu).\n"
 		},
+		{"SLA",      required_argument,   0, 'S', "Service Level Agreement\n"
+		   "   Enter -S pLVL0:warn0,crit0;pLVL1:warn1,crit1... for example\n"
+		   "   '-S p50:80,100 -S p95:200,250 -S p99:250,300'\n"
+		   "   where p50 means 50 percent of response times below  80 ms is okay, give a warning for above 80 and critical warning if p50 is above 100.\n"
+		   "     and p95 means 95 percent of response times below 200 ms is okay, give a warning for above 80 and critical warning if p50 is above 100.\n"
+		   "   You can enter multiple -S options.\n"
+		   "   The default is no SLA, no SLA analysis\n"
+		},
 		{"clock",      required_argument,   0, 'c', "select clock to use for freq_sml\n"
 		   "   '-c s' use system clock: clock_gettime() on linux and gettimeofday() clone for windows\n"
 		   "   '-c t' use tsc clock: has less overhead (no syscall) but if migrate between cpus then problems\n"
@@ -1261,7 +1335,7 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = mygetopt_long(argc, argv, "hvb:c:l:n:p:s:t:w:", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvb:c:l:n:p:s:S:t:w:", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -1296,6 +1370,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 				opt_set_size(optarg);
 				break;
 			}
+			if (strcmp(long_options[option_index].name, "SLA") == 0) {
+				opt_set_SLA(optarg);
+				break;
+			}
 			if (strcmp(long_options[option_index].name, "loops") == 0) {
 				opt_set_loops(optarg);
 				break;
@@ -1323,6 +1401,9 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			break;
 		case 's':
 			opt_set_size(optarg);
+			break;
+		case 'S':
+			opt_set_SLA(optarg);
 			break;
 		case 'p':
 			opt_set_phase(optarg);
@@ -1458,6 +1539,11 @@ int read_file_into_string(std::string filename, std::string &buf)
 
 std::vector <std::vector <std::string>> argvs;
 std::vector <phase_str> phase_vec;
+
+bool compare_by_elap_time(const rt_str &a, const rt_str &b)
+{
+    return a.elap_time < b.elap_time;
+}
 
 int main(int argc, char **argv)
 {
@@ -1615,6 +1701,10 @@ int main(int argc, char **argv)
 			args[i].bump_str  = options.bump_str;
 			args[i].work      = options.work;
 			args[i].wrk_typ   = options.wrk_typ;
+			args[i].got_SLA   = false;
+			if (options.sla.size() > 0) {
+				args[i].got_SLA = true;
+			}
 		}
 		if (doing_disk && options.spin_tm > 0.0) {
 			if (phase.size() > 0) {
@@ -1636,6 +1726,7 @@ int main(int argc, char **argv)
 		printf("work= %s\n", work.c_str());
 
 		if (!doing_disk && options.spin_tm_multi > 0.0) {
+			std::vector <rt_str> rt_vec;
 			uint64_t t0=0, t1;
 			int sleep_ms = 1; // 1 ms
 			for (unsigned i = 0; i < num_cpus; ++i) {
@@ -1664,6 +1755,9 @@ int main(int argc, char **argv)
 					double tdf = ifrq * (double)t1;
 					printf("tsc0= %" PRIu64", abs(dff from cpu0) %g secs, %%thread_time/elap= %.3f%%\n", args[i].tsc_initial, tdf, 100.0*args[i].cpu_time/(args[i].tm_end-args[i].tm_beg));
 				}
+				if (args[i].rt_vec.size() > 0) {
+					rt_vec.insert(rt_vec.end(), args[i].rt_vec.begin(), args[i].rt_vec.end());	
+				}
 			}
 			if (phase.size() > 0) {
 				phase_str ps;
@@ -1676,6 +1770,20 @@ int main(int argc, char **argv)
 				printf("%s\n", str.c_str());
 			}
 			printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
+			if (rt_vec.size() > 0) {
+				std::sort(rt_vec.begin(), rt_vec.end(), compare_by_elap_time);
+				for (int s=0; s < (int)options.sla.size(); s++) {
+					int lvl = options.sla[s].level;
+					double dlvl = 0.01*(double)lvl;
+					double dsz = (double)rt_vec.size();
+					int idx = (int)(dlvl * dsz);
+					if (idx < 0 || idx >= (int)dsz) {
+						printf("something wrong with SLA level p%d, got idx= %d but rt_vec.sz= %d... at %s %d\n", lvl, idx, (int)dsz, __FILE__, __LINE__);
+					} else {
+						printf("p%d: idx= %d, response tm= %.3f ms, warn= %d, crit= %d\n", lvl, idx, 1000 * rt_vec[idx].elap_time, options.sla[s].warn, options.sla[s].critical);
+					}
+				}
+			}
 		}
 
 		t_end = dclock();
