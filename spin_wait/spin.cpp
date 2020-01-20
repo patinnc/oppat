@@ -823,6 +823,7 @@ float simd_dot0(unsigned int i)
 	double tm_tsc0, tm_tsc1;
 	uint64_t tsc0, tsc1;
 	uint32_t cpu0, cpu1, cpu_initial;
+	double did_iters=0;
 
 	do_barrier_wait();
 	uint64_t tsc_initial = get_tsc_and_cpu(&cpu_initial);
@@ -831,7 +832,7 @@ float simd_dot0(unsigned int i)
 	tm_end = tm_beg = dclock();
 
 	if (args[i].wrk_typ == WRK_FREQ_SML) {
-		int b = 2, imx = 100000, ii, did_iters=0;
+		int b = 2, imx = 100000, ii;
 		if (loops != 0) {
 			imx = loops;
 		}
@@ -886,7 +887,7 @@ float simd_dot0(unsigned int i)
 		xend = get_cputime();
 		xcumu += xend-xbeg;
 		xinst += (double)10000 * (double)imx;
-		xinst *= (double)did_iters;
+		xinst *= did_iters;
 		tm_end = dclock();
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
@@ -896,7 +897,7 @@ float simd_dot0(unsigned int i)
 		|| args[i].wrk_typ == WRK_FREQ2
 #endif
 		) {
-		int imx = 100, ii, b, did_iters=0;
+		int imx = 100, ii, b;
 		if (loops != 0) {
 			imx = loops;
 		}
@@ -926,7 +927,7 @@ float simd_dot0(unsigned int i)
 		}
 		xend = get_cputime();
 		xinst += (double)1000000 * (double)imx;
-		xinst *= (double)did_iters;
+		xinst *= did_iters;
 		xcumu += xend-xbeg;
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
@@ -934,7 +935,7 @@ float simd_dot0(unsigned int i)
 #ifndef _WIN32
 	// experimental... just working on this on linux so far
 	if (args[i].wrk_typ == WRK_FREQ2) {
-		int imx = 100, ii, b, did_iters=0;
+		int imx = 100, ii, b;
 		ops = 0;
 		xbeg = get_cputime();
 		while((tm_end - tm_beg) < tm_to_run) {
@@ -955,7 +956,7 @@ float simd_dot0(unsigned int i)
 		}
 		xend = get_cputime();
 		xinst += (double)1000000 * (double)imx;
-		xinst *= (double)did_iters;
+		xinst *= did_iters;
 		xcumu += xend-xbeg;
 		//printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
 		ops = (uint64_t)(xinst);
@@ -975,6 +976,7 @@ float simd_dot0(unsigned int i)
 #if 1
 		}
 #endif
+		did_iters++;
 		tm_end = dclock();
 #if 1
 		// try to reduce the time spend in dclock()
@@ -1011,8 +1013,11 @@ float simd_dot0(unsigned int i)
 		//rezult = (float)a;
 		//printf("in simd[%d].perf= %f\n", i, args[i].perf);
 	}
-	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, cpu_tm= %f, Gops= %f, %s= %f\n",
-		cpu, mygettid(), tm_beg, tm_end, dura, xcumu, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
+	if (did_iters == 0.0) {
+		did_iters=1.0;
+	}
+	printf("cpu[%3d]: tid= %6d, beg/end= %f,%f, dura= %f, CPUms/iter= %f ms, iter/CPUsec= %f, cpu_tm= %f, Gops= %f, %s= %f\n",
+		cpu, mygettid(), tm_beg, tm_end, dura, 1000.0*xcumu/did_iters, did_iters/xcumu, xcumu, 1.0e-9 * (double)ops, args[i].units.c_str(), args[i].perf);
 	return rezult;
 }
 
