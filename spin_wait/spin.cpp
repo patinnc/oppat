@@ -126,6 +126,23 @@ static std::vector <std::string> wrk_typs = {
 	"disk_rdwr_dir"
 };
 
+//abcd
+struct sla_str {
+	int level, warn, critical;
+	sla_str(): level(-1), warn(-1), critical(-1) {}
+};
+
+struct options_str {
+	int verbose, help, wrk_typ, cpus, clock, nopin;
+	std::string work, phase, bump_str, size_str, loops_str;
+	uint64_t bump, size, loops;
+	double spin_tm, spin_tm_multi;
+	std::vector <sla_str> sla;
+	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), nopin(0), bump(0), size(0),
+		loops(0), spin_tm(2.0), spin_tm_multi(0) {}
+
+} options;
+
 static unsigned int my_getcpu(void)
 {
 	unsigned int cpu;
@@ -255,6 +272,9 @@ int pthread_setaffinity_np(pthread_t thread, size_t cpu_size,
 
 void pin(int cpu)
 {
+   if (options.nopin == 1) {
+      return;
+   }
 #if defined(__linux__) || defined(__APPLE__)
 	int i = cpu;
 
@@ -1117,23 +1137,6 @@ std::vector <std::string> split_cmd_line(const char *argv0, const char *cmdline,
 	return std_argv;
 }
 
-//abcd
-struct sla_str {
-	int level, warn, critical;
-	sla_str(): level(-1), warn(-1), critical(-1) {}
-};
-
-struct options_str {
-	int verbose, help, wrk_typ, cpus, clock;
-	std::string work, phase, bump_str, size_str, loops_str;
-	uint64_t bump, size, loops;
-	double spin_tm, spin_tm_multi;
-	std::vector <sla_str> sla;
-	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), bump(0), size(0),
-		loops(0), spin_tm(2.0), spin_tm_multi(0) {}
-
-} options;
-
 void opt_set_spin_tm(const char *optarg)
 {
 	const char *cpc = strchr(optarg, ',');
@@ -1167,6 +1170,12 @@ void opt_set_cpus(const char *optarg)
 {
 	options.cpus = atoi(optarg);
 	printf("cpus= %s\n", optarg);
+}
+
+void opt_set_nopin(void)
+{
+	options.nopin = 1;
+	printf("nopin= 1\n");
 }
 
 void opt_set_size(const char *optarg)
@@ -1281,8 +1290,12 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		{"verbose",     no_argument,       0, 'v', "set verbose mode"
 			"   Specify '-v' multiple times to increase the verbosity level.\n"
 		},
+		{"nopin",     no_argument,       0, 'P', "don't pin the thread to the cpu"
+			"   The default is to pin thread 0 to cpu 0, thread 1 to cpu 1, etc.\n"
+			"   This option is in intended for you to use some other tool (like numactl --cpunodebind=0 --membind=1 ...\n"
+		},
 		{"help",        no_argument,       &help_flag, 'h', "display help and exit"},
-		/* These options dont set a flag.
+		/* These options don't set a flag.
 			We distinguish them by their indices. */
 		{"time",      required_argument,   0, 't', "time to run (in seconds)\n"
 		   "   -t tm_secs[,tm_secs_multi] \n"
@@ -1335,7 +1348,7 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = mygetopt_long(argc, argv, "hvb:c:l:n:p:s:S:t:w:", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvPb:c:l:n:p:s:S:t:w:", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -1346,6 +1359,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		case 0:
 //abcd
 			fprintf(stderr, "opt[%d]= %s\n", option_index, long_options[option_index].name);
+			if (strcmp(long_options[option_index].name, "nopin") == 0) {
+				opt_set_nopin();
+				break;
+			}
 			if (strcmp(long_options[option_index].name, "time") == 0) {
 				opt_set_spin_tm(optarg);
 				break;
@@ -1398,6 +1415,9 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			break;
 		case 'n':
 			opt_set_cpus(optarg);
+			break;
+		case 'P':
+			opt_set_nopin();
 			break;
 		case 's':
 			opt_set_size(optarg);
