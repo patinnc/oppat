@@ -133,13 +133,13 @@ struct sla_str {
 };
 
 struct options_str {
-	int verbose, help, wrk_typ, cpus, clock, nopin;
+	int verbose, help, wrk_typ, cpus, clock, nopin, yield;
 	std::string work, phase, bump_str, size_str, loops_str;
 	uint64_t bump, size, loops;
 	double spin_tm, spin_tm_multi;
 	std::vector <sla_str> sla;
-	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), nopin(0), bump(0), size(0),
-		loops(0), spin_tm(2.0), spin_tm_multi(0) {}
+	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), nopin(0),
+		yield(0), bump(0), size(0), loops(0), spin_tm(2.0), spin_tm_multi(0) {}
 
 } options;
 
@@ -920,6 +920,11 @@ float simd_dot0(unsigned int i)
 				tm_prevt = tm_endt;
 				xprev = xend;
 			}
+#ifdef __linux__
+		   if (options.yield == 1) {
+		      pthread_yield();
+		   }
+#endif
 		}
 #endif
 		xend = get_cputime();
@@ -1178,6 +1183,12 @@ void opt_set_nopin(void)
 	printf("nopin= 1\n");
 }
 
+void opt_set_yield(void)
+{
+	options.yield = 1;
+	printf("yield= 1\n");
+}
+
 void opt_set_size(const char *optarg)
 {
 	options.size = atoi(optarg);
@@ -1294,6 +1305,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			"   The default is to pin thread 0 to cpu 0, thread 1 to cpu 1, etc.\n"
 			"   This option is in intended for you to use some other tool (like numactl --cpunodebind=0 --membind=1 ...\n"
 		},
+		{"yield",     no_argument,       0, 'Y', "yield the cpu after each loop"
+			"   The default is to not yield the cpu after each loop.\n"
+			"   This option is intended for the freq_sml work type.\n"
+		},
 		{"help",        no_argument,       &help_flag, 'h', "display help and exit"},
 		/* These options don't set a flag.
 			We distinguish them by their indices. */
@@ -1348,7 +1363,7 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = mygetopt_long(argc, argv, "hvPb:c:l:n:p:s:S:t:w:", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvPYb:c:l:n:p:s:S:t:w:", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -1361,6 +1376,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			fprintf(stderr, "opt[%d]= %s\n", option_index, long_options[option_index].name);
 			if (strcmp(long_options[option_index].name, "nopin") == 0) {
 				opt_set_nopin();
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "yield") == 0) {
+				opt_set_yield();
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "time") == 0) {
@@ -1418,6 +1437,9 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			break;
 		case 'P':
 			opt_set_nopin();
+			break;
+		case 'Y':
+			opt_set_yield();
 			break;
 		case 's':
 			opt_set_size(optarg);
