@@ -1,8 +1,8 @@
 {
   "chart_use_default":"y",
-  "pixels_high_default":250,
-  "drop_event_if_samples_exceed":700000,
-  "dont_show_events_on_cpu_busy_if_samples_exceed":500000,
+  "pixels_high_default":450,
+  "drop_event_if_samples_exceed":1700000,
+  "dont_show_events_on_cpu_busy_if_samples_exceed":1500000,
   "chart_category_priority":[
 	{"name":"PERF",    "priority":0},
 	{"name":"UI",      "priority":100},
