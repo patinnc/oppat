@@ -810,6 +810,21 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	let draw_mini_cursor_prev = null;
 	let mycanvas2_ctx = null;
 
+	function build_txt_str_from_txt_arr_idxs(txt_arr_idxs, frm_where) {
+		let tstr = "";
+		if (typeof txt_arr_idxs !== 'undefined' && txt_arr_idxs.length > 0) {
+			for (let j=0; j < txt_arr_idxs.length; j++) {
+				let tidx = txt_arr_idxs[j];
+				if (tidx < 0) {
+					tidx *= -1;
+					tstr += ", line " + tidx.toString();
+				} else {
+					tstr += gjson_str_pool.str_pool[0].strs[tidx];
+				}
+			}
+		}
+		return tstr;
+	}
 	function reset_minx_maxx(zm_x0, zm_x1, zm_y0, zm_y1) {
 		let tm_n0 = performance.now();
 		if (gsync_zoom_linked) {
@@ -3312,6 +3327,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						if (typeof txtidx !== 'undefined') {
 							tstr = gjson_str_pool.str_pool[0].strs[txtidx];
 						}
+						let txt_arr_idxs = chart_data.myshapes[i].txt_arr_idxs;
+						let tstr2 = build_txt_str_from_txt_arr_idxs(txt_arr_idxs, "b");
+						if (tstr2 != "") { tstr = tstr2; }
 						if (typeof follow_arr !== 'undefined') {
 							let got_follow = chart_data.myshapes[i].ival[IVAL_SHAPE] & SHAPE_FOLLOW;
 							if (follow_arr.length > 0) {
@@ -5499,8 +5517,17 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			current_tooltip_shape = shape_idx;
 			current_tooltip_text = str;
 			if (typeof chart_data.myshapes[shape_idx] !== 'undefined' &&
-				typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined') {
-				let tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
+				(typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined' ||
+					(typeof chart_data.myshapes[shape_idx].txt_arr_idxs !== 'undefined' && chart_data.myshapes[shape_idx].txt_arr_idxs.length > 0))) {
+				let tstr = "";
+				if (typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined') {
+					tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
+				}
+				if (typeof chart_data.myshapes[shape_idx].txt_arr_idxs !== 'undefined') {
+					let txt_arr_idxs = chart_data.myshapes[shape_idx].txt_arr_idxs;
+					let tstr2 = build_txt_str_from_txt_arr_idxs(txt_arr_idxs, "a");
+					if (tstr2 != "") { tstr = tstr2; }
+				}
 				let n = tstr.indexOf("_P_");
 				if (n == 0) {
 					let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
