@@ -749,6 +749,7 @@ struct shape_str {
 struct lines_str {
 	double x[2], y[2], period, numerator, denom;
 	std::string text;
+        std::vector <int> text_arr;
 	int cpt_idx, fe_idx, pid, prf_idx, typ, cat, subcat, cpu, use_num_denom;
 	uint32_t flags;
 	std::vector <int> callstack_str_idxs;
@@ -2981,15 +2982,27 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 				prf_sample_to_string(prf_idx, ostr, prf_obj);
 				//ls1.text = ostr;
+//abcd
+				int tidx;
 				ls1.text = "_P_"; // placeholder will be replaced by main.js with trace record
-				ls1.text += "<br>" + prf_obj.samples[prf_idx].extra_str;
+				tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+				ls1.text_arr.push_back(tidx);
+				ls1.text = "<br>" + prf_obj.samples[prf_idx].extra_str;
+				tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+				ls1.text_arr.push_back(tidx);
 				if (prf_obj.samples[prf_idx].args.size() > 0) {
-					ls1.text += "<br>";
+					ls1.text = "<br>";
+					tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+					ls1.text_arr.push_back(tidx);
 					for (uint32_t k=0; k < prf_obj.samples[prf_idx].args.size(); k++) {
-						ls1.text += " " + prf_obj.samples[prf_idx].args[k];
+						ls1.text = " " + prf_obj.samples[prf_idx].args[k];
+						tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+						ls1.text_arr.push_back(tidx);
 					}
 				}
-				ls1.text += ", line " + std::to_string(prf_obj.samples[prf_idx].line_num);
+				tidx = prf_obj.samples[prf_idx].line_num;
+				ls1.text_arr.push_back(-tidx);
+				ls1.text = "";
 				if (prf_obj.samples[prf_idx].callstack.size() > 0) {
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
@@ -3001,7 +3014,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					}
 				}
 			} else if (stk_idx != UINT32_M1 && prf_obj.file_type == FILE_TYP_ETW) {
-				//abcd
 				std::string fsp;
 			   	uint32_t cpt_idx = ls1.cpt_idx;
 				uint32_t prf_evt_idx = event_table[evt_idx].event_idx_in_file;
@@ -3090,15 +3102,21 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.y[1] = hi;
 			ls0.typ  = SHAPE_RECT;
 		}
+		int tidx0;
 		ls0.text = comm;
+		tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+		ls0.text_arr.push_back(tidx0);
 		ls0.pid  = pid_num;
 		if (prf_obj.file_type != FILE_TYP_ETW) {
 			ls0.fe_idx  = prf_obj.samples[prf_idx].fe_idx;
 			ls0.cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
 			ls0.period  = (double)prf_obj.samples[prf_idx].period;
 			ls0.cpu     = (int)prf_obj.samples[prf_idx].cpu;
-			ls0.text += ", line " + std::to_string(prf_obj.samples[prf_idx].line_num);
-			ls0.text += "<br>" + prf_obj.samples[prf_idx].extra_str;
+			ls0.text_arr.push_back(-prf_obj.samples[prf_idx].line_num);
+			ls0.text = "<br>" + prf_obj.samples[prf_idx].extra_str;
+			tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+			ls0.text_arr.push_back(tidx0);
+			ls0.text = "";
 		} else {
 			ls0.fe_idx  = get_fe_idxm1(prf_obj, event_table[evt_idx].event_name_w_area, __LINE__, true, event_table[evt_idx]);
 			uint32_t cpt_idx = event_table[evt_idx].data.cpt_idx[0][i];
@@ -3210,16 +3228,25 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.typ     = SHAPE_LINE;
 			std::string ostr;
 			prf_sample_to_string(i, ostr, prf_obj);
-			//ls0.text = ostr;
+			int tidx0;
 			ls0.text = "_P_"; // placeholder will be replaced by main.js with trace record
+			tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+			ls0.text_arr.push_back(tidx0);
 			if (prf_obj.samples[i].args.size() > 0) {
-				ls0.text += "<br>";
+				ls0.text = "<br>";
+				tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+				ls0.text_arr.push_back(tidx0);
 				for (uint32_t k=0; k < prf_obj.samples[i].args.size(); k++) {
-					ls0.text += " " + prf_obj.samples[i].args[k];
+					ls0.text = " " + prf_obj.samples[i].args[k];
+					tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+					ls0.text_arr.push_back(tidx0);
 				}
 			}
-			ls0.text += "<br>" + prf_obj.samples[i].extra_str;
-			ls0.text += ", line " + std::to_string(prf_obj.samples[i].line_num);
+			ls0.text = "<br>" + prf_obj.samples[i].extra_str;
+			tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+			ls0.text_arr.push_back(tidx0);
+			ls0.text_arr.push_back(-prf_obj.samples[i].line_num);
+			ls0.text = "";
 			if (prf_obj.samples[i].callstack.size() > 0) {
 				std::vector <int> callstacks;
 				std::vector <std::string> prefx;
@@ -3707,6 +3734,14 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 			//printf("ch_lines.line[%d].text= %s at %s %d\n", i, ch_lines.line[i].text.c_str(), __FILE__, __LINE__);
 			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
 			ch_lines_line_str += ",\"txtidx\":" + std::to_string(txt_idx);
+		}
+		if (ch_lines.line[i].text_arr.size() > 0) {
+			ch_lines_line_str += ",\"txt_arr_idxs\":[";
+			for (uint32_t kk=0; kk < ch_lines.line[i].text_arr.size(); kk++) {
+				if (kk > 0) { ch_lines_line_str += ","; }
+				ch_lines_line_str += std::to_string(ch_lines.line[i].text_arr[kk]);
+			}
+			ch_lines_line_str += "]";
 		}
 		std::string cs_txt;
 		for (uint32_t j=0; j < ch_lines.line[i].callstack_str_idxs.size(); j++) {
@@ -5887,6 +5922,14 @@ static int ck_phase_single_multi(std::vector <file_list_str> &file_list, uint32_
 			if (ch_lines.line[i].text.size() > 0 && ch_lines.line[i].text.find(follow) != std::string::npos) {
 				got_follow = true;
 				fllw_text++;
+			} else if (ch_lines.line[i].text_arr.size() > 0) {
+				for (uint32_t kk=0; kk < ch_lines.line[i].text_arr.size(); kk++) {
+					if (ch_lines.line[i].text_arr[kk] >= 0 && callstack_vec[ch_lines.line[i].text_arr[kk]].find(follow) != std::string::npos) {
+						got_follow = true;
+						fllw_stk++;
+						break;
+					}
+				}
 			}
 			if (!got_follow && 
 					comm_pid_tid_vec[file_tag_idx][cpt_idx].comm.find(follow) != std::string::npos) {
