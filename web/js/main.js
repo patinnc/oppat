@@ -810,11 +810,11 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	let draw_mini_cursor_prev = null;
 	let mycanvas2_ctx = null;
 
-	function build_txt_str_from_txt_arr_idxs(txt_arr_idxs, frm_where) {
+	function build_txt_str_from_txt_ai(txt_ai, frm_where) {
 		let tstr = "";
-		if (typeof txt_arr_idxs !== 'undefined' && txt_arr_idxs.length > 0) {
-			for (let j=0; j < txt_arr_idxs.length; j++) {
-				let tidx = txt_arr_idxs[j];
+		if (typeof txt_ai !== 'undefined' && txt_ai.length > 0) {
+			for (let j=0; j < txt_ai.length; j++) {
+				let tidx = txt_ai[j];
 				if (tidx < 0) {
 					tidx *= -1;
 					tstr += ", line " + tidx.toString();
@@ -3327,8 +3327,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						if (typeof txtidx !== 'undefined') {
 							tstr = gjson_str_pool.str_pool[0].strs[txtidx];
 						}
-						let txt_arr_idxs = chart_data.myshapes[i].txt_arr_idxs;
-						let tstr2 = build_txt_str_from_txt_arr_idxs(txt_arr_idxs, "b");
+						let txt_ai = chart_data.myshapes[i].txt_ai;
+						let tstr2 = build_txt_str_from_txt_ai(txt_ai, "b");
 						if (tstr2 != "") { tstr = tstr2; }
 						if (typeof follow_arr !== 'undefined') {
 							let got_follow = chart_data.myshapes[i].ival[IVAL_SHAPE] & SHAPE_FOLLOW;
@@ -4009,9 +4009,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				let fe_rnk = event_lkup[fe_idx];
 				//console.log("fe_idx= "+fe_idx+", fe_rnk= "+fe_rnk);
 				let clr = gcolor_def;
-                if (typeof fe_rnk !== 'undefined') {
+				if (typeof fe_rnk !== 'undefined') {
 				    clr = event_list[fe_rnk].color;
-                }
+				}
 				let do_proc = false, do_event = false, do_event_highlight = false;
 				if (idx == -1 || (typeof proc_select[idx] !== 'undefined' &&
 					(proc_select[idx][1] == 'highlight' || proc_select[idx][1] == 'show'))) {
@@ -4038,9 +4038,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					let fe_2 = event_lkup[fe_idx];
 					//console.log("got fe_idx= "+fe_2+" flnm_evt.sz= "+event_list.length);
 					let ev = "unknown4";
-                    if (typeof fe_2 !== 'undefined') {
+					if (typeof fe_2 !== 'undefined') {
 					    ev = event_list[fe_2].event;
-                    }
+					}
 					let has_cs = false;
 					if (typeof chart_data.myshapes[i].cs_strs !== 'undefined'
 						&& chart_data.myshapes[i].cs_strs.length > 0) {
@@ -5518,14 +5518,14 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			current_tooltip_text = str;
 			if (typeof chart_data.myshapes[shape_idx] !== 'undefined' &&
 				(typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined' ||
-					(typeof chart_data.myshapes[shape_idx].txt_arr_idxs !== 'undefined' && chart_data.myshapes[shape_idx].txt_arr_idxs.length > 0))) {
+					(typeof chart_data.myshapes[shape_idx].txt_ai !== 'undefined' && chart_data.myshapes[shape_idx].txt_ai.length > 0))) {
 				let tstr = "";
 				if (typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined') {
 					tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
 				}
-				if (typeof chart_data.myshapes[shape_idx].txt_arr_idxs !== 'undefined') {
-					let txt_arr_idxs = chart_data.myshapes[shape_idx].txt_arr_idxs;
-					let tstr2 = build_txt_str_from_txt_arr_idxs(txt_arr_idxs, "a");
+				if (typeof chart_data.myshapes[shape_idx].txt_ai !== 'undefined') {
+					let txt_ai = chart_data.myshapes[shape_idx].txt_ai;
+					let tstr2 = build_txt_str_from_txt_ai(txt_ai, "a");
 					if (tstr2 != "") { tstr = tstr2; }
 				}
 				let n = tstr.indexOf("_P_");
