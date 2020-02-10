@@ -1555,6 +1555,40 @@ void chart_lines_ck_rng(double x, double y, double ts0, int cat, int subcat, dou
 	//printf("subcat[%d][%d]\n", cat, subcat);
 }
 
+static std::string dbl_2_str(double val)
+{
+	if (val == 0.0) {
+		return "0.0";
+	} else {
+		std::string str = std::to_string(val);
+		size_t pos = str.find(".");
+		if (pos != std::string::npos) {
+			int all_numbers = 1, last_zero=-1, pops=0;
+			int sz = (int)str.size();
+			for (int i=sz-1; i >= (int)(pos+1); i--) {
+				if (str[i] >= '0' && str[i] <= '9') {
+					if (str[i] == '0' && (i== (sz-1) || last_zero == i+1)) {
+						last_zero = i;
+						pops++;
+					}
+				} else {
+					all_numbers = 0;
+					break;
+				}
+			}
+			if (all_numbers && pops > 0) {
+				str.resize(sz-pops);
+#if 0
+				for (int i=0; i < pops; i++) {
+					str.pop();
+				}
+#endif
+			}
+                }
+		return str;
+	}
+}
+
 static std::string build_proc_string(uint32_t evt_idx, uint32_t chrt_idx, std::vector <evt_str> &event_table)
 {
 	std::string str = "\"proc_arr\":[";
@@ -1566,7 +1600,8 @@ static std::string build_proc_string(uint32_t evt_idx, uint32_t chrt_idx, std::v
 		str += "{\"pid\":"+std::to_string(comm_pid_tid_vec[file_tag_idx][i].pid) +
 			", \"tid\":"+std::to_string(comm_pid_tid_vec[file_tag_idx][i].tid) +
 			", \"comm\":\""+comm_pid_tid_vec[file_tag_idx][i].comm +
-			"\", \"total\":"+std::to_string(ntot)+"}";
+			//"\", \"total\":"+std::to_string(ntot)+"}";
+			"\", \"total\":"+dbl_2_str(ntot)+"}";
 	}
 	str += "]";
 	if (options.show_json > 0) {
@@ -1649,11 +1684,11 @@ static bool prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 			continue;
 		}
 		cs_prv = cs_new;
-		int cs_idx = (int)hash_string(callstack_hash, callstack_vec, cs_new) - 1;
+		int cs_idx = (int)hash_escape_string(callstack_hash, callstack_vec, cs_new) - 1;
 		callstacks.push_back(cs_idx);
 	}
 	for (uint32_t k=0; k < prefx.size(); k++) {
-		int cs_idx = (int)hash_string(callstack_hash, callstack_vec, prefx[k]) - 1;
+		int cs_idx = (int)hash_escape_string(callstack_hash, callstack_vec, prefx[k]) - 1;
 		callstacks.push_back(cs_idx);
 	}
 	callstack_sz += callstacks.size();
@@ -1705,11 +1740,11 @@ static bool etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 			continue;
 		}
 		cs_prv = cs_new;
-		int cs_idx = (int)hash_string(callstack_hash, callstack_vec, cs_new) - 1;
+		int cs_idx = (int)hash_escape_string(callstack_hash, callstack_vec, cs_new) - 1;
 		callstacks.push_back(cs_idx);
 	}
 	for (uint32_t k=0; k < prefx.size(); k++) {
-		int cs_idx = (int)hash_string(callstack_hash, callstack_vec, prefx[k]) - 1;
+		int cs_idx = (int)hash_escape_string(callstack_hash, callstack_vec, prefx[k]) - 1;
 		callstacks.push_back(cs_idx);
 	}
 	callstack_sz += callstacks.size();
@@ -2985,18 +3020,18 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 //abcd
 				int tidx;
 				ls1.text = "_P_"; // placeholder will be replaced by main.js with trace record
-				tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+				tidx = (int)hash_escape_string(callstack_hash, callstack_vec, ls1.text) - 1;
 				ls1.text_arr.push_back(tidx);
 				ls1.text = "<br>" + prf_obj.samples[prf_idx].extra_str;
-				tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+				tidx = (int)hash_escape_string(callstack_hash, callstack_vec, ls1.text) - 1;
 				ls1.text_arr.push_back(tidx);
 				if (prf_obj.samples[prf_idx].args.size() > 0) {
 					ls1.text = "<br>";
-					tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+					tidx = (int)hash_escape_string(callstack_hash, callstack_vec, ls1.text) - 1;
 					ls1.text_arr.push_back(tidx);
 					for (uint32_t k=0; k < prf_obj.samples[prf_idx].args.size(); k++) {
 						ls1.text = " " + prf_obj.samples[prf_idx].args[k];
-						tidx = (int)hash_string(callstack_hash, callstack_vec, ls1.text) - 1;
+						tidx = (int)hash_escape_string(callstack_hash, callstack_vec, ls1.text) - 1;
 						ls1.text_arr.push_back(tidx);
 					}
 				}
@@ -3104,7 +3139,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		}
 		int tidx0;
 		ls0.text = comm;
-		tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+		tidx0 = (int)hash_escape_string(callstack_hash, callstack_vec, ls0.text) - 1;
 		ls0.text_arr.push_back(tidx0);
 		ls0.pid  = pid_num;
 		if (prf_obj.file_type != FILE_TYP_ETW) {
@@ -3114,7 +3149,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			ls0.cpu     = (int)prf_obj.samples[prf_idx].cpu;
 			ls0.text_arr.push_back(-prf_obj.samples[prf_idx].line_num);
 			ls0.text = "<br>" + prf_obj.samples[prf_idx].extra_str;
-			tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+			tidx0 = (int)hash_escape_string(callstack_hash, callstack_vec, ls0.text) - 1;
 			ls0.text_arr.push_back(tidx0);
 			ls0.text = "";
 		} else {
@@ -3172,7 +3207,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 
 	if (prf_obj.file_type != FILE_TYP_ETW) {
 		if (chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed > 0 &&
-			tot_samples > chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed) {
+			tot_samples > chart_defaults.dont_show_events_on_cpu_busy_if_samples_exceed && options.tm_clip_beg_valid == 0 && options.tm_clip_end_valid == 0) {
 			static int first_tm = 1;
 			if (first_tm == 1) {
 				fprintf(stderr, "skipping adding other events to cpu_busy chart due to sample count(%d) > %d at %s %d\n",
@@ -3230,20 +3265,20 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 			prf_sample_to_string(i, ostr, prf_obj);
 			int tidx0;
 			ls0.text = "_P_"; // placeholder will be replaced by main.js with trace record
-			tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+			tidx0 = (int)hash_escape_string(callstack_hash, callstack_vec, ls0.text) - 1;
 			ls0.text_arr.push_back(tidx0);
 			if (prf_obj.samples[i].args.size() > 0) {
 				ls0.text = "<br>";
-				tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+				tidx0 = (int)hash_escape_string(callstack_hash, callstack_vec, ls0.text) - 1;
 				ls0.text_arr.push_back(tidx0);
 				for (uint32_t k=0; k < prf_obj.samples[i].args.size(); k++) {
 					ls0.text = " " + prf_obj.samples[i].args[k];
-					tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+					tidx0 = (int)hash_escape_string(callstack_hash, callstack_vec, ls0.text) - 1;
 					ls0.text_arr.push_back(tidx0);
 				}
 			}
 			ls0.text = "<br>" + prf_obj.samples[i].extra_str;
-			tidx0 = (int)hash_string(callstack_hash, callstack_vec, ls0.text) - 1;
+			tidx0 = (int)hash_escape_string(callstack_hash, callstack_vec, ls0.text) - 1;
 			ls0.text_arr.push_back(tidx0);
 			ls0.text_arr.push_back(-prf_obj.samples[i].line_num);
 			ls0.text = "";
@@ -3638,6 +3673,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		typ_vec.push_back(std::to_string(i));
 	}
 
+	int32_t txt_sz=0;
 	for (uint32_t i=0; i < ch_lines.line.size(); i++) {
 		//tmr[0] = dclock();
 		if (i > 0) { ch_lines_line_str += ", "; }
@@ -3732,11 +3768,12 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		//tmr[2] = dclock();
 		if (ch_lines.line[i].text.size() > 0) {
 			//printf("ch_lines.line[%d].text= %s at %s %d\n", i, ch_lines.line[i].text.c_str(), __FILE__, __LINE__);
-			int txt_idx = (int)hash_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
+			int txt_idx = (int)hash_escape_string(callstack_hash, callstack_vec, ch_lines.line[i].text) - 1;
 			ch_lines_line_str += ",\"txtidx\":" + std::to_string(txt_idx);
+			txt_sz += (int)ch_lines.line[i].text.size();
 		}
 		if (ch_lines.line[i].text_arr.size() > 0) {
-			ch_lines_line_str += ",\"txt_arr_idxs\":[";
+			ch_lines_line_str += ",\"txt_ai\":[";
 			for (uint32_t kk=0; kk < ch_lines.line[i].text_arr.size(); kk++) {
 				if (kk > 0) { ch_lines_line_str += ","; }
 				ch_lines_line_str += std::to_string(ch_lines.line[i].text_arr[kk]);
@@ -3761,6 +3798,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 	}
 	tt2 = dclock();
 	ch_lines_line_str += "]";
+	fprintf(stderr, "for chart= %s txt_sz= %d tot_sz= %d MB at %s %d\n", event_table[evt_idx].charts[chrt].chart_tag.c_str(), txt_sz, (int)(ch_lines_line_str.size()/(1024*1024)), __FILE__, __LINE__);
 #if 0
 	if (event_table[evt_idx].charts[chrt].chart_tag == "VMSTAT_MEM_cHART") {
 		printf("%s ch_line data at %s %d:\n%s\n",
@@ -5210,8 +5248,8 @@ static void create_web_file(int verbose)
 	std::vector <std::string> cd_str;
 	unsigned char *src, *dst, *cd_b64, *sp_b64;
 	for (uint32_t i=0; i < chrts_json.size(); i++) {
-		src = (uint8_t *)malloc(chrts_json2[i].size());
-		dst = (uint8_t *)malloc(chrts_json2[i].size());
+		src = (uint8_t *)malloc(chrts_json2[i].size()+1);
+		dst = (uint8_t *)malloc(chrts_json2[i].size()+1);
 		memcpy(src, chrts_json2[i].c_str(), chrts_json2[i].size());
 		int cd_cmp_len = compress_string(dst, src, chrts_json2[i].size());
 		int cd_b64_len = Base64encode_len(cd_cmp_len);
