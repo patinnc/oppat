@@ -35,15 +35,6 @@
 static std::vector <fld_typ_str> fld_typ_strs;
 static std::vector <fld_typ_str> copt_strs;
 
-uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str)
-{
-	uint32_t idx = hsh_str[str];
-	if (idx == 0) {
-		vec_str.push_back(str);
-		idx = hsh_str[str] = (uint32_t)vec_str.size(); // so we are storing vec_str idx+1
-	}
-	return idx;
-}
 // for convenience
 using json = nlohmann::json;
 
@@ -88,6 +79,170 @@ static void prt_line(int sz)
 		printf("%d", num);
 	}
 	printf("\n");
+}
+
+static std::size_t nlohmann_extra_space(const std::string& s) noexcept
+{
+        std::size_t result = 0;
+
+        for (const auto& c : s)
+        {
+            switch (c)
+            {
+                case '"':
+                case '\\':
+                case '\b':
+                case '\f':
+                case '\n':
+                case '\r':
+                case '\t':
+                {
+                    // from c (1 byte) to \x (2 bytes)
+                    result += 1;
+                    break;
+                }
+
+                default:
+                {
+                    if (c >= 0x00 and c <= 0x1f)
+                    {
+                        // from c (1 byte) to \uxxxx (6 bytes)
+                        result += 5;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return result;
+}
+
+static std::string nlohmann_json_escape_string(const std::string& s) noexcept
+{
+        const auto space = nlohmann_extra_space(s);
+        if (space == 0)
+        {
+            return s;
+        }
+
+        // create a result string of necessary size
+        std::string result(s.size() + space, '\\');
+        std::size_t pos = 0;
+
+        for (const auto& c : s)
+        {
+            switch (c)
+            {
+                // quotation mark (0x22)
+                case '"':
+                {
+                    result[pos + 1] = '"';
+                    pos += 2;
+                    break;
+                }
+
+                // reverse solidus (0x5c)
+                case '\\':
+                {
+                    // nothing to change
+                    pos += 2;
+                    break;
+                }
+
+                // backspace (0x08)
+                case '\b':
+                {
+                    result[pos + 1] = 'b';
+                    pos += 2;
+                    break;
+                }
+
+                // formfeed (0x0c)
+                case '\f':
+                {
+                    result[pos + 1] = 'f';
+                    pos += 2;
+                    break;
+                }
+
+                // newline (0x0a)
+                case '\n':
+                {
+                    result[pos + 1] = 'n';
+                    pos += 2;
+                    break;
+                }
+
+                // carriage return (0x0d)
+                case '\r':
+                {
+                    result[pos + 1] = 'r';
+                    pos += 2;
+                    break;
+                }
+
+                // horizontal tab (0x09)
+                case '\t':
+                {
+                    result[pos + 1] = 't';
+                    pos += 2;
+                    break;
+                }
+
+                default:
+                {
+                    if (c >= 0x00 and c <= 0x1f)
+                    {
+                        // print character c as \uxxxx
+                        sprintf(&result[pos + 1], "u%04x", int(c));
+                        pos += 6;
+                        // overwrite trailing null character
+                        result[pos] = '\\';
+                    }
+                    else
+                    {
+                        // all other characters are added as-is
+                        result[pos++] = c;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return result;
+}
+
+static int json_escape_string(std::string &str_in)
+{
+	std::string str_new = nlohmann_json_escape_string(str_in);
+	if (str_in == str_new) {
+		return 0;
+	} else {
+		str_in = str_new;
+		return 1;
+	}
+}
+
+uint32_t hash_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str)
+{
+	uint32_t idx = hsh_str[str];
+	if (idx == 0) {
+		vec_str.push_back(str);
+		idx = hsh_str[str] = (uint32_t)vec_str.size(); // so we are storing vec_str idx+1
+	}
+	return idx;
+}
+
+uint32_t hash_escape_string(std::unordered_map<std::string, uint32_t> &hsh_str, std::vector <std::string> &vec_str, std::string str)
+{
+	std::string stro = str;
+        json_escape_string(stro);
+	uint32_t idx = hsh_str[stro];
+	if (idx == 0) {
+		vec_str.push_back(stro);
+		idx = hsh_str[stro] = (uint32_t)vec_str.size(); // so we are storing vec_str idx+1
+	}
+	return idx;
 }
 
 static uint64_t ck_lkup_typ(std::vector <fld_typ_str> &typ_strs, const char *str, int verbose)
