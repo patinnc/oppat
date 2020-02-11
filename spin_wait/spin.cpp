@@ -133,13 +133,13 @@ struct sla_str {
 };
 
 struct options_str {
-	int verbose, help, wrk_typ, cpus, clock, nopin, yield;
+	int verbose, help, wrk_typ, cpus, clock, nopin, yield, huge_pages;
 	std::string work, phase, bump_str, size_str, loops_str;
 	uint64_t bump, size, loops;
 	double spin_tm, spin_tm_multi;
 	std::vector <sla_str> sla;
 	options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), nopin(0),
-		yield(0), bump(0), size(0), loops(0), spin_tm(2.0), spin_tm_multi(0) {}
+		yield(0), huge_pages(0), bump(0), size(0), loops(0), spin_tm(2.0), spin_tm_multi(0) {}
 
 } options;
 
@@ -689,12 +689,46 @@ float mem_bw(unsigned int i)
 		printf("strd= %d, arr_sz= %d, %d KB, %.4f MB\n",
 			strd, arr_sz, arr_sz/1024, (double)(arr_sz)/(1024.0*1024.0));
 	}
-	dst = (char *)malloc(arr_sz);
+	if (options.huge_pages) {
+		size_t algn = 2*1024*1024;
+		size_t hsz = arr_sz;
+		size_t ck = hsz/algn;
+		if ((ck*algn) != hsz) {
+			hsz = (ck+1)*algn;
+		}
+#if defined(__linux__) || defined(__APPLE__)
+     		int rch = posix_memalign((void **)&dst, algn, hsz);
+#else
+		dst = (char *)_aligned_malloc(hsz, algn);
+#endif
+		if (rch != 0) {
+			printf("posix_memalign malloc for dst huge_page array failed. Bye at %s %d\n", __FILE__, __LINE__);
+		}
+	} else {
+		dst = (char *)malloc(arr_sz);
+	}
 	array_write(dst, arr_sz, strd);
 	if (args[i].wrk_typ == WRK_MEM_BW_2RDWR ||
 		args[i].wrk_typ == WRK_MEM_BW_2RD ||
 		args[i].wrk_typ == WRK_MEM_BW_2RD2WR) {
-		src = (char *)malloc(arr_sz);
+		if (options.huge_pages) {
+			size_t algn = 2*1024*1024;
+			size_t hsz = arr_sz;
+			size_t ck = hsz/algn;
+			if ((ck*algn) != hsz) {
+				hsz = (ck+1)*algn;
+			}
+#if defined(__linux__) || defined(__APPLE__)
+     			int rch = posix_memalign((void **)&src, algn, hsz);
+#else
+			src = (char *)_aligned_malloc(hsz, algn);
+#endif
+			if (rch != 0) {
+				printf("posix_memalign malloc for src huge_page array failed. Bye at %s %d\n", __FILE__, __LINE__);
+			}
+		} else {
+			src = (char *)malloc(arr_sz);
+		}
 		array_write(src, arr_sz, strd);
 	}
 	bool do_loop = true;
@@ -1189,6 +1223,12 @@ void opt_set_yield(void)
 	printf("yield= 1\n");
 }
 
+void opt_set_huge_pages(void)
+{
+	options.huge_pages = 1;
+	printf("try huge_page pos_memalign alloc = 1\n");
+}
+
 void opt_set_size(const char *optarg)
 {
 	options.size = atoi(optarg);
@@ -1309,6 +1349,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			"   The default is to not yield the cpu after each loop.\n"
 			"   This option is intended for the freq_sml work type.\n"
 		},
+		{"huge_pages",     no_argument,       0, 'H', "alloc memory using posix_memalign on a 2MB boundary to try and use transparent huge pages\n"
+			"   The default is to not use THP\n"
+			"   This option is intended for the mem_bw work types.\n"
+		},
 		{"help",        no_argument,       &help_flag, 'h', "display help and exit"},
 		/* These options don't set a flag.
 			We distinguish them by their indices. */
@@ -1363,7 +1407,7 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = mygetopt_long(argc, argv, "hvPYb:c:l:n:p:s:S:t:w:", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvHPYb:c:l:n:p:s:S:t:w:", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -1376,6 +1420,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			fprintf(stderr, "opt[%d]= %s\n", option_index, long_options[option_index].name);
 			if (strcmp(long_options[option_index].name, "nopin") == 0) {
 				opt_set_nopin();
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "huge_pages") == 0) {
+				opt_set_huge_pages();
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "yield") == 0) {
@@ -1422,6 +1470,9 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		case 'h':
 			printf ("option -h set\n");
 			help_flag++;
+			break;
+		case 'H':
+			opt_set_huge_pages();
 			break;
 		case 'b':
 			opt_set_bump(optarg);
