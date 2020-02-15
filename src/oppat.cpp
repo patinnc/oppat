@@ -750,11 +750,11 @@ struct lines_str {
 	double x[2], y[2], period, numerator, denom;
 	std::string text;
         std::vector <int> text_arr;
-	int cpt_idx, fe_idx, pid, prf_idx, typ, cat, subcat, cpu, use_num_denom;
+	int cpt_idx, fe_idx, pid, prf_idx, typ, cat, subcat, cpu, use_num_denom, csi;
 	uint32_t flags;
 	std::vector <int> callstack_str_idxs;
 	lines_str(): period(0.0), numerator(0.0), denom(0.0), cpt_idx(-1), fe_idx(-1), pid(-1), prf_idx(-1),
-		typ(-1), cat(-1), subcat(-1), cpu(-1), use_num_denom(-1), flags(0) {}
+		typ(-1), cat(-1), subcat(-1), cpu(-1), use_num_denom(-1), csi(-1), flags(0) {}
 };
 
 // order of SHAPE_* enum values must agree with SHAPE_* variables in main.js
@@ -1658,7 +1658,7 @@ static uint64_t callstack_sz = 0;
 
 static bool prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 		std::vector <int> &callstacks, int line, std::vector <std::string> &prefx,
-		const std::string &follow_proc)
+		const std::string &follow_proc, int &csindx)
 {
 	bool rc = false, do_fllw = false;
 	if (follow_proc.size() > 0) {
@@ -1691,13 +1691,20 @@ static bool prf_mk_callstacks(prf_obj_str &prf_obj, int prf_idx,
 		int cs_idx = (int)hash_escape_string(callstack_hash, callstack_vec, prefx[k]) - 1;
 		callstacks.push_back(cs_idx);
 	}
+	std::string cs_str, cma;
+        for (uint32_t k=0; k < callstacks.size(); k++) {
+		cs_str += cma;
+		cs_str += std::to_string(callstacks[k]);
+		cma = ",";
+	}
+	csindx = (int)hash_string(callstack_hash, callstack_vec, cs_str) - 1;
 	callstack_sz += callstacks.size();
 	return rc;
 }
 
 static bool etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 				int stk_mod_rtn_idx, std::vector <int> &callstacks, int line,
-				std::vector <std::string> &prefx, const std::string &follow_proc)
+				std::vector <std::string> &prefx, const std::string &follow_proc, int &csindx)
 {
 	bool rc = false, do_fllw= false;
 	if (follow_proc.size() > 0) {
@@ -1747,6 +1754,13 @@ static bool etw_mk_callstacks(int set_idx, prf_obj_str &prf_obj, int i,
 		int cs_idx = (int)hash_escape_string(callstack_hash, callstack_vec, prefx[k]) - 1;
 		callstacks.push_back(cs_idx);
 	}
+	std::string cs_str, cma;
+        for (uint32_t k=0; k < callstacks.size(); k++) {
+		cs_str += cma;
+		cs_str += std::to_string(callstacks[k]);
+		cma = ",";
+	}
+	csindx = (int)hash_string(callstack_hash, callstack_vec, cs_str) - 1;
 	callstack_sz += callstacks.size();
 	return rc;
 }
@@ -1756,6 +1770,7 @@ enum {
 	OVERLAP_TRUNC,
 	OVERLAP_IGNORE,
 };
+static double block_delta= 0.25;
 
 static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_obj, std::vector <evt_str> &event_table, int verbose)
 {
@@ -1954,7 +1969,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 		printf("doing build_chart_data(%d, %d)\n", evt_idx, chrt);
 	std::string by_var_str;
 	double x, y;
-	double delta= 0.25, lo=0.0, hi=1.0;
+	double delta=block_delta, lo=0.0, hi=1.0;
 	bool idle_pid;
 	double var_val;
 	uint32_t by_var_idx_val = 0;
@@ -2603,7 +2618,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 							ls0p->x[1] = ux1;
 							y_val[by_var_idx_val] = ux1-ux0;
 							std::string fllw;
-							prf_mk_callstacks(prf_obj, prf_idx2, callstacks, __LINE__, prefx, fllw);
+							prf_mk_callstacks(prf_obj, prf_idx2, callstacks, __LINE__, prefx, fllw, ls0p->csi);
 							ls0p->callstack_str_idxs = callstacks;
 #if 0
 							// printfs useful for debugging RUN_QUEUE chart
@@ -2674,7 +2689,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						}
 					}
 					std::string fllw;
-					etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw);
+					etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw, ls0p->csi);
 					ls0p->callstack_str_idxs = callstacks;
 					//last_by_var_callstacks[by_var_idx_val] = callstacks;
 				}
@@ -2716,7 +2731,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 						prf_obj.etw_evts_set[prf_evt_idx][prv].cs_idx_beg != UINT32_M1) {
 						std::vector <int> callstacks;
 						std::string fllw;
-						etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw);
+						etw_mk_callstacks(prf_evt_idx, prf_obj, prv, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw, ls0p->csi);
 						ls0p->callstack_str_idxs = callstacks;
 						//last_by_var_callstacks[by_var_idx_val] = callstacks;
 					}
@@ -3041,7 +3056,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				if (prf_obj.samples[prf_idx].callstack.size() > 0) {
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
-					got_follow = prf_mk_callstacks(prf_obj, prf_idx, callstacks, __LINE__, prefx, fsp);
+					got_follow = prf_mk_callstacks(prf_obj, prf_idx, callstacks, __LINE__, prefx, fsp, ls1.csi);
 					ls1.callstack_str_idxs = callstacks;
 					if (got_follow) {
 						prf_obj.samples[prf_idx].flags |= GOT_FOLLOW_PROC;
@@ -3067,7 +3082,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					bool got_follow = false;
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
-					got_follow = etw_mk_callstacks(prf_evt_idx, prf_obj, jj, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fsp);
+					got_follow = etw_mk_callstacks(prf_evt_idx, prf_obj, jj, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fsp, ls1.csi);
 					ls1.callstack_str_idxs = callstacks;
 					if (got_follow) {
 						// I'm not sure this will ever happen but...
@@ -3286,7 +3301,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				std::vector <int> callstacks;
 				std::vector <std::string> prefx;
 				std::string fllw;
-				prf_mk_callstacks(prf_obj, i, callstacks, __LINE__, prefx, fllw);
+				prf_mk_callstacks(prf_obj, i, callstacks, __LINE__, prefx, fllw, ls0.csi);
 				ls0.callstack_str_idxs = callstacks;
 			}
 			//printf("evt_nm= %s cpu= %f at %s %d\n", event_table[evt_idx].event_name_w_area.c_str(), cpu, __FILE__, __LINE__);
@@ -3442,7 +3457,7 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 					std::vector <int> callstacks;
 					std::vector <std::string> prefx;
 					std::string fllw;
-					etw_mk_callstacks(set_idx, prf_obj, i, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw);
+					etw_mk_callstacks(set_idx, prf_obj, i, stk_mod_rtn_idx, callstacks, __LINE__, prefx, fllw, ls0.csi);
 					ls0.callstack_str_idxs = callstacks;
 				}
 				int by_var_idx_val2 = (int)get_by_var_idx(event_table[evt_idx].charts[chrt].by_var_hsh, cpu, __LINE__);
@@ -3634,7 +3649,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 	}
 	uint32_t by_sz = (uint32_t)event_table[evt_idx].charts[chrt].by_var_sub_tots.size();
 	std::string var_strs;
-	json += ", \"myxs\": {";
+	json += ", \"block_delta\":"+std::to_string(block_delta) + ", \"myxs\": {";
 	for (uint32_t i=0; i < by_sz; i++) {
 		if (i > 0) {
 			var_strs += ", ";
@@ -3773,7 +3788,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 			txt_sz += (int)ch_lines.line[i].text.size();
 		}
 		if (ch_lines.line[i].text_arr.size() > 0) {
-			ch_lines_line_str += ",\"txt_ai\":[";
+			ch_lines_line_str += ",\"taa\":[";
 			for (uint32_t kk=0; kk < ch_lines.line[i].text_arr.size(); kk++) {
 				if (kk > 0) { ch_lines_line_str += ","; }
 				ch_lines_line_str += std::to_string(ch_lines.line[i].text_arr[kk]);
@@ -3781,6 +3796,7 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 			ch_lines_line_str += "]";
 		}
 		std::string cs_txt;
+#if 0
 		for (uint32_t j=0; j < ch_lines.line[i].callstack_str_idxs.size(); j++) {
 			if (j > 0) {
 				cs_txt += ",";
@@ -3789,6 +3805,10 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 		}
 		if (cs_txt.size() > 0) {
 			cs_txt = ",\"cs_strs\":[" + cs_txt + "]";
+		}
+#endif
+		if (ch_lines.line[i].csi != -1) {
+			cs_txt = ",\"csi\":" + std::to_string(ch_lines.line[i].csi);
 		}
 		ch_lines_line_str += cs_txt + "}";
 		//tmr[3] = dclock();
