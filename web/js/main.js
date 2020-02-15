@@ -3327,7 +3327,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						if (typeof txtidx !== 'undefined') {
 							tstr = gjson_str_pool.str_pool[0].strs[txtidx];
 						}
-						let txt_ai = chart_data.myshapes[i].txt_ai;
+						let txt_ai = chart_data.myshapes[i].taa;
 						let tstr2 = build_txt_str_from_txt_ai(txt_ai, "b");
 						if (tstr2 != "") { tstr = tstr2; }
 						if (typeof follow_arr !== 'undefined') {
@@ -3871,22 +3871,22 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					continue;
 				}
 				let fe_idx = chart_data.myshapes[i].ival[IVAL_FE];
-                if (fe_idx < 0 || typeof fe_idx === 'undefined') {
-                    //console.log("fe_idx= "+fe_idx);
-                }
+				if (fe_idx < 0 || typeof fe_idx === 'undefined') {
+					//console.log("fe_idx= "+fe_idx);
+				}
 				let fe_2 = event_lkup[fe_idx];
-                if (fe_2 < 0 || typeof fe_2 === 'undefined') {
-                    //console.log("fe_2= "+fe_2);
-                }
+				if (fe_2 < 0 || typeof fe_2 === 'undefined') {
+					//console.log("fe_2= "+fe_2);
+				}
 				let ev = "unknown3";
-                if (typeof fe_2 !== 'undefined') {
+				if (typeof fe_2 !== 'undefined') {
 					ev = event_list[fe_2].event;
 					if (ev != "CSwitch" && ev != "sched:sched_switch" && ev != "cpu-clock") {
 						if (x1 > maxx) {
 							continue;
 						}
 					}
-                }
+				}
 				let nperiod = operiod;
 				if (ev == "cpu-clock") {
 					nperiod *= 1.0e-9; // cpu-clock period is in ns
@@ -4042,8 +4042,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					    ev = event_list[fe_2].event;
 					}
 					let has_cs = false;
-					if (typeof chart_data.myshapes[i].cs_strs !== 'undefined'
-						&& chart_data.myshapes[i].cs_strs.length > 0) {
+					if (typeof chart_data.myshapes[i].csi !== 'undefined'
+						&& chart_data.myshapes[i].csi >= 0) {
 							has_cs = true;
 					}
 					if (fe_2 < event_list.length && has_cs) {
@@ -4834,12 +4834,15 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	function get_cs_str(idx, comm) {
 		let txt = "";
 		let arr = [];
-		if (typeof chart_data.myshapes[idx].cs_strs === 'undefined') {
+		if (typeof chart_data.myshapes[idx].csi === 'undefined') {
 			return {txt: txt, arr: arr};
 		}
-		let cs_sz = chart_data.myshapes[idx].cs_strs.length;
+		let csi = chart_data.myshapes[idx].csi;
+		let cs_str = gjson_str_pool.str_pool[0].strs[csi];
+		let cs_strs = cs_str.split(",").map(function(item) { return parseInt(item, 10); });
+		let cs_sz = cs_strs.length;
 		for (let i=0; i < cs_sz; i++) {
-			let midx = chart_data.myshapes[idx].cs_strs[i];
+			let midx = cs_strs[i];
 			gjson_str_pool.str_pool[0].strs[midx] = gjson_str_pool.str_pool[0].strs[midx].replace("[kernel.kallsyms]", "[krnl]");
 			let str = gjson_str_pool.str_pool[0].strs[midx];
 			txt += "<br>" + str;
@@ -5518,13 +5521,13 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			current_tooltip_text = str;
 			if (typeof chart_data.myshapes[shape_idx] !== 'undefined' &&
 				(typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined' ||
-					(typeof chart_data.myshapes[shape_idx].txt_ai !== 'undefined' && chart_data.myshapes[shape_idx].txt_ai.length > 0))) {
+					(typeof chart_data.myshapes[shape_idx].taa !== 'undefined' && chart_data.myshapes[shape_idx].taa.length > 0))) {
 				let tstr = "";
 				if (typeof chart_data.myshapes[shape_idx].txtidx !== 'undefined') {
 					tstr = gjson_str_pool.str_pool[0].strs[chart_data.myshapes[shape_idx].txtidx];
 				}
-				if (typeof chart_data.myshapes[shape_idx].txt_ai !== 'undefined') {
-					let txt_ai = chart_data.myshapes[shape_idx].txt_ai;
+				if (typeof chart_data.myshapes[shape_idx].taa !== 'undefined') {
+					let txt_ai = chart_data.myshapes[shape_idx].taa;
 					let tstr2 = build_txt_str_from_txt_ai(txt_ai, "a");
 					if (tstr2 != "") { tstr = tstr2; }
 				}
