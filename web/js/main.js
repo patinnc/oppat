@@ -810,6 +810,32 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	let draw_mini_cursor_prev = null;
 	let mycanvas2_ctx = null;
 
+	let pts = [0, 0, 0, 0];
+	function get_xy_pts(myshape) {
+		let x0, x1, y0, y1;
+		if (typeof myshape.pts !== 'undefined') {
+			x0 = myshape.pts[PTS_X0];
+			x1 = myshape.pts[PTS_X1];
+			y0 = myshape.pts[PTS_Y0];
+			y1 = myshape.pts[PTS_Y1];
+		}
+		else if (typeof myshape.ptx !== 'undefined') {
+			x0 = myshape.ptx[PTS_X0];
+			x1 = myshape.ptx[PTS_Y0];
+			y0 = myshape.ival[IVAL_CPU];
+			y1 = y0 + chart_data.block_delta;
+		} else if (typeof myshape.pt !== 'undefined') {
+			x0 = myshape.pt;
+			x1 = x0;
+			y0 = myshape.ival[IVAL_CPU] + chart_data.block_delta;
+			y1 = y0 + chart_data.block_delta;
+		}
+		// has to be in PTS_* order
+		pts[PTS_X0] = x0;
+		pts[PTS_X1] = x1;
+		pts[PTS_Y0] = y0;
+		pts[PTS_Y1] = y1;
+	}
 	function build_txt_str_from_txt_ai(txt_ai, frm_where) {
 		let tstr = "";
 		if (typeof txt_ai !== 'undefined' && txt_ai.length > 0) {
@@ -3092,8 +3118,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	}
 	if (false && ch_options.overlapping_ranges_within_area == true) {
 		for (let i=0; i < chart_data.myshapes.length; i++) {
-			let x0 = chart_data.myshapes[i].pts[PTS_X0];
-			let x1 = chart_data.myshapes[i].pts[PTS_X1];
+			get_xy_pts(chart_data.myshapes[i]);
+			let x0 = pts[PTS_X0];
+			let x1 = pts[PTS_X1];
 			let cpu = chart_data.myshapes[i].ival[IVAL_CPU];
 			let fe_idx = chart_data.myshapes[i].ival[IVAL_CAT];
 			let do_event = false;
@@ -3292,8 +3319,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						console.log(sprintf("usci= %d, sci= %d, no match", usci, sci));
 						fail;
 					}
-					let x0 = chart_data.myshapes[i].pts[PTS_X0];
-					let x1 = chart_data.myshapes[i].pts[PTS_X1];
+					get_xy_pts(chart_data.myshapes[i]);
+					let x0 = pts[PTS_X0];
+					let x1 = pts[PTS_X1];
 					if (x1 < minx || x0 > maxx) {
 						continue;
 					}
@@ -3344,8 +3372,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 							}
 						}
 					}
-					let y0 = chart_data.myshapes[i].pts[PTS_Y0];
-					let y1 = chart_data.myshapes[i].pts[PTS_Y1];
+					let y0 = pts[PTS_Y0];
+					let y1 = pts[PTS_Y1];
 					let yval, num, den;
 					if (ch_type == CH_TYPE_LINE) {
 						yval = y1;
@@ -3684,8 +3712,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			let dbg_cnt=0, ck_it=0;
 			let got_ymx = {};
 			for (let i=0; i < chart_data.myshapes.length; i++) {
-				let x0 = chart_data.myshapes[i].pts[PTS_X0];
-				let x1 = chart_data.myshapes[i].pts[PTS_X1];
+				get_xy_pts(chart_data.myshapes[i]);
+				let x0 = pts[PTS_X0];
+				let x1 = pts[PTS_X1];
 				if (x1 < minx || x0 > maxx) {
 					continue;
 				}
@@ -3702,8 +3731,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				if (!do_event) {
 					continue;
 				}
-				let y0 = chart_data.myshapes[i].pts[PTS_Y0];
-				let y1 = chart_data.myshapes[i].pts[PTS_Y1];
+				let y0 = pts[PTS_Y0];
+				let y1 = pts[PTS_Y1];
 				if (tmaxy === null) {
 					tminy = y0;
 					tmaxy = tminy;
@@ -3841,10 +3870,11 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		let fl_tm_rpt = 0;
 		let did_err_msg = 0;
 		for (let i=0; i < chart_data.myshapes.length; i++) {
-			let x0 = chart_data.myshapes[i].pts[PTS_X0];
-			let x1 = chart_data.myshapes[i].pts[PTS_X1];
-			let y0 = chart_data.myshapes[i].pts[PTS_Y0];
-			let y1 = chart_data.myshapes[i].pts[PTS_Y1];
+			get_xy_pts(chart_data.myshapes[i]);
+                        let x0 = pts[PTS_X0];
+                        let x1 = pts[PTS_X1];
+                        let y0 = pts[PTS_Y0];
+                        let y1 = pts[PTS_Y1];
 			let operiod = chart_data.myshapes[i].ival[IVAL_PERIOD];
 			let cat = chart_data.myshapes[i].ival[IVAL_CAT];
 			let subcat = chart_data.myshapes[i].ival[IVAL_SUBCAT];
@@ -4893,8 +4923,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					if (typeof chart_data.myshapes[shape_idx] === 'undefined') {
 						console.log(sprintf("!!!! shape_idx= %d but len= %d", shape_idx, chart_data.myshapes.length));
 					} else {
-					let intrvl_x0 = chart_data.myshapes[shape_idx].pts[PTS_X0]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
-					let intrvl_x1 = chart_data.myshapes[shape_idx].pts[PTS_X1]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
+					get_xy_pts(chart_data.myshapes[shape_idx]);
+					let intrvl_x0 = pts[PTS_X0]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
+					let intrvl_x1 = pts[PTS_X1]+chart_data.ts_initial.ts - chart_data.ts_initial.ts0x;
 					str4 = "<br>abs.T= "+sprintf("%.9f", intrvl_x0)+ " - " + sprintf("%.9f", intrvl_x1);
 					}
 				}
@@ -5222,14 +5253,14 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				}
 				cpu = -1;
 			} else {
-				x0 = chart_data.myshapes[shape_idx].pts[PTS_X0];
-				x1 = chart_data.myshapes[shape_idx].pts[PTS_X1];
 				cpu = chart_data.myshapes[shape_idx].ival[IVAL_CPU];
+				get_xy_pts(chart_data.myshapes[shape_idx]);
+				x0 = pts[PTS_X0];
+				x1 = pts[PTS_X1];
 				if (ch_type == CH_TYPE_STACKED) {
-					val = chart_data.myshapes[shape_idx].pts[PTS_Y1] -
-						chart_data.myshapes[shape_idx].pts[PTS_Y0];
+					val = pts[PTS_Y1] - pts[PTS_Y0];
 				} else {
-					val = chart_data.myshapes[shape_idx].pts[PTS_Y1];
+					val = pts[PTS_Y1];
 				}
 				cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
 				if (cpt >= 0 && typeof chart_data.proc_arr[cpt] !== 'undefined' && chart_data.proc_arr[cpt].tid > -1) {
@@ -5303,14 +5334,14 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 							let val_str = fmt_val(val);
 							str += ", "+chart_data.y_label+"="+val_str;
 						} else {
-							let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
+							get_xy_pts(chart_data.myshapes[shape_idx2]);
+							let myx0 = pts[PTS_X0];
 							str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[fnd_list[k].row].cat_text;
 							let val;
 							if (ch_type == CH_TYPE_STACKED) {
-								val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
-									chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+								val = pts[PTS_Y1] - pts[PTS_Y0];
 							} else {
-								val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+								val = pts[PTS_Y1];
 							}
 							let val_str = fmt_val(val);
 							str += ", "+chart_data.y_label+"="+val_str;
@@ -5340,11 +5371,11 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 									 area_is_tot_line = false;
 									 //break;
 								}
+								get_xy_pts(chart_data.myshapes[shape_idx2]);
 								if (ch_type == CH_TYPE_STACKED) {
-									val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
-										chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+									val = pts[PTS_Y1] - pts[PTS_Y0];
 								} else {
-									val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+									val = pts[PTS_Y1];
 								}
 								let cpt2= chart_data.myshapes[shape_idx2].ival[IVAL_CPT];
 								nm = null;
@@ -5396,15 +5427,17 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 							str += sprintf(" (lines %d of %d): ", show_max, tot_line_lkup_list[kk].length);
 							for (let k=0; k < tot_line_lkup_list[kk].length; k++) {
 								let shape_idx2= tot_line_lkup_list[kk][k];
-								let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-								let myx1 = chart_data.myshapes[shape_idx2].pts[PTS_X1];
+								get_xy_pts(chart_data.myshapes[shape_idx2]);
+								let myx0 = pts[PTS_X0];
+								let myx1 = pts[PTS_X1];
 								if (all_same_areas && all_same_values && all_same_nms) {
 									let kend = tot_line_lkup_list[kk].length-1;
 									if (kend > show_max) {
 										kend = show_max;
 									}
 									shape_idx2= tot_line_lkup_list[kk][kend];
-									myx1 = chart_data.myshapes[shape_idx2].pts[PTS_X1];
+									get_xy_pts(chart_data.myshapes[shape_idx2]);
+									myx1 = pts[PTS_X1];
 									str += "<br>x="+myx0+"-"+myx1+", all same value, proc and area";
 									break;
 								}
@@ -5417,10 +5450,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 								if (!all_same_values) {
 									let val;
 									if (ch_type == CH_TYPE_STACKED) {
-										val = chart_data.myshapes[shape_idx2].pts[PTS_Y1] -
-											chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+										val = pts[PTS_Y1] - pts[PTS_Y0];
 									} else {
-										val = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
+										val = pts[PTS_Y1];
 									}
 									let val_str = fmt_val(val);
 									str += ", "+chart_data.y_label+"="+val_str;
@@ -5459,9 +5491,10 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 							if (cpt >= 0 && chart_data.proc_arr[cpt].tid > -1) {
 								nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
 							}
-							let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-							let myy1 = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
-							let myy0 = chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+							get_xy_pts(chart_data.myshapes[shape_idx2]);
+							let myx0 = pts[PTS_X0];
+							let myy1 = pts[PTS_Y1];
+							let myy0 = pts[PTS_Y0];
 							if (nm != "" && nm != nm_prv) {
 								str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
 								//str += "<br>x="+myx0+","+chart_data.y_var+"="+(myy1-myy0);
@@ -5492,9 +5525,10 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 							if (cpt >= 0 && chart_data.proc_arr[cpt].tid > -1) {
 								nm = chart_data.proc_arr[cpt].comm+" "+chart_data.proc_arr[cpt].pid+"/"+chart_data.proc_arr[cpt].tid;
 							}
-							let myx0 = chart_data.myshapes[shape_idx2].pts[PTS_X0];
-							let myy1 = chart_data.myshapes[shape_idx2].pts[PTS_Y1];
-							let myy0 = chart_data.myshapes[shape_idx2].pts[PTS_Y0];
+							get_xy_pts(chart_data.myshapes[shape_idx2]);
+							let myx0 = pts[PTS_X0];
+							let myy1 = pts[PTS_Y1];
+							let myy0 = pts[PTS_Y0];
 							if (nm != "" && nm != nm_prv) {
 								str += "<br>x="+myx0+","+chart_data.y_by_var+"="+chart_data.subcat_rng[row].cat_text;
 								//str += "<br>x="+myx0+","+chart_data.y_by_var+"="+(myy1-myy0);
@@ -5536,7 +5570,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					let cpt= chart_data.myshapes[shape_idx].ival[IVAL_CPT];
 					if (cpt > -1) {
 						let cpu_str = sprintf("[%03d] ", cpu);
-						let tm_str = sprintf("%.9f: ", (chart_data.ts_initial.ts +chart_data.myshapes[shape_idx].pts[PTS_X1]));
+						get_xy_pts(chart_data.myshapes[shape_idx]);
+						let tm_str = sprintf("%.9f: ", (chart_data.ts_initial.ts + pts[PTS_X1]));
 						let fe_idx = chart_data.myshapes[shape_idx].ival[IVAL_FE];
 						let evt_str = "";
 						if (fe_idx > -1) {
@@ -10744,8 +10779,9 @@ function parse_svg()
 		let cntr = 0;
 		//let need_tag = gjson.chart_data[j].file_tag
 		for (let i=0; i < ch_d.myshapes.length; i++) {
-			let x0 = ch_d.myshapes[i].pts[PTS_X0];
-			let x1 = ch_d.myshapes[i].pts[PTS_X1];
+			get_xy_pts(ch_d.myshapes[i]);
+			let x0 = pts[PTS_X0];
+			let x1 = pts[PTS_X1];
 			if (x0 == x1) {
 				// these are the vertical lines on the cpu_busy chart
 				continue;
