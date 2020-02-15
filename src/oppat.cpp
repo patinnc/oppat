@@ -3032,7 +3032,6 @@ static int build_chart_lines(uint32_t evt_idx, uint32_t chrt, prf_obj_str &prf_o
 				}
 				prf_sample_to_string(prf_idx, ostr, prf_obj);
 				//ls1.text = ostr;
-//abcd
 				int tidx;
 				ls1.text = "_P_"; // placeholder will be replaced by main.js with trace record
 				tidx = (int)hash_escape_string(callstack_hash, callstack_vec, ls1.text) - 1;
@@ -3748,12 +3747,45 @@ static int build_shapes_json(std::string file_tag, uint32_t evt_tbl_idx, uint32_
 				drop_trailing_zeroes(std::to_string(ch_lines.line[i].period)) +
 				"," +
 				std::to_string(ch_lines.line[i].cpu) +
-				"],\"pts\":[" +
-				x0 +
+				"],";
+		if (event_table[evt_idx].charts[chrt].chart_type == "block" && event_table[evt_idx].charts[chrt].chart_tag == "PCT_BUSY_BY_CPU") {
+			if (ch_lines.line[i].typ == SHAPE_LINE && x0 != x1) {
+				fprintf(stderr, "got chart_type == block and shape== line but x0= %s != x1= %s. Bye at %s %d\n", x0.c_str(), x1.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			double xcpu=ch_lines.line[i].cpu;
+			double y0l=xcpu + block_delta - 0.001;
+			double y0h=xcpu + block_delta + 0.001;
+			double y1l=xcpu + 2*block_delta - 0.001;
+			double y1h=xcpu + 2*block_delta + 0.001;
+			double y0t= ch_lines.line[i].y[0];
+			double y1t= ch_lines.line[i].y[1];
+			if (ch_lines.line[i].typ == SHAPE_LINE && (y0t < y0l || y0t > y0h || y1t < y1l || y1t > y1h)) {
+				fprintf(stderr, "got chart_type == block and shape== line but cpu= %.0f y0t= %f, y1t= %f. Bye at %s %d\n", xcpu, y0t, y1t, __FILE__, __LINE__);
+				exit(1);
+			}
+			y0l -= block_delta;
+			y0h -= block_delta;
+			y1l -= block_delta;
+			y1h -= block_delta;
+			if (ch_lines.line[i].typ == SHAPE_RECT && (y0t < y0l || y0t > y0h || y1t < y1l || y1t > y1h)) {
+				fprintf(stderr, "got chart_type == block and shape== line but cpu= %.0f y0t= %f, y1t= %f. Bye at %s %d\n", xcpu, y0t, y1t, __FILE__, __LINE__);
+				exit(1);
+			}
+			if (ch_lines.line[i].typ == SHAPE_LINE) {
+				ch_lines_line_str += "\"pt\":" + x0;
+			}
+			if (ch_lines.line[i].typ == SHAPE_RECT) {
+				ch_lines_line_str += "\"ptx\":[" + x0 + "," + x1 + "]";
+			}
+                } else {
+			ch_lines_line_str += 
+				"\"pts\":[" + x0 +
 				"," + y0 +
 				"," + x1 +
 				"," + y1 +
 				"]";
+                }
 #if 0
 		if (ch_lines.line[i].cat >= 0 && ch_lines.legend[ch_lines.line[i].cat] == "nanosleep") {
 			printf("nano[%d] y0= %.3f, y1= %.3f at %s %d\n", i, 
