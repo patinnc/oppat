@@ -2,7 +2,7 @@
   "chart_use_default":"y",
   "pixels_high_default":450,
   "drop_event_if_samples_exceed":2000000,
-  "do_flamegraphs":"n",
+  "do_flamegraphs":"y",
   "flamegraph_by_comm_pid_tid_default":"comm",
   "dont_show_events_on_cpu_busy_if_samples_exceed":2500000,
   "chart_category_priority":[
