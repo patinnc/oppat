@@ -762,6 +762,39 @@ uint32_t do_json(uint32_t want_evt_num, std::string lkfor_evt_name, std::string 
 		}
 	}
 	chart_defaults.pixels_high_default = pixels_high_default;
+	std::string flamegraph_by_comm_pid_tid_default = "comm_pid_tid";
+	{
+		std::string fld = "flamegraph_by_comm_pid_tid_default";
+		auto aa = j.find(fld);
+		if (aa != j.end()) {
+			std::string str = *aa;
+			if (str != "comm" && str != "comm_pid" && str != "comm_pid_tid") {
+				printf("in charts.json file, field 'flamegraph_by_comm_pid_tid_default' must be comm or comm_pid or comm_pid_tid. got '%s'. Bye at %s %d\n", str.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			flamegraph_by_comm_pid_tid_default = str;
+			//fprintf(stderr, "got flamegraph_by_comm_pid_tid_default= %s in charts.json at %s %d\n", str.c_str(), __FILE__, __LINE__);
+		} else {
+			//fprintf(stderr, "didn't find flamegraph_by_comm_pid_tid_default in charts.json at %s %d\n", __FILE__, __LINE__);
+		}
+	}
+	chart_defaults.flamegraph_by_comm_pid_tid_default = flamegraph_by_comm_pid_tid_default;
+	chart_defaults.do_flamegraphs = 1;
+	{
+		std::string fld = "do_flamegraphs";
+		auto aa = j.find(fld);
+		if (aa != j.end()) {
+			std::string str = *aa;
+			if (str != "1" && str != "y" && str != "0" && str != "n") {
+				printf("in charts.json file, field 'do_flamegraphs' must be y or n or 1 or 0. got '%s'. Bye at %s %d\n", str.c_str(), __FILE__, __LINE__);
+				exit(1);
+			}
+			chart_defaults.do_flamegraphs= 0;
+			if (str == "1" || str == "y") {
+				chart_defaults.do_flamegraphs= 1;
+			}
+		}
+	}
 	int32_t drop_event_if_samples_exceed = 200000;
 	{
 		std::string fld = "drop_event_if_samples_exceed";
