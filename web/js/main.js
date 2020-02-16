@@ -54,6 +54,7 @@ const FLAMEGRAPH_BASE_CPT = 0; // comm, pid, tid
 const FLAMEGRAPH_BASE_CP  = 1; // comm, pid
 const FLAMEGRAPH_BASE_C   = 2; // comm
 var g_flamegraph_base = FLAMEGRAPH_BASE_CPT;
+//var g_flamegraph_base = FLAMEGRAPH_BASE_C;
 const gcolor_def = "lavender"; // lavender e6e6fa for events above 'number of colors' rank
 const gcolor_lst = ["#b0556a", "#7adf39", "#8d40d6", "#ead12d", "#0160eb", "#aaed78", "#f945b7", "#04e6a0", "#cf193b", "#4df8ca", "#b21f72", "#41981b", "#b773eb", "#276718", "#f39afb", "#0ea26a", "#015fc6", "#ec7118", "#108cf5", "#feab4f", "#1eacf8", "#a13502", "#49f6fd", "#9e5d33", "#30d8ec", "#ab952f", "#8156a5", "#f5db82", "#1e67a9", "#f6b17c", "#47caf9", "#695909", "#7daaef", "#a4ce84", "#ef89bb", "#1c6c43", "#ecb5f2", "#7ddab8", "#0f88b4", "#07a1b2"];
 var number_of_colors = gcolor_lst.length;
@@ -553,7 +554,8 @@ function change_pixels_high(cb, menu_idx, nm_idx)
 		gpixels_high_default = val;
 		console.log("set gpixels_high_default= "+gpixels_high_default);
 		g_cpu_diagram_flds = null;
-		if (g_cpu_diagram_flds_json_str.length > 0) {
+		if (typeof g_cpu_diagram_flds_json_str !== 'undefined' && 
+			g_cpu_diagram_flds_json_str !== null && g_cpu_diagram_flds_json_str.length > 0) {
 			g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
 		}
 		get_mem_usage("__mem: bef change_pixels: ");
@@ -565,6 +567,32 @@ function change_pixels_high(cb, menu_idx, nm_idx)
 		get_mem_usage("__mem: aft change_pixels: ");
 	}
 	return;
+}
+
+function fg_cb_init(cb) {
+	let nm  = 'lhs_menu_root_fg_label';
+	let me_ele = document.getElementById(nm);
+	let fg_base = g_flamegraph_base;
+		//default was
+		//fg_base = FLAMEGRAPH_BASE_CPT
+		//ele.checked = true;
+		//ele.indeterminate = false;
+	// now the user can set a default from charts.json, so set cb/txt to reflect what the user set as default
+	let txt = "";
+	if (fg_base == FLAMEGRAPH_BASE_CP) {
+		txt = "Flamegraph: by comm, pid";
+		cb.checked = false;
+		cb.indeterminate = true;
+	} else if (fg_base == FLAMEGRAPH_BASE_C) {
+		txt = "Flamegraph: by comm";
+		cb.checked = false;
+		cb.indeterminate = false;
+	} else if (fg_base == FLAMEGRAPH_BASE_CPT) {
+		txt = "Flamegraph: by comm, pid, tid";
+		cb.checked = true;
+		cb.indeterminate = false;
+	}
+	me_ele.textContent = txt;
 }
 
 function lhs_menu_change(cb, menu_idx, nm_idx)
@@ -581,6 +609,7 @@ function lhs_menu_change(cb, menu_idx, nm_idx)
 		return;
 	}
 	if (nm_idx == -3) {
+		// so this bc was clicked, set cb & text to the state that will be selected on the next click
 		let nm  = 'lhs_menu_root_fg_label';
 		let me_ele = document.getElementById(nm);
 		let fg_base = g_flamegraph_base;
@@ -743,10 +772,21 @@ function remove_divs(hvr_clr)
 {
 	let nxt_div = document.getElementById(hvr_clr);
 	if (nxt_div !== null) {
-		while (nxt_div.firstChild) {
-   				nxt_div.removeChild(nxt_div.firstChild);
+		let new_ele = nxt_div.cloneNode(true);
+		nxt_div.parentNode.replaceChild(new_ele, nxt_div);
+		nxt_div = document.getElementById(hvr_clr);
+		if (nxt_div !== null) {
+			while (nxt_div.firstChild) {
+				nxt_div.removeChild(nxt_div.firstChild);
+			}
+			nxt_div.remove();
 		}
-		nxt_div.parentNode.removeChild(nxt_div);
+		if (new_ele !== null) {
+			while (new_ele.firstChild) {
+				new_ele.removeChild(new_ele.firstChild);
+			}
+			new_ele.remove();
+		}
 	}
 }
 
@@ -759,16 +799,16 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		return;
 	}
 	let chart_data = gjson.chart_data[chrt_idx];
-	if ( typeof can_shape === 'undefined' ) {
-		let can_shape = {};
-	if ( typeof can_shape.sv_pt_prv === 'undefined' ) {
+	if (!can_shape.hasOwnProperty('hvr_arr')) {
 		can_shape.sv_pt_prv = null;
 		can_shape.sv_pt     = null;
 		can_shape.hvr_arr = [];
-	}
-	}
-	if (typeof can_shape.invocation_num === 'undefined') {
+		can_shape.added_nms = [];
+		console.log("added can_shape.added_nms= ", can_shape.added_nms);
 		can_shape.invocation_num = 0;
+	}
+	while(can_shape.added_nms.length <= chrt_idx) {
+		can_shape.added_nms.push([]);
 	}
 	can_shape.invocation_num++;
 	gjson.chart_data[chrt_idx].last_used_x_min_max = null;
@@ -781,6 +821,16 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	}
 	let xPadding = 50;
 	let yPadding = 50;
+	if (can_shape.added_nms[chrt_idx].length > 0) {
+		gjson.chart_data[chrt_idx].zoom_func_obj = null;
+		for (let i=can_shape.added_nms[chrt_idx].length-1; i >= 0; i--) {
+			remove_divs(can_shape.added_nms[chrt_idx][i]);
+			let ele=document.getElementById(can_shape.added_nms[chrt_idx][i]);
+			let str=sprintf("rm ch[%d],ele[%d]= %s nm= ", chrt_idx, i, can_shape.added_nms[chrt_idx][i]);
+			console.log(str, ele);
+		}
+		can_shape.added_nms[chrt_idx] = [];
+	}
 
 	let file_tag_idx = chart_data.file_tag_idx;
 	while(file_tag_idx >= g_fl_obj.length) {
@@ -797,11 +847,12 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	//console.log("px_wide = "+px_wide);
 	let ch_type = chart_data.chart_type;
 
-	remove_divs(use_div);
-	remove_divs(hvr_clr);
+	//remove_divs(hvr_clr);
+	//remove_divs(use_div);
 	let chrt_div = document.getElementById(use_div);
 	if (chrt_div === null) {
 		addElement ('div', use_div, 'chart_anchor', 'before');
+		can_shape.added_nms[chrt_idx].push(use_div);
 		chrt_div = document.getElementById(use_div);
 	}
 
@@ -923,7 +974,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	let myhvr_clr = document.getElementById(hvr_clr);
 	if (myhvr_clr === null) {
 		addElement ('div', hvr_clr, 'chart_anchor', 'before');
+		can_shape.added_nms[chrt_idx].push(hvr_clr);
 		addElement ('div', hvr_clr+'_bottom', 'chart_anchor', 'before');
+		can_shape.added_nms[chrt_idx].push(hvr_clr+'_bottom');
 		//console.log("set sldr_cur= "+sldr_cur);
 		myhvr_clr = document.getElementById(hvr_clr);
 		let str ='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas_nm_title+'"></div></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide-2)+'" height="'+(px_high-4)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div><canvas id="canvas2_'+hvr_clr+'" width="'+(px_wide-2)+'" height="25px" style="border:1px solid #000000;"></canvas><div id="after_canvas_'+hvr_clr+'" style="display:inline-block"><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_top_20\');" />Legend top20</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_all\');" />Legend all</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'hide_all\');" />Legend hide</button><span id="'+hvr_clr+'_legend" style="display:inline-block;height:200px;word-wrap: break-word;overflow-y: auto;"></span><button id="but_' + hvr_clr +'" class="clrTxtButton" style="display:inline-block;visibility:hidden" onclick="clearHoverInfo(\''+hvr_clr+'_txt\', \''+hvr_clr+'\');" />Clear_text</button><span id="'+hvr_clr+'_txt" style="margin-left:0px;" clrd="n" ></span></div><span id="'+hvr_clr+'_canspan"></span><hr>';
@@ -2416,6 +2469,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			let str='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas3_nm_title+'"></div></div><div class="tooltip"><canvas id="'+mycanvas3_nm+'" width="'+(px_wide-2)+'" height="'+(canvas3_px_high-2)+'" style="border:1px solid #000000;"></canvas><span id="'+mycanvas3_nm_txt+'"></span><span class="tooltiptext" id="'+mycanvas3_nm_tt+'"></span></div><hr>';
 			//addElement ('div', mycanvas3_nm_all, 'chart_anchor', 'before');
 			addElement ('div', mycanvas3_nm_all, hvr_clr+'_bottom', 'before');
+			can_shape.added_nms[chrt_idx].push(mycanvas3_nm_all);
 			//addElement ('div', mycanvas3_nm_all, use_div, 'after');
 			//addElement ('div', mycanvas3_nm_all, 'chart_anchor', 'after');
 			//addElement ('div', mycanvas3_nm_all, hvr_clr, 'after');
@@ -3053,7 +3107,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				let xnp1 = ctx3_range.x_min + (ctx3_range.x_max - ctx3_range.x_min) * (x+2.0) / ucwd;
 				let yn   = ctx3_range.y_min + (ctx3_range.y_max - ctx3_range.y_min) * (uchi - y)/uchi;
 				let ostr2 = fl_lkup_func(xn, yn, x, y, xnm1, xnp1);
-				console.log("str2="+ostr2.str2);
+				//console.log("str2="+ostr2.str2);
 				if (typeof ostr2 !== 'undefined' && typeof ostr2.x0 !== 'undefined') {
 					ctx3_range = {x_min:ostr2.x0, x_max:ostr2.x1, y_min:0.0, y_max:-1.0};
 					let ret = fl_redraw(cs_idx, ctx3_range, false);
@@ -4076,7 +4130,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 						&& chart_data.myshapes[i].csi >= 0) {
 							has_cs = true;
 					}
-					if (fe_2 < event_list.length && has_cs) {
+					if (g_do_flamegraphs && (fe_2 < event_list.length && has_cs)) {
 						let cs_clr = gcolor_def;
 						let tm_fl_here_0 = performance.now();
 						let cpt= chart_data.myshapes[i].ival[IVAL_CPT];
@@ -5768,8 +5822,9 @@ function doJob(i, grf, chrts_started_max, tm_beg)
 	//alert("chart "+ chrts_started);
 	let elap_tm     = tm_diff_str(0.001*(tm_now-tm_bef), 2, "secs");
 	let elap_tm_tot = tm_diff_str(0.001*(tm_now-g_tm_beg), 2, "secs");
+	let used_heap = get_mem_usage("__mem: at 0.98: ");
 	mymodal_span_text.innerHTML = "finished chart "+grf+" of "+chrts_started_max+
-	  ", tm_this_chrt= "+elap_tm + ", tot_elap_tm= "+elap_tm_tot;
+	  ", tm_this_chrt= "+elap_tm + ", tot_elap_tm= "+elap_tm_tot+", used_heap= "+used_heap;
     setTimeout(() => {
 		//console.log('End: ' + i);
 		resolve(i);
@@ -5994,8 +6049,11 @@ function get_mem_usage(str)
 	}
 	// chrome/firebox/brave seem to support it.
 	let fctr = 1.0/(1024.0 * 1024.0);
+	let used = fctr * mem.usedJSHeapSize;
+	let used_str = sprintf("%.3f MBs", used);
 	console.log(sprintf("%s usedHeap: %.3f, totHeap= %.3f MBs",
 				str, fctr * mem.usedJSHeapSize, fctr * mem.totalJSHeapSize));
+	return used_str;
 }
 
 async function start_charts() {
@@ -6095,6 +6153,24 @@ async function start_charts() {
 	if (typeof gjson.pixels_high_default !== 'undefined' && gjson.pixels_high_default >= 100) {
 		gpixels_high_default = gjson.pixels_high_default;
 	}
+	if (typeof gjson.flamegraph_by_comm_pid_tid_default !== 'undefined') {
+		console.log("got gjson.flamegraph_by_comm_pid_tid_default= ", gjson.flamegraph_by_comm_pid_tid_default);
+		if (gjson.flamegraph_by_comm_pid_tid_default == "comm") {
+			g_flamegraph_base = FLAMEGRAPH_BASE_C;
+		} else if (gjson.flamegraph_by_comm_pid_tid_default == "comm_pid") {
+			g_flamegraph_base = FLAMEGRAPH_BASE_CP;
+		} else if (gjson.flamegraph_by_comm_pid_tid_default == "comm_pid_tid") {
+			g_flamegraph_base = FLAMEGRAPH_BASE_CPT;
+		}
+	}
+	if (typeof gjson.do_flamegraphs !== 'undefined') {
+		console.log("got gjson.do_flamegraphs= ", gjson.do_flamegraphs);
+		if (gjson.do_flamegraphs == 1) {
+			g_do_flamegraphs = true;
+		} else {
+			g_do_flamegraphs = false;
+		}
+	}
 	if (typeof gjson.phase !== 'undefined') {
 		console.log(gjson.phase);
 	}
@@ -6144,7 +6220,8 @@ async function start_charts() {
 	document.title = doc_title_def;
 	tm_now = performance.now();
 	//console.log("tm_now - tm_top0= "+(tm_now - tm_top0));
-	update_status("finished "+chrts_started+" graphs, chart loop took "+tm_diff_str(0.001*(tm_now-tm_top0), 3, "secs"));
+	let used_heap = get_mem_usage("__mem: at 0.99: ");
+	update_status("finished "+chrts_started+" graphs, chart loop took "+tm_diff_str(0.001*(tm_now-tm_top0), 3, "secs")+", heap_used= "+used_heap);
 	mymodal.style.display = "none";
 	get_mem_usage("__mem: at 1: ");
 	document.getElementById("chart_container").style.display = "block";
@@ -6214,6 +6291,7 @@ async function start_charts() {
 		txt = gsync_text;
 		lhs_menu_nm_list.push({menu_i:i, nm:nm, txt:txt, lvl_sub:-1, dad:-1, kids:[]});
 		lhs_menu_str += '<li class="il_none"><input type="checkbox" name="'+nm+'" id="'+nm+'" onchange="lhs_menu_change(this,'+i+','+i+');" '+cb_cls_str+'><label style="margin-top: 0px;margin-bottom:0px" for="'+nm+'" id="'+nm+'_label" title="This option changes pan zoom behavior. If the zooming is \'UnLinked\' then zooming/panning on one chart doesn\'t change any other chart. If zooming is \'Linked\' then zooming or panning on one chart also zooms every other chart in the chart group. If you have more than one chart group then the other chart groups aren\'t affected. The absolute time is used for the common X interval. The interval of the last chart zoomed/panned is applied to all the charts in the group. Note that flamegraphs \'zoom\' whenever the \'cpu busy\' chart is zoomed/panned regardless of the zoom link state.">'+txt+'</label ></li>';
+		i = -5;
 		nm  = 'lhs_menu_root_pixels_high';
 		txt = "Pixels high";
 		lhs_menu_nm_list.push({menu_i:i, nm:nm, txt:txt, lvl_sub:-1, dad:-1, kids:[]});
@@ -6229,6 +6307,11 @@ async function start_charts() {
 	}
 	let ele = document.getElementById('lhs_menu_root_pixels_high');
 	ele.value = gpixels_high_default;
+	if (g_flamegraph_base != FLAMEGRAPH_BASE_CPT) {
+		// CPT is how the text & ck_box is set for by default
+		let ele = document.getElementById('lhs_menu_root_fg');
+		fg_cb_init(ele);
+	}
 
 
 	lhs_menu_ch_list_state = 1; // lhs_menu list finalized
@@ -6895,6 +6978,26 @@ function openSocket(port_num) {
 		if (ckln > 0) {
 			g_cpu_diagram_flds_json_str = event.data.substring(ckln);
 			console.log("__got cpu_diagram_flds len= "+g_cpu_diagram_flds_json_str.length);
+		}
+		var ckln = ck_cmd(event.data, sln, "re_init");
+		if (ckln > 0) {
+			console.log("websocket.onmessage: "+event.data);
+			gcanvas_args = null;
+			gjson_str_pool = null;
+			gjson = null;
+			g_fl_hsh= null;
+			g_fl_arr= null;
+			g_fl_obj= null;
+			g_fl_obj_rt = null;
+
+			gcanvas_args = [];
+			gjson_str_pool = null;
+			gjson = {};
+			g_fl_hsh= [];
+			g_fl_arr= [];
+			g_fl_obj= [];
+			g_fl_obj_rt = [];
+			//window.gc(); // in chrome dev tools do: Memory->click trash can icon to do GC
 		}
 		ckln = ck_cmd(event.data, sln, '{"str_pool":');
 		if (ckln > 0) {
