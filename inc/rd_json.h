@@ -102,10 +102,11 @@ struct chart_cat_str {
 };
 
 struct chart_defaults_str {
-	int32_t pixels_high_default;
+	int32_t pixels_high_default, do_flamegraphs;
 	int32_t drop_event_if_samples_exceed;
 	int32_t dont_show_events_on_cpu_busy_if_samples_exceed;
-	chart_defaults_str(): pixels_high_default(250), drop_event_if_samples_exceed(200000),
+	std::string flamegraph_by_comm_pid_tid_default;
+	chart_defaults_str(): pixels_high_default(250), do_flamegraphs(1), drop_event_if_samples_exceed(200000),
 		dont_show_events_on_cpu_busy_if_samples_exceed(500000) {}
 };
 
