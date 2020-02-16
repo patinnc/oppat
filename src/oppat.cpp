@@ -6918,6 +6918,8 @@ int main(int argc, char **argv)
 	cats += "]";
 	printf("categories str= %s at %s %d\n", cats.c_str(), __FILE__, __LINE__);
 	cats += ", \"pixels_high_default\":" + std::to_string(chart_defaults.pixels_high_default);
+	cats += ", \"flamegraph_by_comm_pid_tid_default\":\"" + chart_defaults.flamegraph_by_comm_pid_tid_default + "\"";
+	cats += ", \"do_flamegraphs\":" + std::to_string(chart_defaults.do_flamegraphs);
 	std::string phase;
 	if (phase_vec.size() > 0) {
 		uint32_t got_zoom_to = UINT32_M1, got_zoom_end = UINT32_M1;
@@ -7193,20 +7195,28 @@ int main(int argc, char **argv)
 				uint32_t msg_len = msg.size();
 				if (msg == "Ready") {
 					double tm_bef = dclock();
+					uint64_t tot_sz = 0, tot_ch_sz=0;
+					q_from_srvr_to_clnt.push("re_init");
 					if (cpu_diag_str.size() > 0) {
 						read_cpu_diag_flds_file(cpu_diag_flds_filenm);
 						q_from_srvr_to_clnt.push(cpu_diag_flds);
 						q_from_srvr_to_clnt.push(cpu_diag_str);
 					}
+					tot_sz += bin_map.size();
+					tot_sz += str_cats.size();
+					tot_sz += sz_str.size();
 					q_from_srvr_to_clnt.push(bin_map);
 					q_from_srvr_to_clnt.push(str_cats);
 					q_from_srvr_to_clnt.push(sz_str);
 					for (uint32_t j=0; j < chrts_json.size(); j++) {
 						q_from_srvr_to_clnt.push(chrts_json[j]);
+						tot_ch_sz += chrts_json[j].size();
 					}
 					double tm_aft = dclock();
-					fprintf(stderr, "q_from_srvr_to_clnt.push(chrts_json) size= %d txt_sz= %d push_tm= %f at %s %d\n",
-						(int)chrts_json.size(), (int)callstack_sz, tm_aft-tm_bef, __FILE__, __LINE__);
+					double ftot_sz = tot_sz;
+					double ftot_ch_sz = tot_ch_sz;
+					fprintf(stderr, "q_from_srvr_to_clnt.push(chrts_json) size= %d txt_sz= %d non_ch_MBs= %.3f, ch_MBs= %.3f push_tm= %f at %s %d\n",
+						(int)chrts_json.size(), (int)callstack_sz, 1.0e-6*ftot_sz, 1.0e-6*ftot_ch_sz, tm_aft-tm_bef, __FILE__, __LINE__);
 				} else if ((msg_len > 6 &&  msg.substr(0, 6) == "image,") ||
 							(msg_len > 6 &&  msg.substr(0, 6) == "imagd,")) {
 					fprintf(stderr, "got image msg %s %d", __FILE__, __LINE__);
