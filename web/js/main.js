@@ -24,6 +24,7 @@ var g_do_flamegraphs = true;
 var g_do_gc = false; // for gc(), chrome has to be started with --js-flags="--expose-gc"
 var g_cpu_diagram_draw_svg = null;
 var g_svg_scale_ratio = null;
+var g_can_shape_added_nms = [];
 
 const CH_TYPE_LINE="line";
 const CH_TYPE_BLOCK="block";
@@ -78,7 +79,7 @@ var g_do_step_changed = false; // set if user overrides default
 var did_prt = 0;
 var g_svg_obj = {status:0, str:""};
 
-var chart_did_image = [];
+var g_chart_did_image = [];
 
 var mymodal = null;
 var mymodal_span = null;
@@ -546,6 +547,56 @@ function ele_show_hide(menu_idx, show_me)
 	}
 }
 
+function scheduled_redraw()
+{
+	update_status("scheduling chart resize");
+	get_mem_usage("__mem: bef change_pixels: ");
+	if (1==20) {
+		// this doesn't avoid the memory leak. The leak sequence is: 1) load the charts, 2) change the pixels_high in the lhs_menu (hit enter, wait till redrawn) 3) refresh the page.
+		// You'll see memory increase but it seems like a onetime thing... if you do the sequence again then the memory usage seems about the same
+		// Workaround is to change pixels_high_default in charts.json. You have to restart oppat to pick up changes in charts.json.
+		// note that resizing the screen doesn't have this leak. Just changing the pixels_high... sigh
+		for (let i=0; i < gjson.chart_data.length; i++) {
+			if (g_chart_did_image[i] != null) {
+				remove_divs(g_chart_did_image[i], false);
+			}
+			if (g_can_shape_added_nms[i].length > 0) {
+				// if I delete the divs, it makes no difference to the memory and the order the charts is drawn is backwards.
+				gjson.chart_data[i].zoom_func_obj = null;
+				for (let k=g_can_shape_added_nms[i].length-1; k >= 0; k--) {
+					remove_divs(g_can_shape_added_nms[i][k], false);
+					let ele=document.getElementById(g_can_shape_added_nms[i][k]);
+					let str=sprintf("rm'd ch[%d],ele[%d]= %s nm= ", i, k, g_can_shape_added_nms[i][k]);
+					console.log(str, ele);
+				}
+				g_can_shape_added_nms[i] = [];
+			}
+			g_chart_did_image[i] = null;
+		}
+		remove_divs("chart_anchor", true);
+		let ch_cntr = document.getElementById('chart_container');
+		ch_cntr.innerHTML='<div id="chart_anchor" style="display:none;"></div>';
+	}
+	for (let i=0; i < gjson.chart_data.length; i++) {
+		g_can_shape_added_nms[i] = [];
+		if (gcanvas_args[i][5] != gpixels_high_default) {
+			gcanvas_args[i][5] = gpixels_high_default;
+		}
+		for (let myk=gjson.chart_data[i].subcat_rng.length-1; myk >=0; myk--) {
+			if(typeof gjson.chart_data[i].subcat_rng[myk].added !== 'undefined') {
+				if(myk == (gjson.chart_data[i].subcat_rng.length -1)) {
+					gjson.chart_data[i].subcat_rng.pop();
+				}
+			}
+		}
+	}
+	// I just call the my_resize_rtn since it has all the nice popup notifications
+	window.dispatchEvent(new Event('resize-end'));
+	//probably could just call my_resize_rtn()
+	//my_resize_rtn();
+	get_mem_usage("__mem: aft change_pixels: ");
+}
+
 function change_pixels_high(cb, menu_idx, nm_idx)
 {
 	console.log("text val:"+cb.value);
@@ -558,15 +609,9 @@ function change_pixels_high(cb, menu_idx, nm_idx)
 			g_cpu_diagram_flds_json_str !== null && g_cpu_diagram_flds_json_str.length > 0) {
 			g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
 		}
-		get_mem_usage("__mem: bef change_pixels: ");
-		update_status("start redraw charts");
-		for (let i=0; i < gjson.chart_data.length; i++) {
-			can_shape(gcanvas_args[i][0], gcanvas_args[i][1], gcanvas_args[i][3], gcanvas_args[i][4], gcanvas_args[i][5], gcanvas_args[i][6], gcanvas_args[i][7], gcanvas_args[i][8], gcanvas_args[i][9]);
-		}
-		update_status("end redraw charts");
-		get_mem_usage("__mem: aft change_pixels: ");
+		$('#lhs_menu').BootSideMenu.close(); // takes a little while to close so do a setTimeout
+		setTimeout(scheduled_redraw, 500);
 	}
-	return;
 }
 
 function fg_cb_init(cb) {
@@ -768,27 +813,19 @@ function get_chart_options(chart_options)
 	return ch_options;
 }
 
-function remove_divs(hvr_clr)
+function remove_divs(hvr_clr, remove_itself)
 {
 	let nxt_div = document.getElementById(hvr_clr);
 	if (nxt_div !== null) {
-		let new_ele = nxt_div.cloneNode(true);
-		nxt_div.parentNode.replaceChild(new_ele, nxt_div);
-		nxt_div = document.getElementById(hvr_clr);
-		if (nxt_div !== null) {
-			while (nxt_div.firstChild) {
-				nxt_div.removeChild(nxt_div.firstChild);
-			}
-			nxt_div.remove();
+		while (nxt_div.firstChild) {
+			nxt_div.removeChild(nxt_div.firstChild);
 		}
-		if (new_ele !== null) {
-			while (new_ele.firstChild) {
-				new_ele.removeChild(new_ele.firstChild);
-			}
-			new_ele.remove();
+		if (remove_itself) {
+			nxt_div.remove();
 		}
 	}
 }
+
 
 function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom_x1, zoom_y0, zoom_y1)
 {
@@ -803,12 +840,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 		can_shape.sv_pt_prv = null;
 		can_shape.sv_pt     = null;
 		can_shape.hvr_arr = [];
-		can_shape.added_nms = [];
-		console.log("added can_shape.added_nms= ", can_shape.added_nms);
 		can_shape.invocation_num = 0;
-	}
-	while(can_shape.added_nms.length <= chrt_idx) {
-		can_shape.added_nms.push([]);
 	}
 	can_shape.invocation_num++;
 	gjson.chart_data[chrt_idx].last_used_x_min_max = null;
@@ -821,16 +853,6 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	}
 	let xPadding = 50;
 	let yPadding = 50;
-	if (can_shape.added_nms[chrt_idx].length > 0) {
-		gjson.chart_data[chrt_idx].zoom_func_obj = null;
-		for (let i=can_shape.added_nms[chrt_idx].length-1; i >= 0; i--) {
-			remove_divs(can_shape.added_nms[chrt_idx][i]);
-			let ele=document.getElementById(can_shape.added_nms[chrt_idx][i]);
-			let str=sprintf("rm ch[%d],ele[%d]= %s nm= ", chrt_idx, i, can_shape.added_nms[chrt_idx][i]);
-			console.log(str, ele);
-		}
-		can_shape.added_nms[chrt_idx] = [];
-	}
 
 	let file_tag_idx = chart_data.file_tag_idx;
 	while(file_tag_idx >= g_fl_obj.length) {
@@ -847,12 +869,12 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	//console.log("px_wide = "+px_wide);
 	let ch_type = chart_data.chart_type;
 
-	//remove_divs(hvr_clr);
-	//remove_divs(use_div);
+	//remove_divs(hvr_clr, true);
+	//remove_divs(use_div, false);
 	let chrt_div = document.getElementById(use_div);
 	if (chrt_div === null) {
-		addElement ('div', use_div, 'chart_anchor', 'before');
-		can_shape.added_nms[chrt_idx].push(use_div);
+		console.log(sprintf("__add chrt_idx= %d, use_div= %s, ch_title= %s", chrt_idx, use_div, chart_data.title));
+		addElement (chrt_idx, 'div', use_div, 'chart_anchor', 'before', true);
 		chrt_div = document.getElementById(use_div);
 	}
 
@@ -973,16 +995,15 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	let mycanvas_nm_title = "title_"+hvr_clr;
 	let myhvr_clr = document.getElementById(hvr_clr);
 	if (myhvr_clr === null) {
-		addElement ('div', hvr_clr, 'chart_anchor', 'before');
-		can_shape.added_nms[chrt_idx].push(hvr_clr);
-		addElement ('div', hvr_clr+'_bottom', 'chart_anchor', 'before');
-		can_shape.added_nms[chrt_idx].push(hvr_clr+'_bottom');
+		addElement (chrt_idx, 'div', hvr_clr, 'chart_anchor', 'before', true);
+		addElement (chrt_idx, 'div', hvr_clr+'_bottom', 'chart_anchor', 'before', true);
 		//console.log("set sldr_cur= "+sldr_cur);
 		myhvr_clr = document.getElementById(hvr_clr);
-		let str ='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas_nm_title+'"></div></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide-2)+'" height="'+(px_high-4)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div><canvas id="canvas2_'+hvr_clr+'" width="'+(px_wide-2)+'" height="25px" style="border:1px solid #000000;"></canvas><div id="after_canvas_'+hvr_clr+'" style="display:inline-block"><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_top_20\');" />Legend top20</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_all\');" />Legend all</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'hide_all\');" />Legend hide</button><span id="'+hvr_clr+'_legend" style="display:inline-block;height:200px;word-wrap: break-word;overflow-y: auto;"></span><button id="but_' + hvr_clr +'" class="clrTxtButton" style="display:inline-block;visibility:hidden" onclick="clearHoverInfo(\''+hvr_clr+'_txt\', \''+hvr_clr+'\');" />Clear_text</button><span id="'+hvr_clr+'_txt" style="margin-left:0px;" clrd="n" ></span></div><span id="'+hvr_clr+'_canspan"></span><hr>';
+		let str ='<div id="'+use_div+'_container"><div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas_nm_title+'"></div></div><div class="tooltip"><canvas id="canvas_'+hvr_clr+'" width="'+(px_wide-2)+'" height="'+(px_high-4)+'" style="border:1px solid #000000;"></canvas><span class="tooltiptext" id="tooltip_'+hvr_clr+'"></span></div><canvas id="canvas2_'+hvr_clr+'" width="'+(px_wide-2)+'" height="25px" style="border:1px solid #000000;"></canvas><div id="after_canvas_'+hvr_clr+'" style="display:inline-block"><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_top_20\');" />Legend top20</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'show_all\');" />Legend all</button><button style="display:inline-block" onclick="showLegend(\''+hvr_clr+'\', \'hide_all\');" />Legend hide</button><span id="'+hvr_clr+'_legend" style="display:inline-block;height:200px;word-wrap: break-word;overflow-y: auto;"></span><button id="but_' + hvr_clr +'" class="clrTxtButton" style="display:inline-block;visibility:hidden" onclick="clearHoverInfo(\''+hvr_clr+'_txt\', \''+hvr_clr+'\');" />Clear_text</button><span id="'+hvr_clr+'_txt" style="margin-left:0px;" clrd="n" ></span></div><span id="'+hvr_clr+'_canspan"></span><hr></div>';
 		//console.log("create hvr_clr butn str= "+str);
 		myhvr_clr.innerHTML = str;
 	}
+	g_can_shape_added_nms[chrt_idx].push(use_div+'_container');
 	let mytooltip      = document.getElementById("tooltip_"+hvr_clr);
 	let myhvr_clr_txt = document.getElementById(hvr_clr+'_txt');
 	let myhvr_clr_txt_btn = document.getElementById('but_'+hvr_clr);
@@ -1144,6 +1165,13 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 	tot_line.subcat_rng_idx = {};
 	tot_line.subcat_rng_arr = [];
 	tot_line.event_list_idx = [];
+	for (let myk=chart_data.subcat_rng.length-1; myk >=0; myk--) {
+		if(typeof chart_data.subcat_rng[myk].added !== 'undefined') {
+			if(myk == (chart_data.subcat_rng.length -1)) {
+				chart_data.subcat_rng.pop();
+			}
+		}
+	}
 	//console.log("tot_line.evt_str= '"+tot_line.evt_str+"'");
 
 	reset_minx_maxx(zoom_x0, zoom_x1, zoom_y0, zoom_y1);
@@ -1393,7 +1421,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 
 
 	let copy_canvas = false;
-	if (mycanvas.width != (px_wide-2)) {
+	if (g_chart_did_image[chrt_idx] === null || mycanvas.width != (px_wide-2)) {
 		mycanvas.width = px_wide - 2;
 		mycanvas2.width = px_wide - 2;
 		copy_canvas = true;
@@ -1514,7 +1542,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				}
 				chart_data.subcat_rng.push({x0:mnx, x1:mxx, y0:mny, y1:mxy, fe_idx:use_fe_idx, event:tot_line.evt_str[myi],
 					tot_dura:use_dura, total:use_total, is_tot_line:true, is_tot_line_num:myi,
-					cat:use_mx_cat, subcat:0, cat_text:tot_line.evt_str[myi]});
+					cat:use_mx_cat, subcat:0, cat_text:tot_line.evt_str[myi], added:true});
 				//tot_line.subcat_rng_idx = chart_data.subcat_rng.length-1;
 				tot_line.subcat_rng_idx[chart_data.subcat_rng.length-1] = arr_len;
 				tot_line.subcat_rng_arr.push(chart_data.subcat_rng.length-1);
@@ -1692,19 +1720,19 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			console.log("screw up here. event_list not defined. event_list=");
 			console.log(event_list);
 		}
-	  if (event_list.length < c10.length) {
-		use_color_list = c10;
-		number_of_colors_events = c10.length;
-	  } else {
-		//use_color_list = gcolor_lst;
-		//number_of_colors_events = gcolor_lst.length;
-		use_color_list = [];
-		for (let i=0; i < event_list.length; i++) {
-			use_color_list.push(color_choose_hex_sinebow(i));
+		if (event_list.length < c10.length) {
+			use_color_list = c10;
+			number_of_colors_events = c10.length;
+		} else {
+			//use_color_list = gcolor_lst;
+			//number_of_colors_events = gcolor_lst.length;
+			use_color_list = [];
+			for (let i=0; i < event_list.length; i++) {
+				use_color_list.push(color_choose_hex_sinebow(i));
+			}
+			number_of_colors_events = event_list.length;
+			//console.log("number of colors for events= "+number_of_colors_events);
 		}
-		number_of_colors_events = event_list.length;
-		//console.log("number of colors for events= "+number_of_colors_events);
-	  }
 		if (false && ch_options.overlapping_ranges_within_area) {
 			console.log(sprintf("legend: e[0]= %s", event_list[0].event));
 		}
@@ -2454,22 +2482,22 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			return [xout, yout];
 		}
 		let mycanvas3_nm_all = 'canvas3'+cs_idx+'_'+txt_fld+"_all";
-		remove_divs(mycanvas3_nm_all);
+		remove_divs(mycanvas3_nm_all, false);
 		let mycanvas3_nm     = 'canvas3'+cs_idx+'_'+txt_fld;
 		let mycanvas3_nm_txt = 'canvas3'+cs_idx+'_'+txt_fld+"_txt";
 		let mycanvas3_nm_title = 'canvas3'+cs_idx+'_'+txt_fld+"_title";
 		let mycanvas3_nm_tt  = 'tooltip3'+cs_idx+'_'+txt_fld;
 		let mycanvas3 = document.getElementById(mycanvas3_nm);
 		if (mycanvas3 !== null) {
-			mycanvas3.parentNode.removeChild(mycanvas3);
+			//remove_divs(mycanvas3_nm);
+			//mycanvas3.parentNode.removeChild(mycanvas3);
 			mycanvas3 = document.getElementById(mycanvas3_nm);
 		}
 		if (mycanvas3 === null) {
 			//addElement ('canvas', mycanvas3_nm, 'chart_anchor');
 			let str='<div class="center-outer-div"><div class="center-inner-div" id="'+mycanvas3_nm_title+'"></div></div><div class="tooltip"><canvas id="'+mycanvas3_nm+'" width="'+(px_wide-2)+'" height="'+(canvas3_px_high-2)+'" style="border:1px solid #000000;"></canvas><span id="'+mycanvas3_nm_txt+'"></span><span class="tooltiptext" id="'+mycanvas3_nm_tt+'"></span></div><hr>';
 			//addElement ('div', mycanvas3_nm_all, 'chart_anchor', 'before');
-			addElement ('div', mycanvas3_nm_all, hvr_clr+'_bottom', 'before');
-			can_shape.added_nms[chrt_idx].push(mycanvas3_nm_all);
+			addElement (chrt_idx, 'div', mycanvas3_nm_all, hvr_clr+'_bottom', 'before', false);
 			//addElement ('div', mycanvas3_nm_all, use_div, 'after');
 			//addElement ('div', mycanvas3_nm_all, 'chart_anchor', 'after');
 			//addElement ('div', mycanvas3_nm_all, hvr_clr, 'after');
@@ -3390,9 +3418,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 					}
 					tot_dura[sci].dura += tx1 - tx0;
 					tot_dura[sci].smpl += 1;
-						if (sci == 189) {
-							tot_pts++;
-						}
+					if (sci == 189) {
+						tot_pts++;
+					}
 					//let tm_top_21 = performance.now();
 					//tm_loop += tm_top_21 - tm_top_20;
 					if (chart_data.chart_tag == "PCT_BUSY_BY_SYSTEM") {
@@ -4689,6 +4717,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			draw_mini.x_prev = -1;
 			if (typeof draw_mini.invocation_num === 'undefined') {
 			draw_mini.image_rdy = 0;
+			draw_mini.image = null;
 			draw_mini.image = new Image();
 			draw_mini.image.src = mycanvas.toDataURL("image/png");
 			//draw_mini.image.src = mycanvas.toDataURL();
@@ -4702,8 +4731,8 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				mycanvas2_ctx.drawImage(draw_mini.image, 0, 0, mycanvas2.width, mycanvas2.height);
 				//console.log("__draw_mini saved image");
 				draw_mini.x_prev = -1;
-	//console.log("inside0: hvr_clr= "+hvr_clr+", minx= "+zoom_x0+", maxx= "+zoom_x1+", zoom_y0= "+zoom_y0+", zoom_y1= "+zoom_y1+", chart_data.x_range.max= "+chart_data.x_range.max);
-	let win_sz = get_win_wide_high();
+				//console.log("inside0: hvr_clr= "+hvr_clr+", minx= "+zoom_x0+", maxx= "+zoom_x1+", zoom_y0= "+zoom_y0+", zoom_y1= "+zoom_y1+", chart_data.x_range.max= "+chart_data.x_range.max);
+				let win_sz = get_win_wide_high();
 				let xn = zoom_x0 + 0.5 * (zoom_x1 - zoom_x0);
 				let xd = chart_data.x_range.max - chart_data.x_range.min;
 				let xx = 0.5;
@@ -4779,9 +4808,9 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 			console.log(sprintf("__mem drw_mini_tot tm= %.2f, invo= %s", tm_n01-tm_n00, can_shape.invocation_num));
 		}
 	}
-	if (chart_did_image[chrt_idx] === null || copy_canvas == true) {
+	if (g_chart_did_image[chrt_idx] === null || copy_canvas == true) {
 		//grab the context from your destination canvas
-		chart_did_image[chrt_idx] = mycanvas;
+		g_chart_did_image[chrt_idx] = mycanvas;
 		mycanvas2.onmousemove = function(e) {
 			// important: correct mouse position:
 			let rect = this.getBoundingClientRect(),
@@ -4805,7 +4834,7 @@ function can_shape(chrt_idx, use_div, tm_beg, hvr_clr, px_high_in, zoom_x0, zoom
 				draw_mini_cursor_prev = null;
 			}
 			gsync_zoom_charts_redrawn = 0;
-		    gsync_zoom_charts_hash = {};
+			gsync_zoom_charts_hash = {};
 			gsync_zoom_active_now = false;
 			console.log("zoom inactive");
 		}
@@ -6068,7 +6097,7 @@ async function start_charts() {
 		g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
 	}
 	for (let i=0; i < gjson.chart_data.length; i++) {
-		chart_did_image.push(null);
+		g_chart_did_image.push(null);
 		ch_did_it.push(false);
 	}
 	if (typeof gjson.phase !== 'undefined') {
@@ -6208,11 +6237,14 @@ async function start_charts() {
 					zoom_y0 = parseFloat(gjson.chart_data[i].marker_ymin);
 				}
 				zoom_y1 = gjson.chart_data[i].y_range.max;
-				let pxls_high = gjson.pixels_hight_default;
+				let pxls_high = gjson.pixels_high_default;
 
 				//console.log("zoom_x0= " + zoom_x0 + ", zoom_x1= " + zoom_x1);
 				//gcanvas_args[i] = [ i, chart_divs[i], gjson.chart_data[i], tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
 				gcanvas_args[i] = [ i, chart_divs[i], null, tm_beg, hvr_nm, pxls_high, zoom_x0, zoom_x1, zoom_y0, zoom_y1];
+				while(g_can_shape_added_nms.length <= i) {
+					g_can_shape_added_nms.push([]);
+				}
 				let result = await doJob(i, chrts_started, chrts_started_max, tm_beg);
 			}
 		}
@@ -6982,22 +7014,6 @@ function openSocket(port_num) {
 		var ckln = ck_cmd(event.data, sln, "re_init");
 		if (ckln > 0) {
 			console.log("websocket.onmessage: "+event.data);
-			gcanvas_args = null;
-			gjson_str_pool = null;
-			gjson = null;
-			g_fl_hsh= null;
-			g_fl_arr= null;
-			g_fl_obj= null;
-			g_fl_obj_rt = null;
-
-			gcanvas_args = [];
-			gjson_str_pool = null;
-			gjson = {};
-			g_fl_hsh= [];
-			g_fl_arr= [];
-			g_fl_obj= [];
-			g_fl_obj_rt = [];
-			//window.gc(); // in chrome dev tools do: Memory->click trash can icon to do GC
 		}
 		ckln = ck_cmd(event.data, sln, '{"str_pool":');
 		if (ckln > 0) {
@@ -7035,9 +7051,14 @@ function openSocket(port_num) {
 				let tm_end = performance.now();
 				let elap_tm     = tm_diff_str(0.001*(tm_end-tm_beg), 2, "secs");
 				let elap_tm_tot = tm_diff_str(0.001*(tm_end-g_tm_beg), 2, "secs");
+				if (typeof gjson.chart_data !== 'undefined') {
 				mymodal_span_text.innerHTML = "finished parse_chart_data["+
 					gjson.chart_data.length+"] of "+gjson.chrt_data_sz+", "+elap_tm+", tot_elap_tm= "+elap_tm_tot;
-				if (gjson.chart_data.length == gjson.chrt_data_sz) {
+				} else {
+				mymodal_span_text.innerHTML = "before parse_chart_data "+
+					" of "+gjson.chrt_data_sz+", "+elap_tm+", tot_elap_tm= "+elap_tm_tot;
+				}
+				if (typeof gjson.chart_data !== 'undefined' && gjson.chart_data.length == gjson.chrt_data_sz) {
 					setTimeout(function(){ start_charts(); }, g_parse_delay);
 				}
 			}, g_parse_delay);
@@ -7170,7 +7191,7 @@ function ck_for_resize_end() {
     } else {
         g_resize_obj.doing_resize_rtn = true;
         g_resize_obj.doing_resize_evt = false;
-		my_resize_rtn();
+	my_resize_rtn();
     }               
 }
 
@@ -7212,7 +7233,7 @@ function my_resize_rtn() {
 	}
 	get_mem_usage("__mem: bef my_resize_rtn: aft gc ");
 	g_charts_done.cntr = 0;
-	chart_did_image = [];
+	g_chart_did_image = [];
 	g_cpu_diagram_flds = null;
 	if (g_cpu_diagram_flds_json_str !== null && g_cpu_diagram_flds_json_str.length > 0) {
 		g_cpu_diagram_flds = JSON.parse(g_cpu_diagram_flds_json_str);
@@ -7221,7 +7242,7 @@ function my_resize_rtn() {
 		if (i==0) {
 			console.log("doing resize-end loop");
 		}
-		chart_did_image.push(null);
+		g_chart_did_image.push(null);
 		setTimeout(function () {    //  call a 3s setTimeout when the loop is called
 			let tm_n = performance.now();
 			console.log(sprintf("__resize: underway tm= %.3f", 0.001 * (tm_n - tm_n00)));
@@ -7260,7 +7281,7 @@ function my_resize_rtn() {
 				console.log(txt);
 				mymodal.style.display = "none";
 				document.title = doc_title_def;
-        		g_resize_obj.doing_resize_rtn = false;
+        			g_resize_obj.doing_resize_rtn = false;
 				if (g_do_gc) {
 					get_mem_usage("after resize: memory usage: bef gc ");
 					window.gc();
@@ -7323,7 +7344,7 @@ function showLegend(class_nm, action) {
 	}
 }
 
-function addElement (ele_typ, new_div_nm, before_div, where) {
+function addElement (chrt_idx, ele_typ, new_div_nm, before_div, where, add_to_rm_list) {
 	// create a new div element
 	let newDiv = document.createElement(ele_typ);
 	// and give it some content
