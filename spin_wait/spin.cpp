@@ -134,7 +134,7 @@ struct sla_str {
 
 struct options_str {
 	int verbose, help, wrk_typ, cpus, clock, nopin, yield, huge_pages;
-	std::string work, phase, bump_str, size_str, loops_str;
+	std::string work, phase, bump_str, size_str, loops_str, filename;
 	uint64_t bump, size, loops;
 	double spin_tm, spin_tm_multi;
 	std::vector <sla_str> sla;
@@ -419,11 +419,11 @@ int array_read(char *buf, int ar_sz, int strd)
 	return res;
 }
 
-static size_t sys_getpagesize(void)
+static size_t mysys_getpagesize(void)
 {
 	size_t pg_sz = 4096; // sane? default
 #if defined(__linux__) || defined(__APPLE__)
-	pg_sz = sys_getpagesize();
+	pg_sz = getpagesize();
 #else
 	SYSTEM_INFO siSysInfo;
 	// Copy the hardware information to the SYSTEM_INFO structure.
@@ -435,8 +435,9 @@ static size_t sys_getpagesize(void)
 
 static int alloc_pg_bufs(int num_bytes, char **buf_ptr, int pg_chunks)
 {
-	size_t pg_sz = sys_getpagesize();
+	size_t pg_sz = mysys_getpagesize();
 	size_t use_bytes = num_bytes;
+	//printf("pg_sz= %d at %s %d\n", (int)pg_sz, __FILE__, __LINE__);
 	if ((use_bytes % pg_sz) != 0) {
 		int num_pgs = use_bytes/pg_sz;
 		use_bytes = (num_pgs+1) * pg_sz;
@@ -467,24 +468,37 @@ static int alloc_pg_bufs(int num_bytes, char **buf_ptr, int pg_chunks)
 #define O_DIRECT 0
 #endif
 
+#ifndef O_SYNC
+#define O_SYNC 0
+#endif
+
 static size_t disk_write_dir(int myi, int ar_sz)
 {
 	char *buf;
 	size_t byts = 0;
 	int val=0, loops = args[myi].loops, pg_chunks=16;
-
+	if ((int)args[myi].bump > 0) {
+		pg_chunks = args[myi].bump;
+	}
+		 
 	int pg_sz = alloc_pg_bufs(ar_sz, &buf, pg_chunks);
 #ifdef _WIN32
 	HANDLE fd = CreateFile(args[myi].filename.c_str(), GENERIC_WRITE,
 		0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING, NULL);
 #else
-	int fd = open(args[myi].filename.c_str(), O_WRONLY|O_CREAT|O_BINARY|O_DIRECT, 0x666);
+        mode_t myumask = umask(0x777);
+	//int fd = open(args[myi].filename.c_str(), O_WRONLY|O_CREAT|O_BINARY|O_DIRECT, 0x666);
+	int fd = open(args[myi].filename.c_str(), O_WRONLY|O_CREAT|O_BINARY|O_DIRECT|O_SYNC, 0);
+	chmod(args[myi].filename.c_str(), 0000660);
 #endif
 	if (!fd)
 	{
 		printf("Unable to open file %s at %s %d\n", args[myi].filename.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
+#if defined(__APPLE__)
+     	fcntl(fd, F_NOCACHE, 1); // disable caching
+#endif
 	int num_pages = ar_sz / pg_sz;
 	for (int i=0; i < loops; i++) {
 		for (int j= 0; j < ar_sz; j+= 256) {
@@ -513,6 +527,9 @@ static size_t disk_write_dir(int myi, int ar_sz)
 static size_t disk_read_dir(int myi, int ar_sz)
 {
 	int val=0, pg_chunks=16;
+	if ((int)args[myi].bump > 0) {
+		pg_chunks = args[myi].bump;
+	}
 	char *buf;
 	size_t ret;
 	size_t byts = 0;
@@ -523,13 +540,16 @@ static size_t disk_read_dir(int myi, int ar_sz)
 	HANDLE fd = CreateFile(args[myi].filename.c_str(), GENERIC_READ,
 		0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_NO_BUFFERING, NULL);
 #else
-	int fd = open(args[myi].filename.c_str(), O_RDONLY | O_BINARY | O_DIRECT, 0);
+	int fd = open(args[myi].filename.c_str(), O_RDONLY | O_BINARY | O_DIRECT | O_SYNC, 0);
 #endif
 	if (!fd)
 	{
 		printf("Unable to open file %s at %s %d\n", args[myi].filename.c_str(), __FILE__, __LINE__);
 		exit(1);
 	}
+#if defined(__APPLE__)
+     	fcntl(fd, F_NOCACHE, 1); // disable caching
+#endif
 	int num_pages = ar_sz / pg_sz;
 	for (int i=0; i < loops; i++) {
 		for (int j=0; j < num_pages; j += pg_chunks) {
@@ -558,6 +578,9 @@ static size_t disk_write(int myi, int ar_sz)
 {
 	FILE *fp;
 	int val=0, pg_chunks=16;
+	if ((int)args[myi].bump > 0) {
+		pg_chunks = args[myi].bump;
+	}
 	char *buf;
 	size_t byts=0;
 	int loops = args[myi].loops;
@@ -589,6 +612,9 @@ static size_t disk_read(int myi, int ar_sz)
 {
 	FILE *fp;
 	int val=0, pg_chunks=16;
+	if ((int)args[myi].bump > 0) {
+		pg_chunks = args[myi].bump;
+	}
 	char *buf;
 	size_t ret;
 	size_t byts=0;
@@ -624,7 +650,11 @@ float disk_all(unsigned int i)
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, bytes=0.0;
 	int arr_sz = 1024*1024;
-	args[i].filename = "disk_tst_" + std::to_string(i);
+        if (options.filename.size() > 0) {
+		args[i].filename = options.filename + "_" + std::to_string(i);
+	} else {
+		args[i].filename = "disk_tst_" + std::to_string(i);
+	}
 	tm_end = tm_beg = dclock();
 	while((tm_end - tm_beg) < tm_to_run) {
 		switch(args[i].wrk_typ) {
@@ -1211,6 +1241,12 @@ void opt_set_cpus(const char *optarg)
 	printf("cpus= %s\n", optarg);
 }
 
+void opt_set_filename(const char *optarg)
+{
+	options.filename = optarg;
+	printf("filename= %s\n", optarg);
+}
+
 void opt_set_nopin(void)
 {
 	options.nopin = 1;
@@ -1362,11 +1398,20 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		},
 		{"work",      required_argument,   0, 'w', "type of work to do\n"
 		   "   work_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
+		   "   sample disk io write cmd: ./bin/spin.x -w disk_wr_dir -o /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096"
+		   "     takes 30 seconds on nvme drive capable of 1100 MB/s"
+		   "   sample disk io read cmd: ./bin/spin.x -w disk_rd_dir -o /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096"
+		   "     takes 10 seconds on nvme drive capable of 2800 MB/s"
 		   "   required arg"
 		},
-		{"bump",      required_argument,   0, 'b', "bytes to bump through array (in bytes)\n"
+		{"bump",      required_argument,   0, 'b', "bytes to bump through array (in bytes) or, for disk tests, the number of pages per IO\n"
 		   "   '-b 64' when looping over array, use 64 byte stride\n"
 		   "   For mem_bw tests, the default stride size is 64 bytes."
+		},
+		{"out",      required_argument,   0, 'o', "filename for disk output file\n"
+		   "   The file number will be appended to the filename.\n"
+		   "   The file number is the thread number, currently the disk tests are single threaded so thread num will be 0.\n"
+		   "   The default filename is disk_tst_'file number' in the current dir\n"
 		},
 		{"size",      required_argument,   0, 's', "array size (bytes)\n"
 		   "   you can add 'k' (KB), 'm' (MB) \n"
@@ -1407,7 +1452,7 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = mygetopt_long(argc, argv, "hvHPYb:c:l:n:p:s:S:t:w:", long_options, &option_index);
+		c = mygetopt_long(argc, argv, "hvHPYb:c:l:n:o:p:s:S:t:w:", long_options, &option_index);
 
 		/* Detect the end of the options. */
 		if (c == -1)
@@ -1436,6 +1481,10 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			}
 			if (strcmp(long_options[option_index].name, "work") == 0) {
 				opt_set_wrk_typ(optarg);
+				break;
+			}
+			if (strcmp(long_options[option_index].name, "file") == 0) {
+				opt_set_filename(optarg);
 				break;
 			}
 			if (strcmp(long_options[option_index].name, "clock") == 0) {
@@ -1479,6 +1528,9 @@ get_opt_main (int argc, std::vector <std::string> argvs)
 			break;
 		case 'c':
 			opt_set_clock(optarg);
+			break;
+		case 'f':
+			opt_set_filename(optarg);
 			break;
 		case 'l':
 			opt_set_loops(optarg);
@@ -1723,8 +1775,10 @@ int main(int argc, char **argv)
 //abcd
 			if (options.wrk_typ >= WRK_DISK_RD && options.wrk_typ <= WRK_DISK_RDWR_DIR) {
 				doing_disk = true;
-				options.loops = 100;
-				printf("Setting disk loops to default -l %d\n", (int)options.loops);
+				if (options.loops == 0) {
+					options.loops = 100;
+					printf("Setting disk loops to default -l %d\n", (int)options.loops);
+				}
 			}
 			if (options.wrk_typ == WRK_MEM_BW_REMOTE) {
 				int nd_max = -1;
