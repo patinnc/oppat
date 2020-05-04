@@ -353,10 +353,18 @@ struct phase_str {
 
 uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t &ops)
 {
+#if 0
 	uint64_t rezult = rez;
 	for (uint64_t j = 0; j < loops; j++) {
 		rezult += j;
 	}
+#else
+	double rezult = rez;
+	for (uint64_t j = 0; j < loops; j++) {
+		rezult += (double)(j) * 1.00011;
+		rezult -= (double)(j) * 1.00012;
+	}
+#endif
 	ops += loops;
 	return rezult;
 }
