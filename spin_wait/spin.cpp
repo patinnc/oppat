@@ -13,6 +13,7 @@
 #define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <sched.h>
 #include <time.h>
+#include <sys/time.h>
 #endif
 
 
@@ -1726,6 +1727,16 @@ bool compare_by_elap_time(const rt_str &a, const rt_str &b)
     return a.elap_time < b.elap_time;
 }
 
+int do_gettimeofday(void)
+{
+     struct timeval tp;
+     int rc;
+     rc = gettimeofday(&tp, NULL);
+     double x = (double)tp.tv_sec + 1.0e-6*(double)tp.tv_usec;
+     printf("t_gettimeofday= %f\n", x);
+     return rc;
+}
+
 int main(int argc, char **argv)
 {
 	uint32_t cpu, cpu0;
@@ -1747,6 +1758,7 @@ int main(int argc, char **argv)
 #endif
 	double proc_cputime = dclock_vari(CLOCK_PROCESS_CPUTIME_ID);
 #endif
+        do_gettimeofday();
 	std::cout << "Start Test 1 CPU" << std::endl; // prints !!!Hello World!!!
 	double t_start, t_end;
 	time_t c_start, c_end;
