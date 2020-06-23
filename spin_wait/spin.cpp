@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <signal.h>
 //#include <arm_neon.h>
 #include <ctime>
 #include <cstdio>
@@ -159,6 +160,13 @@ static uint64_t get_tsc_and_cpu(unsigned int *cpu)
 
 
 
+
+volatile int got_quit=0;
+
+static void sighandler(int sig)
+{
+	got_quit=1;
+}
 
 static double mclk(uint64_t t0)
 {
@@ -374,37 +382,37 @@ uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t &ops)
 
 std::vector <args_str> args;
 
-int array_write(char *buf, int ar_sz, int strd)
+int array_write(char *buf, size_t ar_sz, int strd)
 {
 	int res=0;
-	for (int i=0; i < ar_sz-strd; i += strd) {
+	for (size_t i=0; i < ar_sz-strd; i += strd) {
 		buf[i] = i;
 	}
 	return res;
 }
 
-int array_read_write(char *buf, int ar_sz, int strd)
+int array_read_write(char *buf, size_t ar_sz, int strd)
 {
 	int res=0;
-	for (int i=0; i < ar_sz-strd; i += strd) {
+	for (size_t i=0; i < ar_sz-strd; i += strd) {
 		buf[i] += i;
 	}
 	return res;
 }
 
-int array_2read_write(char *dst, char *src, int ar_sz, int strd)
+int array_2read_write(char *dst, char *src, size_t ar_sz, int strd)
 {
 	int res=0;
-	for (int i=0; i < ar_sz-strd; i += strd) {
+	for (size_t i=0; i < ar_sz-strd; i += strd) {
 		dst[i] += src[i];
 	}
 	return res;
 }
 
-int array_2read_2write(char *dst, char *src, int ar_sz, int strd)
+int array_2read_2write(char *dst, char *src, size_t ar_sz, int strd)
 {
 	int res=0;
-	for (int i=0; i < ar_sz-strd; i += strd) {
+	for (size_t i=0; i < ar_sz-strd; i += strd) {
 		dst[i] += res;
 		src[i] += res;
 		res++;
@@ -412,19 +420,19 @@ int array_2read_2write(char *dst, char *src, int ar_sz, int strd)
 	return res;
 }
 
-int array_2read(char *dst, char *src, int ar_sz, int strd)
+int array_2read(char *dst, char *src, size_t ar_sz, int strd)
 {
 	int res=0;
-	for (int i=0; i < ar_sz-strd; i += strd) {
+	for (size_t i=0; i < ar_sz-strd; i += strd) {
 		res += dst[i] + src[i];
 	}
 	return res;
 }
 
-int array_read(char *buf, int ar_sz, int strd)
+int array_read(char *buf, size_t ar_sz, int strd)
 {
 	int res=0;
-	for (int i=0; i < ar_sz-strd; i += strd) {
+	for (size_t i=0; i < ar_sz-strd; i += strd) {
 		res += buf[i];
 	}
 	return res;
@@ -484,7 +492,7 @@ static int alloc_pg_bufs(int num_bytes, char **buf_ptr, int pg_chunks)
 #define O_SYNC 0
 #endif
 
-static size_t disk_write_dir(int myi, int ar_sz)
+static size_t disk_write_dir(int myi, size_t ar_sz)
 {
 	char *buf;
 	size_t byts = 0;
@@ -548,7 +556,7 @@ static size_t disk_write_dir(int myi, int ar_sz)
 	return byts;
 }
 
-static size_t disk_read_dir(int myi, int ar_sz)
+static size_t disk_read_dir(int myi, size_t ar_sz)
 {
 	int val=0, pg_chunks=16;
 	if ((int)args[myi].bump > 0) {
@@ -602,7 +610,7 @@ static size_t disk_read_dir(int myi, int ar_sz)
 	return byts;
 }
 
-static size_t disk_write(int myi, int ar_sz)
+static size_t disk_write(int myi, size_t ar_sz)
 {
 	FILE *fp;
 	int val=0, pg_chunks=16;
@@ -631,6 +639,9 @@ static size_t disk_write(int myi, int ar_sz)
 		for (int j=0; j < num_pages; j += pg_chunks) {
 			byts += fwrite(buf, pg_chunks*pg_sz, 1, fp);
 		}
+		if (got_quit == 1) {
+			break;
+		}
 	}
 	byts *= pg_chunks * pg_sz;
 	args[myi].rezult = val;
@@ -638,7 +649,7 @@ static size_t disk_write(int myi, int ar_sz)
 	return byts;
 }
 
-static size_t disk_read(int myi, int ar_sz)
+static size_t disk_read(int myi, size_t ar_sz)
 {
 	FILE *fp;
 	int val=0, pg_chunks=16;
@@ -667,6 +678,9 @@ static size_t disk_read(int myi, int ar_sz)
 			val += buf[j];
 		}
 #endif
+		if (got_quit == 1) {
+			break;
+		}
 	}
 	byts *= pg_chunks * pg_sz;
 	fclose(fp);
@@ -737,13 +751,13 @@ float mem_bw(unsigned int i)
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, bytes=0.0;
 	int strd = (int)args[i].bump;
-	int arr_sz = (int)args[i].size;
+	size_t arr_sz = (size_t)args[i].size;
 	//fprintf(stderr, "got to %d\n", __LINE__);
 	pin(i);
 	my_msleep(0); // necessary? in olden times it was.
 	if (i==0) {
-		printf("strd= %d, arr_sz= %d, %d KB, %.4f MB\n",
-			strd, arr_sz, arr_sz/1024, (double)(arr_sz)/(1024.0*1024.0));
+		printf("strd= %d, arr_sz= %.0f, %.0f KB, %.4f MB\n",
+			strd, (double)arr_sz, (double)(arr_sz/1024), (double)(arr_sz)/(1024.0*1024.0));
 	}
 	if (options.huge_pages) {
 		size_t algn = 2*1024*1024;
@@ -869,9 +883,14 @@ float mem_bw(unsigned int i)
 		}
 		tm_prev = tm_end;
 #endif
+		if (got_quit != 0) {
+                        break;
+                }
 	}
+
 	double dura2, dura;
-	dura2 = dura = tm_end - tm_beg;
+	dura = tm_end - tm_beg;
+	dura2 = dura;
 	if (dura2 == 0.0) {
 		dura2 = 1.0;
 	}
@@ -1014,6 +1033,9 @@ float simd_dot0(unsigned int i)
 		   if (options.yield == 1) {
 		      pthread_yield();
 		   }
+			if (got_quit == 1) {
+				break;
+			}
 #endif
 		}
 #endif
@@ -1025,6 +1047,7 @@ float simd_dot0(unsigned int i)
 		ops = (uint64_t)(xinst);
 		tm_end = dclock();
 	}
+
 	if (args[i].wrk_typ == WRK_FREQ
 #ifdef _WIN32
 		|| args[i].wrk_typ == WRK_FREQ2
@@ -1057,6 +1080,9 @@ float simd_dot0(unsigned int i)
 			a |= b;
 		}
 		tm_end = dclock();
+		if (got_quit == 1) {
+			break;
+		}
 		}
 		xend = get_cputime();
 		xinst += (double)1000000 * (double)imx;
@@ -1086,6 +1112,9 @@ float simd_dot0(unsigned int i)
 			a |= b;
 		}
 		tm_end = dclock();
+		if (got_quit == 1) {
+			break;
+		}
 		}
 		xend = get_cputime();
 		xinst += (double)1000000 * (double)imx;
@@ -1121,6 +1150,9 @@ float simd_dot0(unsigned int i)
 		}
 		tm_prev = tm_end;
 #endif
+		if (got_quit == 1) {
+			break;
+		}
 		}
 		xend = get_cputime();
 		xcumu += xend-xbeg;
@@ -1770,6 +1802,9 @@ int main(int argc, char **argv)
 	printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
 	printf("see input_files/haswell_spin_input.txt for example.\n");
 
+	signal(SIGABRT, &sighandler);
+	signal(SIGTERM, &sighandler);
+	signal(SIGINT, &sighandler);
 
 	cpu = my_getcpu();
 	cpu0 = cpu;
