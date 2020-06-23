@@ -361,9 +361,11 @@ uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t &ops)
 	}
 #else
 	double rezult = rez;
+        double x = rezult+1.0;
 	for (uint64_t j = 0; j < loops; j++) {
-		rezult += (double)(j) * 1.00011;
-		rezult -= (double)(j) * 1.00012;
+		rezult += x * 1.00011;
+		rezult -= x * 1.00012;
+                x += 1.0;
 	}
 #endif
 	ops += loops;
