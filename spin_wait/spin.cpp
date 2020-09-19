@@ -747,7 +747,7 @@ float mem_bw(unsigned int i)
 	int cpu =  args[i].id;
 	//unsigned int i;
 	uint64_t ops = 0;
-	uint64_t j, loops;
+	uint64_t j, loops = args[i].loops;
 	uint64_t rezult = 0;
 	double tm_end, tm_beg, bytes=0.0;
 	int strd = (int)args[i].bump;
@@ -830,8 +830,11 @@ float mem_bw(unsigned int i)
 	do_barrier_wait();
 
 	tm_end = tm_beg = dclock();
-	int iters=0;
-	loops=1;
+	int iters=0, adj_loops=0;
+        if (loops == 0) {
+          loops = 1;
+          adj_loops = 1;
+        }
 	double tm_prev;
 	if (!do_loop) {
 		args[i].dura = 0;
@@ -875,7 +878,7 @@ float mem_bw(unsigned int i)
 		tm_end = dclock();
 #if 1
 		// try to reduce the time spend in dclock()
-		if (++iters > 2) {
+		if (adj_loops == 1 && ++iters > 2) {
 			if ((tm_end - tm_prev) < 0.01) {
 				loops += 10;
 			}
