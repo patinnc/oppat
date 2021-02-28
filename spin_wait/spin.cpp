@@ -93,6 +93,7 @@ double frq=0.0, ifrq=1.0;
 std::vector <int> cpu_list;
 std::vector <int> mem_list;
 std::vector <int> membind_list;
+std::vector <double> freq_fctr;
 
 enum { // below enum has to be in same order as wrk_typs
         WRK_SPIN,
@@ -141,13 +142,14 @@ struct sla_str {
 };
 
 struct options_str {
-        int verbose, help, wrk_typ, cpus, clock, nopin, yield, huge_pages;
+        int verbose, help, wrk_typ, cpus, clock, nopin, yield, huge_pages, ping_pong_iter;
         std::string work, phase, bump_str, size_str, loops_str, filename;
         uint64_t bump, size, loops;
-        double spin_tm, spin_tm_multi;
+        double spin_tm, spin_tm_multi, ping_pong_run_secs, ping_pong_sleep_secs;
         std::vector <sla_str> sla;
         options_str(): verbose(0), help(0), wrk_typ(-1), cpus(-1), clock(CLOCK_USE_SYS), nopin(0),
-                yield(0), huge_pages(0), bump(0), size(0), loops(0), spin_tm(2.0), spin_tm_multi(0) {}
+                yield(0), huge_pages(0), ping_pong_iter(-1), bump(0), size(0), loops(0), spin_tm(2.0), spin_tm_multi(0),
+                ping_pong_run_secs(0), ping_pong_sleep_secs(0)  {}
 
 } options;
 
@@ -391,6 +393,17 @@ double dclock2(void)
 #define MYDCLOCK dclock2
 #endif
 
+static double dclock3(int clock, uint64_t tsc_initial)
+{
+    double tm;
+    if (clock == CLOCK_USE_SYS) {
+        tm = MYDCLOCK();
+    } else {
+        tm = mclk(tsc_initial);
+    }
+    return tm;
+}
+
 #if defined(__linux__) || defined(__APPLE__)
 double dclock_vari(clockid_t clkid)
 {
@@ -409,14 +422,16 @@ struct args_str {
         double spin_tm;
         unsigned long rezult, loops;
         uint64_t size, bump, tsc_initial;
-        double tm_beg, tm_end, perf, dura, cpu_time;
-        int id, wrk_typ, clock, got_SLA;
+        double tm_beg, tm_end, perf, dura, cpu_time, ping_tm_sleep, ping_tm_run, freq_load,
+            freq_fctr_run_secs, freq_fctr_sleep_secs;
+        int id, wrk_typ, clock, got_SLA, ping_iter;
         std::vector <rt_str> rt_vec;
         char *dst;
         std::string bump_str, loops_str, size_str, units;
         args_str(): spin_tm(0.0), rezult(0), loops(0), dst(0), size(0), bump(0), tsc_initial(0),
-                tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), id(-1), wrk_typ(-1), clock(CLOCK_USE_SYS),
-                got_SLA(false), cpu_time(0) {}
+                tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), ping_tm_sleep(0.0), ping_tm_run(0.),
+                id(-1), wrk_typ(-1), clock(CLOCK_USE_SYS),
+                freq_load(0.0), freq_fctr_run_secs(0.0), freq_fctr_sleep_secs(0.0), got_SLA(false), ping_iter(-1), cpu_time(0)  {}
 };
 
 struct phase_str {
@@ -1098,60 +1113,148 @@ float simd_dot0(unsigned int i)
                 tm_end = MYDCLOCK();
                 }
 #else
-                if (clock == CLOCK_USE_SYS) {
-                        tm_endt = tm_begt = MYDCLOCK();
-                } else {
-                        tm_endt = tm_begt = mclk(tsc_initial);
-                }
+                tm_endt = tm_begt = dclock3(clock, tsc_initial);
                 tm_prevt = tm_begt;
+                double ping_tm_beg, ping_tm_end;
+#define DO_RUN 0
+#define DO_SLP 1
+                int run_or_sleep = DO_RUN;
+                int freq_fctr_sz = (int)freq_fctr.size();
+                double my_freq_fctr = 1.0, freq_fctr_imx=0.0;;
+                double freq_fctr_run_secs=0.0, freq_fctr_sleep_secs=0.0;
+                if (freq_fctr_sz > 0 && freq_fctr_sz > i) {
+                    my_freq_fctr = freq_fctr[i];
+                }
+                int ping_drvr = 0, ping_chkr = 0, ping_iter = -1;
+                double ping_sleep_secs = options.ping_pong_sleep_secs;
+                double ping_run_secs   = options.ping_pong_run_secs;
+                int ping_sleep_ms = (int)(1000.0*options.ping_pong_sleep_secs);
+                if (options.ping_pong_iter != -1 && (args.size() % 2) == 0) {
+                    if ((i % 2) == 0) { run_or_sleep = DO_RUN; } else { run_or_sleep = DO_SLP; }
+                    ping_iter = 0;
+                    if (ping_sleep_ms <= 0) { ping_sleep_ms = 1; }
+                    args[i].ping_iter = ping_iter;
+                    ping_drvr = i - (i % 2);
+                    ping_chkr = ping_drvr + 1;
+                    printf("i= %d, ping_drvr= %d, ping_chkr= %d at %s %d\n", i, ping_drvr, ping_chkr, __FILE__, __LINE__);
+                }
+                if (ping_iter != -1) {
+                    ping_tm_beg = tm_endt;
+                }
+                double tm_prv;
                 while((tm_endt - tm_begt) < tm_to_run) {
-                        did_iters++;
+                    did_iters++;
+                    if (run_or_sleep == DO_RUN) {
                         for (ii=0; ii < imx; ii++) {
 #ifdef _WIN32
-                                b = win_rorl(b); // 10000 inst
+                            b = win_rorl(b); // 10000 inst
 #else
-                                asm ( "movl %1, %%eax;"
-                                        ".align 4;"
-                                        D10000
-                                        " movl %%eax, %0;"
-                                        :"=r"(b) /* output */
-                                        :"r"(a)  /* input */
-                                        :"%eax"  /* clobbered reg */
+                            asm ( "movl %1, %%eax;"
+                                    ".align 4;"
+                                    D10000
+                                    " movl %%eax, %0;"
+                                    :"=r"(b) /* output */
+                                    :"r"(a)  /* input */
+                                    :"%eax"  /* clobbered reg */
                                 );
 #endif
-                                a |= b;
+                            a |= b;
                         }
-                        if (clock == CLOCK_USE_SYS) {
-                                tm_endt = MYDCLOCK();
+                    } else {
+                        my_msleep(ping_sleep_ms);
+                    }
+                    tm_prv = tm_endt;
+                    tm_endt = dclock3(clock, tsc_initial);
+                    if (ping_iter != -1) {
+                        ping_tm_end = tm_endt;
+                        int new_iter = 0;
+                        if (run_or_sleep == DO_RUN) {
+                            if ((ping_tm_end - ping_tm_beg) >= ping_run_secs) {
+                                ping_iter++;
+                                args[ping_drvr].ping_iter = ping_iter;
+                                args[i].ping_tm_run += (ping_tm_end - ping_tm_beg);
+                                ping_tm_beg = ping_tm_end;
+                                printf("i= %d, ping_iter= %d run_sleep= %d at %s %d\n", i, ping_iter, run_or_sleep, __FILE__, __LINE__);
+                                double t_tm = dclock3(clock, tsc_initial);
+                                while((t_tm - tm_begt) < tm_to_run && got_quit == 0) {
+                                    if ( args[ping_chkr].ping_iter == ping_iter) {
+                                        ping_tm_beg = t_tm;
+                                        run_or_sleep = DO_SLP;
+                                        break;
+                                    }
+                                    my_msleep(5);
+                                    t_tm = dclock3(clock, tsc_initial);
+                                }
+                            }
                         } else {
-                                tm_endt = mclk(tsc_initial);
+                            if ( args[ping_drvr].ping_iter != ping_iter) {
+                                args[ping_chkr].ping_iter = args[ping_drvr].ping_iter;
+                                ping_iter = args[ping_chkr].ping_iter;
+                                args[i].ping_tm_sleep += (ping_tm_end - ping_tm_beg);
+                                ping_tm_beg = dclock3(clock, tsc_initial);
+                                run_or_sleep = DO_RUN;
+                            }
                         }
-                        if (args[i].got_SLA) {
-                                struct rt_str rt;
-                                rt.elap_time = tm_endt - tm_prevt;
-                                xend = get_cputime();
-                                rt.cpu_time = xend - xprev;
-                                args[i].rt_vec.push_back(rt);
-                                tm_prevt = tm_endt;
-                                xprev = xend;
+                    }
+                    if (freq_fctr_sz > 0) {
+                        double tm_per_iter = tm_endt - tm_prv;
+                        if (run_or_sleep == DO_RUN) {
+                            freq_fctr_run_secs += tm_per_iter;
+                            freq_fctr_imx += imx;
+                            args[i].freq_fctr_run_secs += tm_per_iter;
+                        } else {
+                            freq_fctr_sleep_secs += tm_per_iter;
+                            args[i].freq_fctr_sleep_secs += tm_per_iter;
                         }
+                        double cur_run_ratio = freq_fctr_run_secs / (freq_fctr_run_secs + freq_fctr_sleep_secs);
+                        if (cur_run_ratio > my_freq_fctr) {
+                            run_or_sleep = DO_SLP;
+                            ping_sleep_ms = (int)(1000.0 * tm_per_iter);
+                            if (ping_sleep_ms <= 0) { ping_sleep_ms = 1; };
+                        } else {
+                            run_or_sleep = DO_RUN;
+                        }
+#if 0
+                        double have_units  = (tm_to_run - tm_per_iter)/tm_per_iter;
+                        double run_units =  my_freq_fctr * have_units;
+                        double sleep_units =  (1.0 - my_freq_fctr) * have_units;
+                        double run_per_slp =  (sleep_units > 0.0 ? run_units/sleep_units : 0.0);
+                        double freq_fctr_run    = run_per_slp;
+                        double freq_fctr_sleeps = 1;
+                        //printf("tm_per_iter= %f secs, have_units= %f, run_units= %f sleep_units= %f, run_per_sleep= %f\n", tm_per_iter,
+                        //    have_units, run_units, sleep_units, run_per_slp);
+#endif
+                    }
+                    if (args[i].got_SLA) {
+                        struct rt_str rt;
+                        rt.elap_time = tm_endt - tm_prevt;
+                        xend = get_cputime();
+                        rt.cpu_time = xend - xprev;
+                        args[i].rt_vec.push_back(rt);
+                        tm_prevt = tm_endt;
+                        xprev = xend;
+                    }
 #ifdef __linux__
-                   if (options.yield == 1) {
-                      pthread_yield();
-                   }
-                        if (got_quit == 1) {
-                                break;
-                        }
+                    if (options.yield == 1) {
+                        pthread_yield();
+                    }
+                    if (got_quit == 1) {
+                        break;
+                    }
 #endif
                 }
 #endif
                 xend = get_cputime();
                 xcumu += xend-xbeg;
-                xinst += (double)10000 * (double)imx;
-                xinst *= did_iters;
+                if (freq_fctr_sz > 0) {
+                    xinst += (double)10000 * freq_fctr_imx;
+                } else {
+                    xinst += (double)10000 * (double)imx;
+                    xinst *= did_iters;
+                }
                 //printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
                 ops = (uint64_t)(xinst);
-                tm_end = MYDCLOCK();
+                tm_end = dclock3(clock, tsc_initial);
         }
 
         if (args[i].wrk_typ == WRK_FREQ
@@ -1268,10 +1371,21 @@ float simd_dot0(unsigned int i)
         if (dura2 == 0.0) {
                 dura2 = 1.0;
         }
+        if (freq_fctr.size() > 0) {
+            dura2 = dura = args[i].freq_fctr_run_secs;
+        }
         args[i].dura = dura;
         args[i].tm_beg = tm_beg;
         args[i].tm_end = tm_end;
         args[i].units = "Gops/sec";
+        if (options.verbose > 0) {
+            if (freq_fctr.size() > 0) {
+            printf("args[%d].freq_fctr_run_secs= %f, sleep_secs= %f, cur_run_ratio= %f target run_ratio= %f at %s %d\n",
+                i, args[i].freq_fctr_run_secs, args[i].freq_fctr_sleep_secs,
+                (args[i].freq_fctr_run_secs/(args[i].freq_fctr_run_secs + args[i].freq_fctr_sleep_secs)),
+                (i < freq_fctr.size() ? freq_fctr[i] : 1.0), __FILE__, __LINE__);
+            }
+        }
         if (args[i].wrk_typ == WRK_SPIN) {
                 args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
                 args[i].rezult = rezult;
@@ -1371,7 +1485,7 @@ std::vector <std::string> split_cmd_line(const char *argv0, const char *cmdline,
         return std_argv;
 }
 
-void opt_set_spin_tm(const char *optarg)
+static void opt_set_spin_tm(const char *optarg)
 {
         const char *cpc = strchr(optarg, ',');
         options.spin_tm = atof(optarg);
@@ -1384,7 +1498,7 @@ void opt_set_spin_tm(const char *optarg)
                 options.spin_tm, options.spin_tm_multi, __FILE__, __LINE__);
 }
 
-void opt_set_clock(const char *optarg)
+static void opt_set_clock(const char *optarg)
 {
         int use = -1;
         if (*optarg == 't' || *optarg == 'T') {
@@ -1400,37 +1514,37 @@ void opt_set_clock(const char *optarg)
         printf("got -c %s\n", optarg);
 }
 
-void opt_set_cpus(const char *optarg)
+static void opt_set_cpus(const char *optarg)
 {
         options.cpus = atoi(optarg);
         printf("cpus= %s\n", optarg);
 }
 
-void opt_set_filename(const char *optarg)
+static void opt_set_filename(const char *optarg)
 {
         options.filename = optarg;
         printf("filename= %s\n", optarg);
 }
 
-void opt_set_nopin(void)
+static void opt_set_nopin(void)
 {
         options.nopin = 1;
         printf("nopin= 1\n");
 }
 
-void opt_set_yield(void)
+static void opt_set_yield(void)
 {
         options.yield = 1;
         printf("yield= 1\n");
 }
 
-void opt_set_huge_pages(void)
+static void opt_set_huge_pages(void)
 {
         options.huge_pages = 1;
         printf("try huge_page pos_memalign alloc = 1\n");
 }
 
-void opt_set_size(const char *optarg)
+static void opt_set_size(const char *optarg)
 {
         options.size = strtoull(optarg, NULL, 0);
         options.size_str = optarg;
@@ -1450,7 +1564,7 @@ void opt_set_size(const char *optarg)
         printf("array size is %s, %.0f bytes, %.3f KB, %.3f MB, %.3f GB\n", optarg, (double)options.size, kb, mb, gb);
 }
 
-void opt_set_SLA(const char *optarg)
+static void opt_set_SLA(const char *optarg)
 {
         char *cp, *cp0;
         int len = (int)strlen(optarg);
@@ -1492,7 +1606,44 @@ void opt_set_SLA(const char *optarg)
         printf("did SLA[%d] -S %s\n", (int)(options.sla.size()-1), optarg);
 }
 
-void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
+static void opt_set_ping_pong(const char *optarg)
+{
+        std::string my_str = std::string(optarg);
+        std::string::size_type sz;     // alias of size_t
+
+        options.ping_pong_run_secs  = std::stod (my_str,&sz);
+        if (sz < (1+my_str.size())) {
+          options.ping_pong_sleep_secs = std::stod (my_str.substr(sz+1));
+        } else {
+          options.ping_pong_sleep_secs = options.ping_pong_run_secs;
+        }
+        options.ping_pong_iter = 0;
+        std::cout << "ping_pong_run_secs= " << options.ping_pong_run_secs << ", ping_pong_sleep_secs= " << options.ping_pong_sleep_secs << "\n";
+}
+
+static void opt_set_freq_fctr(unsigned int num_cpus_in, const char *optarg)
+{
+    std::string my_str = std::string(optarg);
+    std::vector<std::string> result;
+    std::stringstream s_stream(my_str); //create string stream from the string
+    while(s_stream.good()) {
+        std::string substr;
+        std::getline(s_stream, substr, ','); //get first string delimited by comma
+        result.push_back(substr);
+    }
+    std::string::size_type sz;
+    for(int i = 0; i<result.size(); i++) {
+        double dfctr = std::stod ( result.at(i), &sz);
+        if (dfctr < 0.0) { dfctr = 0.0; }
+        if (dfctr > 1.0) { dfctr = 1.0; }
+        freq_fctr.push_back( dfctr );
+        if ((i+1) == num_cpus_in) {
+            break;
+        }
+    }
+}
+
+static void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
 {
         std::string my_str = std::string(optarg);
         std::vector<std::string> result;
@@ -1515,7 +1666,7 @@ void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
                 std::string::size_type sz;
                 pos = result.at(i).find("-");
                 if (pos == std::string::npos) {
-			// number like 2
+// number like 2
                         pos = result.at(i).find(":");
                         if (pos == std::string::npos) {
                                 ivec.push_back(std::stoi(result.at(i), nullptr));
@@ -1542,16 +1693,16 @@ void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
                                 }
                         }
                 } else {
-			// range like 0-15 or 0-15:4
+                        // range like 0-15 or 0-15:4
                         int ibeg = std::stoi(result.at(i), &sz);
                         int iend = std::stoi(result.at(i).substr(sz+1));
                         int iadd = 1;
                         pos = result.at(i).find(":");
                         if (pos != std::string::npos) {
                                 std::string sb = result.at(i).substr(pos+1);
-				iadd = std::stoi(sb, &sz);
+                                iadd = std::stoi(sb, &sz);
                         }
-			if (iadd < 1) { iadd = 1; }
+                        if (iadd < 1) { iadd = 1; }
                         if (options.verbose > 1) {
                            std::cout << styp << " ibeg= " << ibeg << ", iend= " << iend << ", iadd= " << iadd << "\n";
                         }
@@ -1577,27 +1728,27 @@ void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
         }
 }
 
-void opt_set_loops(const char *optarg)
+static void opt_set_loops(const char *optarg)
 {
         options.loops = atoi(optarg);
         options.loops_str = optarg;
         printf("loops size is %s\n", optarg);
 }
 
-void opt_set_bump(const char *optarg)
+static void opt_set_bump(const char *optarg)
 {
         options.bump = atoi(optarg);
         options.bump_str = optarg;
         printf("bump (stride) size is %s\n", optarg);
 }
 
-void opt_set_phase(const char *optarg)
+static void opt_set_phase(const char *optarg)
 {
         options.phase = optarg;
         printf("phase string is %s\n", optarg);
 }
 
-void opt_set_wrk_typ(const char *optarg)
+static void opt_set_wrk_typ(const char *optarg)
 {
         options.work = optarg;
         options.wrk_typ = UINT32_M1;
@@ -1711,6 +1862,20 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   For mem_bw/freq tests.\n"
                    "   The default is all cpus (1 thread per cpu).\n"
                 },
+                {"ping_pong",     required_argument,   0, 0, "comma separated list of alternating run_secs,sleep_secs.\n"
+                   "   Right now assume 2 threads. start running thread 0 for runs_secs and thread 1 sleeps\n"
+                   "   in increments of 'sleeps_secs'. After the run_secs is done a flag is set.\n"
+                   "   then thread 0 begins sleeping sleeps_secs and once thrd 1 sees the flag it starts running for run_secs\n"
+                   "   and so on until -t time_in_secs has elapsed.\n"
+                   "   Currently only applies to freq_sml. This feature is intended for testing perf on hyperthreaded cores\n"
+                },
+                {"freq_fctr",     required_argument,   0, 0, "comma separated list of load_factors (0.0 to 1.0).\n"
+                   "   This is only fro freq_sml currently. The routine will try to keep the cpu busy by factor.s\n"
+                   "   A factor of 0.0 means not busy at all, 1.0 means the cpu is kept completely busy.\n"
+                   "   A best effort is made to keep the cpu busy according to the factor.\n"
+                   "   example --freq_fctr 1.0,0.50   load thread 0 at 100% busy, thread 1 at 50.0% busy.\n"
+                   "   If there are more threads than factors in the freq_fctr list then a factor of 1.0 is used.\n"
+                },
                 {"SLA",      required_argument,   0, 'S', "Service Level Agreement\n"
                    "   Enter -S pLVL0:warn0,crit0;pLVL1:warn1,crit1... for example\n"
                    "   '-S p50:80,100 -S p95:200,250 -S p99:250,300'\n"
@@ -1785,6 +1950,14 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                         }
                         if (strcmp(long_options[option_index].name, "SLA") == 0) {
                                 opt_set_SLA(optarg);
+                                break;
+                        }
+                        if (strcmp(long_options[option_index].name, "ping_pong") == 0) {
+                                opt_set_ping_pong(optarg);
+                                break;
+                        }
+                        if (strcmp(long_options[option_index].name, "freq_fctr") == 0) {
+                                opt_set_freq_fctr(num_cpus_in, optarg);
                                 break;
                         }
                         if (strcmp(long_options[option_index].name, "List") == 0) {
@@ -2006,6 +2179,9 @@ int main(int argc, char **argv)
         uint32_t cpu, cpu0;
         uint64_t t0, t1;
         double t_first = MYDCLOCK(), tm_beg, tm_beg_loop, tm_end_loop, tm_end, tm_beg_top, tm_end_top;
+        int ping_iter = -1;
+        double tot_ping_tm_run = 0.0, tot_ping_tm_sleep = 0.0;
+        double tot_freq_fctr_run_secs = 0.0, tot_freq_fctr_sleep_secs = 0.0, tot_freq_fctr_sum=0.0, tot_freq_fctr_n=0.0 ;
         unsigned int num_cpus = std::thread::hardware_concurrency();
         bool doing_disk = false;
         std::mutex iomutex;
@@ -2143,8 +2319,8 @@ int main(int argc, char **argv)
                 }
 
                 if (options.cpus == -1 && cpu_list.size() > 0 && cpu_list.size() <= num_cpus) {
-                	options.cpus = cpu_list.size();
-		}
+                    options.cpus = cpu_list.size();
+                }
                 if (options.cpus > 0 && options.cpus < num_cpus) {
                         num_cpus = options.cpus;
                 }
@@ -2208,16 +2384,30 @@ int main(int argc, char **argv)
                                 do_trace_marker_write("begin phase MT "+phase);
                         }
                         do_barrier_wait();
-        		tm_end_top  = MYDCLOCK();
-        		tm_beg_loop = MYDCLOCK();
+                        tm_end_top  = MYDCLOCK();
+                        tm_beg_loop = MYDCLOCK();
 
                         for (auto& t : threads) {
                                 t.join();
                         }
-        		tm_end_loop = MYDCLOCK();
+                        tm_end_loop = MYDCLOCK();
                         double tot = 0.0;
+                        int ping_iter = -1;
                         for (unsigned i = 0; i < num_cpus; ++i) {
                                 tot += args[i].perf;
+                                tot_ping_tm_run  += args[i].ping_tm_run;
+                                tot_ping_tm_sleep+= args[i].ping_tm_sleep;
+                                tot_freq_fctr_run_secs   += args[i].freq_fctr_run_secs;
+                                tot_freq_fctr_sleep_secs += args[i].freq_fctr_sleep_secs;
+                                if (freq_fctr.size() > 0) {
+                                    if (i < (int)freq_fctr.size()) {
+                                        tot_freq_fctr_sum += freq_fctr[i];
+                                    } else {
+                                        tot_freq_fctr_sum += 1.0;
+                                    }
+                                    tot_freq_fctr_n += 1.0;
+                                }
+                                ping_iter = ping_iter;
                                 if (options.verbose > 1) {
                                         t0 = args[0].tsc_initial;
                                         t1 = args[i].tsc_initial;
@@ -2239,7 +2429,13 @@ int main(int argc, char **argv)
                                 do_trace_marker_write(str);
                                 printf("%s\n", str.c_str());
                         }
-                        printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
+                        if (wrk_typs[args[0].wrk_typ] == "freq_sml") {
+                            double avg_frq = tot/(double)(args.size());
+                            printf("work= %s, threads= %d, total perf= %.3f %s, avg_freq= %.3f GHz\n",
+                                wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str(), avg_frq);
+                        } else {
+                            printf("work= %s, threads= %d, total perf= %.3f %s\n", wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str());
+                        }
                         if (rt_vec.size() > 0) {
                                 std::sort(rt_vec.begin(), rt_vec.end(), compare_by_elap_time);
                                 double cpu_tm=0.0, elap_tm=0.0;
@@ -2274,7 +2470,16 @@ int main(int argc, char **argv)
         proc_cputime = dclock_vari(CLOCK_PROCESS_CPUTIME_ID) - proc_cputime;
         tm_end = MYDCLOCK();
         printf("process cpu_time= %.6f secs, elapsed_secs= %.3f secs, tm_loop= %.3f tm_bef_loop= %.3f at %s %d\n",
-		proc_cputime, tm_end-tm_beg, tm_end_loop-tm_beg_loop, tm_end_top-tm_beg_top, __FILE__, __LINE__);
+        proc_cputime, tm_end-tm_beg, tm_end_loop-tm_beg_loop, tm_end_top-tm_beg_top, __FILE__, __LINE__);
+        if (options.ping_pong_iter != -1) {
+            printf("ping run_tm= %.3f secs, ping_sleep_tm= %.3f secs, ping_iters= %d at %s %d\n",
+                tot_ping_tm_run, tot_ping_tm_sleep, ping_iter, __FILE__, __LINE__);
+        }
+        if (tot_freq_fctr_run_secs > 0.0 || tot_freq_fctr_sleep_secs > 0.0) {
+            printf("freq_fctr run_tm= %.3f secs, sleep_tm= %.3f secs, avg_target run_fctr= %.3f got run_fctr= %.3f at %s %d\n",
+                tot_freq_fctr_run_secs, tot_freq_fctr_sleep_secs, tot_freq_fctr_sum/tot_freq_fctr_n,
+                (tot_freq_fctr_run_secs/(tot_freq_fctr_run_secs+tot_freq_fctr_sleep_secs)), __FILE__, __LINE__);
+        }
 #endif
         if (phase_file.size() > 0) {
                 std::ofstream file2;
