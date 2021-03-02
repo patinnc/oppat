@@ -1080,6 +1080,7 @@ float simd_dot0(unsigned int i)
         uint64_t tsc0, tsc1;
         uint32_t cpu0, cpu1, cpu_initial;
         double did_iters=0;
+        double my_freq_fctr = 1.0, freq_fctr_imx=0.0, freq_fctr_imx_sub=0.0;
 
         pin(i, LIST_FOR_CPU);
         do_barrier_wait();
@@ -1120,7 +1121,6 @@ float simd_dot0(unsigned int i)
 #define DO_SLP 1
                 int run_or_sleep = DO_RUN;
                 int freq_fctr_sz = (int)freq_fctr.size();
-                double my_freq_fctr = 1.0, freq_fctr_imx=0.0;;
                 double freq_fctr_run_secs=0.0, freq_fctr_sleep_secs=0.0;
                 if (freq_fctr_sz > 0 && freq_fctr_sz > i) {
                     my_freq_fctr = freq_fctr[i];
@@ -1166,16 +1166,22 @@ float simd_dot0(unsigned int i)
                     tm_prv = tm_endt;
                     tm_endt = dclock3(clock, tsc_initial);
                     if (ping_iter != -1) {
-                        ping_tm_end = tm_endt;
                         int new_iter = 0;
                         if (run_or_sleep == DO_RUN) {
-                            if ((ping_tm_end - ping_tm_beg) >= ping_run_secs) {
+                            freq_fctr_imx += imx;
+                            freq_fctr_imx_sub += imx;
+                            if ((tm_endt - ping_tm_beg) >= ping_run_secs) {
+                                ping_tm_end = tm_endt;
                                 ping_iter++;
-                                args[ping_drvr].ping_iter = ping_iter;
-                                args[i].ping_tm_run += (ping_tm_end - ping_tm_beg);
+                                double ping_tm_diff = (ping_tm_end - ping_tm_beg);
+                                args[i].ping_tm_run += ping_tm_diff;
                                 ping_tm_beg = ping_tm_end;
-                                printf("i= %d, ping_iter= %d run_sleep= %d at %s %d\n", i, ping_iter, run_or_sleep, __FILE__, __LINE__);
+                                if (options.verbose > 0) {
+                                    printf("i= %d, ping_iter= %d run_or_sleep= %d run_tm= %.3f frq= %.3f at %s %d\n",
+                                    i, ping_iter, run_or_sleep, args[i].ping_tm_run, 1.0e-9 * (double)(freq_fctr_imx_sub)*10000.0/ping_tm_diff, __FILE__, __LINE__);
+                                }
                                 double t_tm = dclock3(clock, tsc_initial);
+                                args[ping_drvr].ping_iter = ping_iter;
                                 while((t_tm - tm_begt) < tm_to_run && got_quit == 0) {
                                     if ( args[ping_chkr].ping_iter == ping_iter) {
                                         ping_tm_beg = t_tm;
@@ -1185,14 +1191,23 @@ float simd_dot0(unsigned int i)
                                     my_msleep(5);
                                     t_tm = dclock3(clock, tsc_initial);
                                 }
+                            } else {
+                                if ((tm_endt - tm_begt) >= tm_to_run || got_quit != 0) {
+                                    ping_tm_end = tm_endt;
+                                    ping_iter++;
+                                    double ping_tm_diff = (ping_tm_end - ping_tm_beg);
+                                    args[i].ping_tm_run += ping_tm_diff;
+                                }
                             }
                         } else {
+                            args[i].ping_tm_sleep += 0.001 * (double)ping_sleep_ms;
                             if ( args[ping_drvr].ping_iter != ping_iter) {
                                 args[ping_chkr].ping_iter = args[ping_drvr].ping_iter;
                                 ping_iter = args[ping_chkr].ping_iter;
-                                args[i].ping_tm_sleep += (ping_tm_end - ping_tm_beg);
+                                //args[i].ping_tm_sleep += (ping_tm_end - ping_tm_beg);
                                 ping_tm_beg = dclock3(clock, tsc_initial);
                                 run_or_sleep = DO_RUN;
+                                freq_fctr_imx_sub = 0.0;
                             }
                         }
                     }
@@ -1202,6 +1217,9 @@ float simd_dot0(unsigned int i)
                             freq_fctr_run_secs += tm_per_iter;
                             freq_fctr_imx += imx;
                             args[i].freq_fctr_run_secs += tm_per_iter;
+                            if (options.verbose > 0) {
+                                printf("thrd[%d].freq_fctr_run_secs= %.3f\n", i, args[i].freq_fctr_run_secs);
+                            }
                         } else {
                             freq_fctr_sleep_secs += tm_per_iter;
                             args[i].freq_fctr_sleep_secs += tm_per_iter;
@@ -1246,7 +1264,7 @@ float simd_dot0(unsigned int i)
 #endif
                 xend = get_cputime();
                 xcumu += xend-xbeg;
-                if (freq_fctr_sz > 0) {
+                if (freq_fctr_imx > 0) {
                     xinst += (double)10000 * freq_fctr_imx;
                 } else {
                     xinst += (double)10000 * (double)imx;
@@ -1371,8 +1389,12 @@ float simd_dot0(unsigned int i)
         if (dura2 == 0.0) {
                 dura2 = 1.0;
         }
-        if (freq_fctr.size() > 0) {
-            dura2 = dura = args[i].freq_fctr_run_secs;
+        if (freq_fctr_imx > 0) {
+            if (args[i].freq_fctr_run_secs > 0.0) {
+                dura2 = dura = args[i].freq_fctr_run_secs;
+            } else if ( args[i].ping_tm_run > 0.0) {
+                dura2 = dura = args[i].ping_tm_run;
+            }
         }
         args[i].dura = dura;
         args[i].tm_beg = tm_beg;
@@ -1867,6 +1889,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   in increments of 'sleeps_secs'. After the run_secs is done a flag is set.\n"
                    "   then thread 0 begins sleeping sleeps_secs and once thrd 1 sees the flag it starts running for run_secs\n"
                    "   and so on until -t time_in_secs has elapsed.\n"
+                   "   for example: ./bin/spin.x -w freq_sml -t 5 -L 4,28 --ping_pong 0.5,0.01 -l 10000\n" 
                    "   Currently only applies to freq_sml. This feature is intended for testing perf on hyperthreaded cores\n"
                 },
                 {"freq_fctr",     required_argument,   0, 0, "comma separated list of load_factors (0.0 to 1.0).\n"
@@ -2392,11 +2415,11 @@ int main(int argc, char **argv)
                         }
                         tm_end_loop = MYDCLOCK();
                         double tot = 0.0;
-                        int ping_iter = -1;
                         for (unsigned i = 0; i < num_cpus; ++i) {
                                 tot += args[i].perf;
                                 tot_ping_tm_run  += args[i].ping_tm_run;
                                 tot_ping_tm_sleep+= args[i].ping_tm_sleep;
+                                ping_iter    = args[i].ping_iter;
                                 tot_freq_fctr_run_secs   += args[i].freq_fctr_run_secs;
                                 tot_freq_fctr_sleep_secs += args[i].freq_fctr_sleep_secs;
                                 if (freq_fctr.size() > 0) {
@@ -2407,7 +2430,6 @@ int main(int argc, char **argv)
                                     }
                                     tot_freq_fctr_n += 1.0;
                                 }
-                                ping_iter = ping_iter;
                                 if (options.verbose > 1) {
                                         t0 = args[0].tsc_initial;
                                         t1 = args[i].tsc_initial;
