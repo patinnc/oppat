@@ -153,11 +153,10 @@ struct options_str {
 
 } options;
 
-static unsigned int my_getcpu(void)
+static void my_getcpu(unsigned int *cpu)
 {
-        unsigned int cpu;
-        __rdtscp(&cpu);
-        return cpu;
+        __rdtscp(cpu);
+        return;
 }
 
 static uint64_t get_tsc_and_cpu(unsigned int *cpu)
@@ -188,6 +187,10 @@ static double mclk(uint64_t t0)
 
 void do_trace_marker_write(std::string str)
 {
+#if 1
+    // get a seg fault sometimes so bypass trace_marker_write for now
+    return;
+#endif
 #ifndef __APPLE__
         trace_marker_write(str);
 #endif
@@ -2236,7 +2239,7 @@ int main(int argc, char **argv)
         signal(SIGTERM, &sighandler);
         signal(SIGINT, &sighandler);
 
-        cpu = my_getcpu();
+        my_getcpu(&cpu);
         cpu0 = cpu;
         tm_beg = tm_end = MYDCLOCK();
         t0 = __rdtsc();
@@ -2390,6 +2393,7 @@ int main(int argc, char **argv)
                 }
                 t_start = MYDCLOCK();
                 printf("work= %s\n", work.c_str());
+                fflush(NULL);
 
                 if (!doing_disk && options.spin_tm_multi > 0.0) {
                         std::vector <rt_str> rt_vec;
