@@ -100,6 +100,7 @@ enum { // below enum has to be in same order as wrk_typs
         WRK_FREQ2,
         WRK_FREQ,
         WRK_FREQ_SML,
+        WRK_FREQ_SML2,
         WRK_MEM_BW,
         WRK_MEM_BW_RDWR,
         WRK_MEM_BW_2RD,
@@ -120,6 +121,7 @@ static std::vector <std::string> wrk_typs = {
         "freq2",
         "freq",
         "freq_sml",
+        "freq_sml2",
         "mem_bw",
         "mem_bw_rdwr",
         "mem_bw_2rd",
@@ -1028,7 +1030,11 @@ float mem_bw(unsigned int i)
 }
 
 #ifndef _WIN32
+//#define D1 " ror $2, %%eax;"
+//#define D1 " movl $2, %%eax;"
 #define D1 " rorl $2, %%eax;"
+//#define D1 " lea (%%eax),%%eax;"
+//#define D1 " nop;"
 //#define D1 " andl $1, %%eax;"
 //#define D1 " rcll $1, %%eax;"
 #define D10 D1 D1 D1 D1 D1  D1 D1 D1 D1 D1
@@ -1093,6 +1099,80 @@ float simd_dot0(unsigned int i)
         tm_end = tm_beg = MYDCLOCK();
 
         if (args[i].wrk_typ == WRK_FREQ_SML) {
+                int b = 2, imx = 100000, ii;
+                if (loops != 0) {
+                        imx = loops;
+                }
+                ops = 0;
+                xbeg = get_cputime();
+                xprev = xbeg;
+#if 0
+                while((tm_end - tm_beg) < tm_to_run) {
+                did_iters++;
+                for (ii=0; ii < imx; ii++) {
+                        asm ( "movl %1, %%eax;"
+                                ".align 4;"
+                                D1000
+                                " movl %%eax, %0;"
+                                :"=r"(b) /* output */
+                                :"r"(a)  /* input */
+                                :"%eax"  /* clobbered reg */
+                        );
+                        a |= b;
+                }
+                tm_end = MYDCLOCK();
+                }
+#else
+                //tm_endt = tm_begt = dclock3(clock, tsc_initial);
+                tm_endt = tm_begt = dclock2();
+                tm_prevt = tm_begt;
+                double ping_tm_beg, ping_tm_end;
+#define DO_RUN 0
+#define DO_SLP 1
+                int run_or_sleep = DO_RUN;
+                double tm_prv;
+		//int reps = 10000;
+		int reps = 1000;
+                while((tm_endt - tm_begt) < tm_to_run) {
+                    did_iters++;
+                    if (run_or_sleep == DO_RUN) {
+                        for (ii=0; ii < imx; ii++) {
+#ifdef _WIN32
+                            b = win_rorl(b); // 10000 inst
+#else
+                            asm ( "movl %1, %%eax;"
+                                    ".align 4;"
+                                    D1000
+                                    /*D1000*/
+                                    " movl %%eax, %0;"
+                                    :"=r"(b) /* output */
+                                    :"r"(a)  /* input */
+                                    :"%eax"  /* clobbered reg */
+                                );
+#endif
+                            a |= b;
+                        }
+                    }
+                    tm_prv = tm_endt;
+                    tm_endt = dclock2();
+                    //tm_endt = dclock3(clock, tsc_initial);
+#ifdef __linux__
+                    if (got_quit == 1) {
+                        break;
+                    }
+#endif
+                }
+#endif
+                xend = get_cputime();
+                xcumu += xend-xbeg;
+                xinst += (double)(reps) * (double)imx;
+                xinst *= did_iters;
+                //printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
+                ops = (uint64_t)(xinst);
+                tm_end = dclock2();
+        }
+
+        if (args[i].wrk_typ == WRK_FREQ_SML2) {
                 int b = 2, imx = 100000, ii;
                 if (loops != 0) {
                         imx = loops;
@@ -1415,7 +1495,8 @@ float simd_dot0(unsigned int i)
                 args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
                 args[i].rezult = rezult;
         }
-        if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ2 || args[i].wrk_typ == WRK_FREQ_SML) {
+        if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ2 || args[i].wrk_typ == WRK_FREQ_SML ||
+            args[i].wrk_typ == WRK_FREQ_SML2) {
                 args[i].perf = 1.0e-9 * xinst/xcumu;
                 args[i].rezult = (double)a;
                 args[i].cpu_time = xcumu;
@@ -1442,6 +1523,7 @@ float dispatch_work(int  i)
                 case WRK_FREQ:
                 case WRK_FREQ2:
                 case WRK_FREQ_SML:
+                case WRK_FREQ_SML2:
                         res = simd_dot0(i);
                         break;
                 case WRK_MEM_BW:
@@ -1822,7 +1904,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                 },
                 {"yield",     no_argument,       0, 'Y', "yield the cpu after each loop"
                         "   The default is to not yield the cpu after each loop.\n"
-                        "   This option is intended for the freq_sml work type.\n"
+                        "   This option is intended for the freq_sml2 work type.\n"
                 },
                 {"huge_pages",     no_argument,       0, 'H', "alloc memory using posix_memalign on a 2MB boundary to try and use transparent huge pages\n"
                         "   The default is to not use THP\n"
@@ -1892,11 +1974,11 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   in increments of 'sleeps_secs'. After the run_secs is done a flag is set.\n"
                    "   then thread 0 begins sleeping sleeps_secs and once thrd 1 sees the flag it starts running for run_secs\n"
                    "   and so on until -t time_in_secs has elapsed.\n"
-                   "   for example: ./bin/spin.x -w freq_sml -t 5 -L 4,28 --ping_pong 0.5,0.01 -l 10000\n" 
-                   "   Currently only applies to freq_sml. This feature is intended for testing perf on hyperthreaded cores\n"
+                   "   for example: ./bin/spin.x -w freq_sml2 -t 5 -L 4,28 --ping_pong 0.5,0.01 -l 10000\n" 
+                   "   Currently only applies to freq_sml2. This feature is intended for testing perf on hyperthreaded cores\n"
                 },
                 {"freq_fctr",     required_argument,   0, 0, "comma separated list of load_factors (0.0 to 1.0).\n"
-                   "   This is only fro freq_sml currently. The routine will try to keep the cpu busy by factor.s\n"
+                   "   This is only fro freq_sml2 currently. The routine will try to keep the cpu busy by factor.s\n"
                    "   A factor of 0.0 means not busy at all, 1.0 means the cpu is kept completely busy.\n"
                    "   A best effort is made to keep the cpu busy according to the factor.\n"
                    "   example --freq_fctr 1.0,0.50   load thread 0 at 100% busy, thread 1 at 50.0% busy.\n"
@@ -1910,7 +1992,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   You can enter multiple -S options.\n"
                    "   The default is no SLA, no SLA analysis\n"
                 },
-                {"clock",      required_argument,   0, 'c', "select clock to use for freq_sml\n"
+                {"clock",      required_argument,   0, 'c', "select clock to use for freq_sml and freq_sml2\n"
                    "   '-c s' use system clock: clock_gettime() on linux and gettimeofday() clone for windows\n"
                    "   '-c t' use tsc clock: has less overhead (no syscall) but if migrate between cpus then problems\n"
                    "   default is '-c s'"
@@ -2455,7 +2537,8 @@ int main(int argc, char **argv)
                                 do_trace_marker_write(str);
                                 printf("%s\n", str.c_str());
                         }
-                        if (wrk_typs[args[0].wrk_typ] == "freq_sml") {
+                        if (wrk_typs[args[0].wrk_typ] == "freq_sml" || wrk_typs[args[0].wrk_typ] == "freq" ||
+                            wrk_typs[args[0].wrk_typ] == "freq_sml2" || wrk_typs[args[0].wrk_typ] == "freq2") {
                             double avg_frq = tot/(double)(args.size());
                             printf("work= %s, threads= %d, total perf= %.3f %s, avg_freq= %.3f GHz\n",
                                 wrk_typs[args[0].wrk_typ].c_str(), (int)args.size(), tot, args[0].units.c_str(), avg_frq);
