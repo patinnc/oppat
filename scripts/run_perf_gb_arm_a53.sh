@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export LC_ALL=C
 PRF_CMD=~/perf.sh
 PRF_CMD=~/bin/perf
 PRF_CMD=perf

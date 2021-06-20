@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export LC_ALL=C
 TRC_CMD=~/bin/trace-cmd
 PRF_CMD=~/perf.sh
 PRF_CMD=perf

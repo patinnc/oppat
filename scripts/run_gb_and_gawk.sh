@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export LC_ALL=C
 gb_bin=$1
 gwk_scr=$2
 odir=$3
