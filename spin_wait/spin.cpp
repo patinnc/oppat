@@ -101,6 +101,7 @@ enum { // below enum has to be in same order as wrk_typs
         WRK_FREQ,
         WRK_FREQ_SML,
         WRK_FREQ_SML2,
+        WRK_MEM_LAT,
         WRK_MEM_BW,
         WRK_MEM_BW_RDWR,
         WRK_MEM_BW_2RD,
@@ -122,6 +123,7 @@ static std::vector <std::string> wrk_typs = {
         "freq",
         "freq_sml",
         "freq_sml2",
+        "mem_lat",
         "mem_bw",
         "mem_bw_rdwr",
         "mem_bw_2rd",
@@ -324,6 +326,7 @@ void pin(int cpu, int typ)
       if (options.verbose > 0) {
         printf("LIST_FOR_MEMBIND pin thread %d to cpu %d at %s %d\n", i, membind_list[i], __FILE__, __LINE__);
       }
+#ifndef __APPLE__
       //struct bitmask *mask;
       //struct bitmask *mask = numa_allocate_nodemask();
       if (options.verbose > 0) {
@@ -352,6 +355,7 @@ void pin(int cpu, int typ)
       if (did_set == 1) {
          numa_set_membind(mask);
       }
+#endif
       }
       return;
    }
@@ -524,6 +528,15 @@ static int array_2read(char *dst, char *src, size_t ar_sz, int strd)
 }
 
 static int array_read(char *buf, size_t ar_sz, int strd)
+{
+        int res=0;
+        for (size_t i=0; i < ar_sz-strd; i += strd) {
+                res += buf[i];
+        }
+        return res;
+}
+
+static int array_read_lat(char *buf, size_t ar_sz, int strd)
 {
         int res=0;
         for (size_t i=0; i < ar_sz-strd; i += strd) {
@@ -963,6 +976,10 @@ float mem_bw(unsigned int i)
                 if (got_quit == 1) { break; }
                 if (args[i].wrk_typ == WRK_MEM_BW) {
                         rezult += array_read(dst, arr_sz, strd);
+                        loop_bytes += arr_sz;
+                }
+                else if (args[i].wrk_typ == WRK_MEM_LAT) {
+                        rezult += array_read_lat(dst, arr_sz, strd);
                         loop_bytes += arr_sz;
                 }
                 else if (args[i].wrk_typ == WRK_MEM_BW_RDWR) {
@@ -1527,6 +1544,7 @@ float dispatch_work(int  i)
                         res = simd_dot0(i);
                         break;
                 case WRK_MEM_BW:
+                case WRK_MEM_LAT:
                 case WRK_MEM_BW_RDWR:
                 case WRK_MEM_BW_2RDWR:
                 case WRK_MEM_BW_3RDWR:
@@ -1762,6 +1780,10 @@ static void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
         }
         std::size_t pos;
         std::string styp;
+#ifdef __APPLE__
+        printf("sorry but pinning is not supported on apple yet. Bye at %s %d\n", __FILE__, __LINE__);
+        exit(1);
+#endif
         if (typ == LIST_FOR_CPU) { styp = "cpu_list"; }
         if (typ == LIST_FOR_MEM) { styp = "mem_list"; }
         if (typ == LIST_FOR_MEMBIND) { styp = "membind_list"; }
@@ -2362,6 +2384,7 @@ int main(int argc, char **argv)
                 get_opt_main(num_cpus, (int)argvs[j].size(), argvs[j]);
                 if (options.wrk_typ == WRK_MEM_BW || options.wrk_typ == WRK_MEM_BW_RDWR ||
                         options.wrk_typ == WRK_MEM_BW_2RDWR || options.wrk_typ == WRK_MEM_BW_2RD ||
+                        options.wrk_typ == WRK_MEM_LAT ||
                         options.wrk_typ == WRK_MEM_BW_3RDWR ||
                         options.wrk_typ == WRK_MEM_BW_REMOTE ||
                         options.wrk_typ == WRK_MEM_BW_2RD2WR) {
