@@ -97,6 +97,7 @@ std::vector <double> freq_fctr;
 
 enum { // below enum has to be in same order as wrk_typs
         WRK_SPIN,
+        WRK_SPIN_FAST,
         WRK_FREQ2,
         WRK_FREQ,
         WRK_FREQ_SML,
@@ -119,6 +120,7 @@ enum { // below enum has to be in same order as wrk_typs
 
 static std::vector <std::string> wrk_typs = {
         "spin",
+        "spin_fast",
         "freq2",
         "freq",
         "freq_sml",
@@ -451,12 +453,6 @@ struct phase_str {
 
 uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t &ops)
 {
-#if 0
-        uint64_t rezult = rez;
-        for (uint64_t j = 0; j < loops; j++) {
-                rezult += j;
-        }
-#else
         double rezult = rez;
         double x = rezult+1.0;
         for (uint64_t j = 0; j < loops; j++) {
@@ -464,10 +460,20 @@ uint64_t do_scale(uint64_t loops, uint64_t rez, uint64_t &ops)
                 rezult -= x * 1.00012;
                 x += 1.0;
         }
-#endif
         ops += loops;
         return rezult;
 }
+
+uint64_t do_scale_fast(uint64_t loops, uint64_t rez, uint64_t &ops)
+{
+        uint64_t rezult = rez;
+        for (uint64_t j = 0; j < loops; j++) {
+                rezult += j;
+        }
+        ops += loops;
+        return rezult;
+}
+
 
 std::vector <args_str> args;
 
@@ -1092,7 +1098,7 @@ float simd_dot0(unsigned int i)
         double tm_to_run = args[i].spin_tm;
         int a = 43;
         int cpu =  args[i].id, clock = args[i].clock;
-        int iiloops = 0, iters = 0;
+        int iiloops = 100, iters = 0;
         //unsigned int i;
         uint64_t ops = 0;
         uint64_t j, loops;
@@ -1454,6 +1460,7 @@ float simd_dot0(unsigned int i)
 
         if (args[i].wrk_typ == WRK_SPIN) {
                 xbeg = get_cputime();
+                iiloops = args[i].loops;
                 while((tm_end - tm_beg) < tm_to_run) {
 #if 1
                 for (int ii=0; ii < iiloops; ii++)
@@ -1461,6 +1468,39 @@ float simd_dot0(unsigned int i)
 #endif
 #if 1
                 rezult = do_scale(loops, rezult, ops);
+#endif
+#if 1
+                }
+#endif
+                did_iters++;
+                tm_end = MYDCLOCK();
+#if 1
+                // try to reduce the time spend in MYDCLOCK()
+                if (++iters > 2) {
+                        if ((tm_end - tm_prev) < 0.01) {
+                                iiloops += 10;
+                        }
+                        iters = 3;
+                }
+                tm_prev = tm_end;
+#endif
+                if (got_quit == 1) {
+                        break;
+                }
+                }
+                xend = get_cputime();
+                xcumu += xend-xbeg;
+        }
+        if (args[i].wrk_typ == WRK_SPIN_FAST) {
+                xbeg = get_cputime();
+                //iiloops = args[i].loops;
+                while((tm_end - tm_beg) < tm_to_run) {
+#if 1
+                for (int ii=0; ii < iiloops; ii++)
+                {
+#endif
+#if 1
+                rezult = do_scale_fast(loops, rezult, ops);
 #endif
 #if 1
                 }
@@ -1508,7 +1548,7 @@ float simd_dot0(unsigned int i)
                 (i < freq_fctr.size() ? freq_fctr[i] : 1.0), __FILE__, __LINE__);
             }
         }
-        if (args[i].wrk_typ == WRK_SPIN) {
+        if (args[i].wrk_typ == WRK_SPIN || args[i].wrk_typ == WRK_SPIN_FAST) {
                 args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
                 args[i].rezult = rezult;
         }
@@ -1537,6 +1577,7 @@ float dispatch_work(int  i)
         do_trace_marker_write("Begin "+wrk_typs[wrk]+" for thread= "+std::to_string(i));
         switch(wrk) {
                 case WRK_SPIN:
+                case WRK_SPIN_FAST:
                 case WRK_FREQ:
                 case WRK_FREQ2:
                 case WRK_FREQ_SML:
@@ -1940,12 +1981,17 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   required arg\n"
                 },
                 {"work",      required_argument,   0, 'w', "type of work to do\n"
-                   "   work_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
-                   "   sample disk io write cmd: ./bin/spin.x -w disk_wr_dir -f /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096"
-                   "     takes 30 seconds on nvme drive capable of 1100 MB/s"
-                   "   sample disk io read cmd: ./bin/spin.x -w disk_rd_dir -f /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096"
-                   "     takes 10 seconds on nvme drive capable of 2800 MB/s"
-                   "   required arg"
+                   "   work_type: spin|spin_fast|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
+                   "   sample disk io write cmd: ./bin/spin.x -w disk_wr_dir -f /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096\n"
+                   "     takes 30 seconds on nvme drive capable of 1100 MB/s\n"
+                   "   sample disk io read cmd: ./bin/spin.x -w disk_rd_dir -f /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096\n"
+                   "     takes 10 seconds on nvme drive capable of 2800 MB/s\n"
+                   "   spin do loop over floating point operations (maybe CPI=10 cycles/instruction?)\n"
+                   "   spin_fast do loop over int add (IPC=4 on cascade lake 1 thr/core)\n"
+                   "   mem_bw does pure read mem bandwidth test\n"
+                   "   mem_bw_rdwr 2rd, 2rdwr 2rd2wr does various combos of read and write transaction\n"
+                   "   disk_* tests does disk IO tests\n"
+                   "   required arg\n"
                 },
                 {"bump",      required_argument,   0, 'b', "bytes to bump through array (in bytes) or, for disk tests, the number of pages per IO\n"
                    "   '-b 64' when looping over array, use 64 byte stride\n"
@@ -1983,7 +2029,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   See -L option above for list syntax\n"
                 },
                 {"loops",      required_argument,   0, 'l', "bytes to bump through array (in bytes)\n"
-                   "   '-l 100' for disk tests. Used in work=spin to set number of loops over array\n"
+                   "   '-l 100' for disk tests. Used in work=spin or spin_fast to set number of loops over array\n"
                    "   for disk tests, default is 100. spin loops = 10000."
                 },
                 {"num_cpus",      required_argument,   0, 'n', "number of cpus to use\n"
@@ -2223,7 +2269,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
 
         free(argv);
 
-        if (options.wrk_typ == WRK_SPIN && options.loops == 0) {
+        if ((options.wrk_typ == WRK_SPIN || options.wrk_typ == WRK_SPIN_FAST) && options.loops == 0) {
                 options.loops = 10000;
                 printf("setting default loops= %d\n", (int)options.loops);
         }
@@ -2334,7 +2380,7 @@ int main(int argc, char **argv)
         double t_start, t_end;
         time_t c_start, c_end;
         printf("usage: %s -t tm_secs[,tm_secs_multi] -w work_type [ arg3 [ arg4 ]]]\n", argv[0]);
-        printf("\twork_type: spin|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
+        printf("\twork_type: spin|spin_fast|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n");
         printf("if mem_bw: -b stride in bytes. -s arg4 array_size in bytes\n");
         printf("Or first 2 options can be '-f input_file' where each line of input_file is the above cmdline options\n");
         printf("see input_files/haswell_spin_input.txt for example.\n");
