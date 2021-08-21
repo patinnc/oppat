@@ -141,7 +141,6 @@ static std::vector <std::string> wrk_typs = {
         "disk_rdwr_dir"
 };
 
-//abcd
 struct sla_str {
         int level, warn, critical;
         sla_str(): level(-1), warn(-1), critical(-1) {}
@@ -171,8 +170,71 @@ static uint64_t get_tsc_and_cpu(unsigned int *cpu)
         return tsc;
 }
 
+#define MSR_APERF 0xE8
 
+static inline uint64_t rdtscp( uint32_t *aux )
+{
+    uint64_t rax,rdx;
+    *aux = 0;
+    rax = __rdtscp(aux);
+    return rax;
+}
 
+static uint64_t get_tsc_cpu_node(uint32_t *cpu, uint32_t *node) {
+  uint32_t aux=0;
+  uint64_t tsc = 0;
+  tsc = rdtscp(&aux);
+  *node = ((aux >> 12) & 0xf);
+  *cpu  = (aux & 0xfff);
+  return tsc;
+}
+
+// abc open_msr and read_msr based on http://web.eece.maine.edu/~vweaver/projects/rapl/rapl-read.c
+static int open_msr(int core) {
+
+    char msr_filename[128];
+    int fd=-1;;
+
+#ifdef __linux__
+    snprintf(msr_filename, sizeof(msr_filename), "/dev/cpu/%d/msr", core);
+    fd = open(msr_filename, O_RDONLY);
+    if ( fd < 0 ) {
+        if ( errno == ENXIO ) {
+            if (options.verbose > 0) {
+               fprintf(stderr, "rdmsr: No CPU %d\n", core);
+            }
+            return fd;
+        } else if ( errno == EIO ) {
+            if (options.verbose > 0) {
+               fprintf(stderr, "rdmsr: CPU %d doesn't support MSRs\n", core);
+            }
+            return fd;
+        } else {
+            if (options.verbose > 0) {
+              perror("rdmsr:open");
+              fprintf(stderr,"Trying to open %s\n",msr_filename);
+            }
+            return fd;
+        }
+    }
+#endif
+
+    return fd;
+}
+
+static uint64_t read_msr(int fd, int which) {
+
+    uint64_t data=0;
+
+#ifdef __linux__
+    if ( pread(fd, &data, sizeof data, which) != sizeof data ) {
+        perror("rdmsr:pread");
+        exit(127);
+    }
+#endif
+
+    return data;
+}
 
 volatile int got_quit=0;
 
@@ -432,17 +494,19 @@ struct args_str {
         std::string work, filename, phase;
         double spin_tm;
         unsigned long rezult, loops;
-        uint64_t size, bump, tsc_initial;
+        uint64_t size, bump, tsc_initial, cycles_beg, cycles_end;
         double tm_beg, tm_end, perf, dura, cpu_time, ping_tm_sleep, ping_tm_run, freq_load,
             freq_fctr_run_secs, freq_fctr_sleep_secs;
-        int id, wrk_typ, clock, got_SLA, ping_iter;
+        int id, wrk_typ, clock, got_SLA, ping_iter, used_msr_cycles;
         std::vector <rt_str> rt_vec;
         char *dst;
         std::string bump_str, loops_str, size_str, units;
         args_str(): spin_tm(0.0), rezult(0), loops(0), dst(0), size(0), bump(0), tsc_initial(0),
+                cycles_beg(0), cycles_end(0),
                 tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), ping_tm_sleep(0.0), ping_tm_run(0.),
                 id(-1), wrk_typ(-1), clock(CLOCK_USE_SYS),
-                freq_load(0.0), freq_fctr_run_secs(0.0), freq_fctr_sleep_secs(0.0), got_SLA(false), ping_iter(-1), cpu_time(0)  {}
+                freq_load(0.0), freq_fctr_run_secs(0.0), freq_fctr_sleep_secs(0.0), got_SLA(false), ping_iter(-1),
+                used_msr_cycles(0), cpu_time(0)  {}
 };
 
 struct phase_str {
@@ -1114,11 +1178,22 @@ float simd_dot0(unsigned int i)
         double did_iters=0;
         double my_freq_fctr = 1.0, freq_fctr_imx=0.0, freq_fctr_imx_sub=0.0;
 
+        int msr_fd = -1;
+        uint32_t cpu_beg, cpu_end, nd_beg, nd_end;
+        uint64_t tsc_beg, tsc_end;
+        uint64_t cyc_beg, cyc_end;
+
         pin(i, LIST_FOR_CPU);
         do_barrier_wait();
         uint64_t tsc_initial = get_tsc_and_cpu(&cpu_initial);
         args[i].tsc_initial = tsc_initial;
 
+        //abc 
+        tsc_beg = get_tsc_cpu_node(&cpu_beg, &nd_beg);
+        msr_fd = open_msr(cpu_beg);
+        if (msr_fd >= 0) {
+          cyc_beg = read_msr(msr_fd, MSR_APERF);
+        }
         tm_end = tm_beg = MYDCLOCK();
 
         if (args[i].wrk_typ == WRK_FREQ_SML) {
@@ -1536,6 +1611,12 @@ float simd_dot0(unsigned int i)
                 dura2 = dura = args[i].ping_tm_run;
             }
         }
+        if (msr_fd >= 0) {
+          cyc_end = read_msr(msr_fd, MSR_APERF);
+          close(msr_fd);
+          args[i].cycles_beg = cyc_beg;
+          args[i].cycles_end = cyc_end;
+        }
         args[i].dura = dura;
         args[i].tm_beg = tm_beg;
         args[i].tm_end = tm_end;
@@ -1554,10 +1635,16 @@ float simd_dot0(unsigned int i)
         }
         if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ2 || args[i].wrk_typ == WRK_FREQ_SML ||
             args[i].wrk_typ == WRK_FREQ_SML2) {
-                args[i].perf = 1.0e-9 * xinst/xcumu;
                 args[i].rezult = (double)a;
+                if (args[i].cycles_beg != 0) {
+                  args[i].perf = 1.0e-9 * (double)(args[i].cycles_end - args[i].cycles_beg)/(tm_end-tm_beg);
+                  args[i].dura = tm_end - tm_beg;
+                  args[i].used_msr_cycles = 1;
+                } else {
+                  args[i].perf = 1.0e-9 * xinst/xcumu;
+                  args[i].dura = xcumu;
+                }
                 args[i].cpu_time = xcumu;
-                args[i].dura = xcumu;
                 //rezult = (float)a;
                 //printf("in simd[%d].perf= %f\n", i, args[i].perf);
         }
@@ -2082,7 +2169,6 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                 switch (c)
                 {
                 case 0:
-//abcd
                         fprintf(stderr, "opt[%d]= %s\n", option_index, long_options[option_index].name);
                         if (strcmp(long_options[option_index].name, "nopin") == 0) {
                                 opt_set_nopin();
@@ -2442,7 +2528,6 @@ int main(int argc, char **argv)
                         }
                 }
                 if (argvs[j].size() > i) {
-//abcd
                         if (options.wrk_typ >= WRK_DISK_RD && options.wrk_typ <= WRK_DISK_RDWR_DIR) {
                                 doing_disk = true;
                                 if (options.loops == 0) {
@@ -2657,6 +2742,9 @@ int main(int argc, char **argv)
             printf("freq_fctr run_tm= %.3f secs, sleep_tm= %.3f secs, avg_target run_fctr= %.3f got run_fctr= %.3f at %s %d\n",
                 tot_freq_fctr_run_secs, tot_freq_fctr_sleep_secs, tot_freq_fctr_sum/tot_freq_fctr_n,
                 (tot_freq_fctr_run_secs/(tot_freq_fctr_run_secs+tot_freq_fctr_sleep_secs)), __FILE__, __LINE__);
+        }
+        if (args[0].used_msr_cycles == 1) {
+          printf("got cycles from /dev/cpu/*/msr device\n");
         }
 #endif
         if (phase_file.size() > 0) {
