@@ -49,13 +49,20 @@
 #include <numa.h>
 #include <unistd.h>
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
+//#include <getcpu.h>
 #endif
 #ifdef _WIN32
 #include <intrin.h>
 #pragma intrinsic(__rdtsc)
 #pragma intrinsic(__rdtscp)
 #else
+#ifdef __x86_64__
+    // do x64 stuff
 #include <x86intrin.h>
+#elif __aarch64__
+    // do arm stuff
+
+#endif
 #endif
 
 #ifdef __APPLE__
@@ -158,15 +165,74 @@ struct options_str {
 
 } options;
 
+#ifdef __x86_64__
+    // do x64 stuff
+#include <x86intrin.h>
+    // do arm stuff
+#endif
 static void my_getcpu(unsigned int *cpu)
 {
-        __rdtscp(cpu);
+#ifdef __x86_64__
+   __rdtscp(cpu);
+#elif __aarch64__
+   int rc;
+   unsigned int node;
+   *cpu = mygetcpu();
+#endif
         return;
 }
+#if __aarch64__
+static uint64_t get_arm_cyc(void)
+{
+  uint64_t tsc;
+  asm volatile("mrs %0, cntvct_el0" : "=r" (tsc));
+  //asm volatile("mrs %0, pmcr_el0" : "=r" (tsc));
+  return tsc;
+}
+    void readticks(unsigned int *result)
+    {
+      struct timeval t;
+      unsigned int cc;
+      unsigned int val;
+      static int enabled=0;
+      if (!enabled) {
+               // program the performance-counter control-register:
+             asm volatile("msr pmcr_el0, %0" : : "r" (17));
+             //enable all counters
+             asm volatile("msr PMCNTENSET_EL0, %0" : : "r" (0x8000000f));
+            //clear the overflow 
+            asm volatile("msr PMOVSCLR_EL0, %0" : : "r" (0x8000000f));
+             enabled = 1;
+      }
+      //read the coutner value
+      asm volatile("mrs %0, PMCCNTR_EL0" : "=r" (cc));
+      //gettimeofday(&t,(struct timezone *) 0);
+      //result[0] = cc;
+      //result[1] = t.tv_usec;
+      //result[2] = t.tv_sec;
+    }
+#define mfcp(rn)    ({u32 rval = 0U; __asm__ __volatile__( "mrc " rn "\n" : "=r" (rval)); rval; })
+static inline uint32_t get_arm_cyc2(void)
+{
+  uint32_t cc = 0;
+  //asm volatile ("mrc p15, 0, %0, c9, c13, 0":"=r" (cc));
+    //asm volatile ("mrc CNTPCT_EL0" : "=r" (cc));
+  readticks(&cc);
+  //cc = mfcp(CNTPCT_EL0);
+  return cc;
+}
+#endif
 
 static uint64_t get_tsc_and_cpu(unsigned int *cpu)
 {
-        uint64_t tsc = __rdtscp(cpu);
+        uint64_t tsc;
+#ifdef __x86_64__
+        tsc = __rdtscp(cpu);
+#elif __aarch64__
+        //my_getcpu(cpu);
+        *cpu = mygetcpu();
+        tsc = get_arm_cyc();
+#endif
         return tsc;
 }
 
@@ -176,16 +242,31 @@ static inline uint64_t rdtscp( uint32_t *aux )
 {
     uint64_t rax,rdx;
     *aux = 0;
+#ifdef __x86_64__
     rax = __rdtscp(aux);
+#elif __aarch64__
+    //my_getcpu(aux);
+    *aux = mygetcpu();
+    rax = get_arm_cyc();
+#endif
+
     return rax;
 }
 
 static uint64_t get_tsc_cpu_node(uint32_t *cpu, uint32_t *node) {
   uint32_t aux=0;
   uint64_t tsc = 0;
+#ifdef __x86_64__
   tsc = rdtscp(&aux);
   *node = ((aux >> 12) & 0xf);
   *cpu  = (aux & 0xfff);
+#elif __aarch64__
+  //int rc;
+  //rc = getcpu(cpu, &node);
+  *cpu = mygetcpu();
+  *node = 0;
+  tsc = get_arm_cyc();
+#endif
   return tsc;
 }
 
@@ -196,6 +277,7 @@ static int open_msr(int core) {
     int fd=-1;;
 
 #ifdef __linux__
+#ifdef __x86_64__
     snprintf(msr_filename, sizeof(msr_filename), "/dev/cpu/%d/msr", core);
     fd = open(msr_filename, O_RDONLY);
     if ( fd < 0 ) {
@@ -217,6 +299,9 @@ static int open_msr(int core) {
             return fd;
         }
     }
+#elif __aarch64__
+    fd=-1;
+#endif
 #endif
 
     return fd;
@@ -227,10 +312,12 @@ static uint64_t read_msr(int fd, int which) {
     uint64_t data=0;
 
 #ifdef __linux__
+#ifdef __x86_64__
     if ( pread(fd, &data, sizeof data, which) != sizeof data ) {
         perror("rdmsr:pread");
         exit(127);
     }
+#endif
 #endif
 
     return data;
@@ -245,11 +332,15 @@ static void sighandler(int sig)
 
 static double mclk(uint64_t t0)
 {
+#ifdef __x86_64__
         uint64_t t1;
         double x;
         t1 = __rdtsc();
         x = (double)(t1 - t0);
         return x*ifrq;
+#else
+        return 0;
+#endif
 
 }
 
@@ -1119,7 +1210,11 @@ float mem_bw(unsigned int i)
 #ifndef _WIN32
 //#define D1 " ror $2, %%eax;"
 //#define D1 " movl $2, %%eax;"
+#ifdef __x86_64__
 #define D1 " rorl $2, %%eax;"
+#elif __aarch64__
+#define D1 "add     x0, x0, 1;"
+#endif
 //#define D1 " lea (%%eax),%%eax;"
 //#define D1 " nop;"
 //#define D1 " andl $1, %%eax;"
@@ -1132,7 +1227,11 @@ float mem_bw(unsigned int i)
 #define D40000 D10000 D10000 D10000 D10000
 #define D1000000 D100000 D100000 D100000 D100000 D100000  D100000 D100000 D100000 D100000 D100000
 
+#ifdef __x86_64__
 #define C1 " rorl $2, %%ecx; rorl $2, %%eax;"
+#elif __aarch64__
+#define C1 "add     w0, w0, 1;"
+#endif
 //#define C1 " andl $1, %%eax;"
 //#define C1 " rcll $1, %%eax;"
 #define C10 C1 C1 C1 C1 C1  C1 C1 C1 C1 C1
@@ -1180,8 +1279,8 @@ float simd_dot0(unsigned int i)
 
         int msr_fd = -1;
         uint32_t cpu_beg, cpu_end, nd_beg, nd_end;
-        uint64_t tsc_beg, tsc_end;
-        uint64_t cyc_beg, cyc_end;
+        uint64_t tsc_beg=0, tsc_end=0;
+        uint64_t cyc_beg=0, cyc_end=0;
 
         pin(i, LIST_FOR_CPU);
         do_barrier_wait();
@@ -1190,10 +1289,14 @@ float simd_dot0(unsigned int i)
 
         //abc 
         tsc_beg = get_tsc_cpu_node(&cpu_beg, &nd_beg);
+#ifdef __x86_64__
         msr_fd = open_msr(cpu_beg);
         if (msr_fd >= 0) {
           cyc_beg = read_msr(msr_fd, MSR_APERF);
         }
+#elif __aarch64__
+        //cyc_beg = get_arm_cyc();
+#endif
         tm_end = tm_beg = MYDCLOCK();
 
         if (args[i].wrk_typ == WRK_FREQ_SML) {
@@ -1238,6 +1341,7 @@ float simd_dot0(unsigned int i)
 #ifdef _WIN32
                             b = win_rorl(b); // 10000 inst
 #else
+#ifdef __x86_64__
                             asm ( "movl %1, %%eax;"
                                     ".align 4;"
                                     D1000
@@ -1247,6 +1351,10 @@ float simd_dot0(unsigned int i)
                                     :"r"(a)  /* input */
                                     :"%eax"  /* clobbered reg */
                                 );
+#elif __aarch64__
+                            asm ( D1000 : : : "x0");
+                             //a += b;
+#endif
 #endif
                             a |= b;
                         }
@@ -1330,6 +1438,7 @@ float simd_dot0(unsigned int i)
 #ifdef _WIN32
                             b = win_rorl(b); // 10000 inst
 #else
+#ifdef __x86_64__
                             asm ( "movl %1, %%eax;"
                                     ".align 4;"
                                     D10000
@@ -1338,6 +1447,10 @@ float simd_dot0(unsigned int i)
                                     :"r"(a)  /* input */
                                     :"%eax"  /* clobbered reg */
                                 );
+#elif __aarch64__
+                            asm ( D10000 : : : "x0");
+                            // a += b;
+#endif
 #endif
                             a |= b;
                         }
@@ -1476,14 +1589,19 @@ float simd_dot0(unsigned int i)
                         }
                         b = a;
 #else
+#ifdef __x86_64__
                         asm ("movl %1, %%eax;"
                                 ".align 4;"
-                                D1000000
+                                D100000
                                 " movl %%eax, %0;"
                                 :"=r"(b) /* output */
                                 :"r"(a)  /* input */
                                 :"%eax"  /* clobbered reg */
                         );
+#elif __aarch64__
+                            asm ( D100000 : : : "x0");
+                            // a += b;
+#endif
 #endif
                         a |= b;
                 }
@@ -1493,7 +1611,7 @@ float simd_dot0(unsigned int i)
                 }
                 }
                 xend = get_cputime();
-                xinst += (double)1000000 * (double)imx;
+                xinst += (double)100000 * (double)imx;
                 xinst *= did_iters;
                 xcumu += xend-xbeg;
                 //printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
@@ -1508,6 +1626,7 @@ float simd_dot0(unsigned int i)
                 while((tm_end - tm_beg) < tm_to_run) {
                 did_iters++;
                 for (ii=0; ii < imx; ii++) {
+#ifdef __x86_64__
                         asm ("movl %1, %%eax;"
                              "movl %1, %%ecx;"
                                 ".align 4;"
@@ -1517,6 +1636,10 @@ float simd_dot0(unsigned int i)
                                 :"r"(a)  /* input */
                                 :"%ecx","%eax"  /* clobbered reg */
                         );
+#elif __aarch64__
+                            asm ( C1000000 : : : "x0");
+                            // a += b;
+#endif
                         a |= b;
                 }
                 tm_end = MYDCLOCK();
@@ -1611,12 +1734,16 @@ float simd_dot0(unsigned int i)
                 dura2 = dura = args[i].ping_tm_run;
             }
         }
+#ifdef __x86_64__
         if (msr_fd >= 0) {
           cyc_end = read_msr(msr_fd, MSR_APERF);
           close(msr_fd);
-          args[i].cycles_beg = cyc_beg;
-          args[i].cycles_end = cyc_end;
         }
+#elif __aarch64__
+        //cyc_end = get_arm_cyc();
+#endif
+        args[i].cycles_beg = cyc_beg;
+        args[i].cycles_end = cyc_end;
         args[i].dura = dura;
         args[i].tm_beg = tm_beg;
         args[i].tm_end = tm_end;
@@ -2475,10 +2602,14 @@ int main(int argc, char **argv)
         signal(SIGTERM, &sighandler);
         signal(SIGINT, &sighandler);
 
+        tm_beg = tm_end = MYDCLOCK();
         my_getcpu(&cpu);
         cpu0 = cpu;
-        tm_beg = tm_end = MYDCLOCK();
+#ifdef __aarch64__
+        t0 = get_tsc_and_cpu(&cpu0);
+#else
         t0 = __rdtsc();
+#endif
         while(tm_end - tm_beg < 0.1) {
                 t1 = get_tsc_and_cpu(&cpu0);
                 tm_end = MYDCLOCK();
