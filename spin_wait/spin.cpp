@@ -587,7 +587,7 @@ struct args_str {
         unsigned long rezult, loops;
         uint64_t size, bump, tsc_initial, cycles_beg, cycles_end;
         double tm_beg, tm_end, perf, dura, cpu_time, ping_tm_sleep, ping_tm_run, freq_load,
-            freq_fctr_run_secs, freq_fctr_sleep_secs;
+            freq_fctr_run_secs, freq_fctr_sleep_secs, ff_sleeps, ff_sleep_secs, ff_runs, ff_run_secs;
         int id, wrk_typ, clock, got_SLA, ping_iter, used_msr_cycles;
         std::vector <rt_str> rt_vec;
         char *dst;
@@ -596,7 +596,9 @@ struct args_str {
                 cycles_beg(0), cycles_end(0),
                 tm_beg(0.0), tm_end(0.0), perf(0.0), dura(0.0), ping_tm_sleep(0.0), ping_tm_run(0.),
                 id(-1), wrk_typ(-1), clock(CLOCK_USE_SYS),
-                freq_load(0.0), freq_fctr_run_secs(0.0), freq_fctr_sleep_secs(0.0), got_SLA(false), ping_iter(-1),
+                freq_load(0.0), freq_fctr_run_secs(0.0), freq_fctr_sleep_secs(0.0),
+                ff_sleeps(0), ff_sleep_secs(0), ff_runs(0), ff_run_secs(0),
+                got_SLA(false), ping_iter(-1),
                 used_msr_cycles(0), cpu_time(0)  {}
 };
 
@@ -1274,7 +1276,8 @@ float simd_dot0(unsigned int i)
         double tm_tsc0, tm_tsc1;
         uint64_t tsc0, tsc1;
         uint32_t cpu0, cpu1, cpu_initial;
-        double did_iters=0;
+        double did_iters=0, ff_sleeps=0, ff_sleep_secs= 0.0;;
+        double ff_runs=0, ff_run_secs= 0.0;;
         double my_freq_fctr = 1.0, freq_fctr_imx=0.0, freq_fctr_imx_sub=0.0;
 
         int msr_fd = -1;
@@ -1433,6 +1436,7 @@ float simd_dot0(unsigned int i)
                 double tm_prv;
                 while((tm_endt - tm_begt) < tm_to_run) {
                     did_iters++;
+                    double tm_bef_run = dclock3(clock, tsc_initial);
                     if (run_or_sleep == DO_RUN) {
                         for (ii=0; ii < imx; ii++) {
 #ifdef _WIN32
@@ -1455,10 +1459,16 @@ float simd_dot0(unsigned int i)
                             a |= b;
                         }
                     } else {
+                        ff_sleeps++;
                         my_msleep(ping_sleep_ms);
+                        ff_sleep_secs += 0.001 * (double)ping_sleep_ms;
                     }
                     tm_prv = tm_endt;
                     tm_endt = dclock3(clock, tsc_initial);
+                    if (run_or_sleep == DO_RUN) {
+                        ff_run_secs += tm_endt - tm_bef_run;
+                        ff_runs++;
+                    }
                     if (ping_iter != -1) {
                         int new_iter = 0;
                         if (run_or_sleep == DO_RUN) {
@@ -1772,6 +1782,10 @@ float simd_dot0(unsigned int i)
                   args[i].dura = xcumu;
                 }
                 args[i].cpu_time = xcumu;
+                args[i].ff_sleeps     = ff_sleeps;
+                args[i].ff_sleep_secs = ff_sleep_secs;
+                args[i].ff_runs       = ff_runs;
+                args[i].ff_run_secs   = ff_run_secs;
                 //rezult = (float)a;
                 //printf("in simd[%d].perf= %f\n", i, args[i].perf);
         }
@@ -2021,6 +2035,12 @@ static void opt_set_freq_fctr(unsigned int num_cpus_in, const char *optarg)
             break;
         }
     }
+    if (freq_fctr.size() > 0 && freq_fctr.size() < num_cpus_in) {
+      double v = freq_fctr[freq_fctr.size()-1];
+      for(int i= result.size(); i < num_cpus_in; i++) {
+        freq_fctr.push_back( v );
+      }
+    }
 }
 
 static void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
@@ -2264,7 +2284,8 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   A factor of 0.0 means not busy at all, 1.0 means the cpu is kept completely busy.\n"
                    "   A best effort is made to keep the cpu busy according to the factor.\n"
                    "   example --freq_fctr 1.0,0.50   load thread 0 at 100% busy, thread 1 at 50.0% busy.\n"
-                   "   If there are more threads than factors in the freq_fctr list then a factor of 1.0 is used.\n"
+                   "   If there are more threads than factors in the freq_fctr list then the last factor in the list is used for the rest of the threads.\n"
+                   "    example:  ./spin.x -w freq_sml2 -t 10 -n 12  --freq_fctr 1.0,0.16 -l 1000  # loads cpu0 at 100% and cpus 1-11 at 0.16%\n"
                 },
                 {"SLA",      required_argument,   0, 'S', "Service Level Agreement\n"
                    "   Enter -S pLVL0:warn0,crit0;pLVL1:warn1,crit1... for example\n"
@@ -2639,6 +2660,8 @@ int main(int argc, char **argv)
                 }
                 argvs.push_back(av);
         }
+        double tot_cycles=0.0, tot_cpu_time=0.0;
+        double tot_ff_sleep_secs=0.0, tot_ff_sleeps= 0.0, tot_ff_run_secs=0.0, tot_ff_runs= 0.0;
         for (uint32_t j=0; j < argvs.size(); j++) {
                 uint32_t i=1;
                 std::string phase;
@@ -2785,7 +2808,7 @@ int main(int argc, char **argv)
                                 t.join();
                         }
                         tm_end_loop = MYDCLOCK();
-                        double tot = 0.0;
+                        double tot = 0.0, v, v1, v2;
                         for (unsigned i = 0; i < num_cpus; ++i) {
                                 tot += args[i].perf;
                                 tot_ping_tm_run  += args[i].ping_tm_run;
@@ -2793,7 +2816,17 @@ int main(int argc, char **argv)
                                 ping_iter    = args[i].ping_iter;
                                 tot_freq_fctr_run_secs   += args[i].freq_fctr_run_secs;
                                 tot_freq_fctr_sleep_secs += args[i].freq_fctr_sleep_secs;
+                                tot_ff_sleep_secs        += args[i].ff_sleep_secs;
+                                tot_ff_sleeps            += args[i].ff_sleeps;
+                                tot_ff_run_secs          += args[i].ff_run_secs;
+                                tot_ff_runs              += args[i].ff_runs;
+                                v  = args[i].cycles_end - args[i].cycles_beg;
+                                v1 = args[i].cpu_time;
+                                tot_cycles  += v;
+                                tot_cpu_time += v1;
                                 if (freq_fctr.size() > 0) {
+                                    v2 = (v1 > 0.0 ? v/v1 : 0.0);
+                                    printf("cpu[%d] freq(GHz)= %f, Gcycles= %f, cputm= %f\n", i, 1.0e-9*v2, 1.0e-9 * v, v1);
                                     if (i < (int)freq_fctr.size()) {
                                         tot_freq_fctr_sum += freq_fctr[i];
                                     } else {
@@ -2870,9 +2903,21 @@ int main(int argc, char **argv)
                 tot_ping_tm_run, tot_ping_tm_sleep, ping_iter, __FILE__, __LINE__);
         }
         if (tot_freq_fctr_run_secs > 0.0 || tot_freq_fctr_sleep_secs > 0.0) {
-            printf("freq_fctr run_tm= %.3f secs, sleep_tm= %.3f secs, avg_target run_fctr= %.3f got run_fctr= %.3f at %s %d\n",
+            double v = 0.0, avg_sleep_dura_ms=0, avg_run_dura_ms=0;
+            if (tot_cpu_time > 0.0) {
+              v = 1.0e-9 * tot_cycles / tot_cpu_time;
+            }
+            if (tot_ff_sleeps > 0) {
+               avg_sleep_dura_ms = 1000.0 * tot_ff_sleep_secs/tot_ff_sleeps;
+            }
+            if (tot_ff_runs > 0) {
+               avg_run_dura_ms = 1000.0 * tot_ff_run_secs/tot_ff_runs;
+            }
+            printf("freq_fctr run_tm= %.3f secs, sleep_tm= %.3f secs, avg_target run_fctr= %.3f got run_fctr= %.3f avg_freq= %f (cycles/cputime) at %s %d\n",
                 tot_freq_fctr_run_secs, tot_freq_fctr_sleep_secs, tot_freq_fctr_sum/tot_freq_fctr_n,
-                (tot_freq_fctr_run_secs/(tot_freq_fctr_run_secs+tot_freq_fctr_sleep_secs)), __FILE__, __LINE__);
+                (tot_freq_fctr_run_secs/(tot_freq_fctr_run_secs+tot_freq_fctr_sleep_secs)), v, tot_ff_sleeps, avg_sleep_dura_ms,  __FILE__, __LINE__);
+            printf("tot_ff_runs= %.0f avg_run_dura_ms= %f tot_ff_sleeps= %.0f avg_sleep_dura_ms= %f at %s %d\n",
+                tot_ff_runs, avg_run_dura_ms, tot_ff_sleeps, avg_sleep_dura_ms,  __FILE__, __LINE__);
         }
         if (args[0].used_msr_cycles == 1) {
           printf("got cycles from /dev/cpu/*/msr device\n");
