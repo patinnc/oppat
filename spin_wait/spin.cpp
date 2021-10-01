@@ -365,7 +365,25 @@ void do_barrier_wait(void)
 #endif
 }
 
-int my_msleep(int msecs)
+static int my_usleep(int usecs)
+{
+#if defined(__linux__) || defined(__APPLE__)
+        struct timespec ts;
+        uint64_t us=usecs;
+
+        ts.tv_sec = us / 1000000;
+        ts.tv_nsec = (us % 1000000) * 1000;
+
+        return nanosleep(&ts, NULL);
+#else
+        int ms = usecs/1000;
+        if (ms < 1) { ms = 1; }
+        Sleep(ms);
+        return 0;
+#endif
+}
+
+static int my_msleep(int msecs)
 {
 #if defined(__linux__) || defined(__APPLE__)
         struct timespec ts;
@@ -381,7 +399,7 @@ int my_msleep(int msecs)
 #endif
 }
 
-double get_cputime(void)
+static double get_cputime(void)
 {
 #if defined(__linux__) || defined(__APPLE__)
         double x;
@@ -1010,6 +1028,76 @@ float disk_all(unsigned int i)
         return 0;
 }
 
+int do_mem_alloc(int i, char **dst, char **src, char **src2) {
+    int styp = LIST_FOR_MEM;
+    int strd = (int)args[i].bump;
+    size_t arr_sz = (size_t)args[i].size;
+    if (arr_sz > 0) {
+        if (membind_list.size() > 0) { styp = LIST_FOR_MEMBIND;}
+        pin(i, styp);
+        my_msleep(0); // necessary? in olden times it was.
+        if (i==0) {
+                printf("strd= %d, arr_sz= %.0f, %.0f KB, %.4f MB\n",
+                        strd, (double)arr_sz, (double)(arr_sz/1024), (double)(arr_sz)/(1024.0*1024.0));
+        }
+        if (options.huge_pages) {
+                size_t algn = 2*1024*1024;
+                size_t hsz = arr_sz;
+                size_t ck = hsz/algn;
+                if ((ck*algn) != hsz) {
+                        hsz = (ck+1)*algn;
+                }
+#if defined(__linux__) || defined(__APPLE__)
+                int rch = posix_memalign((void **)dst, algn, hsz);
+#else
+                *dst = (char *)_aligned_malloc(hsz, algn);
+#endif
+                if (rch != 0) {
+                        printf("posix_memalign malloc for dst huge_page array failed. Bye at %s %d\n", __FILE__, __LINE__);
+                }
+        } else {
+                *dst = (char *)malloc(arr_sz);
+        }
+        array_write(*dst, arr_sz, strd);
+        if (args[i].wrk_typ == WRK_MEM_BW_2RDWR ||
+            args[i].wrk_typ == WRK_MEM_BW_3RDWR ||
+                args[i].wrk_typ == WRK_MEM_BW_2RD ||
+                args[i].wrk_typ == WRK_MEM_BW_2RD2WR) {
+                char *trgt;
+                int ido, iend = (args[i].wrk_typ == WRK_MEM_BW_3RDWR ? 2 : 1);
+                for (ido=0; ido < iend; ido++) {
+                if (options.huge_pages) {
+                        size_t algn = 2*1024*1024;
+                        size_t hsz = arr_sz;
+                        size_t ck = hsz/algn;
+                        if ((ck*algn) != hsz) {
+                                hsz = (ck+1)*algn;
+                        }
+#if defined(__linux__) || defined(__APPLE__)
+                        int rch = posix_memalign((void **)&trgt, algn, hsz);
+#else
+                        trgt = (char *)_aligned_malloc(hsz, algn);
+#endif
+                        if (rch != 0) {
+                                printf("posix_memalign malloc for trgt huge_page array failed. Bye at %s %d\n", __FILE__, __LINE__);
+                        }
+                } else {
+                        trgt = (char *)malloc(arr_sz);
+                }
+                array_write(trgt, arr_sz, strd);
+                if (ido == 0) {
+                        *src = trgt;
+                } else {
+                        *src2 = trgt;
+                }
+                }
+        }
+   }
+   pin(i, LIST_FOR_CPU);
+   my_msleep(0); // necessary? in olden times it was.
+   return 0;
+}
+
 float mem_bw(unsigned int i)
 {
         char *dst, *src, *src2;
@@ -1022,7 +1110,9 @@ float mem_bw(unsigned int i)
         double tm_end, tm_beg, bytes=0.0;
         int strd = (int)args[i].bump;
         size_t arr_sz = (size_t)args[i].size;
-        //fprintf(stderr, "got to %d\n", __LINE__);
+        do_mem_alloc(i, &dst, &src, &src2);
+        bool do_loop = true;
+#if 0
         int styp = LIST_FOR_MEM;
         if (membind_list.size() > 0) { styp = LIST_FOR_MEMBIND;}
         pin(i, styp);
@@ -1086,6 +1176,7 @@ float mem_bw(unsigned int i)
         bool do_loop = true;
         pin(i, LIST_FOR_CPU);
         my_msleep(0); // necessary? in olden times it was.
+#endif
         if (args[i].wrk_typ == WRK_MEM_BW_REMOTE) {
                 int nd = cpu_belongs_to_which_node[cpu];
                 int cpu_order_for_nd = nodes_index_into_cpulist[cpu];
@@ -1279,6 +1370,10 @@ float simd_dot0(unsigned int i)
         double did_iters=0, ff_sleeps=0, ff_sleep_secs= 0.0;;
         double ff_runs=0, ff_run_secs= 0.0;;
         double my_freq_fctr = 1.0, freq_fctr_imx=0.0, freq_fctr_imx_sub=0.0;
+        char *dst=NULL, *src=NULL, *src2=NULL;
+        int strd = (int)args[i].bump;
+        size_t arr_sz = (size_t)args[i].size, res=0;
+        do_mem_alloc(i, &dst, &src, &src2);
 
         int msr_fd = -1;
         uint32_t cpu_beg, cpu_end, nd_beg, nd_end;
@@ -1386,6 +1481,7 @@ float simd_dot0(unsigned int i)
                 if (loops != 0) {
                         imx = loops;
                 }
+
                 ops = 0;
                 xbeg = get_cputime();
                 xprev = xbeg;
@@ -1420,11 +1516,17 @@ float simd_dot0(unsigned int i)
                 int ping_drvr = 0, ping_chkr = 0, ping_iter = -1;
                 double ping_sleep_secs = options.ping_pong_sleep_secs;
                 double ping_run_secs   = options.ping_pong_run_secs;
-                int ping_sleep_ms = (int)(1000.0*options.ping_pong_sleep_secs);
+#ifdef _WIN32
+                double ping_sleep_units_per_sec = 1000.0;
+#else
+                double ping_sleep_units_per_sec = 1000000.0;
+#endif
+                double ping_sleep_units_per_sec_inv = 1.0/ping_sleep_units_per_sec;
+                int ping_sleep_tm = (int)(ping_sleep_units_per_sec * options.ping_pong_sleep_secs);
                 if (options.ping_pong_iter != -1 && (args.size() % 2) == 0) {
                     if ((i % 2) == 0) { run_or_sleep = DO_RUN; } else { run_or_sleep = DO_SLP; }
                     ping_iter = 0;
-                    if (ping_sleep_ms <= 0) { ping_sleep_ms = 1; }
+                    if (ping_sleep_tm <= 0) { ping_sleep_tm = 1; }
                     args[i].ping_iter = ping_iter;
                     ping_drvr = i - (i % 2);
                     ping_chkr = ping_drvr + 1;
@@ -1434,6 +1536,13 @@ float simd_dot0(unsigned int i)
                     ping_tm_beg = tm_endt;
                 }
                 double tm_prv;
+                size_t arr_lines = arr_sz/64;
+                //double instr_per_byte = 26.0 / 10.7; // instr_per_sec / target bw GB_p_sec
+                double instr_per_byte = 26.0 / 6.0; // instr_per_sec / target bw GB_p_sec
+                int  bytes_per_10kInstr_loop = (int)(10000.0 / instr_per_byte);
+                bytes_per_10kInstr_loop = bytes_per_10kInstr_loop/64;
+                bytes_per_10kInstr_loop *= 64;
+                size_t ia_i=0, ia_beg=0, ia_end=arr_sz - bytes_per_10kInstr_loop;
                 while((tm_endt - tm_begt) < tm_to_run) {
                     did_iters++;
                     double tm_bef_run = dclock3(clock, tsc_initial);
@@ -1457,11 +1566,21 @@ float simd_dot0(unsigned int i)
 #endif
 #endif
                             a |= b;
+                        if (arr_sz > 0) {
+                           int ia_j = 0;
+                           while (ia_i < ia_end && ia_j < bytes_per_10kInstr_loop) {
+                             //res += dst[ia_i];
+                             ++dst[ia_i];
+                             ia_j += 64;
+                             ia_i += 64;
+                           }
+                           if (ia_i >= ia_end) { ia_i = 0; }
+                        }
                         }
                     } else {
                         ff_sleeps++;
-                        my_msleep(ping_sleep_ms);
-                        ff_sleep_secs += 0.001 * (double)ping_sleep_ms;
+                        my_usleep(ping_sleep_tm);
+                        ff_sleep_secs += ping_sleep_units_per_sec_inv * (double)ping_sleep_tm;
                     }
                     tm_prv = tm_endt;
                     tm_endt = dclock3(clock, tsc_initial);
@@ -1504,7 +1623,7 @@ float simd_dot0(unsigned int i)
                                 }
                             }
                         } else {
-                            args[i].ping_tm_sleep += 0.001 * (double)ping_sleep_ms;
+                            args[i].ping_tm_sleep += ping_sleep_units_per_sec_inv * (double)ping_sleep_tm;
                             if ( args[ping_drvr].ping_iter != ping_iter) {
                                 args[ping_chkr].ping_iter = args[ping_drvr].ping_iter;
                                 ping_iter = args[ping_chkr].ping_iter;
@@ -1530,9 +1649,10 @@ float simd_dot0(unsigned int i)
                         }
                         double cur_run_ratio = freq_fctr_run_secs / (freq_fctr_run_secs + freq_fctr_sleep_secs);
                         if (cur_run_ratio > my_freq_fctr) {
+                            double tstr = (((int)(did_iters) % 2) == 0 ? -1.0 : 1.0 ) * 0.05*(ping_sleep_units_per_sec * tm_per_iter);
                             run_or_sleep = DO_SLP;
-                            ping_sleep_ms = (int)(1000.0 * tm_per_iter);
-                            if (ping_sleep_ms <= 0) { ping_sleep_ms = 1; };
+                            ping_sleep_tm = (int)(tstr + ping_sleep_units_per_sec * tm_per_iter);
+                            if (ping_sleep_tm <= 0) { ping_sleep_tm = 1; };
                         } else {
                             run_or_sleep = DO_RUN;
                         }
@@ -1568,6 +1688,9 @@ float simd_dot0(unsigned int i)
 #endif
                 xend = get_cputime();
                 xcumu += xend-xbeg;
+                if (res == 43) {
+                  printf("res[%d]= %.0f\n", i, (double)res);
+                }
                 if (freq_fctr_imx > 0) {
                     xinst += (double)10000 * freq_fctr_imx;
                 } else {
