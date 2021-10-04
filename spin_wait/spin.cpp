@@ -32,7 +32,6 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <signal.h>
-//#include <arm_neon.h>
 #include <ctime>
 #include <cstdio>
 #include <string>
@@ -49,6 +48,9 @@
 #include <numa.h>
 #include <unistd.h>
 #include <sys/syscall.h>   /* For SYS_xxx definitions */
+#include <sys/time.h>
+#include <sys/resource.h>
+
 //#include <getcpu.h>
 #endif
 #ifdef _WIN32
@@ -101,6 +103,8 @@ std::vector <int> cpu_list;
 std::vector <int> mem_list;
 std::vector <int> membind_list;
 std::vector <double> freq_fctr;
+std::vector <double> mispred_target;
+std::vector <double> mispred_size;
 
 enum { // below enum has to be in same order as wrk_typs
         WRK_SPIN,
@@ -110,6 +114,7 @@ enum { // below enum has to be in same order as wrk_typs
         WRK_FREQ_SML,
         WRK_FREQ_SML2,
         WRK_MEM_LAT,
+        WRK_MISPRED,
         WRK_MEM_BW,
         WRK_MEM_BW_RDWR,
         WRK_MEM_BW_2RD,
@@ -133,6 +138,7 @@ static std::vector <std::string> wrk_typs = {
         "freq_sml",
         "freq_sml2",
         "mem_lat",
+        "mispred",
         "mem_bw",
         "mem_bw_rdwr",
         "mem_bw_2rd",
@@ -399,6 +405,27 @@ static int my_msleep(int msecs)
 #endif
 }
 
+static double get_cpu_user_system_time(int typ) {
+    double x=0.0;
+#if defined(__linux__) || defined(__APPLE__)
+    int rc;
+    struct rusage usage;
+    struct timeval *ru_tm = NULL;
+
+    rc = getrusage(RUSAGE_THREAD, &usage);
+    if (typ == 0) {
+      ru_tm = &usage.ru_utime;
+    } else if (typ == 1) {
+      ru_tm = &usage.ru_stime;
+    } else {
+      fprintf(stderr, "unexpected type for get_cpu_user_system_time(%d) at %s %d\n", typ, __FILE__, __LINE__);
+      exit(1);
+    }
+    x = (double)(ru_tm->tv_sec) + 0.000001 * (double)(ru_tm->tv_usec);
+#endif
+    return x;
+}
+
 static double get_cputime(void)
 {
 #if defined(__linux__) || defined(__APPLE__)
@@ -608,6 +635,7 @@ struct args_str {
             freq_fctr_run_secs, freq_fctr_sleep_secs, ff_sleeps, ff_sleep_secs, ff_runs, ff_run_secs;
         int id, wrk_typ, clock, got_SLA, ping_iter, used_msr_cycles;
         std::vector <rt_str> rt_vec;
+        std::vector<int> rlist, olist;
         char *dst;
         std::string bump_str, loops_str, size_str, units;
         args_str(): spin_tm(0.0), rezult(0), loops(0), dst(0), size(0), bump(0), tsc_initial(0),
@@ -651,6 +679,67 @@ uint64_t do_scale_fast(uint64_t loops, uint64_t rez, uint64_t &ops)
 
 
 std::vector <args_str> args;
+
+static double mispredict_test(int cpu, int mode)
+{
+    int val, tot, idx, odd;
+    double ratio, dodd, dtot, dtarget;
+    double tms=0;
+    size_t mispred_sz = mispred_size[cpu];
+ 
+    if (mispred_sz < 1024) { mispred_sz = 1024; }
+    if (mode == 0) { // init mode
+    if (args[cpu].rlist.size() == 0) {
+        if (cpu == 0) {
+        for(int i = 0; i < mispred_sz; i++) {
+           args[cpu].rlist.push_back(rand());
+           args[cpu].olist.push_back(rand());
+        }
+        } else {
+        for(int i = 0; i < mispred_sz; i++) {
+           args[cpu].rlist.push_back(args[0].rlist[i]);
+           args[cpu].olist.push_back(args[0].olist[i]);
+        }
+        }
+    }
+      return 0;
+    }
+    if (mispred_target[cpu] <= 0.0) {
+       dtarget = 0.0;
+    } else {
+       dtarget = 0.01 * mispred_target[cpu];
+    }
+   
+    for (int j=0; j < args[cpu].loops; j++) {
+        dodd = 0;
+        dtot = 1;
+        for (int i=0; i < mispred_sz-2; i+=2) {
+          ratio = dtarget * dtot;
+          val = args[cpu].rlist[i];
+          //val = rand();
+          //if( dodd < ratio && (val % 2) == 1 ) {
+          if( dodd < ratio && (val % 2) == (args[cpu].olist[i] % 2) ) {
+            dodd++;
+          }
+          dtot++;
+          ratio = dtarget * dtot;
+          val = args[cpu].rlist[i+1];
+          //val = rand();
+          //if( dodd < ratio && (val % 2) == 1 ) {
+          if( dodd < ratio && (val % 2) == (args[cpu].olist[i+1] % 2) ) {
+            dodd++;
+          }
+          dtot++;
+        }
+        tot++;
+        tms += mispred_sz;
+    }
+    if (options.verbose > 0 && cpu == 0) {
+      // need this possible print stmt so the compiler doesn't optimize loop away
+      fprintf(stderr, "cpu[%d] tms= %d dtarget= %f, dodd= %f, dtot= %f, ratio= %f, tot= %d at %s %d\n", cpu, tms,  dtarget, dodd, dtot, ratio, tot, __FILE__, __LINE__);
+    }
+    return tms;
+}
 
 static int array_write(char *buf, size_t ar_sz, int strd)
 {
@@ -1370,6 +1459,7 @@ float simd_dot0(unsigned int i)
         double did_iters=0, ff_sleeps=0, ff_sleep_secs= 0.0;;
         double ff_runs=0, ff_run_secs= 0.0;;
         double my_freq_fctr = 1.0, freq_fctr_imx=0.0, freq_fctr_imx_sub=0.0;
+        double my_mispred_target = 50;
         char *dst=NULL, *src=NULL, *src2=NULL;
         int strd = (int)args[i].bump;
         size_t arr_sz = (size_t)args[i].size, res=0;
@@ -1381,7 +1471,13 @@ float simd_dot0(unsigned int i)
         uint64_t cyc_beg=0, cyc_end=0;
 
         pin(i, LIST_FOR_CPU);
+        if (args[i].wrk_typ == WRK_MISPRED && i == 0) {
+           mispredict_test(cpu, 0);
+        }
         do_barrier_wait();
+        if (args[i].wrk_typ == WRK_MISPRED && i > 0) {
+           mispredict_test(cpu, 0);
+        }
         uint64_t tsc_initial = get_tsc_and_cpu(&cpu_initial);
         args[i].tsc_initial = tsc_initial;
 
@@ -1474,6 +1570,49 @@ float simd_dot0(unsigned int i)
                 //printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
                 ops = (uint64_t)(xinst);
                 tm_end = dclock2();
+        }
+        if (args[i].wrk_typ == WRK_MISPRED) {
+                int b = 2, imx = 100000, ii;
+                if (loops != 0) {
+                        imx = loops;
+                }
+                ops = 0;
+                //double ru_user_beg = get_cpu_user_system_time(0);
+                //double ru_sys_beg = get_cpu_user_system_time(1);
+                xbeg = get_cputime();
+                xprev = xbeg;
+                //tm_endt = tm_begt = dclock3(clock, tsc_initial);
+                tm_endt = tm_begt = dclock2();
+                tm_prevt = tm_begt;
+                double ping_tm_beg, ping_tm_end;
+                double tm_prv;
+		int reps = 1000;
+                double tsc_tm_endt, tsc_tm_begt;
+                tsc_tm_endt = tsc_tm_begt = dclock3(CLOCK_USE_TSC, tsc_initial);
+                while((tsc_tm_endt - tsc_tm_begt) < tm_to_run) {
+                    did_iters++;
+                    xinst += mispredict_test(cpu, 1);
+                    tm_prv = tm_endt;
+                    //tm_endt = dclock2();
+                    tsc_tm_endt = dclock3(CLOCK_USE_TSC, tsc_initial);
+                    //tm_endt = dclock3(clock, tsc_initial);
+#ifdef __linux__
+                    if (got_quit == 1) {
+                        break;
+                    }
+#endif
+                }
+                tm_endt = dclock2();
+                xend = get_cputime();
+                xcumu += xend-xbeg;
+                //xinst += (double)imx;
+                //xinst *= did_iters * imx;
+                //printf("xcumu tm= %.3f, xinst= %g freq= %.3f GHz, i= %d, wrk_typ= %d\n", xcumu, xinst, 1.0e-9 * xinst/xcumu, i, args[i].wrk_typ);
+                ops = (uint64_t)(xinst);
+                tm_end = dclock2();
+                //double ru_user_end = get_cpu_user_system_time(0);
+                //double ru_sys_end = get_cpu_user_system_time(1);
+                //printf("cpu[%d] sys_beg= %f, sys_end= %f diff= %f at %s %d\n", cpu, ru_sys_beg, ru_sys_end, ru_sys_end-ru_sys_beg, __FILE__, __LINE__);
         }
 
         if (args[i].wrk_typ == WRK_FREQ_SML2) {
@@ -1570,7 +1709,7 @@ float simd_dot0(unsigned int i)
                            int ia_j = 0;
                            while (ia_i < ia_end && ia_j < bytes_per_10kInstr_loop) {
                              //res += dst[ia_i];
-                             ++dst[ia_i];
+                             res += ++dst[ia_i];
                              ia_j += 64;
                              ia_i += 64;
                            }
@@ -1893,7 +2032,9 @@ float simd_dot0(unsigned int i)
                 args[i].perf = 1.0e-9 * (double)(ops)/(dura2);
                 args[i].rezult = rezult;
         }
-        if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ2 || args[i].wrk_typ == WRK_FREQ_SML ||
+        if (args[i].wrk_typ == WRK_FREQ || args[i].wrk_typ == WRK_FREQ2 ||
+            args[i].wrk_typ == WRK_FREQ_SML ||
+            args[i].wrk_typ == WRK_MISPRED  ||
             args[i].wrk_typ == WRK_FREQ_SML2) {
                 args[i].rezult = (double)a;
                 if (args[i].cycles_beg != 0) {
@@ -1933,6 +2074,7 @@ float dispatch_work(int  i)
                 case WRK_FREQ2:
                 case WRK_FREQ_SML:
                 case WRK_FREQ_SML2:
+                case WRK_MISPRED:
                         res = simd_dot0(i);
                         break;
                 case WRK_MEM_BW:
@@ -2061,17 +2203,23 @@ static void opt_set_huge_pages(void)
         printf("try huge_page pos_memalign alloc = 1\n");
 }
 
+static size_t get_size_kmg(std::string size_str)
+{
+        size_t size = strtoull(size_str.c_str(), NULL, 0);
+        if (size_str.size() > 0 && (strstr(size_str.c_str(), "k") || strstr(size_str.c_str(), "K"))) {
+                size *= 1024;
+        } else if (size_str.size() > 0 && (strstr(size_str.c_str(), "m") || strstr(size_str.c_str(), "M"))) {
+                size *= 1024*1024;
+        } else if (size_str.size() > 0 && (strstr(size_str.c_str(), "g") || strstr(size_str.c_str(), "G"))) {
+                size *= 1024*1024*1024;
+        }
+        return size;
+}
+
 static void opt_set_size(const char *optarg)
 {
-        options.size = strtoull(optarg, NULL, 0);
         options.size_str = optarg;
-        if (options.size_str.size() > 0 && (strstr(options.size_str.c_str(), "k") || strstr(options.size_str.c_str(), "K"))) {
-                options.size *= 1024;
-        } else if (options.size_str.size() > 0 && (strstr(options.size_str.c_str(), "m") || strstr(options.size_str.c_str(), "M"))) {
-                options.size *= 1024*1024;
-        } else if (options.size_str.size() > 0 && (strstr(options.size_str.c_str(), "g") || strstr(options.size_str.c_str(), "G"))) {
-                options.size *= 1024*1024*1024;
-        }
+        options.size = get_size_kmg(options.size_str);
         double kb, mb, gb;
         kb = options.size;
         kb /= 1024.0;
@@ -2151,8 +2299,6 @@ static void opt_set_freq_fctr(unsigned int num_cpus_in, const char *optarg)
     std::string::size_type sz;
     for(int i = 0; i<result.size(); i++) {
         double dfctr = std::stod ( result.at(i), &sz);
-        if (dfctr < 0.0) { dfctr = 0.0; }
-        if (dfctr > 1.0) { dfctr = 1.0; }
         freq_fctr.push_back( dfctr );
         if ((i+1) == num_cpus_in) {
             break;
@@ -2164,6 +2310,63 @@ static void opt_set_freq_fctr(unsigned int num_cpus_in, const char *optarg)
         freq_fctr.push_back( v );
       }
     }
+}
+
+static void opt_set_mispred_target(unsigned int num_cpus_in, const char *optarg)
+{
+    double trgt=50.0, dsz=4*4096;
+    std::string my_str = std::string(optarg);
+    std::vector<std::string> result;
+    std::vector<std::string> sz_result;
+    std::string::size_type sz;
+    std::stringstream s_stream(my_str); //create string stream from the string
+    while(s_stream.good()) {
+        std::string substr;
+        std::getline(s_stream, substr, ','); //get first string delimited by comma
+        if (result.size() == 0) {
+          result.push_back(substr);
+        } else if (result.size() == 1) {
+          sz_result.push_back(substr);
+        }
+    }
+    for(int i = 0; i<result.size(); i++) {
+        double dfctr = std::stod ( result.at(i), &sz);
+        if (dfctr < 0.0) { dfctr = 0.0; }
+        if (dfctr > 50.0) { dfctr = 50.0; }
+        mispred_target.push_back( dfctr );
+        if ((i+1) == num_cpus_in) {
+            break;
+        }
+    }
+    if (mispred_target.size() == 0) {
+        mispred_target.push_back( trgt );
+    }
+    for(int i = 0; i< sz_result.size(); i++) {
+        double dfctr = (double)get_size_kmg(sz_result.at(i));
+        mispred_size.push_back( dfctr );
+        if ((i+1) == num_cpus_in) {
+            break;
+        }
+    }
+    if (mispred_size.size() == 0) {
+        mispred_size.push_back( dsz );
+    }
+    if (mispred_target.size() > 0 && mispred_target.size() < num_cpus_in) {
+      double v = mispred_target[mispred_target.size()-1];
+      for(int i= mispred_target.size(); i < num_cpus_in; i++) {
+        mispred_target.push_back( v );
+      }
+    }
+    if (mispred_size.size() > 0 && mispred_size.size() < num_cpus_in) {
+      double v = mispred_size[mispred_size.size()-1];
+      for(int i= mispred_size.size(); i < num_cpus_in; i++) {
+        mispred_size.push_back( v );
+      }
+    }
+    //if (options.verbose > 0) {
+      fprintf(stderr, "mispred target= %f, rand_size= %f tsz= %d, rsz= %d  at %s %d\n",
+        mispred_target[0], mispred_size[0], (int)mispred_target.size(), (int)mispred_size.size(), __FILE__, __LINE__);
+    //}
 }
 
 static void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
@@ -2338,7 +2541,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   required arg\n"
                 },
                 {"work",      required_argument,   0, 'w', "type of work to do\n"
-                   "   work_type: spin|spin_fast|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
+                   "   work_type: spin|spin_fast|mem_bw|mem_bw_rdwr|mem_bw_2rd|mem_bw_2rdwr|mem_bw_2rd2wr|mem_bw_remote|mispred|disk_rd|disk_wr|disk_rdwr|disk_rd_dir|disk_wr_dir|disk_rdwr_dir\n"
                    "   sample disk io write cmd: ./bin/spin.x -w disk_wr_dir -f /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096\n"
                    "     takes 30 seconds on nvme drive capable of 1100 MB/s\n"
                    "   sample disk io read cmd: ./bin/spin.x -w disk_rd_dir -f /mnt/nvme_pat1/tmp4 -s 200g -t 1 -l 2000 -b 4096\n"
@@ -2347,6 +2550,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   spin_fast do loop over int add (IPC=4 on cascade lake 1 thr/core)\n"
                    "   mem_bw does pure read mem bandwidth test\n"
                    "   mem_bw_rdwr 2rd, 2rdwr 2rd2wr does various combos of read and write transaction\n"
+                   "   mispred does a branch mispredict loop test (mostly for testing perf events\n"
                    "   disk_* tests does disk IO tests\n"
                    "   required arg\n"
                 },
@@ -2403,12 +2607,24 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                    "   Currently only applies to freq_sml2. This feature is intended for testing perf on hyperthreaded cores\n"
                 },
                 {"freq_fctr",     required_argument,   0, 0, "comma separated list of load_factors (0.0 to 1.0).\n"
-                   "   This is only fro freq_sml2 currently. The routine will try to keep the cpu busy by factor.s\n"
+                   "   This is only for -w freq_sml2 currently. The routine will try to keep the cpu busy by factor.s\n"
                    "   A factor of 0.0 means not busy at all, 1.0 means the cpu is kept completely busy.\n"
                    "   A best effort is made to keep the cpu busy according to the factor.\n"
                    "   example --freq_fctr 1.0,0.50   load thread 0 at 100% busy, thread 1 at 50.0% busy.\n"
                    "   If there are more threads than factors in the freq_fctr list then the last factor in the list is used for the rest of the threads.\n"
                    "    example:  ./spin.x -w freq_sml2 -t 10 -n 12  --freq_fctr 1.0,0.16 -l 1000  # loads cpu0 at 100% and cpus 1-11 at 0.16%\n"
+                },
+                {"mispred_target",     required_argument,   0, 0, "target max mispredict ratio. must be 0 to 50.\n"
+                   "   This is only for -w mispred. The mispredict routine loops over a branch prediction tester.s\n"
+                   "   It can get about 50% mispredicts max. This option lets you set a lower max mispredict ratio.\n"
+                   "   The target must be > 0.0 and < 50.0. Default is 50.\n"
+                   "   Add 2nd number is the number of entries in the 2 integer random number arrays. Default size is 16k entries.\n"
+                   "     If the array size is too small then branch prediction can make very good predictions.\n"
+                   "     And, it seems like the front-end stalls is increased as the size gets bigger.\n"
+                   "   example --mispred_target 40   would try to set the mispredict ratio to 40%.\n"
+                   "        you don't really get the the target you pick but as you go from > 0 to 50 then the %bad_speculation will increase (more or less).\n"
+                   "        I use this to test the %bad_speculation and %front_end stall top-down equations.\n"
+                   "   example --mispred_target 40,16k   would try to set the mispredict ratio to 40% and array size to 16k integers.\n"
                 },
                 {"SLA",      required_argument,   0, 'S', "Service Level Agreement\n"
                    "   Enter -S pLVL0:warn0,crit0;pLVL1:warn1,crit1... for example\n"
@@ -2440,7 +2656,7 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                 switch (c)
                 {
                 case 0:
-                        fprintf(stderr, "opt[%d]= %s\n", option_index, long_options[option_index].name);
+                        //fprintf(stderr, "opt[%d]= %s\n", option_index, long_options[option_index].name);
                         if (strcmp(long_options[option_index].name, "nopin") == 0) {
                                 opt_set_nopin();
                                 break;
@@ -2491,6 +2707,10 @@ get_opt_main (unsigned int num_cpus_in, int argc, std::vector <std::string> argv
                         }
                         if (strcmp(long_options[option_index].name, "freq_fctr") == 0) {
                                 opt_set_freq_fctr(num_cpus_in, optarg);
+                                break;
+                        }
+                        if (strcmp(long_options[option_index].name, "mispred_target") == 0) {
+                                opt_set_mispred_target(num_cpus_in, optarg);
                                 break;
                         }
                         if (strcmp(long_options[option_index].name, "List") == 0) {
