@@ -688,21 +688,22 @@ static double mispredict_test(int cpu, int mode)
     size_t mispred_sz = mispred_size[cpu];
  
     if (mispred_sz < 1024) { mispred_sz = 1024; }
+
     if (mode == 0) { // init mode
-    if (args[cpu].rlist.size() == 0) {
-        if (cpu == 0) {
+     if (args[cpu].rlist.size() == 0) {
+      if (cpu == 0) {
         for(int i = 0; i < mispred_sz; i++) {
            args[cpu].rlist.push_back(rand());
            args[cpu].olist.push_back(rand());
         }
-        } else {
+      } else {
         for(int i = 0; i < mispred_sz; i++) {
            args[cpu].rlist.push_back(args[0].rlist[i]);
            args[cpu].olist.push_back(args[0].olist[i]);
         }
-        }
-    }
-      return 0;
+      }
+     }
+     return 0;
     }
     if (mispred_target[cpu] <= 0.0) {
        dtarget = 0.0;
@@ -1576,6 +1577,7 @@ float simd_dot0(unsigned int i)
                 if (loops != 0) {
                         imx = loops;
                 }
+                if(args[cpu].loops == 0) { args[cpu].loops = 1000; }
                 ops = 0;
                 //double ru_user_beg = get_cpu_user_system_time(0);
                 //double ru_sys_beg = get_cpu_user_system_time(1);
