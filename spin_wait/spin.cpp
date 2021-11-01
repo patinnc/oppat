@@ -176,10 +176,13 @@ struct options_str {
 #include <x86intrin.h>
     // do arm stuff
 #endif
-static void my_getcpu(unsigned int *cpu)
+static void my_getcpu(unsigned int *cpu, uint32_t *node)
 {
 #ifdef __x86_64__
-   __rdtscp(cpu);
+   unsigned int nd, cp;
+   __rdtscp(&cp);
+   *cpu  = (cp & 0xfff);
+   *node = ((cp >> 12) & 0xff);
 #elif __aarch64__
    int rc;
    unsigned int node;
@@ -497,8 +500,66 @@ int pthread_setaffinity_np(pthread_t thread, size_t cpu_size,
 #define LIST_FOR_MEM 0
 #define LIST_FOR_CPU 1
 #define LIST_FOR_MEMBIND 2
+#define LIST_FOR_JUSTPIN 3
 
+static int read_file_into_string(std::string filename, std::string &buf);
 
+static int build_cpu_belongs_to_node_list(int num_cpus) {
+   int nd_max = -1;
+   std::vector <std::string> cpu_str_vec;
+   //if (cpu_belongs_to_which_node.size() == num_cpus) {
+   //   return 0;
+   //}
+   for (int nd=0; nd < 2; nd++) {
+   	std::string nd_file= "/sys/devices/system/node/node"+std::to_string(nd)+"/cpulist";
+   	int rc = ck_filename_exists(nd_file.c_str(), __FILE__, __LINE__, 0);
+   	if (rc != 0) {
+   		printf("you requested mem_bw_remote but I don't see any node file named '%s'. Bye at %s %d\n",
+   			nd_file.c_str(), __FILE__, __LINE__);
+   		exit(0);
+   	}
+   	std::string cpu_str;
+   	rc = read_file_into_string(nd_file, cpu_str);
+   	cpu_str_vec.push_back(cpu_str);
+   }
+   // simple list assumed: 1, 2, 3 or 1-2, 4-6, 7 so comma separate groups of 1 or a range of cpus
+   printf("Only using 2 nodes for mem_bw_remote at %s %d\n", __FILE__, __LINE__);
+   nodes_cpulist.resize(2);
+   cpu_belongs_to_which_node.resize(num_cpus, -1);
+   nodes_index_into_cpulist.resize(num_cpus, -1);
+#ifdef __linux__
+   for (int nd=0; nd < 2; nd++) {
+      if (options.verbose > 0) {
+         printf("node%d cpu_str= %s\n", nd, cpu_str_vec[nd].c_str());
+      }
+      std::vector <std::string> grps;
+      tkn_split(cpu_str_vec[nd], ",", grps);
+      for (int grp=0; grp < grps.size(); grp++) {
+         std::vector <std::string> beg_end;
+         tkn_split(grps[grp], "-", beg_end);
+         //printf("nd %d, grp[%d]= '%s', beg_end_sz= %d\n", nd, grp, grps[grp].c_str(), (int)beg_end.size());
+         if (beg_end.size() == 0) {
+            beg_end.push_back(grps[grp]);
+            beg_end.push_back(grps[grp]);
+         }
+         int cpu_beg = atoi(beg_end[0].c_str());
+         int cpu_end = atoi(beg_end[1].c_str());
+         for (int cbe=cpu_beg; cbe <= cpu_end; cbe++) {
+            //printf("nd %d, grp[%d]= '%s' cpu[%d]= %d\n", nd, grp, grps[grp].c_str(), (int)nodes_cpulist[nd].size(), cbe);
+            cpu_belongs_to_which_node[cbe] = nd;
+            nodes_index_into_cpulist[cbe] = (int)nodes_cpulist[nd].size();
+            nodes_cpulist[nd].push_back(cbe);
+         }
+      }
+   }
+   if (options.verbose > 0) {
+      for (int ii=0; ii < cpu_belongs_to_which_node.size(); ii++) {
+         printf("cpu_belongs_to_which_node[%d]= %d\n", ii, cpu_belongs_to_which_node[ii]);
+      }
+   }
+#endif
+   return 0;
+}
 void pin(int cpu, int typ)
 {
    if (options.nopin == 1) {
@@ -519,23 +580,30 @@ void pin(int cpu, int typ)
       }
       i = mem_list[i];
    }
-   if (typ == LIST_FOR_MEMBIND && membind_list.size() > 0) {
+   if (1 == 2 && (typ == LIST_FOR_MEMBIND && membind_list.size() > 0)) {
       static int did_membind = 0;
       if (did_membind == 0) {
-        //did_membind = 1;
+        did_membind = 1;
       if (options.verbose > 0) {
-        printf("LIST_FOR_MEMBIND pin thread %d to cpu %d at %s %d\n", i, membind_list[i], __FILE__, __LINE__);
+        printf("LIST_FOR_MEMBIND pin thread %d to node %d at %s %d\n", i, membind_list[i], __FILE__, __LINE__);
       }
 #ifndef __APPLE__
       //struct bitmask *mask;
       //struct bitmask *mask = numa_allocate_nodemask();
       if (options.verbose > 0) {
-      printf("numa_num_configured_cpus()= %d\n", numa_num_configured_cpus());
+        printf("numa_num_configured_cpus()= %d\n", numa_num_configured_cpus());
       }
       int num_nodes = numa_max_node()+1;
       struct bitmask *mask = numa_bitmask_alloc(num_nodes);
 
       int did_set = 0;
+      if (membind_list.size() > cpu) {
+          int k = membind_list[cpu];
+          if (k < num_nodes) {
+             numa_bitmask_setbit(mask, k);
+             did_set = 1;
+          }
+      } else {
       for (int j=0; j < membind_list.size(); j++) {
           int k = membind_list[j];
           if (k < num_nodes) {
@@ -545,6 +613,7 @@ void pin(int cpu, int typ)
             printf("membind option -m %d but node number must be less than number of numa nodes= %d\n", k, num_nodes);
           }
           //struct bitmask *numa_bitmask_setbit(struct bitmask *bmp, unsigned int n);
+      }
       }
       for (int j=0; j < mask->size; j++) {
           int k = numa_bitmask_isbitset(mask,j);
@@ -1121,14 +1190,20 @@ float disk_all(unsigned int i)
 int do_mem_alloc(int i, char **dst, char **src, char **src2) {
     int styp = LIST_FOR_MEM;
     int strd = (int)args[i].bump;
+    if (membind_list.size() > 0) { styp = LIST_FOR_MEMBIND;}
     size_t arr_sz = (size_t)args[i].size;
     if (arr_sz > 0) {
-        if (membind_list.size() > 0) { styp = LIST_FOR_MEMBIND;}
         pin(i, styp);
         my_msleep(0); // necessary? in olden times it was.
         if (i==0) {
-                printf("strd= %d, arr_sz= %.0f, %.0f KB, %.4f MB\n",
-                        strd, (double)arr_sz, (double)(arr_sz/1024), (double)(arr_sz)/(1024.0*1024.0));
+           int pin_to=i;
+           uint32_t on_node=-1, on_cpu=-1; 
+           my_getcpu(&on_cpu, &on_node);
+           if (mem_list.size() > i) {
+              pin_to = mem_list[i];
+           }
+           printf("strd= %d, arr_sz= %.0f, %.0f KB, %.4f MB, thrd= %d, pin_to= %d, on_cpu= %d on_node= %d\n",
+                        strd, (double)arr_sz, (double)(arr_sz/1024), (double)(arr_sz)/(1024.0*1024.0), i, pin_to, on_cpu, on_node);
         }
         if (options.huge_pages) {
                 size_t algn = 2*1024*1024;
@@ -1146,7 +1221,43 @@ int do_mem_alloc(int i, char **dst, char **src, char **src2) {
                         printf("posix_memalign malloc for dst huge_page array failed. Bye at %s %d\n", __FILE__, __LINE__);
                 }
         } else {
+           if (styp == LIST_FOR_MEMBIND) {
+             // void *numa_alloc_onnode(size_t size, int node);
+             int use_node;
+             if (i < membind_list.size()) {
+                 use_node = membind_list[i];
+             } else {
+                 use_node = membind_list[membind_list.size()-1];
+             }
+#if 0
+             int num_cpus;
+             num_cpus = args.size();
+             uint32_t on_cpu_prev=-1, on_cpu=-1, on_node;
+             my_getcpu(&on_cpu, &on_node);
+             if (on_node != use_node) {
+               on_cpu_prev = on_cpu;
+               numa_set_localalloc();
+             for (int ii=0; ii < num_cpus; ii++) {
+               if (use_node == cpu_belongs_to_which_node[ii]) {
+                 pin(ii, LIST_FOR_JUSTPIN);
+                 my_msleep(0);
+                 break;
+               }
+             }
+             }
+#endif
+             *dst = (char *)numa_alloc_onnode(arr_sz, use_node);
+             memset(*dst, i+1, arr_sz);
+#if 0
+             //dst[0][0] = (char)1;
+             printf("cpu[%d] numa_alloc_onnode %d\n", i, use_node);
+             if (on_cpu_prev != -1) {
+                 pin(on_cpu_prev, LIST_FOR_JUSTPIN);
+             }
+#endif
+           } else {
                 *dst = (char *)malloc(arr_sz);
+           }
         }
         array_write(*dst, arr_sz, strd);
         if (args[i].wrk_typ == WRK_MEM_BW_2RDWR ||
@@ -1185,6 +1296,11 @@ int do_mem_alloc(int i, char **dst, char **src, char **src2) {
    }
    pin(i, LIST_FOR_CPU);
    my_msleep(0); // necessary? in olden times it was.
+   if (i == 0 && options.verbose > 0) {
+      uint32_t on_node=-1, on_cpu=-1; 
+      my_getcpu(&on_cpu, &on_node);
+      printf("at end of do_mem_alloc(), i= %d, on_cpu= %d, on_node= %d at %s %d\n", i, on_cpu, on_node, __FILE__, __LINE__);
+   }
    return 0;
 }
 
@@ -1267,7 +1383,7 @@ float mem_bw(unsigned int i)
         pin(i, LIST_FOR_CPU);
         my_msleep(0); // necessary? in olden times it was.
 #endif
-        if (args[i].wrk_typ == WRK_MEM_BW_REMOTE) {
+        if (1 == 2 && args[i].wrk_typ == WRK_MEM_BW_REMOTE) {
                 int nd = cpu_belongs_to_which_node[cpu];
                 int cpu_order_for_nd = nodes_index_into_cpulist[cpu];
                 int other_nd = (nd == 0 ? 1 : 0);
@@ -2390,6 +2506,9 @@ static void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
         if (typ == LIST_FOR_CPU) { styp = "cpu_list"; }
         if (typ == LIST_FOR_MEM) { styp = "mem_list"; }
         if (typ == LIST_FOR_MEMBIND) { styp = "membind_list"; }
+        if (options.verbose > 0) {
+           std::cout << "opt_set_List: typ= " << LIST_FOR_MEMBIND << " result.sz= " << result.size() << std::endl;
+        }
         std::vector<int> ivec;
         for(int i = 0; i<result.size(); i++) {
                 if (options.verbose > 0) {
@@ -2447,15 +2566,20 @@ static void opt_set_List(unsigned int num_cpus_in, const char *optarg, int typ)
                         }
                 }
         }
+        if (options.verbose > 0) {
+           std::cout << "opt_set_List: typ= " << LIST_FOR_MEMBIND << " ivec.sz= " << ivec.size() << std::endl;
+        }
         for(int i = 0; i<ivec.size(); i++) {
                 if (typ == LIST_FOR_CPU) {
                         cpu_list.push_back(ivec[i]);
                 }
                 if (typ == LIST_FOR_MEM) {
                         mem_list.push_back(ivec[i]);
+                        if (options.verbose > 0) { printf("mem_list[%d] = %d at %s %d\n", i, mem_list[i], __FILE__, __LINE__); }
                 }
                 if (typ == LIST_FOR_MEMBIND) {
                         membind_list.push_back(ivec[i]);
+                        if (options.verbose > 0) { printf("membind_list[%d] = %d at %s %d\n", i, membind_list[i], __FILE__, __LINE__); }
                 }
         }
 }
@@ -2897,7 +3021,7 @@ int read_options_file(std::string argv0, std::string opts, std::vector <std::vec
         return 0;
 }
 
-int read_file_into_string(std::string filename, std::string &buf)
+static int read_file_into_string(std::string filename, std::string &buf)
 {
         std::ifstream t(filename);
         std::stringstream buffer;
@@ -2931,7 +3055,7 @@ int do_gettimeofday(void)
 
 int main(int argc, char **argv)
 {
-        uint32_t cpu, cpu0;
+        uint32_t node, cpu, cpu0;
         uint64_t t0, t1;
         double t_first = MYDCLOCK(), tm_beg, tm_beg_loop, tm_end_loop, tm_end, tm_beg_top, tm_end_top;
         int ping_iter = -1;
@@ -2969,7 +3093,7 @@ int main(int argc, char **argv)
         signal(SIGINT, &sighandler);
 
         tm_beg = tm_end = MYDCLOCK();
-        my_getcpu(&cpu);
+        my_getcpu(&cpu, &node);
         cpu0 = cpu;
 #ifdef __aarch64__
         t0 = get_tsc_and_cpu(&cpu0);
@@ -3013,6 +3137,40 @@ int main(int argc, char **argv)
                 options.bump = 0;
                 options.size = 0;
                 get_opt_main(num_cpus, (int)argvs[j].size(), argvs[j]);
+                printf("num_cpus= %d, options.cpus= %d, cpu_list.sz= %d\n", num_cpus, options.cpus, cpu_list.size());
+                build_cpu_belongs_to_node_list(num_cpus);
+                if (options.cpus == -1 && cpu_list.size() > 0 && cpu_list.size() <= num_cpus) {
+                    options.cpus = cpu_list.size();
+                }
+                if (options.cpus > 0 && options.cpus < num_cpus) {
+                    num_cpus = options.cpus;
+                }
+                printf("num_cpu= %d\n", num_cpus);
+                if (options.wrk_typ == WRK_MEM_BW_REMOTE) {
+                    static int did_mem_bw_remote = 0;
+                    if (did_mem_bw_remote == 0) {
+                         did_mem_bw_remote = 1;
+                         if (membind_list.size() > 0 || mem_list.size() > 0) {
+                           printf("don't use the -m|--mem_node options or -M|--Mem options for wrk_typ -t mem_bw_remote.\n");
+                           printf("for -t mem_bw_remote then mem will be allocated on whatever node is not the node for the cpus used.\n");
+                           exit(1);
+                         }
+                         if (cpu_list.size() == 0) {
+                            for(int ii=0; ii < num_cpus; ii++) {
+                               cpu_list.push_back(ii);
+                            }
+                         }
+                         for(int ii=0; ii < cpu_list.size(); ii++) {
+                            int ik = cpu_list[ii];
+                            int ij = cpu_belongs_to_which_node[ik];
+                            int iuse = (ij == 0 ? 1 : 0);
+                            if (options.verbose > 0) {
+                              printf("thread[%d] for cpu[%d] is on node %d. Will use mem from node %d\n", ii, ik, ij, iuse);
+                            }
+                            membind_list.push_back(iuse);
+                         }
+                    }
+                }
                 if (options.wrk_typ == WRK_MEM_BW || options.wrk_typ == WRK_MEM_BW_RDWR ||
                         options.wrk_typ == WRK_MEM_BW_2RDWR || options.wrk_typ == WRK_MEM_BW_2RD ||
                         options.wrk_typ == WRK_MEM_LAT ||
@@ -3034,57 +3192,8 @@ int main(int argc, char **argv)
                                         printf("Setting disk loops to default -l %d\n", (int)options.loops);
                                 }
                         }
-                        if (options.wrk_typ == WRK_MEM_BW_REMOTE) {
-                                int nd_max = -1;
-                                std::vector <std::string> cpu_str_vec;
-                                for (int nd=0; nd < 2; nd++) {
-                                        std::string nd_file= "/sys/devices/system/node/node"+std::to_string(nd)+"/cpulist";
-                                        int rc = ck_filename_exists(nd_file.c_str(), __FILE__, __LINE__, 0);
-                                        if (rc != 0) {
-                                                printf("you requested mem_bw_remote but I don't see any node file named '%s'. Bye at %s %d\n",
-                                                        nd_file.c_str(), __FILE__, __LINE__);
-                                                exit(0);
-                                        }
-                                        std::string cpu_str;
-                                        rc = read_file_into_string(nd_file, cpu_str);
-                                        cpu_str_vec.push_back(cpu_str);
-                                }
-                                // simple list assumed: 1, 2, 3 or 1-2, 4-6, 7 so comma separate groups of 1 or a range of cpus
-                                printf("Only using 2 nodes for mem_bw_remote at %s %d\n", __FILE__, __LINE__);
-                                nodes_cpulist.resize(2);
-                                cpu_belongs_to_which_node.resize(num_cpus, -1);
-                                nodes_index_into_cpulist.resize(num_cpus, -1);
-                                for (int nd=0; nd < 2; nd++) {
-                                        //printf("cpu_str= %s\n", cpu_str_vec[nd].c_str());
-                                        std::vector <std::string> grps;
-                                        tkn_split(cpu_str_vec[nd], ",", grps);
-                                        for (int grp=0; grp < grps.size(); grp++) {
-                                                std::vector <std::string> beg_end;
-                                                tkn_split(grps[grp], "-", beg_end);
-                                                //printf("nd %d, grp[%d]= '%s', beg_end_sz= %d\n", nd, grp, grps[grp].c_str(), (int)beg_end.size());
-                                                if (beg_end.size() == 0) {
-                                                        beg_end.push_back(grps[grp]);
-                                                        beg_end.push_back(grps[grp]);
-                                                }
-                                                int cpu_beg = atoi(beg_end[0].c_str());
-                                                int cpu_end = atoi(beg_end[1].c_str());
-                                                for (int cbe=cpu_beg; cbe <= cpu_end; cbe++) {
-                                                        //printf("nd %d, grp[%d]= '%s' cpu[%d]= %d\n", nd, grp, grps[grp].c_str(), (int)nodes_cpulist[nd].size(), cbe);
-                                                        cpu_belongs_to_which_node[cbe] = nd;
-                                                        nodes_index_into_cpulist[cbe] = (int)nodes_cpulist[nd].size();
-                                                        nodes_cpulist[nd].push_back(cbe);
-                                                }
-                                        }
-                                }
-                        }
                 }
 
-                if (options.cpus == -1 && cpu_list.size() > 0 && cpu_list.size() <= num_cpus) {
-                    options.cpus = cpu_list.size();
-                }
-                if (options.cpus > 0 && options.cpus < num_cpus) {
-                        num_cpus = options.cpus;
-                }
 #if defined(__linux__) || defined(__APPLE__)
         pthread_barrier_init(&mybarrier, NULL, num_cpus+1);
 #else
