@@ -171,6 +171,19 @@ struct options_str {
 
 } options;
 
+#ifdef _WIN32
+#if defined __cplusplus
+extern "C" { /* Begin "C" */
+/* Intrinsics use C name-mangling.  */
+#endif /* __cplusplus */
+#endif
+extern unsigned int win_rorl(unsigned int b);
+#ifdef _WIN32
+#if defined __cplusplus
+}
+/* Intrinsics use C name-mangling.  */
+#endif /* __cplusplus */
+#endif
 #ifdef __x86_64__
     // do x64 stuff
 #include <x86intrin.h>
@@ -516,19 +529,21 @@ static int build_cpu_belongs_to_node_list(int num_cpus) {
    	if (rc != 0) {
    		printf("you requested mem_bw_remote but I don't see any node file named '%s'. Bye at %s %d\n",
    			nd_file.c_str(), __FILE__, __LINE__);
-   		exit(0);
+                //exit(0);
+		break;
    	}
+	nd_max++;
    	std::string cpu_str;
    	rc = read_file_into_string(nd_file, cpu_str);
    	cpu_str_vec.push_back(cpu_str);
    }
    // simple list assumed: 1, 2, 3 or 1-2, 4-6, 7 so comma separate groups of 1 or a range of cpus
    printf("Only using 2 nodes for mem_bw_remote at %s %d\n", __FILE__, __LINE__);
-   nodes_cpulist.resize(2);
+   nodes_cpulist.resize(nd_max+1);
    cpu_belongs_to_which_node.resize(num_cpus, -1);
    nodes_index_into_cpulist.resize(num_cpus, -1);
 #ifdef __linux__
-   for (int nd=0; nd < 2; nd++) {
+   for (int nd=0; nd < (nd_max+1); nd++) {
       if (options.verbose > 0) {
          printf("node%d cpu_str= %s\n", nd, cpu_str_vec[nd].c_str());
       }
@@ -1542,19 +1557,6 @@ float mem_bw(unsigned int i)
 #define C1000000 C100000 C100000 C100000 C100000 C100000  C100000 C100000 C100000 C100000 C100000
 #endif
 
-#ifdef _WIN32
-#if defined __cplusplus
-extern "C" { /* Begin "C" */
-/* Intrinsics use C name-mangling.  */
-#endif /* __cplusplus */
-#endif
-extern unsigned int win_rorl(unsigned int b);
-#ifdef _WIN32
-#if defined __cplusplus
-}
-/* Intrinsics use C name-mangling.  */
-#endif /* __cplusplus */
-#endif
 float simd_dot0(unsigned int i)
 {
         double tm_to_run = args[i].spin_tm;
