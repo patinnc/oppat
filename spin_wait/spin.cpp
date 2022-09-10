@@ -1007,7 +1007,9 @@ static size_t disk_write_dir(int myi, size_t ar_sz)
                         }
                         byts += bdone;
 #endif
+                        if (got_quit == 1) { break;}
                 }
+                        if (got_quit == 1) { break;}
         }
         args[myi].rezult = val;
 #ifdef _WIN32
@@ -1058,10 +1060,12 @@ static size_t disk_read_dir(int myi, size_t ar_sz)
                         }
                         byts += bdone;
 #endif
+                        if (got_quit == 1) { break;}
                 }
                 //for (int j= 0; j < ar_sz; j+= 256) {
                 //      val += buf[j];
                 //}
+                        if (got_quit == 1) { break;}
         }
 #ifdef _WIN32
         CloseHandle(fd);
@@ -1100,10 +1104,9 @@ static size_t disk_write(int myi, size_t ar_sz)
                 val++;
                 for (int j=0; j < num_pages; j += pg_chunks) {
                         byts += fwrite(buf, pg_chunks*pg_sz, 1, fp);
+                        if (got_quit == 1) { break;}
                 }
-                if (got_quit == 1) {
-                        break;
-                }
+                if (got_quit == 1) { break; }
         }
         byts *= pg_chunks * pg_sz;
         args[myi].rezult = val;
@@ -1134,15 +1137,14 @@ static size_t disk_read(int myi, size_t ar_sz)
         for (int i=0; i < loops; i++) {
                 for (int j=0; j < num_pages; j += pg_chunks) {
                         byts += fread(buf, pg_chunks*pg_sz, 1, fp);
+                   if (got_quit == 1) { break;}
                 }
 #if 0
                 for (int j= 0; j < ar_sz; j+= 512) {
                         val += buf[j];
                 }
 #endif
-                if (got_quit == 1) {
-                        break;
-                }
+                if (got_quit == 1) { break; }
         }
         byts *= pg_chunks * pg_sz;
         fclose(fp);
@@ -1163,6 +1165,10 @@ float disk_all(unsigned int i)
         } else {
                 args[i].filename = "disk_tst_" + std::to_string(i);
         }
+        pin(i, LIST_FOR_CPU);
+        mem_bw_threads_up++;
+        do_barrier_wait();
+
         tm_end = tm_beg = MYDCLOCK();
         while((tm_end - tm_beg) < tm_to_run) {
                 switch(args[i].wrk_typ) {
@@ -3221,12 +3227,21 @@ int main(int argc, char **argv)
                                 args[i].got_SLA = true;
                         }
                 }
-                if (doing_disk && options.spin_tm > 0.0) {
+                if (1==2 && doing_disk && options.spin_tm > 0.0) {
                         if (phase.size() > 0) {
                                 do_trace_marker_write("begin phase ST "+phase);
                         }
                         t_start = MYDCLOCK();
-                        dispatch_work(0);
+                        //dispatch_work(0);
+                        for (unsigned i = 0; i < num_cpus; ++i) {
+                                args[i].spin_tm = options.spin_tm_multi;
+                                threads[i] = std::thread([&iomutex, i] {
+                                        dispatch_work(i);
+                                });
+                                //while(mem_bw_threads_up <= i) {
+                                //        my_msleep(sleep_ms);
+                                //}
+                        }
                         t_end = MYDCLOCK();
                         if (phase.size() > 0) {
                                 std::string str = "end phase ST "+phase+", dura= "+std::to_string(args[0].dura)+", "+args[0].units+"= "+std::to_string(args[0].perf);
@@ -3241,7 +3256,8 @@ int main(int argc, char **argv)
                 printf("work= %s\n", work.c_str());
                 fflush(NULL);
 
-                if (!doing_disk && options.spin_tm_multi > 0.0) {
+                //if (!doing_disk && options.spin_tm_multi > 0.0) {
+                if (options.spin_tm_multi > 0.0) {
                         std::vector <rt_str> rt_vec;
                         uint64_t t0=0, t1;
                         int sleep_ms = 1; // 1 ms
